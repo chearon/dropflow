@@ -132,7 +132,7 @@ consecutive inline box in a new block box.
 - [x] paint borders, background
 - [x] border-top/right/bottom/left
 - [x] initial commit!!
-- [ ] support some css colors like transparent
+- [x] support some css colors like transparent
 - [ ] border-radius
 - [ ] linebox creation and height: auto
 - [ ] vertical align != baseline

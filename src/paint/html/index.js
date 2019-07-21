@@ -38,7 +38,6 @@ function paintBlockContainer(blockContainer, level = 0) {
   // now paint borders TODO border styles that aren't solid, border-radius
   for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
     const sideWidth = style[`border${side}Width`];
-    console.log(side, blockContainer.id, sideWidth);
     if (sideWidth > 0) {
       const borderColor = style[`border${side}Color`];
       const height = side === 'Top' || side === 'Bottom' ? sideWidth : borderArea.height;

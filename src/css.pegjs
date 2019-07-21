@@ -556,7 +556,6 @@ border_s = '-top' / '-right' / '-bottom' / '-left'
 
 border_dec
   = 'border'i t:border_s? S* ':' S* w:LENGTH S* s:border_style S* c:color? {
-    console.log(t);
     const ret = {};
     setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
     setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);

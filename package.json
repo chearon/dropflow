@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "esm": "^3.2.22"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.1.2",
+    "pegjs": "^0.10.0"
+  },
+  "name": "overflow",
+  "version": "0.0.0",
+  "description": "A small CSS2 document renderer built from specifications for learning purposes",
+  "main": "node.js",
+  "browser": "browser.js",
+  "scripts": {
+    "test": "mocha -r esm src/*.spec.js"
+  },
+  "keywords": [
+    "css2",
+    "css",
+    "html",
+    "browser",
+    "ua"
+  ],
+  "author": "Caleb Hearon <caleb@chearon.net>",
+  "license": "MIT"
+}

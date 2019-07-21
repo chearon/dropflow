@@ -13,7 +13,8 @@
   "main": "node.js",
   "browser": "browser.js",
   "scripts": {
-    "test": "mocha -r esm src/*.spec.js"
+    "test": "mocha -r esm src/*.spec.js",
+    "buildcssparser": "pegjs -O size src/css.pegjs"
   },
   "keywords": [
     "css2",

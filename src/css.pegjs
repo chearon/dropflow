@@ -64,7 +64,7 @@
   }
 
   const colorMap = new Map([
-    ['maroon', {r: 120, g: 0, b: 0, a: 1}],
+    ['maroon', {r: 128, g: 0, b: 0, a: 1}],
     ['red', {r: 255, g: 0, b: 0, a: 1}],
     ['orange', {r: 255, g: 165, b: 0, a: 1}],
     ['yellow', {r: 255, g: 255, b: 0, a: 1}],

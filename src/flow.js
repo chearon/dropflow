@@ -10,6 +10,7 @@ const bold = '\x1b[1m';
 const dim = '\x1b[2m';
 const underline = '\x1b[4m';
 
+// CSS 2 § 8.3.1
 class MarginCollapseContext {
   constructor() {
     this.current = null; // {root, position, margins}
@@ -48,9 +49,15 @@ class MarginCollapseContext {
       }
     }
 
+    if (this.last === 'start' && adjoins) this.current.through = true;
+
     if (adjoins) {
       this.current.margins.push(box.style.marginBottom);
-      if (this.last === 'end') this.current.root = box;
+      // When a box's end adjoins to the previous margin, move the "root" (the
+      // box which the margin will be placed adjacent to) to the highest-up box
+      // in the tree, since its siblings need to be shifted. If the margin is
+      // collapsing through, don't do that because CSS 2 §8.3.1 last 2 bullets
+      if (this.last === 'end' && !this.current.through) this.current.root = box;
     } else {
       this.current = {root: box, margins: [box.style.marginBottom], position: 'end'};
       this.margins.push(this.current);

@@ -134,7 +134,7 @@ consecutive inline box in a new block box.
 - [x] initial commit!!
 - [x] support some css colors like transparent
 - [x] auto height should work for block boxes with no IFC
-- [ ] §8.3.1 last 2 bullets
+- [x] §8.3.1 last 2 bullets
 - [ ] generate linebreaks in an IFC
 - [ ] IFC root needs to split shaping buffers on padding, vertical-align (CSS3 Text §7.3)
 - [ ] linebox creation and height: auto

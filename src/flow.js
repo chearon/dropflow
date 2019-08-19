@@ -129,6 +129,18 @@ class BlockContainer extends Box {
     this.contentArea.top = this.paddingArea.top + this.style.paddingTop;
   }
 
+  setBlockSize(height) {
+    this.contentArea.height = height;
+
+    this.paddingArea.height = this.contentArea.height
+      + this.style.paddingTop
+      + this.style.paddingBottom;
+
+    this.borderArea.height = this.paddingArea.height
+      + this.style.borderTopWidth
+      + this.style.borderBottomWidth;
+  }
+
   doBoxPositioning() {
     const mctx = new MarginCollapseContext();
 
@@ -159,6 +171,10 @@ class BlockContainer extends Box {
         blockOffset = box.contentArea.top;
         if (box.isBfcRoot) box.doBoxPositioning();
       } else { // post
+        if (box.containsBlocks && box.style.height === 'auto') {
+          box.setBlockSize(blockOffset - box.contentArea.top);
+        }
+
         blockOffset = stack.pop() + box.borderArea.height;
         blockOffset += end.has(box.id) ? end.get(box.id) : 0;
       }
@@ -245,27 +261,20 @@ class BlockContainer extends Box {
     // ---------------
 
     if (this.style.height === 'auto') {
-      // TODO in the scenario inside this if, this actually needs to be called
-      // during margin collapsing/block positioning (`doBoxPositioning`). So
-      // possibly distinguish between the doBoxSizing/doHorizontalBoxModel/
-      // doVerticalBoxModel functions and a new doAutoVerticalBoxModel
-      //
-      // Case 1 TODO
-      // Case 2 TODO
-      // Case 3 TODO
-      // Case 4 TODO
-      throw new Error(`Auto height for ${this.id} not yet implemented`);
+      if (this.children.length === 0) {
+        this.setBlockSize(0); // Case 4
+      } else if (this.containsBlocks) {
+        // Cases 2-4 should are handled by doBoxPositioning, where margin
+        // calculation happens. These bullet points seem to be re-phrasals of
+        // margin collapsing in CSS 2.2 § 8.3.1 at the very end. If I'm wrong,
+        // more might need to happen here.
+      } else {
+        // Case 1 TODO
+        throw new Error(`IFC height for ${this.id} not yet implemented`);
+      }
+    } else {
+      this.setBlockSize(this.style.height);
     }
-
-    this.contentArea.height = this.style.height;
-
-    this.paddingArea.height = this.contentArea.height
-      + this.style.paddingTop
-      + this.style.paddingBottom;
-
-    this.borderArea.height = this.paddingArea.height
-      + this.style.borderTopWidth
-      + this.style.borderBottomWidth;
   }
 
   doBoxSizing() {

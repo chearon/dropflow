@@ -190,7 +190,7 @@ class BlockContainer extends Box {
     // TODO for auto height, here is where we can assign the height of this box
   }
 
-  doHorizontalBoxModel() {
+  doInlineBoxModel() {
     // CSS 2.2 §10.3.3
     // ---------------
 
@@ -263,7 +263,7 @@ class BlockContainer extends Box {
     this.contentArea.left = this.paddingArea.left + this.style.paddingLeft;
   }
 
-  doVerticalBoxModel() {
+  doBlockBoxModel() {
     // CSS 2.2 §10.6.3
     // ---------------
 
@@ -304,10 +304,10 @@ class BlockContainer extends Box {
     // still go on this class while the IFC methods would go on the inline
     // class
 
-    this.doHorizontalBoxModel();
+    this.doInlineBoxModel();
 
-    if (this.style.height !== 'auto') this.doVerticalBoxModel();
-    
+    if (this.style.height !== 'auto') this.doBlockBoxModel();
+
     // Child flow is now possible
     if (this.containsBlocks) {
       for (const child of this.children) {
@@ -315,7 +315,7 @@ class BlockContainer extends Box {
       }
     }
 
-    if (this.style.height === 'auto') this.doVerticalBoxModel();
+    if (this.style.height === 'auto') this.doBlockBoxModel();
   }
 }
 

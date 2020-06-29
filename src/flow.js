@@ -111,7 +111,7 @@ class BlockContainer extends Box {
   }
 
   get containsBlocks() {
-    return this.children.length && !this.children[0].isInlineLevel;
+    return !this.children.length || !this.children[0].isInlineLevel;
   }
 
   get isInlineLevel() {

@@ -271,7 +271,7 @@ class BlockContainer extends Box {
       if (this.children.length === 0) {
         this.setBlockSize(0); // Case 4
       } else if (this.containsBlocks) {
-        // Cases 2-4 should are handled by doBoxPositioning, where margin
+        // Cases 2-4 should be handled by doBoxPositioning, where margin
         // calculation happens. These bullet points seem to be re-phrasals of
         // margin collapsing in CSS 2.2 § 8.3.1 at the very end. If I'm wrong,
         // more might need to happen here.

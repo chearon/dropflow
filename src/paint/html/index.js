@@ -2,19 +2,19 @@ function camelToKebab(camel) {
   return camel.replace(/[A-Z]/g, s => '-' + s.toLowerCase());
 }
 
-function drawDiv(style) {
+function drawDiv(style, attrs) {
   const styleString = Object.entries(style).map(([prop, value]) => {
     return `${camelToKebab(prop)}: ${value}`;
   }).join('; ');
 
-  if (styleString.length) {
-    return `<div style="${styleString};"></div>`;
-  } else {
-    return `<div></div>`;
-  }
+  const attrString = Object.entries(attrs).map(([name, value]) => {
+    return `${name}="${value}"`; // TODO html entities
+  }).join(' ');
+
+  return `<div style="${styleString};" ${attrString}></div>`;
 }
 
-function drawColoredBoxDiv({left, top, width, height}, {r, g, b, a}, level) {
+function drawColoredBoxDiv({id, left, top, width, height}, {r, g, b, a}, level) {
   return drawDiv({
     position: 'absolute',
     left: left + 'px',
@@ -23,7 +23,7 @@ function drawColoredBoxDiv({left, top, width, height}, {r, g, b, a}, level) {
     height: height + 'px',
     backgroundColor: `rgba(${r}, ${g}, ${b}, ${a})`,
     zIndex: level
-  });
+  }, {title: `area id: ${id}`});
 }
 
 function paintBlockContainer(blockContainer, level = 0) {

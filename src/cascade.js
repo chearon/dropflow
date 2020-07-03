@@ -42,7 +42,7 @@ function StyleFactory(id, computedStyleObject) {
     resolvePercentages(containingBlock) {
       for (const p of percentWidthProps) {
         if (computedStyleObject[p].unit === '%') {
-          this.width = computedStyleObject[p].value / 100 * containingBlock.width;
+          this[p] = computedStyleObject[p].value / 100 * containingBlock.width;
         }
       }
 
@@ -78,19 +78,35 @@ function StyleFactory(id, computedStyleObject) {
     }
 
     get paddingLeft() {
+      if ('paddingLeft' in this.used) return this.used.paddingLeft;
+
       const {unit, value} = computedStyleObject.paddingLeft;
+
       if (unit !== 'px') {
         throw new Error(`paddingLeft of box ${this.id} never got resolved to pixels`);
       }
+
       return value;
     }
 
+    set paddingLeft(value) {
+      this.used.paddingLeft = value;
+    }
+
     get paddingRight() {
+      if ('paddingRight' in this.used) return this.used.paddingRight;
+
       const {unit, value} = computedStyleObject.paddingRight;
+
       if (unit !== 'px') {
         throw new Error(`paddingRight of box ${this.id} never got resolved to pixels`);
       }
+
       return value;
+    }
+
+    set paddingRight(value) {
+      this.used.paddingRight = value;
     }
 
     get borderLeftWidth() {
@@ -168,19 +184,35 @@ function StyleFactory(id, computedStyleObject) {
     }
 
     get paddingTop() {
+      if ('paddingTop' in this.used) return this.used.paddingTop;
+
       const {unit, value} = computedStyleObject.paddingTop;
+
       if (unit !== 'px') {
         throw new Error(`paddingTop of box ${this.id} never got resolved to pixels`);
       }
+
       return value;
     }
 
+    set paddingTop(value) {
+      this.used.paddingTop = value;
+    }
+
     get paddingBottom() {
+      if ('paddingBottom' in this.used) return this.used.paddingBottom;
+
       const {unit, value} = computedStyleObject.paddingBottom;
+
       if (unit !== 'px') {
         throw new Error(`paddingBottom of box ${this.id} never got resolved to pixels`);
       }
+
       return value;
+    }
+
+    set paddingBottom(value) {
+      this.used.paddingBottom = value;
     }
 
     get borderTopWidth() {

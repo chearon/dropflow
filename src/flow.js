@@ -178,7 +178,7 @@ class BlockContainer extends Box {
         blockOffset = box.contentArea.top;
         if (box.isBfcRoot) box.doBoxPositioning();
       } else { // post
-        if (box.containsBlocks && box.style.height === 'auto') {
+        if (box.containsBlocks && box.style.height === 'auto' && !box.isBfcRoot) {
           box.setBlockSize(blockOffset - box.contentArea.top);
         }
 
@@ -186,8 +186,10 @@ class BlockContainer extends Box {
         blockOffset += end.has(box.id) ? end.get(box.id) : 0;
       }
     }
-    
-    // TODO for auto height, here is where we can assign the height of this box
+
+    if (this.containsBlocks && this.style.height === 'auto') {
+      this.setBlockSize(blockOffset - this.contentArea.top);
+    }
   }
 
   doInlineBoxModel() {

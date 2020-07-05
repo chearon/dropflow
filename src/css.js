@@ -1552,7 +1552,7 @@ function peg$parse(input, options) {
     }
 
     function setTopRightBottomLeftOr(x, obj, before, after, t, r, b, l) {
-      if (x === '') return setTopRightBottomLeft(obj, before, after, t, r, b, l);
+      if (!x) return setTopRightBottomLeft(obj, before, after, t, r, b, l);
 
       x = x.toLowerCase();
 

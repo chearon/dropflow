@@ -14,11 +14,11 @@ function drawDiv(style, attrs) {
   return `<div style="${styleString};" ${attrString}></div>`;
 }
 
-function drawColoredBoxDiv({id, left, top, width, height}, {r, g, b, a}, level) {
+function drawColoredBoxDiv({id, x, y, width, height}, {r, g, b, a}, level) {
   return drawDiv({
     position: 'absolute',
-    left: left + 'px',
-    top: top + 'px',
+    left: x + 'px',
+    top: y + 'px',
     width: width + 'px',
     height: height + 'px',
     backgroundColor: `rgba(${r}, ${g}, ${b}, ${a})`,
@@ -42,10 +42,10 @@ function paintBlockContainer(blockContainer, level = 0) {
       const borderColor = style[`border${side}Color`];
       const height = side === 'Top' || side === 'Bottom' ? sideWidth : borderArea.height;
       const width = side === 'Left' || side === 'Right' ? sideWidth : borderArea.width;
-      const left = side == 'Right' ? paddingArea.left + paddingArea.width : borderArea.left;
-      const top = side === 'Bottom' ? paddingArea.top + paddingArea.height : borderArea.top;
+      const x = side == 'Right' ? paddingArea.x + paddingArea.width : borderArea.x;
+      const y = side === 'Bottom' ? paddingArea.y + paddingArea.height : borderArea.y;
 
-      s += drawColoredBoxDiv({left, top, width, height}, borderColor, level);
+      s += drawColoredBoxDiv({x, ty, width, height}, borderColor, level);
     }
   }
 

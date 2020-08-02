@@ -58,6 +58,7 @@ blockContainer.doBoxSizing();
 console.log("Step 4, box positioning");
 blockContainer.setBlockPosition(0);
 blockContainer.doBoxPositioning();
+blockContainer.absolutify();
 
 const blocks = new Set([blockContainer.borderArea]);
 

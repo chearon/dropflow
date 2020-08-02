@@ -105,9 +105,11 @@ class BlockContainer extends Box {
     this.isAnonymous = isAnonymous === true;
 
     this.sym = '▣';
-    this.contentArea = new Area(this.id);
-    this.paddingArea = new Area(this.id);
     this.borderArea = new Area(this.id);
+    this.paddingArea = new Area(this.id);
+    this.contentArea = new Area(this.id);
+    this.paddingArea.setParent(this.borderArea);
+    this.contentArea.setParent(this.paddingArea);
   }
 
   get containsBlocks() {
@@ -130,10 +132,21 @@ class BlockContainer extends Box {
       + reset;
   }
 
+  onContainingBlockAssigned() {
+    this.borderArea.setParent(this.containingBlock);
+  }
+
+  absolutify() {
+    this.borderArea.absolutify();
+    this.paddingArea.absolutify();
+    this.contentArea.absolutify();
+    for (const c of this.children) c.absolutify();
+  }
+
   setBlockPosition(top) {
     this.borderArea.top = top;
-    this.paddingArea.top = this.borderArea.top + this.style.borderTopWidth;
-    this.contentArea.top = this.paddingArea.top + this.style.paddingTop;
+    this.paddingArea.top = this.style.borderTopWidth;
+    this.contentArea.top = this.style.paddingTop;
   }
 
   setBlockSize(height) {
@@ -168,18 +181,18 @@ class BlockContainer extends Box {
 
     const {start, end} = mctx.toBoxMaps();
     const stack = [];
-    let blockOffset = this.contentArea.top;
+    let blockOffset = 0;
 
     for (const [order, box] of this.descendents({level: 'block'}, {isBfcRoot: false})) {
       if (order === 'pre') {
         blockOffset += start.has(box.id) ? start.get(box.id) : 0;
         stack.push(blockOffset);
         box.setBlockPosition(blockOffset);
-        blockOffset = box.contentArea.top;
+        blockOffset = 0;
         if (box.isBfcRoot) box.doBoxPositioning();
       } else { // post
         if (box.containsBlocks && box.style.height === 'auto' && !box.isBfcRoot) {
-          box.setBlockSize(blockOffset - box.contentArea.top);
+          box.setBlockSize(blockOffset);
         }
 
         blockOffset = stack.pop() + box.borderArea.height;
@@ -188,7 +201,7 @@ class BlockContainer extends Box {
     }
 
     if (this.containsBlocks && this.style.height === 'auto') {
-      this.setBlockSize(blockOffset - this.contentArea.top);
+      this.setBlockSize(blockOffset);
     }
   }
 
@@ -248,21 +261,14 @@ class BlockContainer extends Box {
         - this.style.marginRight;
     }
 
-    this.contentArea.width = this.style.width;
+    this.borderArea.left = this.style.marginLeft;
+    this.borderArea.right = this.style.marginRight;
 
-    this.paddingArea.width = this.contentArea.width
-      + this.style.paddingLeft
-      + this.style.paddingRight;
+    this.paddingArea.left = this.style.borderLeftWidth;
+    this.paddingArea.right = this.style.borderRightWidth;
 
-    this.borderArea.width = this.paddingArea.width
-      + this.style.borderLeftWidth
-      + this.style.borderRightWidth;
-
-    this.borderArea.left = this.containingBlock.left + this.style.marginLeft;
-
-    this.paddingArea.left = this.borderArea.left + this.style.borderLeftWidth;
-
-    this.contentArea.left = this.paddingArea.left + this.style.paddingLeft;
+    this.contentArea.left = this.style.paddingLeft;
+    this.contentArea.right = this.style.paddingRight;
   }
 
   doBlockBoxModel() {
@@ -329,7 +335,6 @@ class Inline extends Box {
     this.isIfcRoot = isIfcRoot;
     this.isAnonymous = isAnonymous === true;
     this.sym = '▭';
-    this.paddingArea = new Area(this.id);
 
     // only for inline boxes which are the root of the IFC
     this.allText = '';

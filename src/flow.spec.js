@@ -36,6 +36,7 @@ describe('Flow', function () {
       this.blockContainer.doBoxSizing();
       this.blockContainer.setBlockPosition(0);
       this.blockContainer.doBoxPositioning();
+      this.blockContainer.absolutify();
       this.get = function (...args) {
         let ret = this.blockContainer;
         while (args.length) ret = ret.children[args.shift()];
@@ -58,10 +59,10 @@ describe('Flow', function () {
       expect(this.get(0, 0).contentArea.height).to.equal(0);
       expect(this.get(0, 1).contentArea.height).to.equal(0);
 
-      expect(this.blockContainer.contentArea.top).to.equal(0);
-      expect(this.get(0).contentArea.top).to.equal(0);
-      expect(this.get(0, 0).contentArea.top).to.equal(10);
-      expect(this.get(0, 1).contentArea.top).to.equal(10);
+      expect(this.blockContainer.contentArea.y).to.equal(0);
+      expect(this.get(0).contentArea.y).to.equal(0);
+      expect(this.get(0, 0).contentArea.y).to.equal(10);
+      expect(this.get(0, 1).contentArea.y).to.equal(10);
     });
 
     it('uses smallest margin', function () {
@@ -77,10 +78,10 @@ describe('Flow', function () {
       expect(this.get(0, 0).contentArea.height).to.equal(0);
       expect(this.get(0, 1).contentArea.height).to.equal(0);
 
-      expect(this.blockContainer.contentArea.top).to.equal(0);
-      expect(this.get(0).contentArea.top).to.equal(0);
-      expect(this.get(0, 0).contentArea.top).to.equal(20);
-      expect(this.get(0, 1).contentArea.top).to.equal(20);
+      expect(this.blockContainer.contentArea.y).to.equal(0);
+      expect(this.get(0).contentArea.y).to.equal(0);
+      expect(this.get(0, 0).contentArea.y).to.equal(20);
+      expect(this.get(0, 1).contentArea.y).to.equal(20);
     });
 
     it('doesn\'t collapse through borders', function () {
@@ -92,8 +93,8 @@ describe('Flow', function () {
       `);
 
       expect(this.get(0).contentArea.height).to.equal(41);
-      expect(this.get(0, 0).contentArea.top).to.equal(20);
-      expect(this.get(0, 1).contentArea.top).to.equal(41);
+      expect(this.get(0, 0).contentArea.y).to.equal(20);
+      expect(this.get(0, 1).contentArea.y).to.equal(41);
     });
 
     it('doesn\'t collapse through padding', function () {
@@ -105,8 +106,8 @@ describe('Flow', function () {
       `);
 
       expect(this.get(0).contentArea.height).to.equal(41);
-      expect(this.get(0, 0).contentArea.top).to.equal(20);
-      expect(this.get(0, 1).contentArea.top).to.equal(41);
+      expect(this.get(0, 0).contentArea.y).to.equal(20);
+      expect(this.get(0, 1).contentArea.y).to.equal(41);
     });
 
     it('collapses through parents', function () {
@@ -119,8 +120,8 @@ describe('Flow', function () {
       `);
 
       expect(this.get(0).contentArea.height).to.equal(20);
-      expect(this.get(0, 0).contentArea.top).to.equal(20);
-      expect(this.get(0, 0, 0).contentArea.top).to.equal(20);
+      expect(this.get(0, 0).contentArea.y).to.equal(20);
+      expect(this.get(0, 0, 0).contentArea.y).to.equal(20);
     });
 
     it('doesn\'t collapse through if a height is set', function () {
@@ -133,8 +134,8 @@ describe('Flow', function () {
       `);
 
       expect(this.get(0).contentArea.height).to.equal(41);
-      expect(this.get(0, 0).contentArea.top).to.equal(20);
-      expect(this.get(0, 0, 0).contentArea.top).to.equal(20);
+      expect(this.get(0, 0).contentArea.y).to.equal(20);
+      expect(this.get(0, 0, 0).contentArea.y).to.equal(20);
     });
 
     it('collapses through if height is zero', function () {
@@ -147,8 +148,8 @@ describe('Flow', function () {
       `);
 
       expect(this.get(0).contentArea.height).to.equal(20);
-      expect(this.get(0, 0).contentArea.top).to.equal(20);
-      expect(this.get(0, 0, 0).contentArea.top).to.equal(20);
+      expect(this.get(0, 0).contentArea.y).to.equal(20);
+      expect(this.get(0, 0, 0).contentArea.y).to.equal(20);
     });
   });
 
@@ -173,12 +174,12 @@ describe('Flow', function () {
         expect(this.get(0).borderArea.height).to.equal(70);
         expect(this.get(0).paddingArea.height).to.equal(70);
         expect(this.get(0).contentArea.height).to.equal(50);
-        expect(this.get(0).borderArea.top).to.equal(10);
-        expect(this.get(0).paddingArea.top).to.equal(10);
-        expect(this.get(0).contentArea.top).to.equal(20);
-        expect(this.get(0).borderArea.left).to.equal(5);
-        expect(this.get(0).paddingArea.left).to.equal(5);
-        expect(this.get(0).contentArea.left).to.equal(10);
+        expect(this.get(0).borderArea.y).to.equal(10);
+        expect(this.get(0).paddingArea.y).to.equal(10);
+        expect(this.get(0).contentArea.y).to.equal(20);
+        expect(this.get(0).borderArea.x).to.equal(5);
+        expect(this.get(0).paddingArea.x).to.equal(5);
+        expect(this.get(0).contentArea.x).to.equal(10);
       });
 
       it('lays out box model for body > div > div:nth-child(1) correctly', function () {
@@ -188,12 +189,12 @@ describe('Flow', function () {
         expect(this.get(0, 0).borderArea.height).to.equal(20);
         expect(this.get(0, 0).paddingArea.height).to.equal(0);
         expect(this.get(0, 0).contentArea.height).to.equal(0);
-        expect(this.get(0, 0).borderArea.top).to.equal(20);
-        expect(this.get(0, 0).paddingArea.top).to.equal(30);
-        expect(this.get(0, 0).contentArea.top).to.equal(30);
-        expect(this.get(0, 0).borderArea.left).to.equal(10);
-        expect(this.get(0, 0).paddingArea.left).to.equal(20);
-        expect(this.get(0, 0).contentArea.left).to.equal(20);
+        expect(this.get(0, 0).borderArea.y).to.equal(20);
+        expect(this.get(0, 0).paddingArea.y).to.equal(30);
+        expect(this.get(0, 0).contentArea.y).to.equal(30);
+        expect(this.get(0, 0).borderArea.x).to.equal(10);
+        expect(this.get(0, 0).paddingArea.x).to.equal(20);
+        expect(this.get(0, 0).contentArea.x).to.equal(20);
       });
 
       it('lays out box model for body > div > div:nth-child(2) correctly', function () {
@@ -203,12 +204,12 @@ describe('Flow', function () {
         expect(this.get(0, 1).borderArea.height).to.equal(0);
         expect(this.get(0, 1).paddingArea.height).to.equal(0);
         expect(this.get(0, 1).contentArea.height).to.equal(0);
-        expect(this.get(0, 1).borderArea.top).to.equal(40);
-        expect(this.get(0, 1).paddingArea.top).to.equal(40);
-        expect(this.get(0, 1).contentArea.top).to.equal(40);
-        expect(this.get(0, 1).borderArea.left).to.equal(10);
-        expect(this.get(0, 1).paddingArea.left).to.equal(10);
-        expect(this.get(0, 1).contentArea.left).to.equal(10);
+        expect(this.get(0, 1).borderArea.y).to.equal(40);
+        expect(this.get(0, 1).paddingArea.y).to.equal(40);
+        expect(this.get(0, 1).contentArea.y).to.equal(40);
+        expect(this.get(0, 1).borderArea.x).to.equal(10);
+        expect(this.get(0, 1).paddingArea.x).to.equal(10);
+        expect(this.get(0, 1).contentArea.x).to.equal(10);
       });
 
       it('lays out box model for body > div > div:nth-child(3) correctly', function () {
@@ -218,12 +219,12 @@ describe('Flow', function () {
         expect(this.get(0, 2).borderArea.height).to.equal(30);
         expect(this.get(0, 2).paddingArea.height).to.equal(10);
         expect(this.get(0, 2).contentArea.height).to.equal(10);
-        expect(this.get(0, 2).borderArea.top).to.equal(40);
-        expect(this.get(0, 2).paddingArea.top).to.equal(50);
-        expect(this.get(0, 2).contentArea.top).to.equal(50);
-        expect(this.get(0, 2).borderArea.left).to.equal(10);
-        expect(this.get(0, 2).paddingArea.left).to.equal(20);
-        expect(this.get(0, 2).contentArea.left).to.equal(20);
+        expect(this.get(0, 2).borderArea.y).to.equal(40);
+        expect(this.get(0, 2).paddingArea.y).to.equal(50);
+        expect(this.get(0, 2).contentArea.y).to.equal(50);
+        expect(this.get(0, 2).borderArea.x).to.equal(10);
+        expect(this.get(0, 2).paddingArea.x).to.equal(20);
+        expect(this.get(0, 2).contentArea.x).to.equal(20);
       });
 
       it('lays out box model for body > div > div > div', function () {
@@ -233,12 +234,12 @@ describe('Flow', function () {
         expect(this.get(0, 2, 0).borderArea.height).to.equal(0);
         expect(this.get(0, 2, 0).paddingArea.height).to.equal(0);
         expect(this.get(0, 2, 0).contentArea.height).to.equal(0);
-        expect(this.get(0, 2, 0).borderArea.top).to.equal(60);
-        expect(this.get(0, 2, 0).paddingArea.top).to.equal(60);
-        expect(this.get(0, 2, 0).contentArea.top).to.equal(60);
-        expect(this.get(0, 2, 0).borderArea.left).to.equal(30);
-        expect(this.get(0, 2, 0).paddingArea.left).to.equal(30);
-        expect(this.get(0, 2, 0).contentArea.left).to.equal(30);
+        expect(this.get(0, 2, 0).borderArea.y).to.equal(60);
+        expect(this.get(0, 2, 0).paddingArea.y).to.equal(60);
+        expect(this.get(0, 2, 0).contentArea.y).to.equal(60);
+        expect(this.get(0, 2, 0).borderArea.x).to.equal(30);
+        expect(this.get(0, 2, 0).paddingArea.x).to.equal(30);
+        expect(this.get(0, 2, 0).contentArea.x).to.equal(30);
       });
     });
   });

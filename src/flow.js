@@ -368,17 +368,25 @@ class Inline extends Box {
     }
   }
 
-  collapse() {
+  // Collect text runs, collapse whitespace, create shaping boundaries, and
+  // assign fonts
+  prepareIfc() {
     const stack = this.children.slice();
     let i = 0;
 
     if (!this.isIfcRoot) {
-      throw new Error('collapse() is for root inline context boxes');
+      throw new Error('prepareIfc() called on a non-IFC inline');
     }
 
+    // CSS Text Module Level 3, Appendix A, steps 1-4
+
+    // Step 1
     while (stack.length) {
       const child = stack.shift();
       if (child.isIfcRoot) continue;
+      // TODO I don't think just checking isIfcRoot is correct, but works for
+      // now. Specs imply the inner display type is the thing to check to see
+      // if it belongs to this IFC (for example grids, tables, etc).
       if (child.isRun) {
         child.setRange(i, i + child.text.length - 1);
         i += child.text.length;
@@ -393,6 +401,10 @@ class Inline extends Box {
     collapser.collapse();
     this.allText = collapser.buf;
     this.removeCollapsedRuns();
+
+    // TODO step 2
+    // TODO step 3
+    // TODO step 4
   }
 
   containsAllCollapsibleWs() {
@@ -496,7 +508,7 @@ function wrapInBlockContainers(boxes, style) {
       const anonStyle = createComputedStyle(anonStyleId, {}, style);
       const rootInline = new Inline(anonStyle, inlines, true, true);
       if (!rootInline.containsAllCollapsibleWs()) {
-        rootInline.collapse();
+        rootInline.prepareIfc();
         blocks.push(new BlockContainer(anonStyle, 'block', [rootInline], false, true));
       }
     }
@@ -542,7 +554,7 @@ export function generateBlockContainer(el) {
     const anonStyleId = el.style.id + '.1';
     const anonStyle = createComputedStyle(anonStyleId, {}, el.style);
     const inline = new Inline(anonStyle, boxes, true, true);
-    inline.collapse();
+    inline.prepareIfc();
     boxes = [inline];
   }
 

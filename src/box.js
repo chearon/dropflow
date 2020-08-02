@@ -141,8 +141,12 @@ export class Box {
     this.children = null;
     this.isAnonymous = null;
 
-    // gets set during layout
     this.containingBlock = null;
+    this.borderArea = new Area(this.id + 'b');
+    this.paddingArea = new Area(this.id + 'p');
+    this.contentArea = new Area(this.id + 'c');
+    this.paddingArea.setParent(this.borderArea);
+    this.contentArea.setParent(this.paddingArea);
   }
 
   get isRelativeOrStatic() {
@@ -171,9 +175,8 @@ export class Box {
       throw new Error(`Could not assign a containing block to box ${this.id}`);
     }
 
-    this.onContainingBlockAssigned();
-
     cbstate = Object.assign({}, cbstate);
+    this.borderArea.setParent(this.containingBlock);
 
     if (this.isBlockContainer) {
       cbstate.lastBlockContainerArea = this.contentArea;
@@ -188,12 +191,11 @@ export class Box {
     }
   }
 
-  onContainingBlockAssigned() {
-    // noop
-  }
-
   absolutify() {
-    // noop
+    this.borderArea.absolutify();
+    this.paddingArea.absolutify();
+    this.contentArea.absolutify();
+    for (const c of this.children) c.absolutify();
   }
 
   *descendents(boxIf = {}, subtreeIf = {}) {

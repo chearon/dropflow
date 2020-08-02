@@ -105,11 +105,6 @@ class BlockContainer extends Box {
     this.isAnonymous = isAnonymous === true;
 
     this.sym = '▣';
-    this.borderArea = new Area(this.id);
-    this.paddingArea = new Area(this.id);
-    this.contentArea = new Area(this.id);
-    this.paddingArea.setParent(this.borderArea);
-    this.contentArea.setParent(this.paddingArea);
   }
 
   get containsBlocks() {
@@ -132,16 +127,6 @@ class BlockContainer extends Box {
       + reset;
   }
 
-  onContainingBlockAssigned() {
-    this.borderArea.setParent(this.containingBlock);
-  }
-
-  absolutify() {
-    this.borderArea.absolutify();
-    this.paddingArea.absolutify();
-    this.contentArea.absolutify();
-    for (const c of this.children) c.absolutify();
-  }
 
   setBlockPosition(top) {
     this.borderArea.top = top;

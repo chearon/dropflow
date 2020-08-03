@@ -14,6 +14,7 @@ const rootDeclaredStyle = {
   lineHeight: {value: 1.6, unit: null},
   position: 'static',
   height: {value: 100, unit: '%'}, // TODO: delete this when height: auto implemented
+  writingMode: 'vertical-lr',
   display: {
     outer: 'block',
     inner: 'flow-root'
@@ -52,12 +53,12 @@ console.log(blockContainer.repr(0, {containingBlocks: true}));
 
 // -------------- Step 3 --------------
 console.log("Step 3, box sizing");
-blockContainer.doBoxSizing();
+blockContainer.doBoxSizing(blockContainer.style.writingMode);
 
 // -------------- Step 4 --------------
 console.log("Step 4, box positioning");
-blockContainer.setBlockPosition(0);
-blockContainer.doBoxPositioning();
+blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
+blockContainer.doBoxPositioning(blockContainer.style.writingMode);
 blockContainer.absolutify();
 
 const blocks = new Set([blockContainer.borderArea]);

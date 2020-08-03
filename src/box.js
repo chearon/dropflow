@@ -1,5 +1,32 @@
 import {id} from './util';
 
+const LOGICAL_TO_PHYSICAL_AREA_MAP_HORIZONTAL_TB = {
+  blockStart: 'top',
+  blockEnd: 'bottom',
+  inlineStart: 'left',
+  inlineEnd: 'right',
+  blockSize: 'height',
+  inlineSize: 'width'
+};
+
+const LOGICAL_TO_PHYSICAL_AREA_MAP_VERTICAL_LR = {
+  blockStart: 'left',
+  blockEnd: 'right',
+  inlineStart: 'top',
+  inlineEnd: 'bottom',
+  blockSize: 'width',
+  inlineSize: 'height'
+};
+
+const LOGICAL_TO_PHYSICAL_AREA_MAP_VERTICAL_RL = {
+  blockStart: 'right',
+  blockEnd: 'left',
+  inlineStart: 'top',
+  inlineEnd: 'bottom',
+  blockSize: 'width',
+  inlineSize: 'height'
+};
+
 export class Area {
   constructor(id, x = null, y = null, w = null, h = null) {
     this.id = id;
@@ -129,6 +156,27 @@ export class Area {
 
     this.y = this.parent.y;
     this.y += this.top == null ? this.parent.height - this.bottom - this.height : this.top;
+  }
+
+  createLogicalView(writingMode) {
+    const map =
+      writingMode === 'horizontal-tb' ? LOGICAL_TO_PHYSICAL_AREA_MAP_HORIZONTAL_TB :
+      writingMode === 'vertical-lr' ? LOGICAL_TO_PHYSICAL_AREA_MAP_VERTICAL_LR :
+      writingMode === 'vertical-rl' ? LOGICAL_TO_PHYSICAL_AREA_MAP_VERTICAL_RL :
+      undefined;
+
+    if (!map) throw new Error(`writing mode ${writingMode} unknown`);
+
+    return {
+      get: prop => {
+        if (!(prop in map)) throw new Error(`\`${prop}\` has no physical mapping`);
+        return this[map[prop]];
+      },
+      set: (prop, val) => {
+        if (!(prop in map)) throw new Error(`\`${prop}\` has no physical mapping`);
+        return this[map[prop]] = val;
+      }
+    };
   }
 }
 

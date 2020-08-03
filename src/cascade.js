@@ -9,6 +9,57 @@ const percentWidthProps = [
   'width'
 ];
 
+const LOGICAL_TO_PHYSICAL_FLOW_MAP_HORIZONTAL_TB = {
+  marginBlockStart: 'marginTop',
+  marginBlockEnd: 'marginBottom',
+  marginInlineStart: 'marginLeft',
+  marginInlineEnd: 'marginRight',
+  paddingBlockStart: 'paddingTop',
+  paddingBlockEnd: 'paddingBottom',
+  paddingInlineStart: 'paddingLeft',
+  paddingInlineEnd: 'paddingRight',
+  borderBlockStartWidth: 'borderTopWidth',
+  borderBlockEndWidth: 'borderBottomWidth',
+  borderInlineStartWidth: 'borderLeftWidth',
+  borderInlineEndWidth: 'borderRightWidth',
+  blockSize: 'height',
+  inlineSize: 'width'
+};
+
+const LOGICAL_TO_PHYSICAL_FLOW_MAP_VERTICAL_LR = {
+  marginBlockStart: 'marginLeft',
+  marginBlockEnd: 'marginRight',
+  marginInlineStart: 'marginTop',
+  marginInlineEnd: 'marginBottom',
+  paddingBlockStart: 'paddingLeft',
+  paddingBlockEnd: 'paddingRight',
+  paddingInlineStart: 'paddingTop',
+  paddingInlineEnd: 'paddingBottom',
+  borderBlockStartWidth: 'borderLeftWidth',
+  borderBlockEndWidth: 'borderRightWidth',
+  borderInlineStartWidth: 'borderTopWidth',
+  borderInlineEndWidth: 'borderBottomWidth',
+  blockSize: 'width',
+  inlineSize: 'height'
+};
+
+const LOGICAL_TO_PHYSICAL_FLOW_MAP_VERTICAL_RL = {
+  marginBlockStart: 'marginRight',
+  marginBlockEnd: 'marginLeft',
+  marginInlineStart: 'marginTop',
+  marginInlineEnd: 'marginBottom',
+  paddingBlockStart: 'paddingRight',
+  paddingBlockEnd: 'paddingLeft',
+  paddingInlineStart: 'paddingTop',
+  paddingInlineEnd: 'paddingBottom',
+  borderBlockStartWidth: 'borderRightWidth',
+  borderBlockEndWidth: 'borderLeftWidth',
+  borderInlineStartWidth: 'borderTopWidth',
+  borderInlineEndWidth: 'borderBottomWidth',
+  blockSize: 'width',
+  inlineSize: 'height'
+};
+
 function StyleFactory(id, computedStyleObject) {
   function CssComputedStyle () {}
 
@@ -288,6 +339,35 @@ function StyleFactory(id, computedStyleObject) {
 
       return value;
     }
+
+    get writingModeInlineAxis() {
+      if (computedStyleObject.writingMode === 'horizontal-tb') {
+        return 'horizontal';
+      } else {
+        return 'vertical';
+      }
+    }
+
+    createLogicalView(writingMode) {
+      const map =
+        writingMode === 'horizontal-tb' ? LOGICAL_TO_PHYSICAL_FLOW_MAP_HORIZONTAL_TB :
+        writingMode === 'vertical-lr' ? LOGICAL_TO_PHYSICAL_FLOW_MAP_VERTICAL_LR :
+        writingMode === 'vertical-rl' ? LOGICAL_TO_PHYSICAL_FLOW_MAP_VERTICAL_RL :
+        undefined;
+
+      if (!map) throw new Error(`writing mode ${writingMode} unknown`);
+
+      return {
+        get: prop => {
+          if (!(prop in map)) throw new Error(`\`${prop}\` has no physical mapping`);
+          return this[map[prop]];
+        },
+        set: (prop, val) => {
+          if (!(prop in map)) throw new Error(`\`${prop}\` has no physical mapping`);
+          return this[map[prop]] = val;
+        }
+      };
+    }
   }
 }
 
@@ -307,6 +387,7 @@ export const initialStyle = Object.freeze({
   backgroundColor: {r: 0, g: 0, b: 0, a: 0},
   backgroundClip: 'border-box',
   display: {outer: 'inline', inner: 'flow'},
+  writingMode: 'horizontal-tb',
   borderTopWidth: {value: 0, unit: 'px'},
   borderRightWidth: {value: 0, unit: 'px'},
   borderBottomWidth: {value: 0, unit: 'px'},
@@ -347,6 +428,7 @@ const inheritedStyle = Object.freeze({
   backgroundColor: false,
   backgroundClip: false,
   display: false,
+  writingMode: true,
   borderTopWidth: false,
   borderRightWidth: false,
   borderBottomWidth: false,

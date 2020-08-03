@@ -100,6 +100,7 @@ declaration
   / font_dec
   / color_dec
   / display_dec
+  / writing_mode_dec
   / white_space_dec
   / tab_size_dec
   / position_dec
@@ -326,6 +327,9 @@ display
   / 'inline' { return {outer: 'inline', inner: 'flow'}; }
   / 'flow-root' { return {outer: 'block', inner: 'flow-root'}; }
 
+writing_mode
+  = 'horizontal-tb' / 'vertical-lr' / 'vertical-rl'
+
 white_space
   = 'normal' / 'nowrap' / 'pre-wrap' / 'pre-line' / 'pre'
 
@@ -390,6 +394,11 @@ color_dec
 display_dec
   = 'display'i S* ':' S* display:(display / default) {
     return {display};
+  }
+
+writing_mode_dec
+  = 'writing-mode'i S* ':' S* writingMode:writing_mode {
+    return {writingMode};
   }
 
 white_space_dec

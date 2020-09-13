@@ -248,6 +248,16 @@ describe('Flow', function () {
       this.layout('<div style="width: 50px; margin: 0 auto;"></div>');
       expect(this.get(0).contentArea.x).to.equal(125);
     });
+
+    it('expands left auto margin when the right margin is non-auto', function () {
+      this.layout('<div style="width: 50px; margin: 0 50px 0 auto;"></div>');
+      expect(this.get(0).contentArea.x).to.equal(200);
+    });
+
+    it('expands right auto margin when the left margin is non-auto', function () {
+      this.layout('<div style="width: 50px; margin: 0 auto 0 50px;"></div>');
+      expect(this.get(0).contentArea.x).to.equal(50);
+    });
   });
 
   describe('Vertical writing modes', function () {

@@ -207,8 +207,8 @@ class BlockContainer extends Box {
     }
 
     if (this.containsBlocks) {
-      const style = this.style.createLogicalView(bfcWritingMode);
-      if (style.get('blockSize') === 'auto') {
+      const content = this.contentArea.createLogicalView(bfcWritingMode);
+      if (content.get('blockSize') === null) {
         this.setBlockSize(blockOffset, bfcWritingMode);
       }
     }
@@ -220,6 +220,8 @@ class BlockContainer extends Box {
 
     const style = this.style.createLogicalView(bfcWritingMode);
     const container = this.containingBlock.createLogicalView(bfcWritingMode);
+    let marginInlineStart = style.get('marginInlineStart');
+    let marginInlineEnd = style.get('marginInlineEnd');
 
     // Paragraphs 2 and 3
     if (style.get('inlineSize') !== 'auto') {
@@ -228,64 +230,53 @@ class BlockContainer extends Box {
         + style.get('paddingInlineStart')
         + style.get('paddingInlineEnd')
         + style.get('borderInlineEndWidth')
-        + (style.get('marginInlineStart') === 'auto' ? 0 : style.get('marginInlineStart'))
-        + (style.get('marginInlineEnd') === 'auto' ? 0 : style.get('marginInlineEnd'));
+        + (marginInlineStart === 'auto' ? 0 : style.get('marginInlineStart'))
+        + (marginInlineEnd === 'auto' ? 0 : style.get('marginInlineEnd'));
 
       // Paragraph 2: zero out auto margins if specified values sum to a length
       // greater than the containing block's width.
       if (specifiedInlineSize > container.get('inlineSize')) {
-        if (style.get('marginInlineStart') === 'auto') style.set('marginInlineStart', 0);
-        if (style.get('marginInlineEnd') === 'auto') style.set('marginInlineEnd', 0);
+        if (marginInlineStart === 'auto') marginInlineStart = 0;
+        if (marginInlineEnd === 'auto') marginInlineEnd = 0;
       }
 
-      if (style.get('marginInlineStart') !== 'auto' && style.get('marginInlineEnd') !== 'auto') {
+      if (marginInlineStart !== 'auto' && marginInlineEnd !== 'auto') {
         // Paragraph 3: check over-constrained values. This expands the right
         // margin in LTR documents to fill space, or, if the above scenario was
         // hit, it makes the right margin negative.
         // TODO support the `direction` CSS property
-        style.set('marginInlineEnd', container.get('inlineSize') - specifiedInlineSize);
+        marginInlineEnd = container.get('inlineSize') - specifiedInlineSize;
       } else { // one or both of the margins is auto, specifiedWidth < cb width
-        if (style.get('marginInlineStart') === 'auto' && style.get('marginInlineEnd') !== 'auto') {
+        if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
           // Paragraph 4: only auto value is margin-left
-          style.set('marginInlineStart', container.get('inlineSize') - specifiedInlineSize);
-        } else if (style.get('marginInlineEnd') === 'auto' && style.get('marginInlineStart') !== 'auto') {
+          marginInlineStart = container.get('inlineSize') - specifiedInlineSize;
+        } else if (marginInlineEnd === 'auto' && marginInlineStart !== 'auto') {
           // Paragraph 4: only auto value is margin-right
-          style.set('marginInlineEnd', container.get('inlineSize') - specifiedInlineSize);
+          marginInlineEnd = container.get('inlineSize') - specifiedInlineSize;
         } else {
           // Paragraph 6: two auto values, center the content
           const margin = (container.get('inlineSize') - specifiedInlineSize) / 2;
-          style.set('marginInlineStart', margin);
-          style.set('marginInlineEnd', margin);
+          marginInlineStart = marginInlineEnd = margin;
         }
       }
     }
 
+    const content = this.contentArea.createLogicalView(bfcWritingMode);
     // Paragraph 5: auto width
     if (style.get('inlineSize') === 'auto') {
-      if (style.get('marginInlineStart') === 'auto') style.set('marginInlineStart', 0);
-      if (style.get('marginInlineEnd') === 'auto') style.set('marginInlineEnd', 0);
+      if (marginInlineStart === 'auto') marginInlineStart = 0;
+      if (marginInlineEnd === 'auto') marginInlineEnd = 0;
 
       if (typeof container.get('inlineSize') !== 'number') {
         throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
       }
-
-      style.set('inlineSize',
-        + container.get('inlineSize')
-        - style.get('marginInlineStart')
-        - style.get('borderInlineStartWidth')
-        - style.get('paddingInlineStart')
-        - style.get('paddingInlineEnd')
-        - style.get('borderInlineEndWidth')
-        - style.get('marginInlineEnd')
-      );
     }
 
-    const content = this.contentArea.createLogicalView(bfcWritingMode);
     const padding = this.paddingArea.createLogicalView(bfcWritingMode);
     const border = this.borderArea.createLogicalView(bfcWritingMode);
 
-    border.set('inlineStart', style.get('marginInlineStart'));
-    border.set('inlineEnd', style.get('marginInlineEnd'));
+    border.set('inlineStart', marginInlineStart);
+    border.set('inlineEnd', marginInlineEnd);
 
     padding.set('inlineStart', style.get('borderInlineStartWidth'));
     padding.set('inlineEnd', style.get('borderInlineEndWidth'));

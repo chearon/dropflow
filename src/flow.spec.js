@@ -155,91 +155,98 @@ describe('Flow', function () {
   });
 
   describe('Automatic width and offsets', function () {
-    before(function () {
-      this.layout(`
-        <div style="padding: 10px 5px; margin: 10px 5px;">
-          <div style="border: 10px solid;"></div>
-          <div></div>
-          <div style="border: 10px solid;">
-            <div style="margin: 10px;"></div>
+    describe('Border, padding, and empty div behavior', function () {
+      before(function () {
+        this.layout(`
+          <div style="padding: 10px 5px; margin: 10px 5px;">
+            <div style="border: 10px solid;"></div>
+            <div></div>
+            <div style="border: 10px solid;">
+              <div style="margin: 10px;"></div>
+            </div>
           </div>
-        </div>
-      `);
+        `);
+      });
+
+      it('lays out box model for body > div correctly', function () {
+        expect(this.get(0).borderArea.width).to.equal(290);
+        expect(this.get(0).paddingArea.width).to.equal(290);
+        expect(this.get(0).contentArea.width).to.equal(280);
+        expect(this.get(0).borderArea.height).to.equal(70);
+        expect(this.get(0).paddingArea.height).to.equal(70);
+        expect(this.get(0).contentArea.height).to.equal(50);
+        expect(this.get(0).borderArea.y).to.equal(10);
+        expect(this.get(0).paddingArea.y).to.equal(10);
+        expect(this.get(0).contentArea.y).to.equal(20);
+        expect(this.get(0).borderArea.x).to.equal(5);
+        expect(this.get(0).paddingArea.x).to.equal(5);
+        expect(this.get(0).contentArea.x).to.equal(10);
+      });
+
+      it('lays out box model for body > div > div:nth-child(1) correctly', function () {
+        expect(this.get(0, 0).borderArea.width).to.equal(280);
+        expect(this.get(0, 0).paddingArea.width).to.equal(260);
+        expect(this.get(0, 0).contentArea.width).to.equal(260);
+        expect(this.get(0, 0).borderArea.height).to.equal(20);
+        expect(this.get(0, 0).paddingArea.height).to.equal(0);
+        expect(this.get(0, 0).contentArea.height).to.equal(0);
+        expect(this.get(0, 0).borderArea.y).to.equal(20);
+        expect(this.get(0, 0).paddingArea.y).to.equal(30);
+        expect(this.get(0, 0).contentArea.y).to.equal(30);
+        expect(this.get(0, 0).borderArea.x).to.equal(10);
+        expect(this.get(0, 0).paddingArea.x).to.equal(20);
+        expect(this.get(0, 0).contentArea.x).to.equal(20);
+      });
+
+      it('lays out box model for body > div > div:nth-child(2) correctly', function () {
+        expect(this.get(0, 1).borderArea.width).to.equal(280);
+        expect(this.get(0, 1).paddingArea.width).to.equal(280);
+        expect(this.get(0, 1).contentArea.width).to.equal(280);
+        expect(this.get(0, 1).borderArea.height).to.equal(0);
+        expect(this.get(0, 1).paddingArea.height).to.equal(0);
+        expect(this.get(0, 1).contentArea.height).to.equal(0);
+        expect(this.get(0, 1).borderArea.y).to.equal(40);
+        expect(this.get(0, 1).paddingArea.y).to.equal(40);
+        expect(this.get(0, 1).contentArea.y).to.equal(40);
+        expect(this.get(0, 1).borderArea.x).to.equal(10);
+        expect(this.get(0, 1).paddingArea.x).to.equal(10);
+        expect(this.get(0, 1).contentArea.x).to.equal(10);
+      });
+
+      it('lays out box model for body > div > div:nth-child(3) correctly', function () {
+        expect(this.get(0, 2).borderArea.width).to.equal(280);
+        expect(this.get(0, 2).paddingArea.width).to.equal(260);
+        expect(this.get(0, 2).contentArea.width).to.equal(260);
+        expect(this.get(0, 2).borderArea.height).to.equal(30);
+        expect(this.get(0, 2).paddingArea.height).to.equal(10);
+        expect(this.get(0, 2).contentArea.height).to.equal(10);
+        expect(this.get(0, 2).borderArea.y).to.equal(40);
+        expect(this.get(0, 2).paddingArea.y).to.equal(50);
+        expect(this.get(0, 2).contentArea.y).to.equal(50);
+        expect(this.get(0, 2).borderArea.x).to.equal(10);
+        expect(this.get(0, 2).paddingArea.x).to.equal(20);
+        expect(this.get(0, 2).contentArea.x).to.equal(20);
+      });
+
+      it('lays out box model for body > div > div > div', function () {
+        expect(this.get(0, 2, 0).borderArea.width).to.equal(240);
+        expect(this.get(0, 2, 0).paddingArea.width).to.equal(240);
+        expect(this.get(0, 2, 0).contentArea.width).to.equal(240);
+        expect(this.get(0, 2, 0).borderArea.height).to.equal(0);
+        expect(this.get(0, 2, 0).paddingArea.height).to.equal(0);
+        expect(this.get(0, 2, 0).contentArea.height).to.equal(0);
+        expect(this.get(0, 2, 0).borderArea.y).to.equal(60);
+        expect(this.get(0, 2, 0).paddingArea.y).to.equal(60);
+        expect(this.get(0, 2, 0).contentArea.y).to.equal(60);
+        expect(this.get(0, 2, 0).borderArea.x).to.equal(30);
+        expect(this.get(0, 2, 0).paddingArea.x).to.equal(30);
+        expect(this.get(0, 2, 0).contentArea.x).to.equal(30);
+      });
     });
 
-    it('lays out box model for body > div correctly', function () {
-      expect(this.get(0).borderArea.width).to.equal(290);
-      expect(this.get(0).paddingArea.width).to.equal(290);
-      expect(this.get(0).contentArea.width).to.equal(280);
-      expect(this.get(0).borderArea.height).to.equal(70);
-      expect(this.get(0).paddingArea.height).to.equal(70);
-      expect(this.get(0).contentArea.height).to.equal(50);
-      expect(this.get(0).borderArea.y).to.equal(10);
-      expect(this.get(0).paddingArea.y).to.equal(10);
-      expect(this.get(0).contentArea.y).to.equal(20);
-      expect(this.get(0).borderArea.x).to.equal(5);
-      expect(this.get(0).paddingArea.x).to.equal(5);
-      expect(this.get(0).contentArea.x).to.equal(10);
-    });
-
-    it('lays out box model for body > div > div:nth-child(1) correctly', function () {
-      expect(this.get(0, 0).borderArea.width).to.equal(280);
-      expect(this.get(0, 0).paddingArea.width).to.equal(260);
-      expect(this.get(0, 0).contentArea.width).to.equal(260);
-      expect(this.get(0, 0).borderArea.height).to.equal(20);
-      expect(this.get(0, 0).paddingArea.height).to.equal(0);
-      expect(this.get(0, 0).contentArea.height).to.equal(0);
-      expect(this.get(0, 0).borderArea.y).to.equal(20);
-      expect(this.get(0, 0).paddingArea.y).to.equal(30);
-      expect(this.get(0, 0).contentArea.y).to.equal(30);
-      expect(this.get(0, 0).borderArea.x).to.equal(10);
-      expect(this.get(0, 0).paddingArea.x).to.equal(20);
-      expect(this.get(0, 0).contentArea.x).to.equal(20);
-    });
-
-    it('lays out box model for body > div > div:nth-child(2) correctly', function () {
-      expect(this.get(0, 1).borderArea.width).to.equal(280);
-      expect(this.get(0, 1).paddingArea.width).to.equal(280);
-      expect(this.get(0, 1).contentArea.width).to.equal(280);
-      expect(this.get(0, 1).borderArea.height).to.equal(0);
-      expect(this.get(0, 1).paddingArea.height).to.equal(0);
-      expect(this.get(0, 1).contentArea.height).to.equal(0);
-      expect(this.get(0, 1).borderArea.y).to.equal(40);
-      expect(this.get(0, 1).paddingArea.y).to.equal(40);
-      expect(this.get(0, 1).contentArea.y).to.equal(40);
-      expect(this.get(0, 1).borderArea.x).to.equal(10);
-      expect(this.get(0, 1).paddingArea.x).to.equal(10);
-      expect(this.get(0, 1).contentArea.x).to.equal(10);
-    });
-
-    it('lays out box model for body > div > div:nth-child(3) correctly', function () {
-      expect(this.get(0, 2).borderArea.width).to.equal(280);
-      expect(this.get(0, 2).paddingArea.width).to.equal(260);
-      expect(this.get(0, 2).contentArea.width).to.equal(260);
-      expect(this.get(0, 2).borderArea.height).to.equal(30);
-      expect(this.get(0, 2).paddingArea.height).to.equal(10);
-      expect(this.get(0, 2).contentArea.height).to.equal(10);
-      expect(this.get(0, 2).borderArea.y).to.equal(40);
-      expect(this.get(0, 2).paddingArea.y).to.equal(50);
-      expect(this.get(0, 2).contentArea.y).to.equal(50);
-      expect(this.get(0, 2).borderArea.x).to.equal(10);
-      expect(this.get(0, 2).paddingArea.x).to.equal(20);
-      expect(this.get(0, 2).contentArea.x).to.equal(20);
-    });
-
-    it('lays out box model for body > div > div > div', function () {
-      expect(this.get(0, 2, 0).borderArea.width).to.equal(240);
-      expect(this.get(0, 2, 0).paddingArea.width).to.equal(240);
-      expect(this.get(0, 2, 0).contentArea.width).to.equal(240);
-      expect(this.get(0, 2, 0).borderArea.height).to.equal(0);
-      expect(this.get(0, 2, 0).paddingArea.height).to.equal(0);
-      expect(this.get(0, 2, 0).contentArea.height).to.equal(0);
-      expect(this.get(0, 2, 0).borderArea.y).to.equal(60);
-      expect(this.get(0, 2, 0).paddingArea.y).to.equal(60);
-      expect(this.get(0, 2, 0).contentArea.y).to.equal(60);
-      expect(this.get(0, 2, 0).borderArea.x).to.equal(30);
-      expect(this.get(0, 2, 0).paddingArea.x).to.equal(30);
-      expect(this.get(0, 2, 0).contentArea.x).to.equal(30);
+    it('centers auto margins', function () {
+      this.layout('<div style="width: 50px; margin: 0 auto;"></div>');
+      expect(this.get(0).contentArea.x).to.equal(125);
     });
   });
 

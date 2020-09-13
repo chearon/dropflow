@@ -255,7 +255,7 @@ class BlockContainer extends Box {
           // Paragraph 6: two auto values, center the content
           const margin = (container.get('inlineSize') - specifiedInlineSize) / 2;
           style.set('marginInlineStart', margin);
-          style.get('marginInlineEnd', margin);
+          style.set('marginInlineEnd', margin);
         }
       }
     }

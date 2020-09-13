@@ -70,10 +70,9 @@ function StyleFactory(id, computedStyleObject) {
   // and Inheritance Level 4 §4.5, §4.6). For example, usedStyle.borderWidth
   // would return `0` for the style `border-width: 3px; border-style: none;`.
   //
-  // During rendering, an instance of CssUsedStyle will have setters invoked for
-  // some used styles. If the style is `width: auto;`, at some point something
-  // like usedStyle.width = 123 will happen. That sets 123 on the internal
-  // this.used hash which later gets returned by the usedStyle.width getter
+  // Since there is no DOM, some used values like `width: 10px;` calculated from
+  // `width: auto;` are never stored on the style object. In that example, the
+  // used width lives on the content Area object.
   //
   // For properties which never change from computed to used, like
   // usedStyle.whiteSpace, the values get picked up off of the prototype chain
@@ -83,25 +82,24 @@ function StyleFactory(id, computedStyleObject) {
       super();
       this.id = id;
 
-      // This is where styles are created during layout, such as in CSS 2.2
-      // §10.3.3 when the width is transformed from 'auto' to a real width.
-      // The getters will retrieve from here first if an entry exists
-      // Currently only width, height, and margins are ever stored here
+      // This is where some used values are stored. Only used values that can
+      // be determined before layout, such as used border width or
+      // post-box-model width and height
       this.used = {};
     }
 
     resolvePercentages(containingBlock) {
       for (const p of percentWidthProps) {
         if (computedStyleObject[p].unit === '%') {
-          this[p] = computedStyleObject[p].value / 100 * containingBlock.width;
+          this.used[p] = computedStyleObject[p].value / 100 * containingBlock.width;
         }
       }
 
       if (computedStyleObject.height.unit === '%') {
         if (containingBlock.height !== null) {
-          this.height = computedStyleObject.height.value / 100 * containingBlock.height;
+          this.used.height = computedStyleObject.height.value / 100 * containingBlock.height;
         } else {
-          this.height = 'auto'; // this happens when parent height is auto
+          this.used.height = 'auto'; // this happens when parent height is auto
         }
       }
     }
@@ -114,7 +112,7 @@ function StyleFactory(id, computedStyleObject) {
             + this.paddingRight
             + this.borderRightWidth;
 
-          this.width = Math.max(0, this.width - edges);
+          this.used.width = Math.max(0, this.width - edges);
         }
 
         if (this.height !== 'auto') {
@@ -123,7 +121,7 @@ function StyleFactory(id, computedStyleObject) {
             + this.paddingBottom
             + this.borderBottomWidth;
 
-          this.height = Math.max(0, this.height - edges);
+          this.used.height = Math.max(0, this.height - edges);
         }
       }
     }
@@ -140,10 +138,6 @@ function StyleFactory(id, computedStyleObject) {
       return value;
     }
 
-    set paddingLeft(value) {
-      this.used.paddingLeft = value;
-    }
-
     get paddingRight() {
       if ('paddingRight' in this.used) return this.used.paddingRight;
 
@@ -154,10 +148,6 @@ function StyleFactory(id, computedStyleObject) {
       }
 
       return value;
-    }
-
-    set paddingRight(value) {
-      this.used.paddingRight = value;
     }
 
     get borderLeftWidth() {
@@ -180,13 +170,7 @@ function StyleFactory(id, computedStyleObject) {
       return computedStyleObject.borderRightStyle !== 'none' ? value : 0;
     }
 
-    set marginLeft(value) {
-      this.used.marginLeft = value;
-    }
-
     get marginLeft() {
-      if ('marginLeft' in this.used) return this.used.marginLeft;
-
       if (computedStyleObject.marginLeft === 'auto') return 'auto';
 
       const {unit, value} = computedStyleObject.marginLeft;
@@ -198,13 +182,7 @@ function StyleFactory(id, computedStyleObject) {
       return value;
     }
 
-    set marginRight(value) {
-      this.used.marginRight = value;
-    }
-
     get marginRight() {
-      if ('marginRight' in this.used) return this.used.marginRight;
-
       if (computedStyleObject.marginRight === 'auto') return 'auto';
 
       const {unit, value} = computedStyleObject.marginRight;
@@ -214,10 +192,6 @@ function StyleFactory(id, computedStyleObject) {
       }
 
       return value;
-    }
-
-    set width(value) {
-      this.used.width = value;
     }
 
     get width() {
@@ -246,10 +220,6 @@ function StyleFactory(id, computedStyleObject) {
       return value;
     }
 
-    set paddingTop(value) {
-      this.used.paddingTop = value;
-    }
-
     get paddingBottom() {
       if ('paddingBottom' in this.used) return this.used.paddingBottom;
 
@@ -260,10 +230,6 @@ function StyleFactory(id, computedStyleObject) {
       }
 
       return value;
-    }
-
-    set paddingBottom(value) {
-      this.used.paddingBottom = value;
     }
 
     get borderTopWidth() {
@@ -286,13 +252,7 @@ function StyleFactory(id, computedStyleObject) {
       return computedStyleObject.borderBottomStyle !== 'none' ? value : 0;
     }
 
-    set marginTop(value) {
-      this.used.marginTop = value;
-    }
-
     get marginTop() {
-      if ('marginTop' in this.used) return this.used.marginTop;
-
       if (computedStyleObject.marginTop === 'auto') return 'auto';
 
       const {unit, value} = computedStyleObject.marginTop;
@@ -304,13 +264,7 @@ function StyleFactory(id, computedStyleObject) {
       return value;
     }
 
-    set marginBottom(value) {
-      this.used.marginBottom = value;
-    }
-
     get marginBottom() {
-      if ('marginBottom' in this.used) return this.used.marginBottom;
-
       if (computedStyleObject.marginBottom === 'auto') return 'auto';
 
       const {unit, value} = computedStyleObject.marginBottom;
@@ -320,10 +274,6 @@ function StyleFactory(id, computedStyleObject) {
       }
 
       return value;
-    }
-
-    set height(value) {
-      this.used.height = value;
     }
 
     get height() {

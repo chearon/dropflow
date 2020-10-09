@@ -8,6 +8,8 @@
 // element
 
 {
+  const {initial, inherit} = require('./cascade');
+
   function extractList(list, index) {
     return list.map(function(element) { return element[index]; });
   }
@@ -239,18 +241,19 @@ color
   }
 
 default
-  = 'inherit' / 'initial'
+  = 'inherit' { return inherit; }
+  / 'initial' { return initial; }
 
 // ----- Specific properties and shorthands - values -----
 
 absolute_size
-  = 'xx-small' { return { value: 9, unit: 'px' } }
-  / 'x-small' { return { value: 10, unit: 'px' } }
-  / 'small' { return { value: 13, unit: 'px' } }
-  / 'medium' { return { value: 16, unit: 'px' } }
-  / 'large' { return { value: 18, unit: 'px' } }
-  / 'x-large' { return { value: 24, unit: 'px' } }
-  / 'xx-large' { return { value: 32, unit: 'px' } }
+  = 'xx-small' { return 9 }
+  / 'x-small' { return 10 }
+  / 'small' { return 13 }
+  / 'medium' { return 16 }
+  / 'large' { return 18 }
+  / 'x-large' { return 24 }
+  / 'xx-large' { return 32 }
 
 relative_size
   = 'smaller' { return { value: 1/1.2, unit: 'em' } }
@@ -417,22 +420,22 @@ position_dec
   }
 
 margin_top_dec
-  = 'margin-top'i S* ':' S* marginTop:(length_side / default) {
+  = 'margin-top'i S* ':' S* marginTop:(margin_side / default) {
     return {marginTop};
   }
 
 margin_right_dec
-  = 'margin-right'i S* ':' S* marginRight:(length_side / default) {
+  = 'margin-right'i S* ':' S* marginRight:(margin_side / default) {
     return {marginRight};
   }
 
 margin_bottom_dec
-  = 'margin-bottom'i S* ':' S* marginBottom:(length_side / default) {
+  = 'margin-bottom'i S* ':' S* marginBottom:(margin_side / default) {
     return {marginBottom};
   }
 
 margin_left_dec
-  = 'margin-left'i S* ':' S* marginLeft:(length_side / default) {
+  = 'margin-left'i S* ':' S* marginLeft:(margin_side / default) {
     return {marginLeft};
   }
 
@@ -787,13 +790,13 @@ EXS "length"
   = comment* value:num E X { return { value: value, unit: 'ex' }; }
 
 LENGTH "length"
-  = comment* value:num P X { return { value: value, unit: 'px' }; }
+  = comment* value:num P X { return value; }
   / comment* value:num C M { return { value: value, unit: 'cm' }; }
   / comment* value:num M M { return { value: value, unit: 'mm' }; }
   / comment* value:num I N { return { value: value, unit: 'in' }; }
   / comment* value:num P T { return { value: value, unit: 'pt' }; }
   / comment* value:num P C { return { value: value, unit: 'pc' }; }
-  / comment* '0' { return { value: 0, unit: 'px' }; }
+  / comment* '0' { return 0; }
 
 ANGLE "angle"
   = comment* value:num D E G   { return { value: value, unit: 'deg'  }; }

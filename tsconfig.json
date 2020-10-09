@@ -1,0 +1,9 @@
+{
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "target": "esnext",
+    "module": "commonjs"
+  }
+}

@@ -45,7 +45,7 @@ function paintBlockContainer(blockContainer, level = 0) {
       const x = side == 'Right' ? paddingArea.x + paddingArea.width : borderArea.x;
       const y = side === 'Bottom' ? paddingArea.y + paddingArea.height : borderArea.y;
 
-      s += drawColoredBoxDiv({x, ty, width, height}, borderColor, level);
+      s += drawColoredBoxDiv({id: -1, x, y, width, height}, borderColor, level);
     }
   }
 

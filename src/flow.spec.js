@@ -1,13 +1,16 @@
-import {HTMLElement} from './node';
-import {parseNodes} from './parser';
-import {createComputedStyle, initialStyle} from './cascade';
-import {generateBlockContainer} from './flow';
-import {Area} from './box';
-import {paint} from './paint/html/index';
-import {expect} from 'chai';
+//@ts-check
 
+const {HTMLElement} = require('./node');
+const {parseNodes} = require('./parser');
+const {createComputedStyle, initialStyle, Style} = require('./cascade');
+const {generateBlockContainer} = require('./flow');
+const {Area} = require('./box');
+const {paint} = require('./paint/html/index');
+const {expect} = require('chai');
+
+/** @type import('./cascade').CascadedPlainStyle */
 const rootDeclaredStyle = {
-  fontSize: {value: 16, unit: 'px'},
+  fontSize: 16,
   fontFamily: 'Helvetica',
   fontWeight: '300',
   whiteSpace: 'normal',
@@ -25,11 +28,12 @@ const rootDeclaredStyle = {
 describe('Flow', function () {
   before(function () {
     this.layout = function (html) {
-      this.rootComputedStyle = createComputedStyle(-1, rootDeclaredStyle, initialStyle);
-      this.rootElement = new HTMLElement(-1, 'root', this.rootComputedStyle);
+      this.initialContainingBlock = new Area('', 0, 0, 300, 500);
+      this.rootComputed = createComputedStyle(initialStyle, rootDeclaredStyle);
+      this.rootElement = new HTMLElement('root', 'root', this.rootComputed);
       parseNodes(this.rootElement, html);
+      /** @type import('./flow').BlockContainerOfBlocks */
       this.blockContainer = generateBlockContainer(this.rootElement);
-      this.initialContainingBlock = new Area(-1, 0, 0, 300, 500);
       this.blockContainer.assignContainingBlocks({
         lastBlockContainerArea: this.initialContainingBlock,
         lastPositionedArea: this.initialContainingBlock
@@ -39,6 +43,7 @@ describe('Flow', function () {
       this.blockContainer.doBoxPositioning(rootDeclaredStyle.writingMode);
       this.blockContainer.absolutify();
       this.get = function (...args) {
+        /** @type import('./box').Box */
         let ret = this.blockContainer;
         while (args.length) ret = ret.children[args.shift()];
         return ret;

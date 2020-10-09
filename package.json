@@ -1,11 +1,10 @@
 {
-  "dependencies": {
-    "esm": "^3.2.22"
-  },
   "devDependencies": {
+    "@types/mocha": "^8.0.3",
     "chai": "^4.2.0",
     "mocha": "^6.1.2",
-    "pegjs": "^0.10.0"
+    "pegjs": "^0.10.0",
+    "typescript": "^4.0.3"
   },
   "name": "overflow",
   "version": "0.0.0",
@@ -13,8 +12,9 @@
   "main": "node.js",
   "browser": "browser.js",
   "scripts": {
-    "test": "mocha -r esm src/*.spec.js",
-    "buildcssparser": "pegjs -O size src/css.pegjs"
+    "test": "mocha src/*.spec.js",
+    "buildcssparser": "pegjs -O size src/css.pegjs",
+    "build": "tsc"
   },
   "keywords": [
     "css2",

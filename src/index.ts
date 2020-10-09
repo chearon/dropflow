@@ -1,3 +1,5 @@
+///<reference lib="dom" />
+
 import {HTMLElement} from './node';
 import {parseNodes} from './parser';
 import {createComputedStyle, initialStyle} from './cascade';
@@ -5,8 +7,8 @@ import {generateBlockContainer} from './flow';
 import {Area} from './box';
 import {paint} from './paint/html/index';
 
-const rootDeclaredStyle = {
-  fontSize: {value: 16, unit: 'px'},
+const rootComputedStyle = createComputedStyle(initialStyle, {
+  fontSize: 16,
   fontFamily: 'Helvetica',
   fontWeight: '300',
   whiteSpace: 'normal',
@@ -19,17 +21,19 @@ const rootDeclaredStyle = {
     outer: 'block',
     inner: 'flow-root'
   }
-};
+});
 
-const rootComputedStyle = createComputedStyle(-1, rootDeclaredStyle, initialStyle);
-
-const rootElement = new HTMLElement(-1, 'root', rootComputedStyle);
+const rootElement = new HTMLElement('', 'root', rootComputedStyle);
 
 // -------------- Step 0 --------------
 console.log("Step 0, element tree");
 parseNodes(rootElement, `
-  <div style="margin: 10px; height: 100px; background-color: #f00; border-left: 10px solid #000;">
-    <div style="border-top: 10px solid #0f0; border-bottom: 5px solid #ff0; height: 10px; padding: 10px; background-color: #00f">
+  <div style="margin: 10px; width: 10px; background-color: purple;"></div>
+  <div style="margin: 10px; width: 10px; background-color: purple;"></div>
+  <div style="margin: 10px; width: 10px; background-color: purple;">
+    <div style="margin: 50px;">
+      <div style="margin: 10px; height: 10px; background-color: red;"></div>
+      <div style="margin: 10px; height: 10px; background-color: red;"></div>
     </div>
   </div>
 `);
@@ -42,9 +46,11 @@ const blockContainer = generateBlockContainer(rootElement);
 console.log(blockContainer.repr());
 console.log();
 
+if (!blockContainer.isBlockContainerOfBlocks()) throw new Error('wat');
+
 // -------------- Step 2 --------------
 console.log("Step 2, containing block assigment");
-const initialContainingBlock = new Area(-1, 0, 0, 300, 500);
+const initialContainingBlock = new Area('', 0, 0, 300, 500);
 blockContainer.assignContainingBlocks({
   lastBlockContainerArea: initialContainingBlock,
   lastPositionedArea: initialContainingBlock
@@ -63,7 +69,7 @@ blockContainer.absolutify();
 
 const blocks = new Set([blockContainer.borderArea]);
 
-for (const [order, child] of blockContainer.descendents({isBlockContainer: true})) {
+for (const [order, child] of blockContainer.descendents(b => b.isBlockContainer())) {
   if (order === 'pre') blocks.add(child.borderArea);
 }
 console.log([...blocks]);

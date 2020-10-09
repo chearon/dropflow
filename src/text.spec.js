@@ -1,14 +1,8 @@
-import {expect} from 'chai';
-import {Run, Collapser} from './text';
+const {expect} = require('chai');
+const {Run, Collapser} = require('./text');
 
 describe('Text Module', function () {
   describe('Run', function () {
-    it('throws an error if you try to construct a text that doesn\'t make sense', function () {
-      expect(() => new Run(undefined)).to.throw();
-      expect(() => new Run()).to.throw();
-      expect(() => new Run('', 0)).to.throw();
-    });
-
     it('throws on a setRange that doesn\'t make sense', function () {
       expect(() => new Run('').setRange(0, '')).to.throw();
       expect(() => new Run('').setRange('', '')).to.throw();

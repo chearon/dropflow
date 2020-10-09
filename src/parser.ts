@@ -7,7 +7,7 @@
 // TODO Resig's HTML parser doesn't support HTML entities :/
 
 import {TextNode, HTMLElement} from './node';
-import StyleParser from './css';
+import {parse as StyleParser} from './css';
 import {createComputedStyle, uaDeclaredStyles} from './cascade';
 import {id} from './util';
 
@@ -54,15 +54,16 @@ const special = makeMap("script,style");
 
 const HTMLParser = function( html, handler ) {
   let index, chars, match, stack = [], last = html;
-  stack.last = function(){
-    return this[ this.length - 1 ];
+
+  const stacklast = function() {
+    return stack[ stack.length - 1 ];
   };
 
   while ( html ) {
     chars = true;
 
     // Make sure we're not in a script or style element
-    if ( !stack.last() || !special[ stack.last() ] ) {
+    if ( !stacklast() || !special[ stacklast() ] ) {
 
       // Comment
       if ( html.indexOf("<!--") == 0 ) {
@@ -107,7 +108,7 @@ const HTMLParser = function( html, handler ) {
       }
 
     } else {
-      html = html.replace(new RegExp("(.*)<\/" + stack.last() + "[^>]*>"), function(all, text){
+      html = html.replace(new RegExp("(.*)<\/" + stacklast() + "[^>]*>"), function(all, text){
         text = text.replace(/<!--(.*?)-->/g, "$1")
           .replace(/<!\[CDATA\[(.*?)]]>/g, "$1");
 
@@ -117,7 +118,7 @@ const HTMLParser = function( html, handler ) {
         return "";
       });
 
-      parseEndTag( "", stack.last() );
+      parseEndTag( "", stacklast() );
     }
 
     if ( html == last )
@@ -132,8 +133,8 @@ const HTMLParser = function( html, handler ) {
     tagName = tagName.toLowerCase();
 
     if ( block[ tagName ] ) {
-      while ( stack.last() && closeSelf[ stack.last() ] ) {
-        parseEndTag( "", stack.last() );
+      while ( stacklast() && closeSelf[ stacklast() ] ) {
+        parseEndTag( "", stacklast() );
       }
     }
 
@@ -163,7 +164,7 @@ const HTMLParser = function( html, handler ) {
     }
   }
 
-  function parseEndTag( tag, tagName ) {
+  function parseEndTag( tag?, tagName? ) {
     let pos;
 
     // If no tag name is provided, clean shop
@@ -202,7 +203,7 @@ export function parseNodes(rootElement, str) {
       // Just ignore invalid styles so the parser can continue
       try {
         if (style) {
-          const styleDeclaredStyle = StyleParser.parse(style);
+          const styleDeclaredStyle = StyleParser(style);
           // 2-level cascade:
           cascadedStyle = Object.assign({}, uaDeclaredStyle, styleDeclaredStyle);
         } else {
@@ -212,7 +213,7 @@ export function parseNodes(rootElement, str) {
         cascadedStyle = uaDeclaredStyle;
       }
 
-      const computedStyle = createComputedStyle(newId, cascadedStyle, parent.style);
+      const computedStyle = createComputedStyle(parent.style, cascadedStyle);
       const element = new HTMLElement(newId, tagName, computedStyle);
 
       parent.children.push(element);
@@ -227,7 +228,7 @@ export function parseNodes(rootElement, str) {
     },
     chars(text) {
       const newId = id();
-      const computedStyle = createComputedStyle(newId, {}, parent.style);
+      const computedStyle = createComputedStyle(parent.style, {});
       parent.children.push(new TextNode(newId, text, computedStyle));
     }
   });

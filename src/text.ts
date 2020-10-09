@@ -1,45 +1,38 @@
 import {bsearchj, loggableText} from './util';
 import {Box} from './box';
+import {Style, initialStyle, createComputedStyle} from './cascade';
 
 let id = 1;
 let debug = true;
 
-function argcheck(a, i, type, required = true) {
-  if (required || (i in a)) {
-    const valid = type === 'array' ? Array.isArray(a[i]) : typeof a[i] === type;
-    if (!valid) throw new Error(`Expected argument ${i} to be of type ${type}`);
-  }
-}
-
 export class Run extends Box {
-  constructor(text, style = {whiteSpace: 'normal'}) {
-    super();
+  public i: number = 0;
+  public j: number = 0;
+  public text: string;
 
-    if (debug) {
-      argcheck(arguments, 0, 'string');
-      argcheck(arguments, 1, 'object', false);
-    }
+  constructor(text: string, style: Style) {
+    super(style, [], false);
 
     this.text = text;
-    this.style = style;
-    this.sym = 'Ͳ';
-
-    this.i = 0;
-    this.j = 0;
+    this.style = style || new Style('anontext', createComputedStyle(initialStyle, {
+      whiteSpace: 'normal'
+    }));
   }
 
-  setRange(i, j) {
-    if (debug) {
-      if (this.text.length !== j - i + 1) {
-        throw new Error(`j=${j} - i=${i} + 1 should sum to text.length=${this.text.length}`);
-      }
+  get sym() {
+    return 'Ͳ';
+  }
+
+  setRange(i: number, j: number) {
+    if (this.text.length !== j - i + 1) {
+      throw new Error(`j=${j} - i=${i} + 1 should sum to text.length=${this.text.length}`);
     }
 
     this.i = i;
     this.j = j;
   }
 
-  shift(n) {
+  shift(n: number) {
     this.i -= n;
     this.j -= n;
   }
@@ -48,7 +41,7 @@ export class Run extends Box {
     return true;
   }
 
-  get isRun() {
+  isRun(): this is Run {
     return true;
   }
 
@@ -57,18 +50,18 @@ export class Run extends Box {
   }
 
   get wsCollapsible() {
-    return this.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
+    return !!this.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
   }
 
   get sgUncollapsible() {
-    return this.style.whiteSpace.match(/^(pre|pre-wrap|break-spaces|pre-line)$/);
+    return !!this.style.whiteSpace.match(/^(pre|pre-wrap|break-spaces|pre-line)$/);
   }
 
   get sgCollapsible() {
     return !this.sgUncollapsible;
   }
 
-  mod(i, j, s) {
+  mod(i: number, j: number, s: string) {
     const text = this.text;
     const li = Math.max(0, i - this.i);
     const lj = j - this.i;
@@ -83,19 +76,19 @@ export class Run extends Box {
   }
 
   allCollapsible() {
-    return this.text.match(/^( |\r\n|\n|\t)*$/);
+    return Boolean(this.text.match(/^( |\r\n|\n|\t)*$/));
   }
 }
 
 export class Collapser {
-  constructor(buf, runs) {
-    if (debug) {
-      argcheck(arguments, 0, 'string');
-      argcheck(arguments, 1, 'array');
+  public buf: string;
+  public runs: Run[];
 
+  constructor(buf: string, runs: Run[]) {
+    if (debug) {
       if (buf.length > 0 || runs.length > 0) {
         const start = runs[0];
-        let last;
+        let last!: Run;
 
         for (const run of runs) {
           if (last && run.i !== last.j + 1) {
@@ -119,7 +112,7 @@ export class Collapser {
     this.runs = runs;
   }
 
-  mod(i, j, s) {
+  mod(i: number, j: number, s: string) {
     if (j < i) return 0;
 
     const start = bsearchj(this.runs, i);
@@ -142,7 +135,7 @@ export class Collapser {
     return shrinkahead;
   }
 
-  *collapsibleRanges(filter) {
+  *collapsibleRanges(filter: 'sgCollapsible' | 'wsCollapsible' | 'sgUncollapsible') {
     let i = 0;
     let j = 0;
     let wasInCollapse = false;
@@ -165,7 +158,7 @@ export class Collapser {
     }
   }
 
-  modRanges(ranges) {
+  modRanges(ranges: [number, number, string][]) {
     let shrinkahead = 0;
 
     for (const [start, end, s] of ranges) {
@@ -176,7 +169,7 @@ export class Collapser {
 
   // CSS Text Module Level 3 §4.1.1 step 1
   stepOne() {
-    const toRemove = [];
+    const toRemove: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
       const range = this.buf.slice(start.i, end.j + 1);
@@ -203,7 +196,7 @@ export class Collapser {
 
   // CSS Text Module Level 3 §4.1.1 step 2 (defined in §4.1.2)
   stepTwo() {
-    const removeCarriageReturn = [];
+    const removeCarriageReturn: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('sgUncollapsible')) {
       const range = this.buf.slice(start.i, end.j + 1);
@@ -218,7 +211,7 @@ export class Collapser {
 
     this.modRanges(removeCarriageReturn);
 
-    const modConsecutiveSegments = [];
+    const modConsecutiveSegments: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('sgCollapsible')) {
       const range = this.buf.slice(start.i, end.j + 1);
@@ -241,7 +234,7 @@ export class Collapser {
 
   // CSS Text Module Level 3 §4.1.1 step 3
   stepThree() {
-    const removeTab = [];
+    const removeTab: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
       const range = this.buf.slice(start.i, end.j + 1);
@@ -258,7 +251,7 @@ export class Collapser {
 
   // CSS Text Module Level 3 §4.1.1 step 4
   stepFour() {
-    const collapseWs = [];
+    const collapseWs: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
       const range = this.buf.slice(start.i, end.j + 1);

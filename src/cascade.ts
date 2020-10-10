@@ -513,10 +513,10 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
   for (const _ in initialStyle) {
     const p = _ as keyof typeof initialStyle;
     const value = style[p];
-    const pvalue = parentStyle[p];
 
     if (typeof value === 'object' && 'unit' in value) {
       if (value.unit === 'em') {
+        const pvalue = parentStyle.fontSize;
         if (typeof pvalue === 'number') {
           ret[p] = pvalue * value.value;
         } else {

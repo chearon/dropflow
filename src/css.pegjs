@@ -154,7 +154,7 @@ operator
   / ',' S* { return ','; }
 
 term
-  = quantity:(PERCENTAGE / LENGTH / EMS / EXS / ANGLE / TIME / FREQ / NUMBER)
+  = quantity:(PERCENTAGE / LENGTH / EXS / ANGLE / TIME / FREQ / NUMBER)
     S*
     {
       return {
@@ -258,7 +258,6 @@ absolute_size
 relative_size
   = 'smaller' { return { value: 1/1.2, unit: 'em' } }
   / 'larger' { return { value: 1.2, unit: 'em' } }
-  / EMS
 
 font_size
   = font_size:(relative_size / absolute_size / LENGTH / PERCENTAGE) S* { return font_size; }
@@ -783,9 +782,6 @@ IDENT "identifier"
 HASH "hash"
   = comment* '#' name:name { return '#' + name; }
 
-EMS "length"
-  = comment* value:num E M { return { value: value, unit: 'em' }; }
-
 EXS "length"
   = comment* value:num E X { return { value: value, unit: 'ex' }; }
 
@@ -796,6 +792,7 @@ LENGTH "length"
   / comment* value:num I N { return { value: value, unit: 'in' }; }
   / comment* value:num P T { return { value: value, unit: 'pt' }; }
   / comment* value:num P C { return { value: value, unit: 'pc' }; }
+  / comment* value:num E M { return { value: value, unit: 'em' }; }
   / comment* '0' { return 0; }
 
 ANGLE "angle"

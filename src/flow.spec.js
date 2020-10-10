@@ -337,4 +337,66 @@ describe('Flow', function () {
       expect(this.get(0, 0).contentArea.y).to.equal(45);
     });
   });
+
+  describe('Units', function () {
+    it('resolves percentage on padding', function () {
+      this.layout(`
+        <div style="width: 100px;">
+          <div style="padding-right: 11%;"></div>
+          <div style="padding-top: 11%;"></div>
+          <div style="padding: 10%;"></div>
+        </div>
+      `);
+
+      expect(this.get(0, 0).contentArea.width).to.equal(89);
+      expect(this.get(0, 1).borderArea.height).to.equal(11);
+      expect(this.get(0, 1).contentArea.y).to.equal(11);
+
+      expect(this.get(0, 2).contentArea.width).to.equal(80);
+      expect(this.get(0, 2).borderArea.height).to.equal(20);
+    });
+
+    it('resolves percentages on margin', function () {
+      this.layout(`
+        <div style="width: 100px;">
+          <div style="margin-left: 20%;"></div>
+          <div style="margin-top: 25%; border-bottom-width: 25px;"></div>
+          <div style="margin: 50%;"></div>
+        </div>
+      `);
+
+      expect(this.get(0, 0).borderArea.x).to.equal(20);
+      expect(this.get(0, 1).borderArea.y).to.equal(25);
+      expect(this.get(0, 2).borderArea.x).to.equal(50);
+      expect(this.get(0, 2).borderArea.y).to.equal(100);
+    });
+
+    it('resolves em units on width and height', function () {
+      this.layout(`<div style="width: 1em; height: 1em;"></div>`);
+      expect(this.get(0).contentArea.height).to.equal(16);
+      expect(this.get(0).contentArea.width).to.equal(16);
+    });
+
+    it('resolves em units on borders', function () {
+      this.layout(`
+        <div style="width: 100px; font-size: 16px;">
+          <div style="border: 1em solid;"></div>
+        </div>
+      `);
+      expect(this.get(0, 0).borderArea.height).to.equal(16 * 2);
+      expect(this.get(0, 0).contentArea.x).to.equal(16);
+      expect(this.get(0, 0).contentArea.width).to.equal(100 - 16 * 2);
+    });
+
+    it('resolves em units on margins', function () {
+      this.layout(`
+        <div style="width: 100px; font-size: 16px;">
+          <div style="margin: 1em;"></div>
+        </div>
+      `);
+      expect(this.get(0, 0).contentArea.width).to.equal(100 - 16 * 2);
+      expect(this.get(0, 0).contentArea.x).to.equal(16);
+      expect(this.get(0, 0).contentArea.y).to.equal(16);
+    });
+  });
 });

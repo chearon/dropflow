@@ -8,10 +8,12 @@ export type LogicalArea = {
   blockEnd: number
   inlineStart: number
   inlineEnd: number
-  blockSize: number
-  inlineSize: number
+  blockSize: number | undefined
+  inlineSize: number | undefined
 };
 
+// TODO uh, the getters are never invoked, and if they did they would return
+// undefined!? not sure how TS allows setters but no getters on Area
 const horizontalTb = (area: Area):LogicalArea => ({
   get blockStart() { return area.top; },
 	set blockStart(v) { area.top = v; },
@@ -59,7 +61,7 @@ const verticalRl = (area: Area):LogicalArea => ({
 
 export type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
 
-const throwOverSpecified = (a, side) => new Error(
+const throwOverSpecified = (a: Area, side: string) => new Error(
   `Cannot set ${side} on area ${a.id} because this dimension is already ` +
   'locked-in (must choose two of width, left, right, for example)'
 );
@@ -124,45 +126,34 @@ export class Area {
     this.spec.l = v;
   }
 
-  set width(v: number) {
+  set width(v: number | undefined) {
     if (this.spec.l != null && this.spec.r != null) {
       throwOverSpecified(this, 'width');
     }
     this.spec.w = v;
   }
 
-  set height(v: number) {
+  set height(v: number | undefined) {
     if (this.spec.t != null && this.spec.b != null) {
       throwOverSpecified(this, 'height');
     }
     this.spec.h = v;
   }
 
-  get width() {
+  get width():number | undefined {
     if (this.hasAbsolutified) return this.w;
     if (this.spec.w != null) return this.spec.w;
-    if (this.spec.l != null && this.spec.r != null && this.parent) {
+    if (this.spec.l != null && this.spec.r != null && this.parent && this.parent.width != null) {
       return this.parent.width - this.spec.l - this.spec.r;
     }
-    throw new Error (`Cannot get width of area ${this.id}`);
   }
 
-  get height() {
+  get height():number | undefined {
     if (this.hasAbsolutified) return this.h;
     if (this.spec.h != null) return this.spec.h;
-    if (this.spec.t != null && this.spec.b != null && this.parent) {
+    if (this.spec.t != null && this.spec.b != null && this.parent && this.parent.height != null) {
       return this.parent.height - this.spec.t - this.spec.b;
     }
-    throw new Error (`Cannot get height of area ${this.id}`);
-  }
-
-  isComplete() {
-    let n = 0;
-    for (const _ in this.spec) {
-      const k = _ as keyof Area["spec"];
-      if (this.spec[k] != null) ++n;
-    }
-    return n === 4;
   }
 
   absolutify() {
@@ -170,8 +161,16 @@ export class Area {
       throw new Error(`Cannot absolutify area ${this.id}, parent is not ready`);
     }
 
-    if (!this.isComplete()) {
-      throw new Error(`Cannot absolutify area ${this.id} incomplete geometry`);
+    if (this.width == null || this.height == null) {
+      throw new Error(`Cannot absolutify area ${this.id}: indeterminate size`);
+    }
+
+    if (this.spec.l == null && this.spec.r == null) {
+      throw new Error(`Cannot absolutify area ${this.id}: no horizontal position`);
+    }
+
+    if (this.spec.t == null && this.spec.b == null) {
+      throw new Error(`Cannot absolutify area ${this.id}: no vertical position`);
     }
 
     const {w: pw, h: ph, x: px, y: py} = this.parent;

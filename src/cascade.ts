@@ -96,7 +96,7 @@ type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
 
 type Position = 'absolute' | 'relative' | 'static';
 
-type Color = {r: number, g: number, b: number, a: number};
+export type Color = {r: number, g: number, b: number, a: number};
 
 type OuterDisplay = 'inline' | 'block';
 
@@ -282,18 +282,27 @@ export class Style implements ComputedPlainStyle {
     for (const p of pctWidthSide) {
       const sval = this.s[p];
       if (typeof sval === 'object' && sval.unit === '%') {
-        const value = sval.value / 100 * containingBlock.width;
-        this.used.set(p, value);
+        if (containingBlock.width === undefined) {
+          // this situation should only happen if the containing block's box is
+          // being floated or in orthogonal writing modes (horizontal inside
+          // vertical)
+          this.used.set(p, 'auto');
+        } else {
+          const value = sval.value / 100 * containingBlock.width;
+          this.used.set(p, value);
+        }
       }
     }
 
     const height = this.s.height;
 
     if (typeof height == 'object' && height.unit === '%') {
-      try {
+      if (containingBlock.height === undefined) {
+        this.used.set('height', 'auto'); // §CSS2 10.5
+      } else {
         const value = height.value / 100 * containingBlock.height;
         this.used.set('height', value);
-      } catch (e) {} // this happens when parent height is auto
+      }
     }
   }
 
@@ -489,7 +498,9 @@ const inheritedStyle = Object.freeze({
   boxSizing: false
 });
 
-export const uaDeclaredStyles = Object.freeze({
+type UaDeclaredStyles = {[tagName: string]: DeclaredPlainStyle};
+
+export const uaDeclaredStyles:UaDeclaredStyles = Object.freeze({
   div: {
     display: {outer: 'block', inner: 'flow'}
   },

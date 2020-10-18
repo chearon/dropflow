@@ -4,6 +4,9 @@
   "compilerOptions": {
     "lib": ["esnext"],
     "target": "esnext",
-    "module": "commonjs"
+    "module": "commonjs",
+    "strict": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true
   }
 }

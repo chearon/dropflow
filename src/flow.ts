@@ -200,6 +200,10 @@ export abstract class BlockContainer extends Box {
     let marginInlineStart = style.marginInlineStart;
     let marginInlineEnd = style.marginInlineEnd;
 
+    if (container.inlineSize === undefined) {
+      throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
+    }
+
     // Paragraphs 2 and 3
     if (style.inlineSize !== 'auto') {
       const specifiedInlineSize = style.inlineSize
@@ -243,13 +247,6 @@ export abstract class BlockContainer extends Box {
     if (style.inlineSize === 'auto') {
       if (marginInlineStart === 'auto') marginInlineStart = 0;
       if (marginInlineEnd === 'auto') marginInlineEnd = 0;
-
-      // TODO is this a clumsy interface for incomplete dims?
-      try {
-        container.inlineSize;
-      } catch (e) {
-        throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
-      }
     }
 
     const padding = this.paddingArea.createLogicalView(bfcWritingMode);
@@ -406,6 +403,13 @@ export class BlockContainerOfBlocks extends BlockContainer {
           block.setBlockSize(blockOffset, bfcWritingMode);
         }
 
+        // The block size would only be indeterminate for floats, which are
+        // not a part of the descendants() return value, or for orthogonal
+        // writing modes, which are also not in descendants() due to their
+        // establishing a new BFC. If neither of those are true and the block
+        // size is indeterminate that's a bug.
+        assumePx(border.blockSize);
+
         blockOffset = stack.pop()! + border.blockSize;
         blockOffset += end.has(block.id) ? end.get(block.id)! : 0;
       }
@@ -413,10 +417,7 @@ export class BlockContainerOfBlocks extends BlockContainer {
 
     const content = this.contentArea.createLogicalView(bfcWritingMode);
 
-    // TODO is the exception interface clumsy for this?
-    try {
-      content.blockSize;
-    } catch (e) {
+    if (content.blockSize === undefined) {
       this.setBlockSize(blockOffset, bfcWritingMode);
     }
   }

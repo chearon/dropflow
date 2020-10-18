@@ -41,7 +41,7 @@ export class HTMLElement {
     return el;
   }
 
-  repr(indent = 0, styleProp: keyof ComputedPlainStyle = null): string {
+  repr(indent = 0, styleProp?: keyof ComputedPlainStyle): string {
     const c = this.children.map(c => c.repr(indent + 1, styleProp)).join('\n');
     const style = styleProp ? ` ${styleProp}: ${JSON.stringify(this.style[styleProp])}` : '';
     const desc = `◼ <${this.tagName}> ${this.id}${style}`

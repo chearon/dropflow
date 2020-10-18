@@ -8,7 +8,7 @@
 
 import {TextNode, HTMLElement} from './node';
 import {parse as StyleParser} from './css';
-import {createComputedStyle, uaDeclaredStyles} from './cascade';
+import {createComputedStyle, uaDeclaredStyles, DeclaredPlainStyle} from './cascade';
 import {id} from './util';
 
 /*
@@ -18,14 +18,12 @@ import {id} from './util';
  * implementation self-closed when the same tag was hit (<p><p>) and also broke
  * block elements out of inlines, but that should happen in box generation
  *
- * TODO this does 
- *
  * Original code by Erik Arvidsson, Mozilla Public License
  * http://erik.eae.net/simplehtmlparser/simplehtmlparser.js
  */
 
-function makeMap(str){
-  var obj = {}, items = str.split(",");
+function makeMap(str: string){
+  var obj:{[s: string]: boolean} = {}, items = str.split(",");
   for ( var i = 0; i < items.length; i++ )
     obj[ items[i] ] = true;
   return obj;
@@ -52,8 +50,8 @@ const fillAttrs = makeMap("checked,compact,declare,defer,disabled,ismap,multiple
 // Special Elements (can contain anything)
 const special = makeMap("script,style");
 
-const HTMLParser = function( html, handler ) {
-  let index, chars, match, stack = [], last = html;
+const HTMLParser = function( html: string, handler: Handler ) {
+  let index, chars, match, stack: string[] = [], last = html;
 
   const stacklast = function() {
     return stack[ stack.length - 1 ];
@@ -129,7 +127,7 @@ const HTMLParser = function( html, handler ) {
   // Clean up any remaining tags
   parseEndTag();
 
-  function parseStartTag( tag, tagName, rest, unary ) {
+  function parseStartTag( tag: string, tagName: string, rest: string ):string {
     tagName = tagName.toLowerCase();
 
     if ( block[ tagName ] ) {
@@ -138,13 +136,13 @@ const HTMLParser = function( html, handler ) {
       }
     }
 
-    unary = empty[ tagName ] || !!unary;
+    const unary = empty[ tagName ];
 
     if ( !unary )
       stack.push( tagName );
     
     if ( handler.start ) {
-      const attrs = [];
+      const attrs: {name: string, value: string, escaped: string}[] = [];
 
       rest.replace(attr, function(match, name) {
         const value = arguments[2] ? arguments[2] :
@@ -157,14 +155,18 @@ const HTMLParser = function( html, handler ) {
           value: value,
           escaped: value.replace(/(^|[^\\])"/g, '$1\\\"') //"
         });
+
+        return '';
       });
 
       if ( handler.start )
         handler.start( tagName, attrs, unary );
     }
+
+    return ''; // TODO
   }
 
-  function parseEndTag( tag?, tagName? ) {
+  function parseEndTag( tag?: string, tagName?: string ): string {
     let pos;
 
     // If no tag name is provided, clean shop
@@ -186,15 +188,17 @@ const HTMLParser = function( html, handler ) {
       // Remove the open elements from the stack
       stack.length = pos;
     }
+
+    return ''; // TODO
   }
 };
 
-export function parseNodes(rootElement, str) {
-  const stack = [];
+export function parseNodes(rootElement: HTMLElement, str: string) {
+  const stack:HTMLElement[] = [];
   let parent = rootElement;
 
   HTMLParser(str, {
-    start(tagName, attrs, unary) {
+    start(tagName, attrs: {name: string, value: string}[], unary) {
       const newId = id();
       const uaDeclaredStyle = uaDeclaredStyles[tagName] || {};
       const style = (attrs.find(a => a.name === 'style') || {}).value;
@@ -224,7 +228,7 @@ export function parseNodes(rootElement, str) {
       }
     },
     end(tagName) {
-      parent = stack.pop();
+      parent = stack.pop()!;
     },
     chars(text) {
       const newId = id();
@@ -232,4 +236,11 @@ export function parseNodes(rootElement, str) {
       parent.children.push(new TextNode(newId, text, computedStyle));
     }
   });
+}
+
+type Handler = {
+  start?: (tagName: string, attrs: {name: string, value: string}[], unary: boolean) => void,
+  end?: (tagName: string) => void,
+  chars?: (text: string) => void,
+  comment?: (text: string) => void // unused
 }

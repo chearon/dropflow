@@ -107,7 +107,7 @@ type BorderStyle = 'none' | 'hiden' | 'dotted' | 'dashed' | 'solid'
 
 type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
 
-type SpecifiedPlainStyle = {
+export type DeclaredPlainStyle = {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   fontSize?: ValuePctPxEm | Inherited | Initial;
   color?: Color | Inherited | Initial;
@@ -147,13 +147,20 @@ type SpecifiedPlainStyle = {
   boxSizing?: BoxSizing | Inherited | Initial;
 };
 
-export type CascadedPlainStyle = {
-  [K in keyof SpecifiedPlainStyle]: Exclude<SpecifiedPlainStyle[K], Inherited | Initial>
+export type CascadedPlainStyle = DeclaredPlainStyle;
+
+type RemoveUnits<T, U> = {
+  [K in keyof T]: T[K] extends number ? number
+    : T[K] extends {value: number, unit: infer V} | number ?
+      V extends U ? number : number | {value: number, unit: Exclude<V, U>}
+  : T[K]
 };
 
-type DefaultedPlainStyle = Required<CascadedPlainStyle>;
+type SpecifiedPlainStyle = Required<{
+  [K in keyof DeclaredPlainStyle]: Exclude<DeclaredPlainStyle[K], Inherited | Initial>
+}>;
 
-export type ComputedPlainStyle = DefaultedPlainStyle;
+export type ComputedPlainStyle = RemoveUnits<SpecifiedPlainStyle, 'em'>;
 
 type KeysAre<T, U> = {[K in keyof T]: T[K] extends U ? K : never}[keyof T];
 
@@ -161,7 +168,7 @@ type $ValuePctPx = KeysAre<ComputedPlainStyle, ValuePctPx>;
 
 type $ValuePctPxOrAuto = KeysAre<ComputedPlainStyle, ValuePctPx | 'auto'>;
 
-const pctWidthSide: Set<$ValuePctPxOrAuto> = new Set([
+const pctWidthSide: Set<keyof ComputedPlainStyleUsed> = new Set([
   'paddingLeft',
   'paddingRight',
   'paddingTop',
@@ -173,7 +180,22 @@ const pctWidthSide: Set<$ValuePctPxOrAuto> = new Set([
   'width'
 ]);
 
-type X = {x: string, y: string}
+type ComputedPlainStyleUsed = Pick<ComputedPlainStyle,
+  'paddingTop' |
+  'paddingRight' |
+  'paddingBottom' |
+  'paddingLeft' |
+  'borderTopWidth' |
+  'borderRightWidth' |
+  'borderBottomWidth' |
+  'borderLeftWidth' |
+  'marginTop' |
+  'marginRight' |
+  'marginBottom' |
+  'marginLeft' |
+  'width' |
+  'height'
+>;
 
 export class Style implements ComputedPlainStyle {
   id: string;
@@ -202,24 +224,9 @@ export class Style implements ComputedPlainStyle {
   position: ComputedPlainStyle["position"];
   boxSizing: ComputedPlainStyle["boxSizing"];
 
-  private s: {
-    paddingTop: ComputedPlainStyle["paddingTop"];
-    paddingRight: ComputedPlainStyle["paddingRight"];
-    paddingBottom: ComputedPlainStyle["paddingBottom"];
-    paddingLeft: ComputedPlainStyle["paddingLeft"];
-    borderTopWidth: ComputedPlainStyle["borderTopWidth"];
-    borderRightWidth: ComputedPlainStyle["borderRightWidth"];
-    borderBottomWidth: ComputedPlainStyle["borderBottomWidth"];
-    borderLeftWidth: ComputedPlainStyle["borderLeftWidth"];
-    marginTop: ComputedPlainStyle["marginTop"];
-    marginRight: ComputedPlainStyle["marginRight"];
-    marginBottom: ComputedPlainStyle["marginBottom"];
-    marginLeft: ComputedPlainStyle["marginLeft"];
-    width: ComputedPlainStyle["width"];
-    height: ComputedPlainStyle["height"];
-  };
+  private s: ComputedPlainStyleUsed;
 
-  private used: Map<$ValuePctPxOrAuto, number>;
+  private used: Map<$ValuePctPxOrAuto, number | 'auto'>;
 
   constructor(id: string, style: ComputedPlainStyle) {
     this.id = id;
@@ -312,7 +319,7 @@ export class Style implements ComputedPlainStyle {
     }
   }
 
-  private getUsedPctPxAuto(prop: $ValuePctPxOrAuto):number | 'auto' {
+  private getUsedPctPxAuto(prop: keyof ComputedPlainStyleUsed):number | 'auto' {
     const used = this.used.get(prop);
     if (used !== undefined) return used;
     const value = this.s[prop];
@@ -321,8 +328,9 @@ export class Style implements ComputedPlainStyle {
     throw new Error(`${prop} of box ${this.id} never got resolved to pixels`);
   }
 
-  private getUsedPctPx(prop: $ValuePctPx):number {
+  private getUsedPctPx(prop: keyof ComputedPlainStyleUsed):number {
     const used = this.used.get(prop);
+    if (used === 'auto') throw new Error(`${prop} was set to auto`);
     if (used !== undefined) return used;
     const value = this.s[prop];
     if (typeof value === 'number') return value;
@@ -504,10 +512,10 @@ function defaultifyStyle(parentStyle: ComputedPlainStyle, style: CascadedPlainSt
     }
   }
 
-  return ret as SpecifiedPlainStyle;
+  return ret as DeclaredPlainStyle;
 }
 
-function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyle) {
+function computeStyle(parentStyle: ComputedPlainStyle, style: DeclaredPlainStyle) {
   const ret:{[i: string]: any} = {};
 
   for (const _ in initialStyle) {

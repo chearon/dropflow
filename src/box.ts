@@ -177,10 +177,10 @@ export class Area {
     const {w: pw, h: ph, x: px, y: py} = this.parent;
 
     if (this.spec.l != null) this.x = px + this.spec.l;
-    if (this.spec.l == null) this.x = px + pw - this.spec.r;
+    if (this.spec.r != null) this.x = px + pw - this.spec.r - this.width;
 
     if (this.spec.t != null) this.y = py + this.spec.t;
-    if (this.spec.t == null) this.y = py + ph - this.spec.t;
+    if (this.spec.b != null) this.y = py + ph - this.spec.b - this.height;
 
     this.w = this.width;
     this.h = this.height;

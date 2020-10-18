@@ -51,6 +51,15 @@ describe('Flow', function () {
     };
   });
 
+  afterEach(function () {
+    if (this.currentTest.state == 'failed') {
+      let indent = 0, t = this.currentTest;
+      while (t = t.parent) indent += 1;
+      console.log('  '.repeat(indent) + "Box tree:");
+      console.log(this.currentTest.ctx.blockContainer.repr(indent));
+    }
+  });
+
   describe('Collapsing', function () {
     it('collapses through, sets heights, offsets correctly', function () {
       this.layout(`

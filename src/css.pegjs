@@ -314,7 +314,7 @@ font_wsv
   / fontStyle:font_style S* { return {fontStyle}; }
 
 font
-  = x:(font_wsv font_size ('/' S* line_height)? font_family (',' S* font_family)*) {
+  = x:(font_wsv? font_size ('/' S* line_height)? font_family (',' S* font_family)*) {
       const ret = x[0] || {};
       ret.fontSize = x[1];
       if (x[2]) ret.lineHeight = x[2][2];

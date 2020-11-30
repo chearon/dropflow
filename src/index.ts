@@ -26,7 +26,7 @@ const rootComputedStyle = createComputedStyle(initialStyle, {
 const rootElement = new HTMLElement('', 'root', rootComputedStyle);
 
 // -------------- Step 0 --------------
-console.log("Step 0, element tree");
+console.log("Element Tree");
 parseNodes(rootElement, `
   <div style="margin: 10px; width: 10px; background-color: purple;"></div>
   <div style="margin: 10px; width: 10px; background-color: purple;"></div>
@@ -41,7 +41,7 @@ console.log(rootElement.repr(0, 'backgroundColor'));
 console.log();
 
 // -------------- Step 1 --------------
-console.log("Step 1, box tree");
+console.log("Box Tree");
 const blockContainer = generateBlockContainer(rootElement);
 console.log(blockContainer.repr());
 console.log();
@@ -49,22 +49,19 @@ console.log();
 if (!blockContainer.isBlockContainerOfBlocks()) throw new Error('wat');
 
 // -------------- Step 2 --------------
-console.log("Step 2, containing block assigment");
+console.log("Layout");
 const initialContainingBlock = new Area('', 0, 0, 300, 500);
-blockContainer.assignContainingBlocks({
+blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
+blockContainer.layout({
+  bfcWritingMode: blockContainer.style.writingMode,
+  bfcStack: [],
   lastBlockContainerArea: initialContainingBlock,
   lastPositionedArea: initialContainingBlock
 });
+
 console.log(blockContainer.repr(0, {containingBlocks: true}));
-
-// -------------- Step 3 --------------
-console.log("Step 3, box sizing");
-blockContainer.doBoxSizing(blockContainer.style.writingMode);
-
 // -------------- Step 4 --------------
-console.log("Step 4, box positioning");
-blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
-blockContainer.doBoxPositioning(blockContainer.style.writingMode);
+console.log("Absolutify");
 blockContainer.absolutify();
 
 const blocks = new Set([blockContainer.borderArea]);

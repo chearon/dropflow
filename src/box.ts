@@ -1,6 +1,6 @@
 import {id} from './util';
 import {Style} from './cascade';
-import {Inline, BlockContainer, BlockContainerOfBlocks, BlockContainerOfInline} from './flow';
+import {Inline, BlockContainer, BlockContainerOfBlocks, BlockContainerOfInline, LayoutContext} from './flow';
 import {Run} from './text';
 
 export type LogicalArea = {
@@ -194,11 +194,6 @@ export class Area {
   }
 }
 
-export type ContainingBlockState = {
-  lastBlockContainerArea: Area,
-  lastPositionedArea: Area
-};
-
 type DescendIf = (box: Box) => boolean;
 
 type DescendState = Iterable<['pre' | 'post', Box]>;
@@ -275,29 +270,24 @@ export class Box {
     return '◼︎';
   }
 
-  assignContainingBlocks(cbstate: ContainingBlockState) {
+  assignContainingBlocks(ctx: LayoutContext) {
     // CSS2.2 10.1
     if (this.isRelativeOrStatic) {
-      this.containingBlock = cbstate.lastBlockContainerArea;
+      this.containingBlock = ctx.lastBlockContainerArea;
     } else if (this.isAbsolute) {
-      this.containingBlock = cbstate.lastPositionedArea;
+      this.containingBlock = ctx.lastPositionedArea;
     } else {
       throw new Error(`Could not assign a containing block to box ${this.id}`);
     }
 
-    cbstate = Object.assign({}, cbstate);
     this.borderArea.setParent(this.containingBlock);
 
     if (this.isBlockContainer()) {
-      cbstate.lastBlockContainerArea = this.contentArea;
+      ctx.lastBlockContainerArea = this.contentArea;
     }
 
     if (this.isPositioned) {
-      cbstate.lastPositionedArea = this.paddingArea;
-    }
-
-    for (const child of this.children) {
-      if (!child.isRun()) child.assignContainingBlocks(cbstate);
+      ctx.lastPositionedArea = this.paddingArea;
     }
   }
 

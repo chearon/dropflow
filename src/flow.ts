@@ -29,6 +29,13 @@ const bold = '\x1b[1m';
 const dim = '\x1b[2m';
 const underline = '\x1b[4m';
 
+export type LayoutContext = {
+  lastBlockContainerArea: Area,
+  lastPositionedArea: Area,
+  bfcWritingMode: WritingMode,
+  bfcStack: (BlockContainer | 'post')[]
+};
+
 type MarginCollapseCollection = {
   root: Box,
   margins: number[],
@@ -123,14 +130,6 @@ class MarginCollapseContext {
 
     return {start, end};
   }
-}
-
-function bfcIncludeCheck(box: Box) {
-  return box.isBlockContainer() && box.level === 'block';
-}
-
-function bfcBoundaryCheck(box: Box) {
-  return !box.isBlockContainerOfBlocks() || !box.isBfcRoot;
 }
 
 export abstract class BlockContainer extends Box {
@@ -293,13 +292,19 @@ export abstract class BlockContainer extends Box {
     }
   }
 
-  doBoxSizing(bfcWritingMode: WritingMode) {
-    if (!this.containingBlock) {
-      throw new Error(`BlockContainer ${this.id} has no containing block!`);
-    }
-
+  layout(ctx: LayoutContext) {
     if (this.isInlineLevel) {
       throw new Error(`Layout on inline BlockContainer ${this.id} not supported`);
+    }
+
+    if (this.level === 'block') ctx.bfcStack.push(this);
+
+    const cctx = Object.assign({}, ctx);
+
+    this.assignContainingBlocks(cctx);
+
+    if (!this.containingBlock) {
+      throw new Error(`BlockContainer ${this.id} has no containing block!`);
     }
 
     // First resolve percentages into actual values
@@ -313,22 +318,25 @@ export abstract class BlockContainer extends Box {
     // still go on this class while the IFC methods would go on the inline
     // class
 
-    this.doInlineBoxModel(bfcWritingMode);
+    this.doInlineBoxModel(ctx.bfcWritingMode);
+    this.doBlockBoxModel(ctx.bfcWritingMode);
 
-    const style = this.style.createLogicalView(bfcWritingMode);
-
-    if (style.blockSize !== 'auto') this.doBlockBoxModel(bfcWritingMode);
+    const style = this.style.createLogicalView(ctx.bfcWritingMode);
 
     // Child flow is now possible
     if (this.isBlockContainerOfBlocks()) {
-      let writingMode = bfcWritingMode;
-      if (this.isBfcRoot) writingMode = this.style.writingMode;
-      for (const child of this.children) {
-        if (child.isBlockContainer()) child.doBoxSizing(writingMode);
+      if (this.isBfcRoot) {
+        cctx.bfcWritingMode = this.style.writingMode;
+        cctx.bfcStack = [];
       }
-    }
 
-    if (style.blockSize === 'auto') this.doBlockBoxModel(bfcWritingMode);
+      for (const child of this.children) {
+        if (child.isBlockContainer()) child.layout(cctx);
+      }
+
+      if (this.isBfcRoot) this.doBoxPositioning(cctx);
+      if (this.level === 'block') ctx.bfcStack.push('post', this);
+    }
   }
 }
 
@@ -359,8 +367,9 @@ export class BlockContainerOfBlocks extends BlockContainer {
     return true;
   }
 
-  doBoxPositioning(bfcWritingMode: WritingMode) {
+  doBoxPositioning(ctx: LayoutContext) {
     const mctx = new MarginCollapseContext();
+    let order = 'pre';
 
     // TODO 1 is there a BFC root that contains inlines? don't think so
     // TODO 2 level shouldn't matter, like a grid item or a float
@@ -369,38 +378,45 @@ export class BlockContainerOfBlocks extends BlockContainer {
     }
 
     // Collapse margins first
-    for (const [order, box] of this.descendents(bfcIncludeCheck, bfcBoundaryCheck)) {
-      const style = box.style.createLogicalView(bfcWritingMode);
-      const block = box as BlockContainer;
+    for (const block of ctx.bfcStack) {
+      if (block === 'post') {
+        order = 'post';
+        continue;
+      }
+
+      const style = block.style.createLogicalView(ctx.bfcWritingMode);
 
       if (order === 'pre') {
         mctx.boxStart(block, style);
       } else { // post
         mctx.boxEnd(block, style);
       }
+
+      order = 'pre';
     }
 
     const {start, end} = mctx.toBoxMaps();
     const stack = [];
     let blockOffset = 0;
 
-    for (const [order, box] of this.descendents(bfcIncludeCheck, bfcBoundaryCheck)) {
-      const content = box.contentArea.createLogicalView(bfcWritingMode);
-      const border = box.borderArea.createLogicalView(bfcWritingMode);
-      const style = box.style.createLogicalView(bfcWritingMode);
-      const block = box as BlockContainer; // verified by bfcIncludeCheck
+    for (const block of ctx.bfcStack) {
+      if (block === 'post') {
+        order = 'post';
+        continue;
+      }
+
+      const content = block.contentArea.createLogicalView(ctx.bfcWritingMode);
+      const border = block.borderArea.createLogicalView(ctx.bfcWritingMode);
+      const style = block.style.createLogicalView(ctx.bfcWritingMode);
 
       if (order === 'pre') {
         blockOffset += start.has(block.id) ? start.get(block.id)! : 0;
         stack.push(blockOffset);
-        block.setBlockPosition(blockOffset, bfcWritingMode);
+        block.setBlockPosition(blockOffset, ctx.bfcWritingMode);
         blockOffset = 0;
-        if (block.isBlockContainerOfBlocks() && block.isBfcRoot) {
-          block.doBoxPositioning(box.style.writingMode);
-        }
       } else { // post
         if (block.isBlockContainerOfBlocks() && style.blockSize === 'auto' && !block.isBfcRoot) {
-          block.setBlockSize(blockOffset, bfcWritingMode);
+          block.setBlockSize(blockOffset, ctx.bfcWritingMode);
         }
 
         // The block size would only be indeterminate for floats, which are
@@ -413,12 +429,14 @@ export class BlockContainerOfBlocks extends BlockContainer {
         blockOffset = stack.pop()! + border.blockSize;
         blockOffset += end.has(block.id) ? end.get(block.id)! : 0;
       }
+
+      order = 'pre';
     }
 
-    const content = this.contentArea.createLogicalView(bfcWritingMode);
+    const content = this.contentArea.createLogicalView(ctx.bfcWritingMode);
 
     if (content.blockSize === undefined) {
-      this.setBlockSize(blockOffset, bfcWritingMode);
+      this.setBlockSize(blockOffset, ctx.bfcWritingMode);
     }
   }
 }

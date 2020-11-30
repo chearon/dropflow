@@ -34,13 +34,13 @@ describe('Flow', function () {
       parseNodes(this.rootElement, html);
       /** @type import('./flow').BlockContainerOfBlocks */
       this.blockContainer = generateBlockContainer(this.rootElement);
-      this.blockContainer.assignContainingBlocks({
+      this.blockContainer.layout({
         lastBlockContainerArea: this.initialContainingBlock,
-        lastPositionedArea: this.initialContainingBlock
+        lastPositionedArea: this.initialContainingBlock,
+        bfcWritingMode: rootDeclaredStyle.writingMode,
+        bfcStack: []
       });
-      this.blockContainer.doBoxSizing(rootDeclaredStyle.writingMode);
       this.blockContainer.setBlockPosition(0, rootDeclaredStyle.writingMode);
-      this.blockContainer.doBoxPositioning(rootDeclaredStyle.writingMode);
       this.blockContainer.absolutify();
       this.get = function (...args) {
         /** @type import('./box').Box */

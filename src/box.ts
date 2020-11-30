@@ -331,7 +331,7 @@ export class Box {
   repr(indent = 0, options?: {containingBlocks: boolean}) {
     let c = '';
 
-    if (!this.isRun()) {
+    if (!this.isRun() && this.children.length) {
       c = '\n' + this.children.map(c => c.repr(indent + 1, options)).join('\n');
     }
 

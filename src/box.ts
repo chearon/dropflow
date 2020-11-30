@@ -344,4 +344,3 @@ export class Box {
     return '  '.repeat(indent) + this.sym + ' ' + this.desc + extra + c;
   }
 }
-

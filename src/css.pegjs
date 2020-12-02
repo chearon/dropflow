@@ -379,8 +379,9 @@ font_variant_dec
   }
 
 font_family_dec
-  = 'font-family'i S* ':' S* fontFamily:(font_family / default) {
-    return {fontFamily};
+  = 'font-family'i S* ':' S* x:(default / (font_family (',' S* font_family)*)) {
+    if (typeof x === 'symbol') return {fontFamily: x};
+    return {fontFamily: [x[0]].concat(extractList(x[1], 2))};
   }
 
 font_dec

@@ -9,7 +9,7 @@ import {paint} from './paint/html/index';
 
 const rootComputedStyle = createComputedStyle(initialStyle, {
   fontSize: 16,
-  fontFamily: 'Helvetica',
+  fontFamily: ['Arimo'],
   fontWeight: '300',
   whiteSpace: 'normal',
   tabSize: {value: 8, unit: null},

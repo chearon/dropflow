@@ -454,8 +454,9 @@ function peg$parse(input, options) {
           },
         "font-family",
         peg$literalExpectation("font-family", true),
-        function(fontFamily) {
-            return {fontFamily};
+        function(x) {
+            if (typeof x === 'symbol') return {fontFamily: x};
+            return {fontFamily: [x[0]].concat(extractList(x[1], 2))};
           },
         "font",
         peg$literalExpectation("font", true),
@@ -1020,7 +1021,7 @@ function peg$parse(input, options) {
         peg$decode("%3\xF9\"\"5*7\xFA/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;/.# &;*/($8%:\xFB%! )(%'#($'#(#'#(\"'#&'#"),
         peg$decode("%3\xFC\"\"5+7\xFD/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;0.# &;*/($8%:\xFE%! )(%'#($'#(#'#(\"'#&'#"),
         peg$decode("%3\xFF\"\"5,7\u0100/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;1.# &;*/($8%:\u0101%! )(%'#($'#(#'#(\"'#&'#"),
-        peg$decode("%3\u0102\"\"5+7\u0103/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;2.# &;*/($8%:\u0104%! )(%'#($'#(#'#(\"'#&'#"),
+        peg$decode("%3\u0102\"\"5+7\u0103/\xD2#$;\x8E0#*;\x8E&/\xC2$2#\"\"6#7$/\xB3$$;\x8E0#*;\x8E&/\xA3$;*.\x8F &%;2/\x85#$%2+\"\"6+7,/<#$;\x8E0#*;\x8E&/,$;2/#$+#)(#'#(\"'#&'#0L*%2+\"\"6+7,/<#$;\x8E0#*;\x8E&/,$;2/#$+#)(#'#(\"'#&'#&/#$+\")(\"'#&'#/($8%:\u0104%! )(%'#($'#(#'#(\"'#&'#"),
         peg$decode("%3\u0105\"\"5$7\u0106/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;4.# &;*/($8%:\u0107%! )(%'#($'#(#'#(\"'#&'#"),
         peg$decode("%3\u0108\"\"5%7\u0109/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;).# &;*/($8%:\u010A%! )(%'#($'#(#'#(\"'#&'#"),
         peg$decode("%3\u010B\"\"5'7\u010C/f#$;\x8E0#*;\x8E&/V$2#\"\"6#7$/G$$;\x8E0#*;\x8E&/7$;5.# &;*/($8%:\u010D%! )(%'#($'#(#'#(\"'#&'#"),

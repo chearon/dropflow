@@ -114,7 +114,7 @@ export type DeclaredPlainStyle = {
   fontWeight?: string | Inherited | Initial;
   fontVariant?: string | Inherited | Initial;
   fontStyle?: string | Inherited | Initial;
-  fontFamily?: string | Inherited | Initial;
+  fontFamily?: string[] | Inherited | Initial;
   lineHeight?: ValuePctPxNone | Inherited | Initial;
   backgroundColor?: Color | Inherited | Initial;
   backgroundClip?: BackgroundClip | Inherited | Initial;
@@ -424,7 +424,7 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   fontWeight: '400',
   fontVariant: 'normal',
   fontStyle: 'normal',
-  fontFamily: 'Helvetica',
+  fontFamily: ['Helvetica'],
   lineHeight: 18,
   backgroundColor: {r: 0, g: 0, b: 0, a: 0},
   backgroundClip: 'border-box',

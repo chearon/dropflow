@@ -279,7 +279,7 @@ function peg$parse(input, options) {
           },
         "inherit",
         peg$literalExpectation("inherit", false),
-        function() { return inherit; },
+        function() { return inherited; },
         "initial",
         peg$literalExpectation("initial", false),
         function() { return initial; },
@@ -1522,7 +1522,7 @@ function peg$parse(input, options) {
   }
 
 
-    const {initial, inherit} = require('./cascade');
+    const {initial, inherited} = require('./cascade');
 
     function extractList(list, index) {
       return list.map(function(element) { return element[index]; });

@@ -8,7 +8,7 @@
 // element
 
 {
-  const {initial, inherit} = require('./cascade');
+  const {initial, inherited} = require('./cascade');
 
   function extractList(list, index) {
     return list.map(function(element) { return element[index]; });
@@ -241,7 +241,7 @@ color
   }
 
 default
-  = 'inherit' { return inherit; }
+  = 'inherit' { return inherited; }
   / 'initial' { return initial; }
 
 // ----- Specific properties and shorthands - values -----

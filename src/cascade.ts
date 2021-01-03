@@ -523,10 +523,10 @@ function defaultifyStyle(parentStyle: ComputedPlainStyle, style: CascadedPlainSt
     }
   }
 
-  return ret as DeclaredPlainStyle;
+  return ret as SpecifiedPlainStyle;
 }
 
-function computeStyle(parentStyle: ComputedPlainStyle, style: DeclaredPlainStyle) {
+function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyle) {
   const ret:{[i: string]: any} = {};
 
   for (const _ in initialStyle) {

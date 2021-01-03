@@ -9,8 +9,7 @@
   "name": "overflow",
   "version": "0.0.0",
   "description": "A small CSS2 document renderer built from specifications for learning purposes",
-  "main": "node.js",
-  "browser": "browser.js",
+  "main": "index.js",
   "scripts": {
     "test": "mocha src/*.spec.js",
     "buildcssparser": "pegjs -O size src/css.pegjs",

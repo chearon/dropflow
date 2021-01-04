@@ -186,7 +186,7 @@ export abstract class BlockContainer extends Box {
       + style.borderBlockEndWidth;
   }
 
-  doInlineBoxModel(bfcWritingMode: WritingMode) {
+  doInlineBoxModel(ctx: LayoutContext) {
     // CSS 2.2 §10.3.3
     // ---------------
 
@@ -194,8 +194,8 @@ export abstract class BlockContainer extends Box {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
     }
 
-    const style = this.style.createLogicalView(bfcWritingMode);
-    const container = this.containingBlock.createLogicalView(bfcWritingMode);
+    const style = this.style.createLogicalView(ctx.bfcWritingMode);
+    const container = this.containingBlock.createLogicalView(ctx.bfcWritingMode);
     let marginInlineStart = style.marginInlineStart;
     let marginInlineEnd = style.marginInlineEnd;
 
@@ -241,15 +241,15 @@ export abstract class BlockContainer extends Box {
       }
     }
 
-    const content = this.contentArea.createLogicalView(bfcWritingMode);
+    const content = this.contentArea.createLogicalView(ctx.bfcWritingMode);
     // Paragraph 5: auto width
     if (style.inlineSize === 'auto') {
       if (marginInlineStart === 'auto') marginInlineStart = 0;
       if (marginInlineEnd === 'auto') marginInlineEnd = 0;
     }
 
-    const padding = this.paddingArea.createLogicalView(bfcWritingMode);
-    const border = this.borderArea.createLogicalView(bfcWritingMode);
+    const padding = this.paddingArea.createLogicalView(ctx.bfcWritingMode);
+    const border = this.borderArea.createLogicalView(ctx.bfcWritingMode);
 
     assumePx(marginInlineStart);
     assumePx(marginInlineEnd);
@@ -264,11 +264,11 @@ export abstract class BlockContainer extends Box {
     content.inlineEnd = style.paddingInlineEnd;
   }
 
-  doBlockBoxModel(bfcWritingMode: WritingMode) {
+  doBlockBoxModel(ctx: LayoutContext) {
     // CSS 2.2 §10.6.3
     // ---------------
 
-    const style = this.style.createLogicalView(bfcWritingMode);
+    const style = this.style.createLogicalView(ctx.bfcWritingMode);
 
     // TODO I don't think calling this.isBlockContainerOfBlocks() (done here and
     // later on) is great because it causes a dependency on the child. Might be
@@ -277,7 +277,7 @@ export abstract class BlockContainer extends Box {
 
     if (style.blockSize === 'auto') {
       if (this.children.length === 0) {
-        this.setBlockSize(0, bfcWritingMode); // Case 4
+        this.setBlockSize(0, ctx.bfcWritingMode); // Case 4
       } else if (this.isBlockContainerOfBlocks()) {
         // Cases 2-4 should be handled by doBoxPositioning, where margin
         // calculation happens. These bullet points seem to be re-phrasals of
@@ -288,7 +288,7 @@ export abstract class BlockContainer extends Box {
         throw new Error(`IFC height for ${this.id} not yet implemented`);
       }
     } else {
-      this.setBlockSize(style.blockSize, bfcWritingMode);
+      this.setBlockSize(style.blockSize, ctx.bfcWritingMode);
     }
   }
 
@@ -318,8 +318,8 @@ export abstract class BlockContainer extends Box {
     // still go on this class while the IFC methods would go on the inline
     // class
 
-    this.doInlineBoxModel(ctx.bfcWritingMode);
-    this.doBlockBoxModel(ctx.bfcWritingMode);
+    this.doInlineBoxModel(ctx);
+    this.doBlockBoxModel(ctx);
 
     const style = this.style.createLogicalView(ctx.bfcWritingMode);
 

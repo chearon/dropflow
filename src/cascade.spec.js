@@ -84,4 +84,10 @@ describe('CSS', function () {
     style.resolveBoxModel();
     expect(style.width).to.equal(80);
   });
+
+  it('computes unitless line-height', function () {
+    const parentComputed = createComputedStyle(initialStyle, {fontSize: 10});
+    const childComputed = createComputedStyle(parentComputed, {lineHeight: {value: 2, unit: null}});
+    expect(childComputed.lineHeight).to.equal(20);
+  });
 });

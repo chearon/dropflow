@@ -542,11 +542,11 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
           throw new Error(`Can't compute ${p}, expected px units on parent`);
         }
       } else if (p === 'lineHeight' && value.unit === null) {
-        const pvalue = parentStyle[p];
+        const pvalue = parentStyle.fontSize;
         if (typeof pvalue !== 'number') {
           throw new Error(`Can't compute ${p}, expected px units on parent`);
         }
-        ret[p] = {value: pvalue * value.value, unit: 'px'};
+        ret[p] = pvalue * value.value;
       } else {
         ret[p] = value;
       }

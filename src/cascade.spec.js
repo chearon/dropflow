@@ -90,4 +90,16 @@ describe('CSS', function () {
     const childComputed = createComputedStyle(parentComputed, {lineHeight: {value: 2, unit: null}});
     expect(childComputed.lineHeight).to.equal(20);
   });
+
+  it('computes line-height as a percentage', function () {
+    const parentComputed = createComputedStyle(initialStyle, {fontSize: 50});
+    const childComputed = createComputedStyle(parentComputed, {lineHeight: {value: 50, unit: '%'}});
+    expect(childComputed.lineHeight).to.equal(25);
+  });
+
+  it('computes font-size as a percentage', function () {
+    const parentComputed = createComputedStyle(initialStyle, {fontSize: 50});
+    const childComputed = createComputedStyle(parentComputed, {fontSize: {value: 50, unit: '%'}});
+    expect(childComputed.fontSize).to.equal(25);
+  });
 });

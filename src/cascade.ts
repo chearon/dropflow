@@ -109,8 +109,8 @@ type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
 
 export type DeclaredPlainStyle = {
   whiteSpace?: WhiteSpace | Inherited | Initial;
-  fontSize?: ValuePctPxEm | Inherited | Initial;
   color?: Color | Inherited | Initial;
+  fontSize?: ValuePctPxEm | Inherited | Initial;
   fontWeight?: string | Inherited | Initial;
   fontVariant?: string | Inherited | Initial;
   fontStyle?: string | Inherited | Initial;
@@ -149,18 +149,20 @@ export type DeclaredPlainStyle = {
 
 export type CascadedPlainStyle = DeclaredPlainStyle;
 
-type RemoveUnits<T, U> = {
-  [K in keyof T]: T[K] extends number ? number
-    : T[K] extends {value: number, unit: infer V} | number ?
+type RemoveUnits<T, U> =
+  T extends number ? number
+    : T extends {value: number, unit: infer V} | number ?
       V extends U ? number : number | {value: number, unit: Exclude<V, U>}
-  : T[K]
-};
+    : T;
 
 type SpecifiedPlainStyle = Required<{
   [K in keyof DeclaredPlainStyle]: Exclude<DeclaredPlainStyle[K], Inherited | Initial>
 }>;
 
-export type ComputedPlainStyle = RemoveUnits<SpecifiedPlainStyle, 'em'>;
+export type ComputedPlainStyle = {
+  [K in keyof SpecifiedPlainStyle]: K extends 'fontSize' | 'lineHeight' ? number
+    : RemoveUnits<SpecifiedPlainStyle[K], 'em'>
+};
 
 type KeysAre<T, U> = {[K in keyof T]: T[K] extends U ? K : never}[keyof T];
 
@@ -534,25 +536,22 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
     const value = style[p];
 
     if (typeof value === 'object' && 'unit' in value) {
-      if (value.unit === 'em') {
-        const pvalue = parentStyle.fontSize;
-        if (typeof pvalue === 'number') {
-          ret[p] = pvalue * value.value;
-        } else {
-          throw new Error(`Can't compute ${p}, expected px units on parent`);
-        }
-      } else if (p === 'lineHeight' && value.unit === null) {
-        const pvalue = parentStyle.fontSize;
-        if (typeof pvalue !== 'number') {
-          throw new Error(`Can't compute ${p}, expected px units on parent`);
-        }
-        ret[p] = pvalue * value.value;
+      if (value.unit === 'em' || p === 'lineHeight' && value.unit === null) {
+        ret[p] = parentStyle.fontSize * value.value;
       } else {
         ret[p] = value;
       }
     } else {
       ret[p] = value;
     }
+  }
+
+  if (typeof style.fontSize === "object" && style.fontSize.unit === "%") {
+    ret.fontSize = parentStyle.fontSize * style.fontSize.value / 100;
+  }
+
+  if (typeof style.lineHeight === "object" && style.lineHeight.unit === "%") {
+    ret.lineHeight = style.lineHeight.value / 100 * ret.fontSize;
   }
 
   return ret as ComputedPlainStyle;

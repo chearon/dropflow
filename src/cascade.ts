@@ -474,8 +474,10 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   boxSizing: 'content-box'
 });
 
+type InheritedStyleDefinitions = {[K in keyof ComputedPlainStyle]: boolean};
+
 // Each CSS property defines whether or not it's inherited
-const inheritedStyle = Object.freeze({
+const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   whiteSpace: true,
   color: true,
   fontSize: true,

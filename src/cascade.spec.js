@@ -1,6 +1,6 @@
 //@ts-check
 
-const {createComputedStyle, initialStyle, Style} = require('./cascade');
+const {createComputedStyle, initialStyle, Style, inherited, initial} = require('./cascade');
 const {Area} = require('./box');
 const {expect} = require('chai');
 
@@ -113,5 +113,17 @@ describe('CSS Style', function () {
     const parentComputed = createComputedStyle(initialStyle, {fontWeight: 400});
     const childComputed = createComputedStyle(parentComputed, {fontWeight: 'lighter'});
     expect(childComputed.fontWeight).to.equal(100);
+  });
+
+  it('supports the inherit keyword', function () {
+    const parentComputed = createComputedStyle(initialStyle, {backgroundColor: {r: 200, g: 200, b: 200, a: 1}});
+    const childComputed = createComputedStyle(parentComputed, {backgroundColor: inherited});
+    expect(childComputed.backgroundColor).to.deep.equal({r: 200, g: 200, b: 200, a: 1});
+  });
+
+  it('supports the inherit initial', function () {
+    const parentComputed = createComputedStyle(initialStyle, {color: {r: 200, g: 200, b: 200, a: 1}});
+    const childComputed = createComputedStyle(parentComputed, {color: initial});
+    expect(childComputed.color).to.deep.equal(initialStyle.color);
   });
 });

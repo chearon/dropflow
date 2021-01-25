@@ -11,8 +11,8 @@ const {expect} = require('chai');
 /** @type import('./cascade').CascadedPlainStyle */
 const rootDeclaredStyle = {
   fontSize: 16,
-  fontFamily: 'Helvetica',
-  fontWeight: '300',
+  fontFamily: ['Helvetica'],
+  fontWeight: 300,
   whiteSpace: 'normal',
   tabSize: {value: 8, unit: null},
   lineHeight: {value: 1.6, unit: null},

@@ -88,6 +88,16 @@ type ValuePctPx = number | {value: number, unit: '%'};
 
 type ValuePxNone = number | {value: number, unit: null};
 
+type FontWeight = number | 'normal' | 'bolder' | 'lighter';
+
+type FontStyle = 'normal' | 'italic' | 'oblique';
+
+type FontVariant = 'normal' | 'small-caps';
+
+type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed'
+                 | 'semi-condensed' | 'semi-expanded' | 'expanded'
+                 | 'extra-expanded' | 'ultra-expanded';
+
 type BackgroundClip = 'border-box' | 'padding-box' | 'content-box';
 
 type Display = {outer: OuterDisplay, inner: InnerDisplay};
@@ -111,9 +121,10 @@ export type DeclaredPlainStyle = {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
   fontSize?: ValuePctPxEm | Inherited | Initial;
-  fontWeight?: string | Inherited | Initial;
-  fontVariant?: string | Inherited | Initial;
-  fontStyle?: string | Inherited | Initial;
+  fontWeight?: FontWeight | Inherited | Initial;
+  fontVariant?: FontVariant | Inherited | Initial;
+  fontStyle?: FontStyle | Inherited | Initial;
+  fontStretch?: FontStretch | Inherited | Initial;
   fontFamily?: string[] | Inherited | Initial;
   lineHeight?: ValuePctPxNone | Inherited | Initial;
   backgroundColor?: Color | Inherited | Initial;
@@ -161,6 +172,7 @@ type SpecifiedPlainStyle = Required<{
 
 export type ComputedPlainStyle = {
   [K in keyof SpecifiedPlainStyle]: K extends 'fontSize' | 'lineHeight' ? number
+    : K extends 'fontWeight' ? number
     : RemoveUnits<SpecifiedPlainStyle[K], 'em'>
 };
 
@@ -203,12 +215,13 @@ export class Style implements ComputedPlainStyle {
   id: string;
 
   whiteSpace: ComputedPlainStyle["whiteSpace"];
-  fontSize: ComputedPlainStyle["fontSize"];
   color: ComputedPlainStyle["color"];
+  fontSize: ComputedPlainStyle["fontSize"];
   fontWeight: ComputedPlainStyle["fontWeight"];
   fontVariant: ComputedPlainStyle["fontVariant"];
   fontStyle: ComputedPlainStyle["fontStyle"];
   fontFamily: ComputedPlainStyle["fontFamily"];
+  fontStretch: ComputedPlainStyle["fontStretch"];
   lineHeight: ComputedPlainStyle["lineHeight"];
   backgroundColor: ComputedPlainStyle["backgroundColor"];
   backgroundClip: ComputedPlainStyle["backgroundClip"];
@@ -236,12 +249,13 @@ export class Style implements ComputedPlainStyle {
     // CSS properties that are already as close to the used values as they can
     // be. For example, `position: absolute; display: 
     this.whiteSpace = style.whiteSpace;
-    this.fontSize = style.fontSize;
     this.color = style.color;
+    this.fontSize = style.fontSize;
     this.fontWeight = style.fontWeight;
     this.fontVariant = style.fontVariant;
     this.fontStyle = style.fontStyle;
     this.fontFamily = style.fontFamily;
+    this.fontStretch = style.fontStretch;
     this.lineHeight = style.lineHeight;
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
@@ -421,12 +435,13 @@ export class Style implements ComputedPlainStyle {
 // "computed value"s as described in CSS Cascading and Inheritance Level 4 § 4.4
 export const initialStyle: ComputedPlainStyle = Object.freeze({
   whiteSpace: 'normal',
-  fontSize: 16,
   color: {r: 0, g: 0, b: 0, a: 1},
-  fontWeight: '400',
+  fontSize: 16,
+  fontWeight: 400,
   fontVariant: 'normal',
   fontStyle: 'normal',
   fontFamily: ['Helvetica'],
+  fontStretch: 'normal',
   lineHeight: 18,
   backgroundColor: {r: 0, g: 0, b: 0, a: 0},
   backgroundClip: 'border-box',
@@ -462,12 +477,13 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
 // Each CSS property defines whether or not it's inherited
 const inheritedStyle = Object.freeze({
   whiteSpace: true,
-  fontSize: true,
   color: true,
+  fontSize: true,
   fontWeight: true,
   fontVariant: true,
   fontStyle: true,
   fontFamily: true,
+  fontStretch: true,
   lineHeight: true,
   backgroundColor: false,
   backgroundClip: false,
@@ -546,11 +562,30 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
     }
   }
 
-  if (typeof style.fontSize === "object" && style.fontSize.unit === "%") {
+  // https://www.w3.org/TR/css-fonts-4/#relative-weights
+  if (style.fontWeight === 'bolder' || style.fontWeight === 'lighter') {
+    const bolder = style.fontWeight === 'bolder';
+    const pWeight = parentStyle.fontWeight;
+    if (pWeight < 100) {
+      ret.fontWeight = bolder ? 400 : parentStyle.fontWeight;
+    } else if (pWeight >= 100 && pWeight < 350) {
+      ret.fontWeight = bolder ? 400 : 100;
+    } else if (pWeight >= 350 && pWeight < 550) {
+      ret.fontWeight = bolder ? 700 : 100;
+    } else if (pWeight >= 550 && pWeight < 750) {
+      ret.fontWeight = bolder ? 900 : 400;
+    } else if (pWeight >= 750 && pWeight < 900) {
+      ret.fontWeight = bolder ? 900 : 700;
+    } else {
+      ret.fontWeight = bolder ? parentStyle.fontWeight : 700;
+    }
+  }
+
+  if (typeof style.fontSize === 'object' && style.fontSize.unit === '%') {
     ret.fontSize = parentStyle.fontSize * style.fontSize.value / 100;
   }
 
-  if (typeof style.lineHeight === "object" && style.lineHeight.unit === "%") {
+  if (typeof style.lineHeight === 'object' && style.lineHeight.unit === '%') {
     ret.lineHeight = style.lineHeight.value / 100 * ret.fontSize;
   }
 

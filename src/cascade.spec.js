@@ -4,7 +4,7 @@ const {createComputedStyle, initialStyle, Style} = require('./cascade');
 const {Area} = require('./box');
 const {expect} = require('chai');
 
-describe('CSS', function () {
+describe('CSS Style', function () {
   it('calculates used value for border width', function () {
     const computed = createComputedStyle(initialStyle, {
       borderTopWidth: 1,
@@ -101,5 +101,17 @@ describe('CSS', function () {
     const parentComputed = createComputedStyle(initialStyle, {fontSize: 50});
     const childComputed = createComputedStyle(parentComputed, {fontSize: {value: 50, unit: '%'}});
     expect(childComputed.fontSize).to.equal(25);
+  });
+
+  it('computes font-weight: bolder', function () {
+    const parentComputed = createComputedStyle(initialStyle, {fontWeight: 400});
+    const childComputed = createComputedStyle(parentComputed, {fontWeight: 'bolder'});
+    expect(childComputed.fontWeight).to.equal(700);
+  });
+
+  it('computes font-weight: lighter', function () {
+    const parentComputed = createComputedStyle(initialStyle, {fontWeight: 400});
+    const childComputed = createComputedStyle(parentComputed, {fontWeight: 'lighter'});
+    expect(childComputed.fontWeight).to.equal(100);
   });
 });

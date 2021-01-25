@@ -10,7 +10,7 @@ import {paint} from './paint/html/index';
 const rootComputedStyle = createComputedStyle(initialStyle, {
   fontSize: 16,
   fontFamily: ['Arimo'],
-  fontWeight: '300',
+  fontWeight: 300,
   whiteSpace: 'normal',
   tabSize: {value: 8, unit: null},
   lineHeight: {value: 1.6, unit: null},

@@ -85,6 +85,8 @@
     ['gray', {r: 128, g: 128, b: 128, a: 1}],
     ['transparent', {r: 255, g: 255, b: 255, a: 0}]
   ]);
+
+  let $font = {}, $fontNormals = 0;
 }
 
 start
@@ -260,68 +262,106 @@ relative_size
   / 'larger' { return { value: 1.2, unit: 'em' } }
 
 font_size
-  = font_size:(relative_size / absolute_size / LENGTH / PERCENTAGE) S* { return font_size; }
+  = font_size:(relative_size / absolute_size / LENGTH / PERCENTAGE) { return font_size; }
 
 line_height
-  = line_height:('normal' / NUMBER / LENGTH / PERCENTAGE) S* { return line_height; }
+  = line_height:('normal' / NUMBER / LENGTH / PERCENTAGE) { return line_height; }
 
 font_style
   = 'normal' / 'italic' / 'oblique'
 
 font_weight
-  = 'normal' / 'bold' / 'bolder' / 'lighter' / n:[1-9] '00' { return text(); }
+  = 'normal' / 'bolder' / 'lighter'
+  / 'bold' { return 700; }
+  / [0-9]+ { return +text() >= 1 && +text() <= 1000 ? +text() : undefined; }
 
 font_variant
   = 'normal' / 'small-caps'
+
+font_stretch
+  = 'normal' / 'ultra-condensed' / 'extra-condensed' / 'condensed'
+  / 'semi-condensed' / 'semi-expanded' / 'expanded' / 'extra-expanded'
+  / 'ultra-expanded'
 
 font_family
   = family:STRING S* { return family; }
   / head:ident tail:(S* ident)* { return buildList(head, tail, 1).join(' '); }
 
-font_wsv
-  = x:(font_style S* font_variant S* font_weight? S*) {
-    const ret = {fontStyle: x[0], fontVariant: x[2]};
-    if (x[4]) ret.fontWeight = x[4];
-    return ret;
+font_family_list = f1:font_family fn:(',' S* font_family)* {
+  return [f1].concat(fn ? extractList(fn, 2) : []);
+}
+
+font_style_short = s:font_style {
+  if ($font) {
+    if (s === 'normal') {
+      if (++$fontNormals > 4) $font = undefined;
+    } else {
+      if ('fontStyle' in $font) {
+        $font = undefined;
+      } else {
+        $font.fontStyle = s;
+        ++$fontNormals;
+      }
+    }
   }
-  / x:(font_variant S* font_style S* font_weight? S*) {
-    const ret = {fontStyle: x[2], fontVariant: x[0]};
-    if (x[4]) ret.fontWeight = x[4];
-    return ret;
+}
+
+font_weight_short = s:font_weight {
+  if ($font) {
+    if (s === undefined || 'fontWeight' in $font) {
+      $font = undefined;
+    } else {
+      $font.fontWeight = s;
+      ++$fontNormals;
+    }
   }
-  / x:(font_style S* font_weight S* font_variant? S*) {
-    const ret = {fontStyle: x[0], fontWeight: x[2]};
-    if (x[4]) ret.fontVariant = x[4];
-    return ret;
+}
+
+font_variant_short = s:font_variant {
+  if ($font) {
+    if ('fontVariant' in $font) {
+      $font = undefined;
+    } else {
+      $font.fontVariant = s;
+      ++$fontNormals;
+    }
   }
-  / x:(font_weight S* font_style S* font_variant? S*) {
-    const ret = {fontWeight: x[0], fontStyle: x[2]};
-    if (x[4]) ret.fontVariant = x[4];
-    return ret;
+}
+
+font_stretch_short = s:font_stretch {
+  if ($font) {
+    if ('fontStretch' in $font) {
+      $font = undefined;
+    } else {
+      $font.fontStretch = s;
+      ++$fontNormals;
+    }
   }
-  / x:(font_variant S* font_weight S* font_style? S*) {
-    const ret = {fontVariant: x[0], fontWeight: x[2]};
-    if (x[4]) ret.fontStyle = x[4];
-    return ret;
-  }
-  / x:(font_weight S* font_variant S* font_style? S*) {
-    const ret = {fontWeight: x[0], fontVariant: x[2]};
-    if (x[4]) ret.fontStyle = x[4];
-    return ret;
-  }
-  / fontWeight:font_weight S* { return {fontWeight}; }
-  / fontVariant:font_variant S* { return {fontVariant}; }
-  / fontStyle:font_style S* { return {fontStyle}; }
+}
+
+font_wssv = ((font_style_short / !font_size font_weight_short / font_variant_short / font_stretch_short) S+)* {
+  const ret = $font;
+  $font = {};
+  $fontNormals = 0;
+  return ret;
+}
 
 font
-  = x:(font_wsv? font_size ('/' S* line_height)? font_family (',' S* font_family)*) {
-      const ret = x[0] || {};
-      ret.fontSize = x[1];
-      if (x[2]) ret.lineHeight = x[2][2];
-      ret.fontFamily = [x[3]].concat(x[4] ? extractList(x[4], 2) : []);
-      return ret;
-    }
+  = x:(font_wssv font_size ((!(S* '/') S+) / (S* '/' S* line_height S+)) font_family_list) {
+    if (x[0] === undefined) return;
 
+    const ret = Object.assign({
+      fontStyle: 'normal',
+      fontWeight: 'normal',
+      fontVariant: 'normal',
+      fontStretch: 'normal'
+    }, x[0]);
+
+    ret.fontSize = x[1];
+    ret.lineHeight = x[2][1] === '/' ? x[2][3] : 'normal';
+    ret.fontFamily = x[3];
+    return ret;
+  }
 
 display
   = 'block' { return {outer: 'block', inner: 'flow'}; }
@@ -370,7 +410,7 @@ font_style_dec
 
 font_weight_dec
   = 'font-weight'i S* ':' S* fontWeight:(font_weight / default) {
-    return {fontWeight};
+    return fontWeight && {fontWeight};
   }
 
 font_variant_dec
@@ -378,15 +418,19 @@ font_variant_dec
     return {fontVariant};
   }
 
+font_stretch_dec
+  = 'font-stretch'i S* ':' S* fontStretch:(font_stretch / default) {
+    return {fontStretch};
+  }
+
 font_family_dec
-  = 'font-family'i S* ':' S* x:(default / (font_family (',' S* font_family)*)) {
-    if (typeof x === 'symbol') return {fontFamily: x};
-    return {fontFamily: [x[0]].concat(extractList(x[1], 2))};
+  = 'font-family'i S* ':' S* fontFamily:(default / font_family_list) {
+    return {fontFamily};
   }
 
 font_dec
   = 'font'i S* ':' S* font:(font / default) {
-    return typeof font === "object" ? font : {font};
+    return font && (typeof font === "object" ? font : {font});
   }
 
 color_dec

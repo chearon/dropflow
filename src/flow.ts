@@ -711,18 +711,18 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
 
   const level = el.style.display.outer;
 
+  const style = new Style(el.id, el.style);
+
   if (hasInline && !hasBlock) {
     const anonStyleId = el.id + '.1';
     const anonComputedStyle = createComputedStyle(el.style, {});
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
     const inline = new Inline(anonStyle, boxes, true, true);
     inline.prepareIfc();
-    return new BlockContainerOfInline(anonStyle, inline, false, level);
+    return new BlockContainerOfInline(style, inline, false, level);
   }
 
   if (hasInline && hasBlock) boxes = wrapInBlockContainers(boxes, el);
-
-  const style = new Style(el.id, el.style);
 
   return new BlockContainerOfBlocks(style, boxes, false, level, isBfcRoot);
 }

@@ -157,8 +157,12 @@ export class Area {
   }
 
   absolutify() {
-    if (!this.parent || !this.parent.hasAbsolutified) {
-      throw new Error(`Cannot absolutify area ${this.id}, parent is not ready`);
+    if (!this.parent) {
+      throw new Error(`Cannot absolutify area ${this.id}, parent was never set`);
+    }
+
+    if (!this.parent.hasAbsolutified) {
+      throw new Error(`Cannot absolutify area ${this.id}, parent (${this.parent.id}) was not absolutified`);
     }
 
     if (this.width == null || this.height == null) {

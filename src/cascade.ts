@@ -171,7 +171,9 @@ type SpecifiedPlainStyle = Required<{
 }>;
 
 export type ComputedPlainStyle = {
-  [K in keyof SpecifiedPlainStyle]: K extends 'fontSize' | 'lineHeight' ? number
+  [K in keyof SpecifiedPlainStyle]
+    : K extends 'fontSize' ? number
+    : K extends 'lineHeight' ? 'normal' | number | {value: number, unit: null}
     : K extends 'fontWeight' ? number
     : RemoveUnits<SpecifiedPlainStyle[K], 'em'>
 };
@@ -182,7 +184,7 @@ type $ValuePctPx = KeysAre<ComputedPlainStyle, ValuePctPx>;
 
 type $ValuePctPxOrAuto = KeysAre<ComputedPlainStyle, ValuePctPx | 'auto'>;
 
-const pctWidthSide: Set<keyof ComputedPlainStyleUsed> = new Set([
+const pctWidthSide: Set<keyof BoxModelUsed> = new Set([
   'paddingLeft',
   'paddingRight',
   'paddingTop',
@@ -194,7 +196,7 @@ const pctWidthSide: Set<keyof ComputedPlainStyleUsed> = new Set([
   'width'
 ]);
 
-type ComputedPlainStyleUsed = Pick<ComputedPlainStyle,
+type BoxModelUsed = Pick<ComputedPlainStyle,
   'paddingTop' |
   'paddingRight' |
   'paddingBottom' |
@@ -211,6 +213,8 @@ type ComputedPlainStyleUsed = Pick<ComputedPlainStyle,
   'height'
 >;
 
+type Used = BoxModelUsed & Pick<ComputedPlainStyle, 'lineHeight'>;
+
 export class Style implements ComputedPlainStyle {
   id: string;
 
@@ -222,7 +226,6 @@ export class Style implements ComputedPlainStyle {
   fontStyle: ComputedPlainStyle["fontStyle"];
   fontFamily: ComputedPlainStyle["fontFamily"];
   fontStretch: ComputedPlainStyle["fontStretch"];
-  lineHeight: ComputedPlainStyle["lineHeight"];
   backgroundColor: ComputedPlainStyle["backgroundColor"];
   backgroundClip: ComputedPlainStyle["backgroundClip"];
   display: ComputedPlainStyle["display"];
@@ -239,7 +242,7 @@ export class Style implements ComputedPlainStyle {
   position: ComputedPlainStyle["position"];
   boxSizing: ComputedPlainStyle["boxSizing"];
 
-  private s: ComputedPlainStyleUsed;
+  private s: Used;
 
   private used: Map<$ValuePctPxOrAuto, number | 'auto'>;
 
@@ -256,7 +259,6 @@ export class Style implements ComputedPlainStyle {
     this.fontStyle = style.fontStyle;
     this.fontFamily = style.fontFamily;
     this.fontStretch = style.fontStretch;
-    this.lineHeight = style.lineHeight;
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;
@@ -288,7 +290,8 @@ export class Style implements ComputedPlainStyle {
       marginBottom: style.marginBottom,
       marginLeft: style.marginLeft,
       width: style.width,
-      height: style.height
+      height: style.height,
+      lineHeight: style.lineHeight
     };
 
     this.used = new Map();
@@ -344,7 +347,7 @@ export class Style implements ComputedPlainStyle {
     }
   }
 
-  private getUsedPctPxAuto(prop: keyof ComputedPlainStyleUsed):number | 'auto' {
+  private getUsedPctPxAuto(prop: keyof BoxModelUsed):number | 'auto' {
     const used = this.used.get(prop);
     if (used !== undefined) return used;
     const value = this.s[prop];
@@ -353,7 +356,7 @@ export class Style implements ComputedPlainStyle {
     throw new Error(`${prop} of box ${this.id} never got resolved to pixels`);
   }
 
-  private getUsedPctPx(prop: keyof ComputedPlainStyleUsed):number {
+  private getUsedPctPx(prop: keyof BoxModelUsed):number {
     const used = this.used.get(prop);
     if (used === 'auto') throw new Error(`${prop} was set to auto`);
     if (used !== undefined) return used;
@@ -420,6 +423,11 @@ export class Style implements ComputedPlainStyle {
 
   get height() {
     return this.getUsedPctPxAuto('height');
+  }
+
+  get lineHeight() {
+    if (typeof this.s.lineHeight === "object") return this.s.lineHeight.value * this.fontSize;
+    return this.s.lineHeight;
   }
 
   createLogicalView(writingMode: WritingMode) {
@@ -554,7 +562,7 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
     const value = style[p];
 
     if (typeof value === 'object' && 'unit' in value) {
-      if (value.unit === 'em' || p === 'lineHeight' && value.unit === null) {
+      if (value.unit === 'em') {
         ret[p] = parentStyle.fontSize * value.value;
       } else {
         ret[p] = value;

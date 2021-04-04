@@ -1,7 +1,16 @@
 import {id} from './util';
 import {Style} from './cascade';
-import {Inline, BlockContainer, BlockContainerOfBlocks, BlockContainerOfInline, LayoutContext} from './flow';
 import {Run} from './text';
+import {
+  Inline,
+  BlockContainer,
+  BlockBox,
+  BlockContainerOfIfc,
+  BlockContainerOfBlockBoxes,
+  BlockLevelBfcBlockContainer,
+  InlineLevelBfcBlockContainer,
+  LayoutContext
+} from './flow';
 
 export type LogicalArea = {
   blockStart: number
@@ -230,11 +239,23 @@ export class Box {
     return false;
   }
 
-  isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
+  isBlockContainerOfIfc(): this is BlockContainerOfIfc {
     return false;
   }
 
-  isBlockContainerOfInline(): this is BlockContainerOfInline {
+  isBlockBox(): this is BlockBox {
+    return false;
+  }
+
+  isBlockContainerOfBlockBoxes(): this is BlockContainerOfBlockBoxes {
+    return false;
+  }
+
+  isBlockLevelBfcBlockContainer(): this is BlockLevelBfcBlockContainer {
+    return false;
+  }
+
+  isInlineLevelBfcBlockContainer(): this is InlineLevelBfcBlockContainer {
     return false;
   }
 
@@ -260,10 +281,6 @@ export class Box {
 
   get isPositioned() {
     return this.style.position !== 'static';
-  }
-
-  get isInlineLevel() {
-    return false;
   }
 
   get desc() {

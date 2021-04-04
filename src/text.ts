@@ -37,10 +37,6 @@ export class Run extends Box {
     this.j -= n;
   }
 
-  get isInlineLevel() {
-    return true;
-  }
-
   isRun(): this is Run {
     return true;
   }

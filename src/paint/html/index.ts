@@ -67,7 +67,7 @@ function paintBlockContainer(blockContainer: BlockContainer, level = 0) {
   }
 
   for (const child of blockContainer.children) {
-    if (child.isBlockContainer() && !child.isInlineLevel) {
+    if (child.isBlockContainer()) {
       s += paintBlockContainer(child, level + 1);
     }
   }

@@ -3,7 +3,7 @@
 import {HTMLElement} from './node';
 import {parseNodes} from './parser';
 import {createComputedStyle, initialStyle} from './cascade';
-import {generateBlockContainer} from './flow';
+import {generateBlockContainer, layoutBlockBox} from './flow';
 import {Area} from './box';
 import {paint} from './paint/html/index';
 
@@ -46,13 +46,13 @@ const blockContainer = generateBlockContainer(rootElement);
 console.log(blockContainer.repr());
 console.log();
 
-if (!blockContainer.isBlockContainerOfBlocks()) throw new Error('wat');
+if (!blockContainer.isBlockBox()) throw new Error('wat');
 
 // -------------- Step 2 --------------
 console.log("Layout");
 const initialContainingBlock = new Area('', 0, 0, 300, 500);
 blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
-blockContainer.layout({
+layoutBlockBox(blockContainer, {
   bfcWritingMode: blockContainer.style.writingMode,
   bfcStack: [],
   lastBlockContainerArea: initialContainingBlock,
@@ -65,8 +65,7 @@ console.log("Absolutify");
 blockContainer.absolutify();
 
 const blocks = new Set([blockContainer.borderArea]);
-
-for (const [order, child] of blockContainer.descendents(b => b.isBlockContainer())) {
+for (const [order, child] of blockContainer.descendents(b => b.isBlockBox())) {
   if (order === 'pre') blocks.add(child.borderArea);
 }
 console.log([...blocks]);

@@ -3,7 +3,7 @@
 const {HTMLElement} = require('./node');
 const {parseNodes} = require('./parser');
 const {createComputedStyle, initialStyle, Style} = require('./cascade');
-const {generateBlockContainer} = require('./flow');
+const {generateBlockContainer, layoutBlockBox} = require('./flow');
 const {Area} = require('./box');
 const {paint} = require('./paint/html/index');
 const {expect} = require('chai');
@@ -34,7 +34,7 @@ describe('Flow', function () {
       parseNodes(this.rootElement, html);
       /** @type import('./flow').BlockContainerOfBlocks */
       this.blockContainer = generateBlockContainer(this.rootElement);
-      this.blockContainer.layout({
+      layoutBlockBox(this.blockContainer, {
         lastBlockContainerArea: this.initialContainingBlock,
         lastPositionedArea: this.initialContainingBlock,
         bfcWritingMode: rootDeclaredStyle.writingMode,

@@ -58,18 +58,18 @@ layoutBlockBox(blockContainer, {
   lastBlockContainerArea: initialContainingBlock,
   lastPositionedArea: initialContainingBlock
 });
-
 console.log(blockContainer.repr(0, {containingBlocks: true}));
+console.log();
+
 // -------------- Step 4 --------------
 console.log("Absolutify");
 blockContainer.absolutify();
-
+console.log(blockContainer.borderArea.repr());
 const blocks = new Set([blockContainer.borderArea]);
 for (const [order, child] of blockContainer.descendents(b => b.isBlockBox())) {
   if (order === 'pre') blocks.add(child.borderArea);
 }
-console.log([...blocks]);
-console.log();
+for (const area of blocks) console.log(area.repr());
 console.log();
 
 console.log(paint(blockContainer));

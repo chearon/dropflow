@@ -205,6 +205,13 @@ export class Area {
 		: writingMode === 'vertical-lr' ? verticalLr(this)
 		: verticalRl(this);
   }
+
+  repr(indent = 0) {
+    const {w, h, x, y} = this;
+    const {t, r, b, l} = this.spec;
+    const p1 = `${t ?? 'x'} ${r ?? 'x'} ${b ?? 'x'} ${l ?? 'x'}`;
+    return '  '.repeat(indent) + `⚃ Area ${this.id}: ${p1} → ${w}⨯${h} @${x},${y}`;
+  }
 }
 
 type DescendIf = (box: Box) => boolean;

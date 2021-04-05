@@ -1,4 +1,4 @@
-import {bsearchj, loggableText} from './util';
+import {bsearch, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle} from './cascade';
 
@@ -6,8 +6,8 @@ let id = 1;
 let debug = true;
 
 export class Run extends Box {
-  public i: number = 0;
-  public j: number = 0;
+  public start: number = 0;
+  public end: number = 0;
   public text: string;
 
   constructor(text: string, style: Style) {
@@ -23,18 +23,18 @@ export class Run extends Box {
     return 'Ͳ';
   }
 
-  setRange(i: number, j: number) {
-    if (this.text.length !== j - i + 1) {
-      throw new Error(`j=${j} - i=${i} + 1 should sum to text.length=${this.text.length}`);
+  setRange(start: number, end: number) {
+    if (this.text.length !== end - start + 1) {
+      throw new Error(`end=${end} - start=${start} + 1 should sum to text.length=${this.text.length}`);
     }
 
-    this.i = i;
-    this.j = j;
+    this.start = start;
+    this.end = end;
   }
 
   shift(n: number) {
-    this.i -= n;
-    this.j -= n;
+    this.start -= n;
+    this.end -= n;
   }
 
   isRun(): this is Run {
@@ -42,7 +42,7 @@ export class Run extends Box {
   }
 
   get desc() {
-    return `${this.i},${this.j} "${loggableText(this.text)}"`;
+    return `${this.start},${this.end} "${loggableText(this.text)}"`;
   }
 
   get wsCollapsible() {
@@ -57,16 +57,16 @@ export class Run extends Box {
     return !this.sgUncollapsible;
   }
 
-  mod(i: number, j: number, s: string) {
+  mod(start: number, end: number, s: string) {
     const text = this.text;
-    const li = Math.max(0, i - this.i);
-    const lj = j - this.i;
+    const lstart = Math.max(0, start - this.start);
+    const lend = end - this.start;
 
-    this.text = text.slice(0, li) + s + text.slice(lj + 1);
+    this.text = text.slice(0, lstart) + s + text.slice(lend + 1);
 
     const n = text.length - this.text.length;
 
-    this.j -= n;
+    this.end -= n;
 
     return n;
   }
@@ -87,18 +87,18 @@ export class Collapser {
         let last!: Run;
 
         for (const run of runs) {
-          if (last && run.i !== last.j + 1) {
+          if (last && run.start !== last.end + 1) {
             throw new Error('Run objects have gaps or overlap');
           }
 
-          if (run.text !== buf.slice(run.i, run.j + 1)) {
+          if (run.text !== buf.slice(run.start, run.end + 1)) {
             throw new Error('Run/buffer mismatch');
           }
 
           last = run;
         }
 
-        if (!start || last.j - start.i + 1 !== buf.length) {
+        if (!start || last.end - start.start + 1 !== buf.length) {
           throw new Error('Buffer size doesn\'t match sum of run sizes'); 
         }
       }
@@ -108,22 +108,22 @@ export class Collapser {
     this.runs = runs;
   }
 
-  mod(i: number, j: number, s: string) {
-    if (j < i) return 0;
+  mod(start: number, end: number, s: string) {
+    if (end < start) return 0;
 
-    const start = bsearchj(this.runs, i);
-    const end = j <= this.runs[start].j ? start : bsearchj(this.runs, j);
+    const rstart = bsearch(this.runs, start);
+    const rend = end <= this.runs[rstart].end ? rstart : bsearch(this.runs, end);
     let shrinkahead = 0;
 
-    this.buf = this.buf.slice(0, i) + s + this.buf.slice(j + 1);
+    this.buf = this.buf.slice(0, start) + s + this.buf.slice(end + 1);
 
-    for (let k = start; k < this.runs.length; ++k) {
+    for (let k = rstart; k < this.runs.length; ++k) {
       const run = this.runs[k];
 
       run.shift(shrinkahead);
 
-      if (k <= end) shrinkahead += run.mod(i, j - shrinkahead, s);
-      if (run.j < run.i) this.runs.splice(k--, 1);
+      if (k <= rend) shrinkahead += run.mod(start, end - shrinkahead, s);
+      if (run.end < run.start) this.runs.splice(k--, 1);
 
       s = '';
     }
@@ -132,24 +132,24 @@ export class Collapser {
   }
 
   *collapsibleRanges(filter: 'sgCollapsible' | 'wsCollapsible' | 'sgUncollapsible') {
-    let i = 0;
-    let j = 0;
+    let start = 0;
+    let end = 0;
     let wasInCollapse = false;
 
     while (true) {
-      const end = j >= this.runs.length;
-      const isInCollapse = !end && this.runs[j][filter];
+      const over = end >= this.runs.length;
+      const isInCollapse = !over && this.runs[end][filter];
 
-      if (wasInCollapse && !isInCollapse) yield [this.runs[i], this.runs[j - 1]];
+      if (wasInCollapse && !isInCollapse) yield [this.runs[start], this.runs[end - 1]];
 
-      if (end) break;
+      if (over) break;
 
       wasInCollapse = isInCollapse;
 
       if (isInCollapse) {
-        j += 1;
+        end += 1;
       } else {
-        i = j = j + 1;
+        start = end = end + 1;
       }
     }
   }
@@ -168,13 +168,13 @@ export class Collapser {
     const toRemove: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
-      const range = this.buf.slice(start.i, end.j + 1);
+      const range = this.buf.slice(start.start, end.end + 1);
       const rBefore = /([ \t]*)((\r\n|\n)+)([ \t]*)/g;
       let match;
 
       while (match = rBefore.exec(range)) {
         const [, leftWs, allNl, , rightWs] = match;
-        const rangeStart = start.i + match.index;
+        const rangeStart = start.start + match.index;
 
         if (leftWs.length) {
           toRemove.push([rangeStart, rangeStart + leftWs.length - 1, '']);
@@ -195,12 +195,12 @@ export class Collapser {
     const removeCarriageReturn: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('sgUncollapsible')) {
-      const range = this.buf.slice(start.i, end.j + 1);
+      const range = this.buf.slice(start.start, end.end + 1);
       const rBreak = /\r\n/g;
       let match;
 
       while (match = rBreak.exec(range)) {
-        const rangeStart = start.i + match.index;
+        const rangeStart = start.start + match.index;
         removeCarriageReturn.push([rangeStart + 1, rangeStart + 1, '']);
       }
     }
@@ -210,13 +210,13 @@ export class Collapser {
     const modConsecutiveSegments: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('sgCollapsible')) {
-      const range = this.buf.slice(start.i, end.j + 1);
+      const range = this.buf.slice(start.start, end.end + 1);
       const rSegment = /(\n|\r\n)((\n|\r\n)*)/g;
       let match;
 
       while (match = rSegment.exec(range)) {
         const {1: sg, 2: asg} = match;
-        const rangeStart = start.i + match.index;
+        const rangeStart = start.start + match.index;
 
         const s = ' '; // TODO spec says this is contextual based on some Asian scripts
         modConsecutiveSegments.push([rangeStart, rangeStart + sg.length - 1, s]);
@@ -233,12 +233,12 @@ export class Collapser {
     const removeTab: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
-      const range = this.buf.slice(start.i, end.j + 1);
+      const range = this.buf.slice(start.start, end.end + 1);
       const rTab = /\t/g;
       let match;
 
       while (match = rTab.exec(range)) {
-        removeTab.push([start.i + match.index, start.i + match.index, ' ']);
+        removeTab.push([start.start + match.index, start.start + match.index, ' ']);
       }
     }
 
@@ -250,12 +250,12 @@ export class Collapser {
     const collapseWs: [number, number, string][] = [];
 
     for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
-      const range = this.buf.slice(start.i, end.j + 1);
+      const range = this.buf.slice(start.start, end.end + 1);
       const rSpSeq = /  +/g;
       let match;
 
       while (match = rSpSeq.exec(range)) {
-        const rangeStart = start.i + match.index;
+        const rangeStart = start.start + match.index;
         collapseWs.push([rangeStart + 1, rangeStart + 1 + match[0].length - 2, '']);
       }
     }

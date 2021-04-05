@@ -16,14 +16,14 @@ describe('Text Module', function () {
       const t1 = new Run('Hello');
       t1.setRange(0, 4);
       t1.shift(-2);
-      expect(t1.i).to.equal(2);
-      expect(t1.j).to.equal(6);
+      expect(t1.start).to.equal(2);
+      expect(t1.end).to.equal(6);
 
       const t2 = new Run('Hello');
       t2.setRange(0, 4);
       t2.shift(2);
-      expect(t2.i).to.equal(-2);
-      expect(t2.j).to.equal(2);
+      expect(t2.start).to.equal(-2);
+      expect(t2.end).to.equal(2);
     });
 
     it('mod() removes a character', function () {
@@ -31,8 +31,8 @@ describe('Text Module', function () {
       t1.setRange(0, 4);
       t1.mod(2, 2, '');
       expect(t1.text).to.equal('Helo');
-      expect(t1.i).to.equal(0);
-      expect(t1.j).to.equal(3);
+      expect(t1.start).to.equal(0);
+      expect(t1.end).to.equal(3);
     });
 
     it('mod() removes characters', function () {
@@ -40,8 +40,8 @@ describe('Text Module', function () {
       t1.setRange(0, 4);
       t1.mod(1, 3, '');
       expect(t1.text).to.equal('Ho');
-      expect(t1.i).to.equal(0);
-      expect(t1.j).to.equal(1);
+      expect(t1.start).to.equal(0);
+      expect(t1.end).to.equal(1);
     });
 
     it('mod() replaces characters', function () {
@@ -49,26 +49,26 @@ describe('Text Module', function () {
       t1.setRange(0, 4);
       t1.mod(2, 2, 'aron');
       expect(t1.text).to.equal('Hearonlo');
-      expect(t1.i).to.equal(0);
-      expect(t1.j).to.equal(7);
+      expect(t1.start).to.equal(0);
+      expect(t1.end).to.equal(7);
     });
 
-    it('mod() handles i < text.i < j', function () {
+    it('mod() handles start < text.i < end', function () {
       const t1 = new Run('texty');
       t1.setRange(5, 9);
       t1.mod(2, 6, 's');
       expect(t1.text).to.equal('sxty');
-      expect(t1.i).to.equal(5);
-      expect(t1.j).to.equal(8);
+      expect(t1.start).to.equal(5);
+      expect(t1.end).to.equal(8);
     });
 
-    it('mod() handles i < text.j < j', function () {
+    it('mod() handles start < text.end < j', function () {
       const t1 = new Run('texty');
       t1.setRange(5, 9);
       t1.mod(8, 10, 'y');
       expect(t1.text).to.equal('texy');
-      expect(t1.i).to.equal(5);
-      expect(t1.j).to.equal(8);
+      expect(t1.start).to.equal(5);
+      expect(t1.end).to.equal(8);
     });
   });
 
@@ -94,8 +94,8 @@ describe('Text Module', function () {
         const c = new Collapser('Lorem ipsum', [t]);
         c.mod(6, 10, 'lorem');
         expect(c.buf).to.equal('Lorem lorem');
-        expect(t.i).to.equal(0);
-        expect(t.j).to.equal(10);
+        expect(t.start).to.equal(0);
+        expect(t.end).to.equal(10);
         expect(t.text).to.equal('Lorem lorem');
       });
 
@@ -107,11 +107,11 @@ describe('Text Module', function () {
         const c = new Collapser('This is my theme song', [t1, t2]);
         c.mod(8, 15, 'not my');
         expect(c.buf).to.equal('This is not my song')
-        expect(t1.i).to.equal(0);
-        expect(t1.j).to.equal(13);
+        expect(t1.start).to.equal(0);
+        expect(t1.end).to.equal(13);
         expect(t1.text).to.equal('This is not my');
-        expect(t2.i).to.equal(14);
-        expect(t2.j).to.equal(18);
+        expect(t2.start).to.equal(14);
+        expect(t2.end).to.equal(18);
         expect(t2.text).to.equal(' song');
       });
 
@@ -122,8 +122,8 @@ describe('Text Module', function () {
         c.mod(3, 4, '');
         expect(c.buf).to.equal('Lor ipsum');
         expect(t.text).to.equal('Lor ipsum');
-        expect(t.i).to.equal(0);
-        expect(t.j).to.equal(8);
+        expect(t.start).to.equal(0);
+        expect(t.end).to.equal(8);
       });
 
       it('replaces with empty text when the boundaries are in the middle of 2 texts', function () {
@@ -134,11 +134,11 @@ describe('Text Module', function () {
         const c = new Collapser('This is my theme song', [t1, t2]);
         c.mod(8, 16, '');
         expect(c.buf).to.equal('This is song')
-        expect(t1.i).to.equal(0);
-        expect(t1.j).to.equal(7);
+        expect(t1.start).to.equal(0);
+        expect(t1.end).to.equal(7);
         expect(t1.text).to.equal('This is ');
-        expect(t2.i).to.equal(8);
-        expect(t2.j).to.equal(11);
+        expect(t2.start).to.equal(8);
+        expect(t2.end).to.equal(11);
         expect(t2.text).to.equal('song');
       });
     });

@@ -507,7 +507,7 @@ export class Inline extends Box {
       for (let i = 0; i < inline.children.length; ++i) {
         const child = inline.children[i];
         if (child.isRun()) {
-          if (child.j < child.i) {
+          if (child.end < child.start) {
             inline.children.splice(i, 1);
             i -= 1;
             const j = this.runs.indexOf(child);

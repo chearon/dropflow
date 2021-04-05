@@ -19,20 +19,16 @@ export function binarySearchIndex(a: number[], x: number): number {
   }
 }
 
-interface WithJ {
-  j: number;
-}
-
-export function bsearchj(a: WithJ[], x: number): number {
+export function bsearch(a: {end: number}[], x: number): number {
   let l = 0, r = a.length - 1;
 
   while (true) {
     let i = Math.floor((l+r)/2);
 
-    if (a[i].j < x) {
+    if (a[i].end < x) {
       l = i + 1;
       if (l > r) return l;
-    } else if (a[i].j > x) {
+    } else if (a[i].end > x) {
       r = i - 1;
       if (r < l) return i;
     } else {

@@ -542,9 +542,9 @@ function defaultifyStyle(parentStyle: ComputedPlainStyle, style: CascadedPlainSt
 
   for (const _ in initialStyle) {
     const p = _ as keyof typeof initialStyle;
-    if (style[p] === inherited || !style[p] && inheritedStyle[p]) {
+    if (style[p] === inherited || !(p in style) && inheritedStyle[p]) {
       ret[p] = parentStyle[p];
-    } else if (style[p] === initial || !style[p] && !inheritedStyle[p]) {
+    } else if (style[p] === initial || !(p in style) && !inheritedStyle[p]) {
       ret[p] = initialStyle[p];
     } else {
       ret[p] = style[p];

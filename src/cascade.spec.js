@@ -121,9 +121,13 @@ describe('CSS Style', function () {
     expect(childComputed.backgroundColor).to.deep.equal({r: 200, g: 200, b: 200, a: 1});
   });
 
-  it('supports the inherit initial', function () {
+  it('supports the initial keyword', function () {
     const parentComputed = createComputedStyle(initialStyle, {color: {r: 200, g: 200, b: 200, a: 1}});
     const childComputed = createComputedStyle(parentComputed, {color: initial});
     expect(childComputed.color).to.deep.equal(initialStyle.color);
   });
+
+  it('defaultifies correctly if the style has a zero', function () {
+    expect(createComputedStyle(initialStyle, {width: 0}).width).to.equal(0);
+  })
 });

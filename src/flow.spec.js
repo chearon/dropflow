@@ -8,8 +8,9 @@ const {Area} = require('./box');
 const {paint} = require('./paint/html/index');
 const {expect} = require('chai');
 
-/** @type import('./cascade').CascadedPlainStyle */
-const rootDeclaredStyle = {
+const HarfbuzzInit = require('harfbuzzjs');
+
+const rootDeclaredStyle = createComputedStyle(initialStyle, {
   fontSize: 16,
   fontFamily: ['Helvetica'],
   fontWeight: 300,
@@ -23,22 +24,26 @@ const rootDeclaredStyle = {
     outer: 'block',
     inner: 'flow-root'
   }
-};
+});
 
 describe('Flow', function () {
-  before(function () {
+  before(async function () {
+    const hb = await HarfbuzzInit;
+
     this.layout = function (html) {
       this.initialContainingBlock = new Area('', 0, 0, 300, 500);
       this.rootComputed = createComputedStyle(initialStyle, rootDeclaredStyle);
       this.rootElement = new HTMLElement('root', 'root', this.rootComputed);
       parseNodes(this.rootElement, html);
-      /** @type import('./flow').BlockContainerOfBlocks */
       this.blockContainer = generateBlockContainer(this.rootElement);
+      if (!this.blockContainer.isBlockBox()) throw new Error('wat');
       layoutBlockBox(this.blockContainer, {
         lastBlockContainerArea: this.initialContainingBlock,
         lastPositionedArea: this.initialContainingBlock,
         bfcWritingMode: rootDeclaredStyle.writingMode,
-        bfcStack: []
+        bfcStack: [],
+        hb,
+        logging: {text: new Set()}
       });
       this.blockContainer.setBlockPosition(0, rootDeclaredStyle.writingMode);
       this.blockContainer.absolutify();

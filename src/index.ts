@@ -6,6 +6,9 @@ import {createComputedStyle, initialStyle} from './cascade';
 import {generateBlockContainer, layoutBlockBox} from './flow';
 import {Area} from './box';
 import {paint} from './paint/html/index';
+import FontConfigInit = require('fontconfig');
+import ItemizerInit = require('itemizer');
+import HarfbuzzInit = require('harfbuzzjs');
 
 const rootComputedStyle = createComputedStyle(initialStyle, {
   fontSize: 16,
@@ -13,10 +16,8 @@ const rootComputedStyle = createComputedStyle(initialStyle, {
   fontWeight: 300,
   whiteSpace: 'normal',
   tabSize: {value: 8, unit: null},
-  lineHeight: {value: 1.6, unit: null},
   position: 'static',
   height: {value: 100, unit: '%'}, // TODO: delete this when height: auto implemented
-  writingMode: 'vertical-lr',
   display: {
     outer: 'block',
     inner: 'flow-root'
@@ -25,51 +26,93 @@ const rootComputedStyle = createComputedStyle(initialStyle, {
 
 const rootElement = new HTMLElement('', 'root', rootComputedStyle);
 
-// -------------- Step 0 --------------
-console.log("Element Tree");
-parseNodes(rootElement, `
-  <div style="margin: 10px; width: 10px; background-color: purple;"></div>
-  <div style="margin: 10px; width: 10px; background-color: purple;"></div>
-  <div style="margin: 10px; width: 10px; background-color: purple;">
-    <div style="margin: 50px;">
-      <div style="margin: 10px; height: 10px; background-color: red;"></div>
-      <div style="margin: 10px; height: 10px; background-color: red;"></div>
+Promise.all([
+  FontConfigInit,
+  ItemizerInit,
+  HarfbuzzInit
+]).then(async ([FontConfig, itemizer, hb]) => {
+  const cfg = new FontConfig();
+
+  console.time('Add fonts');
+  await Promise.all([
+    cfg.addFont('assets/Arimo/Arimo-Bold.ttf'),
+    cfg.addFont('assets/Arimo/Arimo-BoldItalic.ttf'),
+    cfg.addFont('assets/Arimo/Arimo-Italic.ttf'),
+    cfg.addFont('assets/Arimo/Arimo-Regular.ttf'),
+    cfg.addFont('assets/Cousine/Cousine-Bold.ttf'),
+    cfg.addFont('assets/Cousine/Cousine-BoldItalic.ttf'),
+    cfg.addFont('assets/Cousine/Cousine-Italic.ttf'),
+    cfg.addFont('assets/Cousine/Cousine-Regular.ttf'),
+    cfg.addFont('assets/Tinos/Tinos-Bold.ttf'),
+    cfg.addFont('assets/Tinos/Tinos-BoldItalic.ttf'),
+    cfg.addFont('assets/Tinos/Tinos-Italic.ttf'),
+    cfg.addFont('assets/Tinos/Tinos-Regular.ttf'),
+    cfg.addFont('assets/Noto/NotoColorEmoji.ttf'),
+    cfg.addFont('assets/Noto/NotoSansCJKsc-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansCJKjp-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansCJKtc-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansCJKkr-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansHebrew-Medium.ttf'),
+    cfg.addFont('assets/Noto/NotoSansCherokee-Regular.ttf'),
+    cfg.addFont('assets/Ramabhadra/Ramabhadra-Regular.ttf'),
+    cfg.addFont('assets/Roboto/Roboto-Regular.ttf'),
+    cfg.addFont('assets/Cairo/Cairo-Regular.ttf')
+  ]);
+  console.timeEnd('Add fonts');
+  console.log();
+
+  // -------------- Step 0 --------------
+  console.log('Element Tree');
+  // \u0308n
+  parseNodes(rootElement, `
+    <div style="font-family: Arimo; font-size: 16px; line-height: 1.4;">
+      I <span style="font-family: Cousine;">like</span> to write
+      <span style="font-size: 3em;">layout code</span> because it is
+      equal parts <span style="font-weight: bold;">challenging</span>,
+      <span style="font-weight: bold;">fun</span>, and
+      <span style="font-weight: bold;">arcane</span>.
     </div>
-  </div>
-`);
-console.log(rootElement.repr(0, 'backgroundColor'));
-console.log();
+  `);
+  console.log(rootElement.repr(0, 'backgroundColor'));
+  console.log();
 
-// -------------- Step 1 --------------
-console.log("Box Tree");
-const blockContainer = generateBlockContainer(rootElement);
-console.log(blockContainer.repr());
-console.log();
+  // -------------- Step 1 --------------
+  //console.log('Box Tree');
+  const blockContainer = generateBlockContainer(rootElement);
+  if (!blockContainer.isBlockBox()) throw new Error('wat');
+  console.log('Box Tree');
+  console.log(blockContainer.repr());
+  console.log();
 
-if (!blockContainer.isBlockBox()) throw new Error('wat');
+  // -------------- Step 2 --------------
+  console.log('Layout');
+  const initialContainingBlock = new Area('', 0, 0, 300, 500);
+  blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
+  const logging = {text: new Set([])};
+  await blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
+  layoutBlockBox(blockContainer, {
+    bfcWritingMode: blockContainer.style.writingMode,
+    bfcStack: [],
+    lastBlockContainerArea: initialContainingBlock,
+    lastPositionedArea: initialContainingBlock,
+    logging,
+    hb
+  });
 
-// -------------- Step 2 --------------
-console.log("Layout");
-const initialContainingBlock = new Area('', 0, 0, 300, 500);
-blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
-layoutBlockBox(blockContainer, {
-  bfcWritingMode: blockContainer.style.writingMode,
-  bfcStack: [],
-  lastBlockContainerArea: initialContainingBlock,
-  lastPositionedArea: initialContainingBlock
+  console.log(blockContainer.repr(0, {containingBlocks: true}));
+  console.log();
+
+  // -------------- Step 4 --------------
+  console.log('Absolutify');
+  blockContainer.absolutify();
+  const blocks = new Set([blockContainer.borderArea]);
+  for (const [order, child] of blockContainer.descendents(b => b.isBlockBox())) {
+    if (order === 'pre') blocks.add(child.borderArea);
+  }
+  for (const area of blocks) console.log(area.repr());
+  console.log();
+
+  // -------------- Step 5 --------------
+  console.log('Paint');
+  console.log(paint(blockContainer, hb));
 });
-console.log(blockContainer.repr(0, {containingBlocks: true}));
-console.log();
-
-// -------------- Step 4 --------------
-console.log("Absolutify");
-blockContainer.absolutify();
-console.log(blockContainer.borderArea.repr());
-const blocks = new Set([blockContainer.borderArea]);
-for (const [order, child] of blockContainer.descendents(b => b.isBlockBox())) {
-  if (order === 'pre') blocks.add(child.borderArea);
-}
-for (const area of blocks) console.log(area.repr());
-console.log();
-
-console.log(paint(blockContainer));

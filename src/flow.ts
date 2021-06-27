@@ -1,7 +1,10 @@
 import {HTMLElement, TextNode} from './node';
 import {createComputedStyle, Style, LogicalStyle} from './cascade';
-import {Run, Collapser} from './text';
+import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes} from './text';
 import {Box, Area, LogicalArea, WritingMode} from './box';
+import {Harfbuzz, HbFont} from 'harfbuzzjs';
+import {FontConfig} from 'fontconfig';
+import {Itemizer} from 'itemizer';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -21,7 +24,6 @@ function writingModeInlineAxis(el: HTMLElement) {
   }
 }
 
-
 let id = 0;
 
 const reset = '\x1b[0m';
@@ -33,7 +35,16 @@ export type LayoutContext = {
   lastBlockContainerArea: Area,
   lastPositionedArea: Area,
   bfcWritingMode: WritingMode,
-  bfcStack: (BlockBox | 'post')[]
+  bfcStack: (BlockBox | 'post')[],
+  hb: Harfbuzz,
+  logging: {text: Set<string>}
+};
+
+export type PreprocessContext = {
+  fcfg: FontConfig,
+  itemizer: Itemizer,
+  hb: Harfbuzz,
+  logging: {text: Set<string>}
 };
 
 type MarginCollapseCollection = {
@@ -271,13 +282,8 @@ export abstract class BlockBox extends BlockContainer {
     if (style.blockSize === 'auto') {
       if (this.children.length === 0) {
         this.setBlockSize(0, ctx.bfcWritingMode); // Case 4
-      } else if (this.isBlockContainerOfIfc()) {
-        // Case 1 TODO
-        throw new Error(`IFC height for ${this.id} not yet implemented`);
       } else {
-        // BlockContainerOfBlockBoxes, BlockLevelBfcBlockContainer
-        //
-        // Cases 2-4 should be handled by doBoxPositioning, where margin
+        // Cases 1-4 should be handled by doBoxPositioning, where margin
         // calculation happens. These bullet points seem to be re-phrasals of
         // margin collapsing in CSS 2.2 § 8.3.1 at the very end. If I'm wrong,
         // more might need to happen here.
@@ -286,6 +292,8 @@ export abstract class BlockBox extends BlockContainer {
       this.setBlockSize(style.blockSize, ctx.bfcWritingMode);
     }
   }
+
+  abstract preprocess(ctx: PreprocessContext): Promise<void>;
 }
 
 export class BlockContainerOfIfc extends BlockBox {
@@ -298,6 +306,17 @@ export class BlockContainerOfIfc extends BlockBox {
 
   isBlockContainerOfIfc(): this is BlockContainerOfIfc {
     return true;
+  }
+
+  doTextLayout(ctx: LayoutContext) {
+    const [rootInline] = this.children;
+    rootInline.doTextLayout(ctx);
+    this.setBlockSize(rootInline.height, ctx.bfcWritingMode);
+  }
+
+  async preprocess(ctx: PreprocessContext) {
+    const [rootInline] = this.children;
+    return rootInline.preprocessIfc(ctx);
   }
 }
 
@@ -312,6 +331,12 @@ export class BlockContainerOfBlockBoxes extends BlockBox {
   isBlockContainerOfBlockBoxes(): this is BlockContainerOfBlockBoxes {
     return true;
   }
+
+  async preprocess(ctx: PreprocessContext) {
+    const promises:Promise<any>[] = [];
+    for (const child of this.children) promises.push(child.preprocess(ctx));
+    await Promise.all(promises);
+  }
 }
 
 export class BlockLevelBfcBlockContainer extends BlockBox {
@@ -324,6 +349,12 @@ export class BlockLevelBfcBlockContainer extends BlockBox {
 
   isBlockLevelBfcBlockContainer(): this is BlockLevelBfcBlockContainer {
     return true;
+  }
+
+  async preprocess(ctx: PreprocessContext) {
+    const promises:Promise<any>[] = [];
+    for (const child of this.children) promises.push(child.preprocess(ctx));
+    await Promise.all(promises);
   }
 }
 
@@ -392,7 +423,7 @@ function doBoxPositioning(box: BfcBlockContainer, ctx: LayoutContext) {
       block.setBlockPosition(blockOffset, ctx.bfcWritingMode);
       blockOffset = 0;
     } else { // post
-      if (!block.isBlockLevelBfcBlockContainer() && style.blockSize === 'auto') {
+      if (style.blockSize === 'auto' && block.isBlockContainerOfBlockBoxes()) {
         block.setBlockSize(blockOffset, ctx.bfcWritingMode);
       }
 
@@ -434,6 +465,11 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
   // And resolve box-sizing (which has a dependency on the above)
   box.style.resolveBoxModel();
 
+  if (box.isBlockContainerOfIfc()) {
+    const [inline] = box.children;
+    inline.assignContainingBlocks(cctx);
+  }
+
   // TODO: box goes for any block-level box, not just block containers.
   // It should probably go on the box class, but the BFC methods could
   // still go on this class while the IFC methods would go on the inline
@@ -451,7 +487,7 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
   }
 
   if (box.isBlockContainerOfIfc()) {
-    throw new Error('Not yet implemented');
+    box.doTextLayout(ctx);
   } else if (box.isBlockLevelBfcBlockContainer() || box.isBlockContainerOfBlockBoxes()) {
     for (const child of box.children) {
       layoutBlockBox(child, cctx);
@@ -467,16 +503,38 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
   ctx.bfcStack.push('post', box);
 }
 
+// exported because used by painter
+export function getAscenderDescender(style: Style, font: HbFont, upem: number) { // CSS2 §10.8.1
+  const {fontSize, lineHeight: cssLineHeight} = style;
+  const {ascender, descender, lineGap} = font.getExtents("ltr"); // TODO
+  const emHeight = (ascender - descender) / upem;
+  const pxHeight = emHeight * fontSize;
+  const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap / upem * fontSize : cssLineHeight;
+  const halfLeading = (lineHeight - pxHeight) / 2;
+  const ascenderPx = ascender / upem * fontSize;
+  const descenderPx = -descender / upem * fontSize;
+  return {ascender: halfLeading + ascenderPx, descender: halfLeading + descenderPx};
+}
+
 export class Inline extends Box {
   public isIfcRoot: boolean;
   /** applies only to IFC roots */
   public allText: string = '';
   /** applies only to IFC roots */
   public runs: Run[] = [];
+  /** applies only to IFC roots */
+  public shaped: ShapedItem[] = [];
+  /** applies only to IFC roots */
+  public strut: ShapedItem | undefined;
+  /** applies only to IFC roots */
+  public lineboxes: Linebox[] = [];
+  /** applies only to IFC roots */
+  public height: number = 0;
 
   constructor(style: Style, children: Box[], isAnonymous: boolean = false, isIfcRoot: boolean = false) {
     super(style, children, isAnonymous);
     this.isIfcRoot = isIfcRoot;
+    if (this.isIfcRoot) this.prepare();
   }
 
   isInline(): this is Inline {
@@ -523,8 +581,8 @@ export class Inline extends Box {
 
   // Collect text runs, collapse whitespace, create shaping boundaries, and
   // assign fonts
-  prepareIfc() {
-    const stack = this.children.slice();
+  private prepare() {
+    const stack:Box[] = this.children.slice();
     let i = 0;
 
     if (!this.isIfcRoot) {
@@ -535,18 +593,19 @@ export class Inline extends Box {
 
     // Step 1
     while (stack.length) {
-      const child = stack.shift()!;
-      if (child.isInline() && child.isIfcRoot) continue;
-      // TODO I don't think just checking isIfcRoot is correct, but works for
-      // now. Specs imply the inner display type is the thing to check to see
-      // if it belongs to this IFC (for example grids, tables, etc).
-      if (child.isRun()) {
-        child.setRange(i, i + child.text.length - 1);
-        i += child.text.length;
-        this.allText += child.text;
-        this.runs.push(child);
+      const box = stack.shift()!;
+
+      if (box.isRun()) {
+        box.setRange(i, i + box.text.length - 1);
+        i += box.text.length;
+        this.allText += box.text;
+        this.runs.push(box);
+      } else if (box.isInline()) {
+        stack.unshift(...box.children);
       } else {
-        stack.unshift(...child.children);
+        // TODO: this is e.g. a block container. store it somewhere for future
+        // layout here
+        throw new Error(`Only inlines and runs in IFCs for now (box ${this.id})`);
       }
     }
 
@@ -558,6 +617,67 @@ export class Inline extends Box {
     // TODO step 2
     // TODO step 3
     // TODO step 4
+  }
+
+  async preprocessIfc(ctx: PreprocessContext) {
+    const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
+    const strutFontMatch = strutCascade.matches[0];
+    const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
+    this.strut = new ShapedItem(strutFace, [], 0, '', this.style);
+    this.shaped = await shapeIfc(this, ctx);
+  }
+
+  doTextLayout(ctx: LayoutContext) {
+    const hb = ctx.hb;
+    let bottom = 0;
+    let runi = 0;
+    let linei = 0;
+    let itemi = 0;
+    let isNewLine = true;
+
+    this.lineboxes = createLineboxes(this, ctx);
+
+    if (!this.strut) throw new Error('Preprocess first');
+
+    const strutFont = hb.createFont(this.strut.face);
+
+    // Since runs are the smallest ranges that can change style, iterate them to
+    // look at lineHeight. Shaping items also affect lineHeight, so those have
+    // to be iterated too. Every combination of the three must be checked.
+    while (linei < this.lineboxes.length && runi < this.runs.length && itemi < this.shaped.length) {
+      const linebox = this.lineboxes[linei];
+      const run = this.runs[runi];
+      const item = this.shaped[itemi];
+      const itemEnd = item.offset + item.text.length; // TODO make it use {start, end}
+
+      if (isNewLine) {
+        const extents = getAscenderDescender(this.strut.style, strutFont, this.strut.face.upem);
+        linebox.ascender = extents.ascender;
+        linebox.descender = extents.descender;
+      }
+
+      const font = hb.createFont(item.face);
+      const extents = getAscenderDescender(run.style, font, item.face.upem);
+      linebox.ascender = Math.max(linebox.ascender, extents.ascender);
+      linebox.descender = Math.max(linebox.descender, extents.descender);
+      font.destroy();
+
+      const marker = Math.min(run.end, linebox.end, itemEnd);
+
+      if (marker === run.end) runi += 1;
+      if (marker === linebox.end) linei += 1;
+      if (marker === itemEnd) itemi += 1;
+      isNewLine = marker === linebox.end;
+      if (isNewLine) bottom += linebox.ascender + linebox.descender;
+    }
+
+    if (linei < this.lineboxes.length) {
+      bottom += this.lineboxes[linei].ascender + this.lineboxes[linei].descender;
+    }
+
+    strutFont.destroy();
+
+    this.height = bottom;
   }
 
   containsAllCollapsibleWs() {
@@ -675,7 +795,6 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
       const anonStyle = new Style(anonStyleId, anonComputedStyle);
       const rootInline = new Inline(anonStyle, inlines, true, true);
       if (!rootInline.containsAllCollapsibleWs()) {
-        rootInline.prepareIfc();
         blocks.push(new BlockContainerOfIfc(anonStyle, [rootInline], true));
       }
     }
@@ -727,7 +846,6 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     const anonComputedStyle = createComputedStyle(el.style, {});
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
     const inline = new Inline(anonStyle, boxes, true, true);
-    inline.prepareIfc();
     const block = new BlockContainerOfIfc(style, [inline], false);
 
     if (level === 'block') {

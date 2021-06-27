@@ -323,7 +323,10 @@ export class Box {
     this.borderArea.absolutify();
     this.paddingArea.absolutify();
     this.contentArea.absolutify();
-    for (const c of this.children) c.absolutify();
+    for (const c of this.children) {
+      if (c.isInline()) continue; // TODO set inline offsets in doTextLayout?
+      c.absolutify();
+    }
   }
 
   *descendents(boxIf?: DescendIf, subtreeIf?: DescendIf): DescendState {
@@ -356,7 +359,7 @@ export class Box {
     }
   }
 
-  repr(indent = 0, options?: {containingBlocks: boolean}) {
+  repr(indent = 0, options?: {containingBlocks?: boolean, css?: keyof Style}) {
     let c = '';
 
     if (!this.isRun() && this.children.length) {
@@ -367,6 +370,11 @@ export class Box {
 
     if (options && options.containingBlocks && (this.isBlockContainer() || this.isInline())) {
       extra += ` (cb = ${this.containingBlock ? this.containingBlock.id : '(null)'})`;
+    }
+
+    if (options && options.css) {
+      const css = this.style[options.css];
+      extra += ` (${options.css}: ${css && JSON.stringify(css)})`;
     }
 
     return '  '.repeat(indent) + this.sym + ' ' + this.desc + extra + c;

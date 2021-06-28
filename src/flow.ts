@@ -297,9 +297,9 @@ export abstract class BlockBox extends BlockContainer {
 }
 
 export class BlockContainerOfIfc extends BlockBox {
-  public children: Inline[];
+  public children: IfcInline[];
 
-  constructor(style: Style, children: Inline[], isAnonymous: boolean) {
+  constructor(style: Style, children: IfcInline[], isAnonymous: boolean) {
     super(style, children, isAnonymous);
     this.children = children;
   }
@@ -515,25 +515,9 @@ export function getAscenderDescender(style: Style, font: HbFont, upem: number) {
 }
 
 export class Inline extends Box {
-  public isIfcRoot: boolean;
-  /** applies only to IFC roots */
-  public allText: string = '';
-  /** applies only to IFC roots */
-  public runs: Run[] = [];
-  /** applies only to IFC roots */
-  public shaped: ShapedItem[] = [];
-  /** applies only to IFC roots */
-  public strut: ShapedItem | undefined;
-  /** applies only to IFC roots */
-  public lineboxes: Linebox[] = [];
-  /** applies only to IFC roots */
-  public height: number = 0;
-
-  constructor(style: Style, children: Box[], isAnonymous: boolean = false, isIfcRoot: boolean = false) {
-    super(style, children, isAnonymous);
-    this.isIfcRoot = isIfcRoot;
-    if (this.isIfcRoot) this.prepare();
-  }
+  // Hack to get TS to not think an Inline is a Box
+  // Remove when other properties are added
+  private className = "inline";
 
   isInline(): this is Inline {
     return true;
@@ -545,21 +529,36 @@ export class Inline extends Box {
 
   get desc() {
     return (this.isAnonymous ? dim : '')
-      + (this.isIfcRoot ? underline : '')
+      + (this.isIfcInline() ? underline : '')
       + 'Inline'
       + ' ' + this.id
       + reset;
+  }
+}
+
+export class IfcInline extends Inline {
+  public allText: string = '';
+  public runs: Run[] = [];
+  public shaped: ShapedItem[] = [];
+  public strut: ShapedItem | undefined;
+  public lineboxes: Linebox[] = [];
+  public height: number = 0;
+
+  constructor(style: Style, children: Box[]) {
+    super(style, children, true);
+    this.prepare();
+  }
+
+  isIfcInline(): this is IfcInline {
+    return true;
   }
 
   removeCollapsedRuns() {
     const stack: Inline[] = [this];
 
-    if (!this.isIfcRoot) {
-      throw new Error('removeCollapsedRuns() is for root inline context boxes');
-    }
-
     while (stack.length) {
       const inline = stack.shift()!;
+
       for (let i = 0; i < inline.children.length; ++i) {
         const child = inline.children[i];
         if (child.isRun()) {
@@ -570,7 +569,7 @@ export class Inline extends Box {
             if (j < 0) throw new Error('Run expected in this.runs');
             this.runs.splice(j, 1);
           }
-        } else if (child.isInline() && !child.isIfcRoot) {
+        } else if (child.isInline() && !child.isIfcInline()) {
           stack.unshift(child);
         }
       }
@@ -582,10 +581,6 @@ export class Inline extends Box {
   private prepare() {
     const stack:Box[] = this.children.slice();
     let i = 0;
-
-    if (!this.isIfcRoot) {
-      throw new Error('prepareIfc() called on a non-IFC inline');
-    }
 
     // CSS Text Module Level 3, Appendix A, steps 1-4
 
@@ -740,7 +735,7 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
     if (!bail) stack.pop();
     if (children.length) {
       const id = el.id + '.1';
-      box = new Inline(new Style(id, el.style), children);
+      box = new Inline(new Style(id, el.style), children, false);
     }
   } else if (el.style.display.inner == 'flow-root') {
     box = generateBlockContainer(el) as InlineLevelBfcBlockContainer;
@@ -792,7 +787,7 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
       const anonStyleId = parentEl.id + '.' + ++subId;
       const anonComputedStyle = createComputedStyle(parentEl.style, {});
       const anonStyle = new Style(anonStyleId, anonComputedStyle);
-      const rootInline = new Inline(anonStyle, inlines, true, true);
+      const rootInline = new IfcInline(anonStyle, inlines);
       if (!rootInline.containsAllCollapsibleWs()) {
         blocks.push(new BlockContainerOfIfc(anonStyle, [rootInline], true));
       }
@@ -844,7 +839,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     const anonStyleId = el.id + '.1';
     const anonComputedStyle = createComputedStyle(el.style, {});
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
-    const inline = new Inline(anonStyle, boxes, true, true);
+    const inline = new IfcInline(anonStyle, boxes);
     const block = new BlockContainerOfIfc(style, [inline], false);
 
     if (level === 'block') {

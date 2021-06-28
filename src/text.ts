@@ -1,7 +1,7 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle} from './cascade';
-import {Inline, PreprocessContext, LayoutContext} from './flow';
+import {Inline, IfcInline, PreprocessContext, LayoutContext} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
@@ -333,7 +333,7 @@ function glyphIndexForOffset(item: ShapedItem, offset: number) {
   return j - 1;
 }
 
-function bumpOffsetPastCollapsedWhitespace(inline: Inline, offset: number) {
+function bumpOffsetPastCollapsedWhitespace(inline: IfcInline, offset: number) {
   const {runs, allText} = inline;
   const runi = runForIndex(runs, offset);
   if (runi < runs.length && runs[runi].wsCollapsible && allText[offset] === ' ') {
@@ -627,7 +627,7 @@ function logParagraph(paragraph: ShapedItem[]) {
   }
 }
 
-export async function shapeIfc(inline: Inline, ctx: PreprocessContext) {
+export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
   const {hb, itemizer, fcfg} = ctx;
   const paragraph:ShapedItem[] = [];
 
@@ -785,7 +785,7 @@ export class Linebox {
   }
 }
 
-export function createLineboxes(inline: Inline, ctx: LayoutContext) {
+export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
   const breaker = new LineBreak(inline.allText);
   const hb = ctx.hb;
   const lineStart = bumpOffsetPastCollapsedWhitespace(inline, 0);

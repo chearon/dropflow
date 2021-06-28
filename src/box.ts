@@ -3,6 +3,7 @@ import {Style} from './cascade';
 import {Run} from './text';
 import {
   Inline,
+  IfcInline,
   BlockContainer,
   BlockBox,
   BlockContainerOfIfc,
@@ -271,6 +272,10 @@ export class Box {
   }
 
   isInline(): this is Inline {
+    return false;
+  }
+
+  isIfcInline(): this is IfcInline {
     return false;
   }
 

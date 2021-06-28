@@ -1,6 +1,6 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
-import {Style, initialStyle, createComputedStyle, ComputedPlainStyle} from './cascade';
+import {Style, initialStyle, createComputedStyle} from './cascade';
 import {Inline, PreprocessContext, LayoutContext} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbGlyphInfo} from 'harfbuzzjs';

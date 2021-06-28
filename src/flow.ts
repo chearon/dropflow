@@ -1,7 +1,7 @@
 import {HTMLElement, TextNode} from './node';
 import {createComputedStyle, Style, LogicalStyle} from './cascade';
 import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes} from './text';
-import {Box, Area, LogicalArea, WritingMode} from './box';
+import {Box, Area, WritingMode} from './box';
 import {Harfbuzz, HbFont} from 'harfbuzzjs';
 import {FontConfig} from 'fontconfig';
 import {Itemizer} from 'itemizer';
@@ -477,8 +477,6 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
 
   box.doInlineBoxModel(ctx);
   box.doBlockBoxModel(ctx);
-
-  const style = box.style.createLogicalView(ctx.bfcWritingMode);
 
   // Child flow is now possible
   if (box.isBlockLevelBfcBlockContainer()) {

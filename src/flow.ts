@@ -684,16 +684,17 @@ export class Inline extends Box {
 
     while (stack.length && good) {
       const child = stack.shift()!;
-      if (!child.isInline() || !child.isIfcRoot) {
-        if (child.isRun()) {
-          if (!child.wsCollapsible) {
-            good = false;
-          } else {
-            good = child.allCollapsible();
-          }
+      if (child.isRun()) {
+        if (!child.wsCollapsible) {
+          good = false;
         } else {
-          stack.unshift(...child.children);
+          good = child.allCollapsible();
         }
+      } else if (child.isInline()) {
+        stack.unshift(...child.children);
+      } else {
+        // box should only be an InlineLevelBfcBLockContainer at this point
+        good = false;
       }
     }
 

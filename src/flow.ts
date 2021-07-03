@@ -543,9 +543,11 @@ export class IfcInline extends Inline {
   public strut: ShapedItem | undefined;
   public lineboxes: Linebox[] = [];
   public height: number = 0;
+  public children: InlineLevel[];
 
-  constructor(style: Style, children: Box[]) {
+  constructor(style: Style, children: InlineLevel[]) {
     super(style, children, true);
+    this.children = children;
     this.prepare();
   }
 
@@ -839,7 +841,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     const anonStyleId = el.id + '.1';
     const anonComputedStyle = createComputedStyle(el.style, {});
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
-    const inline = new IfcInline(anonStyle, boxes);
+    const inline = new IfcInline(anonStyle, boxes as InlineLevel[]);
     const block = new BlockContainerOfIfc(style, [inline], false);
 
     if (level === 'block') {

@@ -24,10 +24,7 @@ function writingModeInlineAxis(el: HTMLElement) {
   }
 }
 
-let id = 0;
-
 const reset = '\x1b[0m';
-const bold = '\x1b[1m';
 const dim = '\x1b[2m';
 const underline = '\x1b[4m';
 
@@ -413,7 +410,6 @@ function doBoxPositioning(box: BfcBlockContainer, ctx: LayoutContext) {
       continue;
     }
 
-    const content = block.contentArea.createLogicalView(ctx.bfcWritingMode);
     const border = block.borderArea.createLogicalView(ctx.bfcWritingMode);
     const style = block.style.createLogicalView(ctx.bfcWritingMode);
 

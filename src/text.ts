@@ -1,7 +1,7 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle} from './cascade';
-import {Inline, IfcInline, PreprocessContext, LayoutContext} from './flow';
+import {IfcInline, PreprocessContext, LayoutContext} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
@@ -10,7 +10,6 @@ import GraphemeBreaker = require('grapheme-breaker');
 import LineBreak = require('linebreak');
 import {LineBreakBreak} from 'linebreak';
 
-let id = 1;
 let debug = true;
 
 export class Run extends Box {

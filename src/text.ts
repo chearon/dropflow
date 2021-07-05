@@ -384,6 +384,13 @@ function* styleItemizer(runs: Run[]) {
   }
 }
 
+type ShapingAttrs = {
+  isEmoji: boolean,
+  dir: 'ltr' | 'rtl',
+  script: string,
+  style: Style
+};
+
 function* shapingItemizer(itemizer: Itemizer, s: string, runs: Run[]) {
   const iEmoji = itemizer.emoji(s);
   const iBidi = itemizer.bidi(s);
@@ -399,7 +406,7 @@ function* shapingItemizer(itemizer: Itemizer, s: string, runs: Run[]) {
     throw new Error('Iterator ended too early');
   }
 
-  let ctx = {
+  let ctx:ShapingAttrs = {
     isEmoji: emoji.value.isEmoji,
     dir: bidi.value.dir,
     script: script.value.script,
@@ -549,7 +556,7 @@ function measureWidth(item: ShapedItem, gi: number, ci: number) {
   while (gi < item.glyphs.length) {
     if (item.glyphs[gi].cl < ci) {
       const firstClusterChar = item.text[item.glyphs[gi].cl];
-      const glyphWidth = item.glyphs[gi++].ax / item.face.upem * item.style.fontSize;
+      const glyphWidth = item.glyphs[gi++].ax / item.face.upem * item.attrs.style.fontSize;
       trailingWhitespaceWidth = firstClusterChar === ' ' || firstClusterChar === '\t' ? glyphWidth : 0;
       width += glyphWidth;
     } else {
@@ -597,14 +604,14 @@ export class ShapedItem {
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
-  style: Style;
+  attrs: ShapingAttrs;
 
-  constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, style: Style) {
+  constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
     this.face = face;
     this.glyphs = glyphs;
     this.offset = offset;
     this.text = text;
-    this.style = style;
+    this.attrs = attrs;
   }
 
   split(i: number) {
@@ -613,7 +620,7 @@ export class ShapedItem {
     this.text = this.text.slice(i);
     this.glyphs = [];
     this.offset += i;
-    return new ShapedItem(this.face, [], offset, text, this.style);
+    return new ShapedItem(this.face, [], offset, text, this.attrs);
   }
 }
 
@@ -740,7 +747,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
         } else {
           const glyphs = part.glyphs.slice(gstart, gend);
           for (const g of glyphs) g.cl -= cstart;
-          paragraph.push(new ShapedItem(face, glyphs, offset, text, attrs.style));
+          paragraph.push(new ShapedItem(face, glyphs, offset, text, Object.assign({}, attrs)));
           if (isLastMatch) {
             log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
             break cascade;

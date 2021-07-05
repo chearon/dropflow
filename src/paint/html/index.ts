@@ -23,11 +23,12 @@ function drawDiv(style: StringMap, attrs: StringMap, text: string = '') {
 }
 
 function drawTextAt(item: ShapedItem, startOffset: number, endOffset: number, x: number, y: number, level: number, hb: Harfbuzz) {
+  const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
-  const {ascender, descender} = getAscenderDescender(item.style, hbFont, item.face.upem);
+  const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
   const top = y - (ascender - (ascender + descender)/2) + 'px';
   const left = x + 'px';
-  const font = `${item.style.fontWeight} ${item.style.fontSize}px/0 ${item.style.fontFamily.join(',')}`;
+  const font = `${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`;
   const zIndex = String(level);
   const whiteSpace = 'pre';
   hbFont.destroy();
@@ -65,7 +66,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, level:
       s += drawTextAt(item, startOffset, endOffset, left, top, level, hb);
       for (const glyph of item.glyphs) {
         if (glyph.cl >= startOffset && glyph.cl < endOffset) {
-          left += glyph.ax / item.face.upem * item.style.fontSize;
+          left += glyph.ax / item.face.upem * item.attrs.style.fontSize;
         }
       }
     }

@@ -8,12 +8,12 @@ import {Itemizer} from 'itemizer';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
-		throw new TypeError(
-			'The value accessed here has not been reduced to a used value in a ' +
-			'context where a used value is expected. Make sure to perform any ' +
-			'needed layouts.'
-		);
-	}
+    throw new TypeError(
+      'The value accessed here has not been reduced to a used value in a ' +
+        'context where a used value is expected. Make sure to perform any ' +
+        'needed layouts.'
+    );
+  }
 }
 
 function writingModeInlineAxis(el: HTMLElement) {
@@ -618,7 +618,12 @@ export class IfcInline extends Inline {
     const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
     const strutFontMatch = strutCascade.matches[0];
     const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
-    this.strut = new ShapedItem(strutFace, [], 0, '', this.style);
+    this.strut = new ShapedItem(strutFace, [], 0, '', {
+      style: this.style,
+      isEmoji: false,
+      dir: 'ltr',
+      script: 'Latn'
+    });
     this.shaped = await shapeIfc(this, ctx);
   }
 
@@ -646,7 +651,7 @@ export class IfcInline extends Inline {
       const itemEnd = item.offset + item.text.length; // TODO make it use {start, end}
 
       if (isNewLine) {
-        const extents = getAscenderDescender(this.strut.style, strutFont, this.strut.face.upem);
+        const extents = getAscenderDescender(this.strut.attrs.style, strutFont, this.strut.face.upem);
         linebox.ascender = extents.ascender;
         linebox.descender = extents.descender;
       }

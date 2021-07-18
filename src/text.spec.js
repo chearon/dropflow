@@ -330,6 +330,18 @@ describe('Shaping', function () {
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(4);
     });
+
+    it('has correct glyph order for Hebrew text', async function () {
+      // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
+      await this.layout('<div style="width: 60px; font: Arimo 16px;">הלו</div>');
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get(0).children;
+      expect(inline.shaped).to.have.lengthOf(1);
+      expect(inline.shaped[0].glyphs).to.have.lengthOf(3);
+      expect(inline.shaped[0].glyphs[0].g).to.equal(2440);
+      expect(inline.shaped[0].glyphs[1].g).to.equal(2447);
+      expect(inline.shaped[0].glyphs[2].g).to.equal(2439);
+    });
   });
 
   describe('Fallbacks', function () {

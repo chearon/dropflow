@@ -318,20 +318,6 @@ function runForIndex(runs: Run[], v: number) {
   }
 }
 
-function glyphIndexForOffset(item: ShapedItem, offset: number) {
-  let j = 1;
-
-  while (j < item.glyphs.length) {
-    if (item.glyphs[j].cl > offset) {
-      return j - 1;
-    } else {
-      j += 1;
-    }
-  }
-
-  return j - 1;
-}
-
 function bumpOffsetPastCollapsedWhitespace(inline: IfcInline, offset: number) {
   const {runs, allText} = inline;
   const runi = runForIndex(runs, offset);
@@ -341,11 +327,16 @@ function bumpOffsetPastCollapsedWhitespace(inline: IfcInline, offset: number) {
   return offset;
 }
 
-function getItemAndGlyphIndexForOffset(shaped: ShapedItem[], offset: number) {
+function getItemAndGlyphIteratorForOffset(shaped: ShapedItem[], offset: number) {
   const itemIndex = shapedItemForIndex(shaped, offset);
   const item = shaped[itemIndex];
-  const glyphIndex = glyphIndexForOffset(item, offset - item.offset);
-  return {itemIndex, glyphIndex};
+  const g = item.glyphs;
+  const glyphIterator = createGlyphIterator(g, item.attrs.dir);
+  const index = offset - item.offset;
+
+  while (!glyphIterator.done() && g[glyphIterator.start].cl < index) glyphIterator.next();
+
+  return {itemIndex, glyphIterator};
 }
 
 export function getLineContents(shaped: ShapedItem[], linebox: Linebox) {
@@ -538,32 +529,80 @@ function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 
-function nextCluster(shaped: HbGlyphInfo[], i: number):[number, boolean] {
-  const cl = shaped[i].cl;
-  let needsReshape = false;
-  while (i < shaped.length && shaped[i].cl === cl) {
-    needsReshape = needsReshape || shaped[i].g === 0;
-    i++;
-  }
-  return [i, needsReshape];
+function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
+  let i = dir === 'ltr' ? 0 : shaped.length - 1;
+  let ii = i;
+  const iterator = {
+    start: i,
+    end: i,
+    needsReshape: false,
+    done() {
+      if (dir === 'ltr') {
+        if (i >= shaped.length) return true;
+      } else {
+        if (i < 0) return true;
+      }
+      return false;
+    },
+    next() {
+      const cl = shaped[i].cl;
+
+      if (this.done()) return false;
+
+      if (dir === 'ltr') {
+        iterator.start = i;
+
+        while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
+          iterator.needsReshape = iterator.needsReshape || shaped[i].g === 0;
+          i += 1;
+        }
+
+        iterator.end = i;
+      } else {
+        iterator.end = i + 1;
+
+        while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
+          iterator.needsReshape = iterator.needsReshape || shaped[i].g === 0;
+          i -= 1;
+        }
+
+        iterator.start = i + 1;
+      }
+
+
+      return true;
+    },
+    pull() {
+      const iii = ii;
+      ii = i;
+      if (dir === 'ltr') {
+        return [iii, i];
+      } else {
+        return [i + 1, iii + 1];
+      }
+    }
+  };
+
+  return iterator;
 }
 
-function measureWidth(item: ShapedItem, gi: number, ci: number) {
+type ClusterIterator = ReturnType<typeof createGlyphIterator>;
+
+function measureWidth(item: ShapedItem, clusterIterator: ClusterIterator, ci: number) {
   let width = 0;
   let trailingWhitespaceWidth = 0;
 
-  while (gi < item.glyphs.length) {
-    if (item.glyphs[gi].cl < ci) {
-      const firstClusterChar = item.text[item.glyphs[gi].cl];
-      const glyphWidth = item.glyphs[gi++].ax / item.face.upem * item.attrs.style.fontSize;
+  while (!clusterIterator.done() && item.glyphs[clusterIterator.start].cl < ci) {
+    for (let i = clusterIterator.start; i < clusterIterator.end; ++i) {
+      const firstClusterChar = item.text[item.glyphs[i].cl];
+      const glyphWidth = item.glyphs[i].ax / item.face.upem * item.attrs.style.fontSize;
       trailingWhitespaceWidth = firstClusterChar === ' ' || firstClusterChar === '\t' ? glyphWidth : 0;
       width += glyphWidth;
-    } else {
-      break;
     }
+    clusterIterator.next();
   }
 
-  return [gi, width, trailingWhitespaceWidth];
+  return [width, trailingWhitespaceWidth];
 }
 
 const reset = '\x1b[0m';
@@ -671,11 +710,9 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
 
         buf.setClusterLevel(1);
         buf.addText(text);
-        buf.guessSegmentProperties();
+        buf.guessSegmentProperties(); // TODO set script and language manually
+        buf.setDirection(attrs.dir);
         hb.shape(font, buf);
-
-        // HarfBuzz produces reversed clusters from RTL or BTT text
-        if (buf.getDirection() === 5 || buf.getDirection() === 7) buf.reverse();
 
         const shapedPart = buf.json();
 
@@ -686,42 +723,40 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
         let lastClusterIndex = 0;
         let clusterIndex = 0;
         // HB cluster iterator
-        let hbClusterIndex = 0;
-        let hbLastClusterIndex = 0;
+        const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.dir);
         let clusterNeedsReshape = false;
 
         do {
           const mark = Math.min(
             clusterIndex,
-            hbClusterIndex < shapedPart.length ? shapedPart[hbClusterIndex].cl : Infinity
+            hbGlyphIterator.done() ? Infinity : shapedPart[hbGlyphIterator.start].cl
           );
 
           if (clusterIndex < text.length && mark === clusterIndex) {
             lastClusterIndex = clusterIndex;
-            hbLastClusterIndex = hbClusterIndex;
             clusterIndex = GraphemeBreaker.nextBreak(text, clusterIndex);
-            clusterNeedsReshape = false;
+            clusterNeedsReshape = false; // TODO this seems wrong if many clusters in hb cluster
           }
 
-          if (hbClusterIndex < shapedPart.length && mark === shapedPart[hbClusterIndex].cl) {
-            let hbClusterNeedsReshape;
-            [hbClusterIndex, hbClusterNeedsReshape] = nextCluster(shapedPart, hbClusterIndex);
-            if (hbClusterNeedsReshape) clusterNeedsReshape = true;
+          if (!hbGlyphIterator.done() && mark === shapedPart[hbGlyphIterator.start].cl) {
+            hbGlyphIterator.next();
+            if (hbGlyphIterator.needsReshape) clusterNeedsReshape = true;
           }
 
           const nextMark = Math.min(
             clusterIndex,
-            hbClusterIndex < shapedPart.length ? shapedPart[hbClusterIndex].cl : Infinity
+            hbGlyphIterator.done() ? Infinity : shapedPart[hbGlyphIterator.start].cl
           );
 
-          if (clusterIndex === nextMark) {
+          if (nextMark === clusterIndex) {
+            const [glyphStart, glyphEnd] = hbGlyphIterator.pull();
             if (!didPushPart || clusterNeedsReshape !== parts[parts.length - 1].reshape) {
               parts.push({
                 offset,
                 cstart: lastClusterIndex,
                 cend: clusterIndex,
-                gstart: hbLastClusterIndex,
-                gend: hbClusterIndex,
+                gstart: glyphStart,
+                gend: glyphEnd,
                 reshape: clusterNeedsReshape,
                 text,
                 glyphs: shapedPart
@@ -729,10 +764,11 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
               didPushPart = true;
             } else {
               parts[parts.length - 1].cend = clusterIndex;
-              parts[parts.length - 1].gend = hbClusterIndex;
+              parts[parts.length - 1].gstart = Math.min(parts[parts.length - 1].gstart, glyphStart);
+              parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
             }
           }
-        } while (clusterIndex < text.length || hbClusterIndex < shapedPart.length);
+        } while (clusterIndex < text.length || !hbGlyphIterator.done());
       }
 
       for (const part of parts) {
@@ -795,7 +831,9 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
   const breaker = new LineBreak(inline.allText);
   const hb = ctx.hb;
   const lineStart = bumpOffsetPastCollapsedWhitespace(inline, 0);
-  let {itemIndex, glyphIndex} = getItemAndGlyphIndexForOffset(inline.shaped, lineStart);
+  let itemIndex: number;
+  let glyphIterator: ClusterIterator | null;
+  ({itemIndex, glyphIterator} = getItemAndGlyphIteratorForOffset(inline.shaped, lineStart));
   const lastBreak = {offset: lineStart, itemIndex, pending: false};
   let bk:LineBreakBreak | undefined;
   let line = new Linebox(lineStart);
@@ -814,19 +852,22 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
       const item = inline.shaped[itemIndex];
       const breakIndex = bk.position - item.offset;
       let dw;
-      [glyphIndex, dw, tw] = measureWidth(item, glyphIndex, breakIndex);
+
+      if (!glyphIterator) glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+
+      [dw, tw] = measureWidth(item, glyphIterator, breakIndex);
       width += dw;
 
-      if (glyphIndex < item.glyphs.length) {
-        break; // next break, same item
-      } else {
-        glyphIndex = 0; // same break, new item
+      if (glyphIterator.done()) {
+        glyphIterator = null;
         itemIndex += 1;
+      } else {
+        break; // next break, same item
       }
     }
 
     const wrap = line.width > 0 && line.width + width - tw > paragraphWidth;
-    const pending = glyphIndex > 0;
+    const pending = glyphIterator ? !glyphIterator.done() && inline.shaped[itemIndex].glyphs[glyphIterator.start].cl > 0 : false;
 
     if (wrap && lastBreak.pending) {
       const right = inline.shaped[lastBreak.itemIndex];
@@ -851,18 +892,13 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
       hb.shape(leftFont, leftBuf);
       hb.shape(rightFont, rightBuf);
 
-      // HarfBuzz produces reversed clusters from RTL or BTT text
-      if (leftBuf.getDirection() === 5 || leftBuf.getDirection() === 7) leftBuf.reverse();
-      if (rightBuf.getDirection() === 5 || rightBuf.getDirection() === 7) rightBuf.reverse();
-
       left.glyphs = leftBuf.json();
       right.glyphs = rightBuf.json();
     }
 
     if (wrap) {
-      const lineStart = bumpOffsetPastCollapsedWhitespace(inline, line.end);
-      ({itemIndex, glyphIndex} = getItemAndGlyphIndexForOffset(inline.shaped, bk.position));
-      lines.push(line = new Linebox(lineStart));
+      lines.push(line = new Linebox(line.end));
+      ({itemIndex, glyphIterator} = getItemAndGlyphIteratorForOffset(inline.shaped, bk.position));
     }
 
     line.extendTo(bk.position);

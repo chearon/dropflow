@@ -291,7 +291,7 @@ describe('Shaping', function () {
         <span style="font: 12px Arimo;">Arimo</span>
         <span style="font: 12px Roboto;">Roboto</span>
       `);
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(5);
     });
@@ -301,7 +301,7 @@ describe('Shaping', function () {
         <span style="font-size: 12px;">a</span>
         <span style="font-size: 13px;">b</span>
       `);
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(5);
     });
@@ -311,14 +311,14 @@ describe('Shaping', function () {
         <span style="line-height: 3;">Left</span>
         <span style="line-height: 4;">Right</span>
       `);
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(1);
     });
 
     it('splits shaping boundaries based on script', async function () {
       await this.layout('Lorem Ipusm העמוד');
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(2);
       expect(inline.shaped[0].face).to.equal(inline.shaped[1].face);
@@ -326,7 +326,7 @@ describe('Shaping', function () {
 
     it('splits shaping boundaries based on emoji', async function () {
       await this.layout('Hey 😃 emoji are kinda hard 🦷');
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(4);
     });
@@ -335,7 +335,7 @@ describe('Shaping', function () {
   describe('Fallbacks', function () {
     it('falls back on diacritic é', async function () {
       await this.layout('<span style="font: 12px/1 Ramabhadra;">xe\u0301</span>');
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(2);
       expect(inline.shaped[0].glyphs.length).to.satisfy(l => l > 0);
@@ -346,7 +346,7 @@ describe('Shaping', function () {
 
     it('sums to the same string with many reshapes', async function () {
       await this.layout('Lorem大併外بينᏣᎳᎩ');
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       let s = '';
       for (const item of inline.shaped) s += item.text;
@@ -355,7 +355,7 @@ describe('Shaping', function () {
 
     it('falls back to tofu', async function () {
       await this.layout('\uffff');
-      /** @type import('./flow').Inline[] */
+      /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(1);
       expect(inline.shaped[0].glyphs).to.have.lengthOf(1);
@@ -398,7 +398,7 @@ describe('Line breaking', function () {
         Lorem ipsum <span style="font-size: 17px;">lorem ipsum</span>
       </div>
     `);
-    /** @type import('./flow').Inline[] */
+    /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end).to.equal(13);
@@ -411,7 +411,7 @@ describe('Line breaking', function () {
         Lorem ipsum lorem ipsum
       </div>
     `);
-    /** @type import('./flow').Inline[] */
+    /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end).to.equal(13);
@@ -425,7 +425,7 @@ describe('Line breaking', function () {
       <span style="color: green;">lorem</span><span style="color: purple;">ipsum</span>
     </div>
    `);
-    /** @type import('./flow').Inline[] */
+    /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(2);
   });

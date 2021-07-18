@@ -429,4 +429,16 @@ describe('Line breaking', function () {
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(2);
   });
+
+  it('splits accurately on hebrew text', async function () {
+    // "I love you" according to https://omniglot.com/language/phrases/hebrew.php
+    // Three words, Arimo@16px in 60px the first two should fit on the first line
+    await this.layout('<div style="width: 60px; font: Arimo 16px;">אני אוהב אותך</div>');
+    /** @type import('./flow').Inline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.shaped).to.have.lengthOf(2);
+    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.lineboxes[0].end).to.equal(9);
+    expect(inline.lineboxes[1].end).to.equal(13);
+  });
 });

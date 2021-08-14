@@ -707,7 +707,7 @@ export class IfcInline extends Inline {
   }
 }
 
-type InlineLevel = Inline | InlineLevelBfcBlockContainer | Run;
+export type InlineLevel = Inline | InlineLevelBfcBlockContainer | Run;
 
 type InlineNotRun = Inline | InlineLevelBfcBlockContainer;
 

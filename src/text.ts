@@ -1,7 +1,7 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle} from './cascade';
-import {IfcInline, PreprocessContext, LayoutContext} from './flow';
+import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
@@ -349,29 +349,58 @@ export function getLineContents(shaped: ShapedItem[], linebox: Linebox) {
   return {startItem: startItemIndex, startOffset, endItem: endItemIndex, endOffset};
 }
 
-function* styleItemizer(runs: Run[]) {
-  if (runs.length) {
-    let currentStyle = runs[0].style;
-    let ci = runs[0].text.length;
+function* styleItemizer(inline: IfcInline) {
+  const END_CHILDREN = Symbol('end of children');
+  const stack:(InlineLevel | typeof END_CHILDREN)[] = inline.children.slice().reverse();
+  const parents:Inline[] = [inline];
+  let currentStyle = inline.style;
+  let ci = 0;
+  // Shaping boundaries can overlap when the happen because of padding. We can
+  // pretend 0 has been emitted since runs at 0 which appear to have different
+  // style than `currentStyle` are just differing from the IFC's style, which
+  // is the initial `currentStyle` so that yields always have a concrete style.
+  let lastYielded = 0;
 
-    for (let i = 1; i < runs.length; ++i) {
-      const run = runs[i];
-      const style = run.style;
+  while (stack.length) {
+    const item = stack.pop()!;
+    const parent = parents[parents.length - 1];
 
-      if (
-        currentStyle.fontSize !== style.fontSize ||
-        currentStyle.fontVariant !== style.fontVariant ||
-        currentStyle.fontWeight !== style.fontWeight ||
-        currentStyle.fontFamily.join(',') !== style.fontFamily.join(',')
-      ) {
+    if (item === END_CHILDREN) {
+      if (parent.style.paddingRight > 0 && ci !== lastYielded) {
         yield {i: ci, style: currentStyle};
-        currentStyle = style;
+        lastYielded = ci;
       }
-      ci += run.text.length;
-    }
+      parents.pop();
+    } else if (item.isRun()) {
+      if (
+        currentStyle.fontSize !== item.style.fontSize ||
+        currentStyle.fontVariant !== item.style.fontVariant ||
+        currentStyle.fontWeight !== item.style.fontWeight ||
+        currentStyle.fontFamily.join(',') !== item.style.fontFamily.join(',')
+      ) {
+        if (ci !== lastYielded) yield {i: ci, style: currentStyle};
+        currentStyle = item.style;
+        lastYielded = ci;
+      }
 
-    yield {i: ci, style: currentStyle};
+      ci += item.text.length;
+    } else if (item.isInline()) {
+      parents.push(item);
+
+      if (item.style.paddingLeft > 0 && ci !== lastYielded) {
+        yield {i: ci, style: currentStyle};
+        lastYielded = ci;
+      }
+
+      stack.push(END_CHILDREN);
+
+      for (let i = item.children.length - 1; i >= 0; --i) {
+        stack.push(item.children[i]);
+      }
+    }
   }
+
+  yield {i: ci, style: currentStyle};
 }
 
 type ShapingAttrs = {
@@ -381,11 +410,11 @@ type ShapingAttrs = {
   style: Style
 };
 
-function* shapingItemizer(itemizer: Itemizer, s: string, runs: Run[]) {
-  const iEmoji = itemizer.emoji(s);
-  const iBidi = itemizer.bidi(s);
-  const iScript = itemizer.script(s);
-  const iStyle = styleItemizer(runs);
+function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
+  const iEmoji = itemizer.emoji(inline.allText);
+  const iBidi = itemizer.bidi(inline.allText);
+  const iScript = itemizer.script(inline.allText);
+  const iStyle = styleItemizer(inline);
 
   let emoji = iEmoji.next();
   let bidi = iBidi.next();
@@ -682,7 +711,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
   log += `Full text: "${inline.allText}"\n`;
   let lastItemIndex = 0;
 
-  for (const {i: itemIndex, attrs} of shapingItemizer(itemizer, inline.allText, inline.runs)) {
+  for (const {i: itemIndex, attrs} of shapingItemizer(inline, itemizer)) {
     const start = lastItemIndex;
     const end = itemIndex;
     const cascade = getCascade(fcfg, attrs.style, attrs.script);

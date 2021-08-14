@@ -331,6 +331,22 @@ describe('Shaping', function () {
       expect(inline.shaped).to.have.lengthOf(4);
     });
 
+    it('splits shaping boundaries on inline padding', async function () {
+      await this.layout(`It's me, <span style="padding: 1em;">padding boi</span>`);
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get().children;
+      expect(inline.shaped).to.have.lengthOf(2);
+      expect(inline.shaped[1].offset).to.equal(9);
+    });
+
+    it('doesn\'t create empty shaped items if shaping boundaries overlap', async function () {
+      await this.layout(`L<span style="padding: 1em; font: 8px Arimo;">R</span>`);
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get().children;
+      expect(inline.shaped).to.have.lengthOf(2);
+      expect(inline.shaped[1].offset).to.equal(1);
+    });
+
     it('has correct glyph order for Hebrew text', async function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
       await this.layout('<div style="width: 60px; font: Arimo 16px;">הלו</div>');

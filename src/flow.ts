@@ -511,6 +511,13 @@ export function getAscenderDescender(style: Style, font: HbFont, upem: number) {
 }
 
 export class Inline extends Box {
+  public children: InlineLevel[];
+
+  constructor(style: Style, children: InlineLevel[], isAnonymous: boolean) {
+    super(style, children, isAnonymous);
+    this.children = children;
+  }
+
   // Hack to get TS to not think an Inline is a Box
   // Remove when other properties are added
   private className = "inline";

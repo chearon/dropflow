@@ -358,6 +358,14 @@ describe('Shaping', function () {
       expect(inline.shaped[0].glyphs[1].g).to.equal(2447);
       expect(inline.shaped[0].glyphs[2].g).to.equal(2439);
     });
+
+    it('doesn\'t create empty shaped items if style and script overlap', async function () {
+      // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
+      await this.layout('Hello <span style="font: Arimo 16px;">הלו</span>');
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get().children;
+      expect(inline.shaped).to.have.lengthOf(2);
+    });
   });
 
   describe('Fallbacks', function () {

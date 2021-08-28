@@ -279,6 +279,9 @@ export class Collapser {
 }
 
 function shapedItemForIndex(shaped: ShapedItem[], v: number) {
+  // Optimization: often v is 0 or small
+  if (v < shaped[0].text.length) return 0;
+
   let l = 0;
   let r = shaped.length - 1;
 
@@ -836,6 +839,43 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
   return paragraph;
 }
 
+function createWidthIterator(paragraph: ShapedItem[], start: number) {
+  let {itemIndex, glyphIterator} = getItemAndGlyphIteratorForOffset(paragraph, start);
+  let width = 0;
+  let newItem = false;
+  let resetWidth = false;
+  let tw: number;
+
+  return function advance(offset: number) {
+    while (itemIndex < paragraph.length) {
+      const item = paragraph[itemIndex];
+      const isLastItem = itemIndex === paragraph.length - 1;
+      let dw;
+
+      if (newItem) glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+      newItem = false;
+
+      if (resetWidth) width = 0;
+      resetWidth = false;
+
+      [dw, tw] = measureWidth(item, glyphIterator, offset - item.offset);
+      width += dw;
+
+      if (glyphIterator.done()) {
+        newItem = true;
+        itemIndex += 1;
+      }
+
+      if (!glyphIterator.done() || isLastItem) {
+        const lastIteration = isLastItem && glyphIterator.done();
+        const clusterIndex = lastIteration ? 0 : paragraph[itemIndex].glyphs[glyphIterator.start].cl;
+        resetWidth = true;
+        return {itemIndex, clusterIndex, width, tw};
+      }
+    }
+  };
+}
+
 export class Linebox {
   width: number;
   ascender: number;
@@ -860,10 +900,8 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
   const breaker = new LineBreak(inline.allText);
   const hb = ctx.hb;
   const lineStart = bumpOffsetPastCollapsedWhitespace(inline, 0);
-  let itemIndex: number;
-  let glyphIterator: ClusterIterator | null;
-  ({itemIndex, glyphIterator} = getItemAndGlyphIteratorForOffset(inline.shaped, lineStart));
-  const lastBreak = {offset: lineStart, itemIndex, pending: false};
+  let widthIterator = createWidthIterator(inline.shaped, lineStart);
+  const lastBreak = {offset: lineStart, itemIndex: 0, pending: false};
   let bk:LineBreakBreak | undefined;
   let line = new Linebox(lineStart);
   const lines = [line];
@@ -875,28 +913,9 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
   const paragraphWidth = inline.containingBlock.width === undefined ? Infinity : inline.containingBlock.width;
 
   while (bk = breaker.nextBreak()) {
-    let width = 0, tw = 0;
-
-    while (itemIndex < inline.shaped.length) {
-      const item = inline.shaped[itemIndex];
-      const breakIndex = bk.position - item.offset;
-      let dw;
-
-      if (!glyphIterator) glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
-
-      [dw, tw] = measureWidth(item, glyphIterator, breakIndex);
-      width += dw;
-
-      if (glyphIterator.done()) {
-        glyphIterator = null;
-        itemIndex += 1;
-      } else {
-        break; // next break, same item
-      }
-    }
-
+    const {width, tw, itemIndex, clusterIndex} = widthIterator(bk.position)!;
     const wrap = line.width > 0 && line.width + width - tw > paragraphWidth;
-    const pending = glyphIterator ? !glyphIterator.done() && inline.shaped[itemIndex].glyphs[glyphIterator.start].cl > 0 : false;
+    const pending = clusterIndex > 0;
 
     if (wrap && lastBreak.pending) {
       const right = inline.shaped[lastBreak.itemIndex];
@@ -927,7 +946,7 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
 
     if (wrap) {
       lines.push(line = new Linebox(line.end));
-      ({itemIndex, glyphIterator} = getItemAndGlyphIteratorForOffset(inline.shaped, bk.position));
+      widthIterator = createWidthIterator(inline.shaped, bk.position);
     }
 
     line.extendTo(bk.position);

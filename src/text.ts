@@ -570,11 +570,10 @@ function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
     needsReshape: false,
     done() {
       if (dir === 'ltr') {
-        if (i >= shaped.length) return true;
+        return i >= shaped.length;
       } else {
-        if (i < 0) return true;
+        return i < 0;
       }
-      return false;
     },
     next() {
       const cl = shaped[i].cl;

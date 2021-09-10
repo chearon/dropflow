@@ -638,9 +638,9 @@ export class IfcInline extends Inline {
     let itemi = 0;
     let isNewLine = true;
 
-    this.lineboxes = createLineboxes(this, ctx);
-
     if (!this.strut) throw new Error('Preprocess first');
+
+    this.lineboxes = createLineboxes(this, ctx);
 
     const strutFont = hb.createFont(this.strut.face);
 

@@ -743,10 +743,8 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
     }
 
     if (!bail) stack.pop();
-    if (children.length) {
-      const id = el.id + '.1';
-      box = new Inline(new Style(id, el.style), children, false);
-    }
+    const id = el.id + '.1';
+    box = new Inline(new Style(id, el.style), children, false);
   } else if (el.style.display.inner == 'flow-root') {
     box = generateBlockContainer(el) as InlineLevelBfcBlockContainer;
   }

@@ -336,10 +336,11 @@ function getItemAndGlyphIteratorForOffset(shaped: ShapedItem[], offset: number) 
   const g = item.glyphs;
   const glyphIterator = createGlyphIterator(g, item.attrs.dir);
   const index = offset - item.offset;
+  let it = glyphIterator.next();
 
-  while (!glyphIterator.done() && g[glyphIterator.start].cl < index) glyphIterator.next();
+  while (!it.done && g[it.value.start].cl < index) it = glyphIterator.next();
 
-  return {itemIndex, glyphIterator};
+  return {itemIndex, glyphIterator, it};
 }
 
 export function getLineContents(shaped: ShapedItem[], linebox: Linebox) {
@@ -564,76 +565,73 @@ function langForScript(script: string) {
 function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
   let i = dir === 'ltr' ? 0 : shaped.length - 1;
   let ii = i;
-  const iterator = {
-    start: i,
-    end: i,
-    needsReshape: false,
-    done() {
-      if (dir === 'ltr') {
-        return i >= shaped.length;
-      } else {
-        return i < 0;
-      }
-    },
-    next() {
-      const cl = shaped[i].cl;
 
-      if (this.done()) return false;
+  function next() {
+    const done = dir === 'ltr' ? i >= shaped.length : i < 0;
 
-      if (dir === 'ltr') {
-        iterator.start = i;
+    if (done) return {done};
 
-        while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
-          iterator.needsReshape = iterator.needsReshape || shaped[i].g === 0;
-          i += 1;
-        }
+    const cl = shaped[i].cl;
+    let needsReshape = false;
 
-        iterator.end = i;
-      } else {
-        iterator.end = i + 1;
+    if (dir === 'ltr') {
+      const start = i;
 
-        while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
-          iterator.needsReshape = iterator.needsReshape || shaped[i].g === 0;
-          i -= 1;
-        }
-
-        iterator.start = i + 1;
+      while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
+        needsReshape = needsReshape || shaped[i].g === 0;
+        i += 1;
       }
 
+      const end = i;
 
-      return true;
-    },
-    pull() {
-      const iii = ii;
-      ii = i;
-      if (dir === 'ltr') {
-        return [iii, i];
-      } else {
-        return [i + 1, iii + 1];
+      return {value: {start, end, needsReshape}};
+    } else {
+      const end = i + 1;
+
+      while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
+        needsReshape = needsReshape || shaped[i].g === 0;
+        i -= 1;
       }
+
+      const start = i + 1;
+
+      return {value: {start, end, needsReshape}};
     }
-  };
+  }
 
-  return iterator;
+  function pull() {
+    const iii = ii;
+    ii = i;
+    if (dir === 'ltr') {
+      return [iii, i];
+    } else {
+      return [i + 1, iii + 1];
+    }
+  }
+
+  return {pull, next, [Symbol.iterator]: () => next};
 }
 
-type ClusterIterator = ReturnType<typeof createGlyphIterator>;
+type GlyphIterator = ReturnType<typeof createGlyphIterator>;
 
-function measureWidth(item: ShapedItem, clusterIterator: ClusterIterator, ci: number) {
+type GlyphIteratorValue = ReturnType<GlyphIterator["next"]>;
+
+type MwRet = [number, number, GlyphIteratorValue];
+function measureWidth(item: ShapedItem, glyphIterator: GlyphIterator, it: GlyphIteratorValue, ci: number):MwRet {
   let width = 0;
   let trailingWhitespaceWidth = 0;
 
-  while (!clusterIterator.done() && item.glyphs[clusterIterator.start].cl < ci) {
-    for (let i = clusterIterator.start; i < clusterIterator.end; ++i) {
+  while (!it.done && item.glyphs[it.value.start].cl < ci) {
+    for (let i = it.value.start; i < it.value.end; ++i) {
       const firstClusterChar = item.text[item.glyphs[i].cl];
       const glyphWidth = item.glyphs[i].ax / item.face.upem * item.attrs.style.fontSize;
       trailingWhitespaceWidth = firstClusterChar === ' ' || firstClusterChar === '\t' ? glyphWidth : 0;
       width += glyphWidth;
     }
-    clusterIterator.next();
+    it = glyphIterator.next();
   }
 
-  return [width, trailingWhitespaceWidth];
+  return [width, trailingWhitespaceWidth, it];
 }
 
 const reset = '\x1b[0m';
@@ -755,12 +753,13 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
         let clusterIndex = 0;
         // HB cluster iterator
         const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.dir);
+        let hbIt = hbGlyphIterator.next();
         let clusterNeedsReshape = false;
 
         do {
           const mark = Math.min(
             clusterIndex,
-            hbGlyphIterator.done() ? Infinity : shapedPart[hbGlyphIterator.start].cl
+            hbIt.done ? Infinity : shapedPart[hbIt.value.start].cl
           );
 
           if (clusterIndex < text.length && mark === clusterIndex) {
@@ -769,14 +768,14 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
             clusterNeedsReshape = false; // TODO this seems wrong if many clusters in hb cluster
           }
 
-          if (!hbGlyphIterator.done() && mark === shapedPart[hbGlyphIterator.start].cl) {
-            hbGlyphIterator.next();
-            if (hbGlyphIterator.needsReshape) clusterNeedsReshape = true;
+          if (!hbIt.done && mark === shapedPart[hbIt.value.start].cl) {
+            hbIt = hbGlyphIterator.next();
+            if (!hbIt.done && hbIt.value.needsReshape) clusterNeedsReshape = true;
           }
 
           const nextMark = Math.min(
             clusterIndex,
-            hbGlyphIterator.done() ? Infinity : shapedPart[hbGlyphIterator.start].cl
+            hbIt.done ? Infinity : shapedPart[hbIt.value.start].cl
           );
 
           if (nextMark === clusterIndex) {
@@ -799,7 +798,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
               parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
             }
           }
-        } while (clusterIndex < text.length || !hbGlyphIterator.done());
+        } while (clusterIndex < text.length || !hbIt.done);
       }
 
       for (const part of parts) {
@@ -839,7 +838,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
 }
 
 function createWidthIterator(paragraph: ShapedItem[], start: number) {
-  let {itemIndex, glyphIterator} = getItemAndGlyphIteratorForOffset(paragraph, start);
+  let {itemIndex, glyphIterator, it} = getItemAndGlyphIteratorForOffset(paragraph, start);
   let width = 0;
   let newItem = false;
   let resetWidth = false;
@@ -851,23 +850,26 @@ function createWidthIterator(paragraph: ShapedItem[], start: number) {
       const isLastItem = itemIndex === paragraph.length - 1;
       let dw;
 
-      if (newItem) glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+      if (newItem) {
+        glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+        it = glyphIterator.next();
+      }
       newItem = false;
 
       if (resetWidth) width = 0;
       resetWidth = false;
 
-      [dw, tw] = measureWidth(item, glyphIterator, offset - item.offset);
+      [dw, tw, it] = measureWidth(item, glyphIterator, it, offset - item.offset);
       width += dw;
 
-      if (glyphIterator.done()) {
+      if (it.done) {
         newItem = true;
         itemIndex += 1;
       }
 
-      if (!glyphIterator.done() || isLastItem) {
-        const lastIteration = isLastItem && glyphIterator.done();
-        const clusterIndex = lastIteration ? 0 : paragraph[itemIndex].glyphs[glyphIterator.start].cl;
+      if (!it.done || isLastItem) {
+        const lastIteration = isLastItem && it.done;
+        const clusterIndex = lastIteration ? 0 : paragraph[itemIndex].glyphs[it.value!.start].cl;
         resetWidth = true;
         return {itemIndex, clusterIndex, width, tw};
       }

@@ -477,4 +477,14 @@ describe('Line breaking', function () {
     expect(inline.lineboxes[0].end).to.equal(9);
     expect(inline.lineboxes[1].end).to.equal(13);
   });
+
+  it('measures break width correctly', async function () {
+    // there was once a bug in measureWidth that didn't measure the last
+    // glyph. "aa a" is < 35px but "aa aa" is > 35px
+    await this.layout(`
+      <div style="width: 35px; font: Roboto 16px;">aa aa</div>
+    `);
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(2);
+  });
 });

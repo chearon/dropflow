@@ -487,4 +487,20 @@ describe('Line breaking', function () {
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
+
+  it('correctly breaks items when a 1-word line follows 2+ 1-word lines', async function () {
+    await this.layout(`
+      <div style="width: 0px; font: 400 16px Roboto;">
+        lorem ipsum lorem
+      </div>
+    `);
+
+    const [inline] = this.get(0).children;
+
+    expect(inline.lineboxes).to.have.lengthOf(3);
+    expect(inline.shaped).to.have.lengthOf(3);
+    expect(inline.shaped[0].offset).to.equal(0);
+    expect(inline.shaped[1].offset).to.equal(7);
+    expect(inline.shaped[2].offset).to.equal(13);
+  });
 });

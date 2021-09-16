@@ -914,7 +914,7 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
   const paragraphWidth = inline.containingBlock.width === undefined ? Infinity : inline.containingBlock.width;
 
   while (bk = breaker.nextBreak()) {
-    const {width, tw, itemIndex, clusterIndex} = widthIterator(bk.position)!;
+    let {width, tw, itemIndex, clusterIndex} = widthIterator(bk.position)!;
     const wrap = line.width > 0 && line.width + width - tw > paragraphWidth;
     const pending = clusterIndex > 0;
 
@@ -923,6 +923,7 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
       const left = right.split(lastBreak.offset - right.offset);
 
       inline.shaped.splice(lastBreak.itemIndex, 0, left);
+      itemIndex += 1;
 
       const leftFont = hb.createFont(left.face);
       const leftBuf = hb.createBuffer();

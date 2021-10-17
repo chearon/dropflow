@@ -3,7 +3,7 @@ import {Box} from './box';
 import {Style, initialStyle, createComputedStyle} from './cascade';
 import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext} from './flow';
 import {getBuffer} from '../io';
-import {Harfbuzz, HbFace, HbGlyphInfo} from 'harfbuzzjs';
+import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
 import {Itemizer} from 'itemizer';
 import GraphemeBreaker = require('grapheme-breaker');
@@ -702,6 +702,16 @@ function logParagraph(paragraph: ShapedItem[]) {
   }
 }
 
+function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, attrs: ShapingAttrs) {
+  const buf = hb.createBuffer();
+  buf.setClusterLevel(1);
+  buf.addText(text);
+  buf.guessSegmentProperties(); // TODO set script and language manually
+  buf.setDirection(attrs.dir);
+  hb.shape(font, buf);
+  return buf;
+}
+
 export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
   const {hb, itemizer, fcfg} = ctx;
   const paragraph:ShapedItem[] = [];
@@ -735,16 +745,9 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
 
       while (shapeWork.length) {
         const {text, offset} = shapeWork.pop()!;
-        const buf = hb.createBuffer();
-        let didPushPart = false;
-
-        buf.setClusterLevel(1);
-        buf.addText(text);
-        buf.guessSegmentProperties(); // TODO set script and language manually
-        buf.setDirection(attrs.dir);
-        hb.shape(font, buf);
-
+        const buf = createAndShapeBuffer(hb, font, text, attrs);
         const shapedPart = buf.json();
+        let didPushPart = false;
 
         log += `    Shaping "${text}" with font ${match.file}\n`;
         log += '    Shaper returned: ' + logGlyphs(shapedPart) + '\n';
@@ -922,29 +925,13 @@ export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
     if (wrap && lastBreak.pending) {
       const right = inline.shaped[lastBreak.itemIndex];
       const left = right.split(lastBreak.offset - right.offset);
+      const font = hb.createFont(right.face);
 
       inline.shaped.splice(lastBreak.itemIndex, 0, left);
       itemIndex += 1;
 
-      const leftFont = hb.createFont(left.face);
-      const leftBuf = hb.createBuffer();
-
-      leftBuf.setClusterLevel(1);
-      leftBuf.addText(left.text);
-      leftBuf.guessSegmentProperties();
-
-      const rightFont = hb.createFont(right.face);
-      const rightBuf = hb.createBuffer();
-
-      rightBuf.setClusterLevel(1);
-      rightBuf.addText(right.text);
-      rightBuf.guessSegmentProperties();
-
-      hb.shape(leftFont, leftBuf);
-      hb.shape(rightFont, rightBuf);
-
-      left.glyphs = leftBuf.json();
-      right.glyphs = rightBuf.json();
+      left.glyphs = createAndShapeBuffer(ctx.hb, font, left.text, left.attrs).json();
+      right.glyphs = createAndShapeBuffer(ctx.hb, font, right.text, right.attrs).json();
     }
 
     if (wrap) {

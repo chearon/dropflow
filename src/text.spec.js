@@ -349,7 +349,7 @@ describe('Shaping', function () {
 
     it('has correct glyph order for Hebrew text', async function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
-      await this.layout('<div style="width: 60px; font: Arimo 16px;">הלו</div>');
+      await this.layout('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get(0).children;
       expect(inline.shaped).to.have.lengthOf(1);
@@ -361,7 +361,7 @@ describe('Shaping', function () {
 
     it('doesn\'t create empty shaped items if style and script overlap', async function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
-      await this.layout('Hello <span style="font: Arimo 16px;">הלו</span>');
+      await this.layout('Hello <span style="font: 16px Arimo;">הלו</span>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(2);
@@ -430,7 +430,7 @@ describe('Line breaking', function () {
 
   it('breaks between shaping boundaries', async function () {
     await this.layout(`
-      <div style="width: 100px; font: Roboto 16px;">
+      <div style="width: 100px; font: 16px Roboto;">
         Lorem ipsum <span style="font-size: 17px;">lorem ipsum</span>
       </div>
     `);
@@ -443,7 +443,7 @@ describe('Line breaking', function () {
 
   it('breaks inside shaping boundaries', async function () {
     await this.layout(`
-      <div style="width: 100px; font: Roboto 16px;">
+      <div style="width: 100px; font: 16px Roboto;">
         Lorem ipsum lorem ipsum
       </div>
     `);
@@ -456,7 +456,7 @@ describe('Line breaking', function () {
 
   it('leaves shaping boundaries whole if they can be', async function () {
    await this.layout(`
-    <div style="width: 16px; font: Roboto 16px;">
+    <div style="width: 16px; font: 16px Roboto;">
       <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
       <span style="color: green;">lorem</span><span style="color: purple;">ipsum</span>
     </div>
@@ -469,7 +469,7 @@ describe('Line breaking', function () {
   it('splits accurately on hebrew text', async function () {
     // "I love you" according to https://omniglot.com/language/phrases/hebrew.php
     // Three words, Arimo@16px in 60px the first two should fit on the first line
-    await this.layout('<div style="width: 60px; font: Arimo 16px;">אני אוהב אותך</div>');
+    await this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
     /** @type import('./flow').Inline[] */
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(2);
@@ -482,7 +482,7 @@ describe('Line breaking', function () {
     // there was once a bug in measureWidth that didn't measure the last
     // glyph. "aa a" is < 35px but "aa aa" is > 35px
     await this.layout(`
-      <div style="width: 35px; font: Roboto 16px;">aa aa</div>
+      <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);

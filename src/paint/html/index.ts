@@ -28,7 +28,7 @@ function drawTextAt(item: ShapedItem, startOffset: number, endOffset: number, x:
   const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
   const top = y - (ascender - (ascender + descender)/2) + 'px';
   const left = x + 'px';
-  const font = `${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`;
+  const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`;
   const zIndex = String(level);
   const whiteSpace = 'pre';
   hbFont.destroy();

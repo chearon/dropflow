@@ -306,6 +306,13 @@ describe('Shaping', function () {
       expect(inline.shaped).to.have.lengthOf(5);
     });
 
+    it('splits shaping boundaries on font-style', async function () {
+      await this.layout(`a<span style="font-style: italic;">b</span>`);
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get().children;
+      expect(inline.shaped).to.have.lengthOf(2);
+    });
+
     it('does not split shaping boundaries on line-height', async function () {
       await this.layout(`
         <span style="line-height: 3;">Left</span>

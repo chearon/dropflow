@@ -380,6 +380,7 @@ function* styleItemizer(inline: IfcInline) {
         currentStyle.fontSize !== item.style.fontSize ||
         currentStyle.fontVariant !== item.style.fontVariant ||
         currentStyle.fontWeight !== item.style.fontWeight ||
+        currentStyle.fontStyle !== item.style.fontStyle ||
         currentStyle.fontFamily.join(',') !== item.style.fontFamily.join(',')
       ) {
         if (ci !== lastYielded) yield {i: ci, style: currentStyle};

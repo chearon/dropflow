@@ -491,6 +491,7 @@ describe('Line breaking', function () {
     await this.layout(`
       <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
+    /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
@@ -502,6 +503,7 @@ describe('Line breaking', function () {
       </div>
     `);
 
+    /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
 
     expect(inline.lineboxes).to.have.lengthOf(3);
@@ -509,5 +511,67 @@ describe('Line breaking', function () {
     expect(inline.shaped[0].offset).to.equal(0);
     expect(inline.shaped[1].offset).to.equal(7);
     expect(inline.shaped[2].offset).to.equal(13);
+  });
+
+  it('updates item advances according to border, padding, margin', async function () {
+    // this isn't really wrapping, it's text processing. should I come up
+    // with a new word or should the code change to separate concepts?
+    const a = 10.67; // TODO FX says 10.39, what's going on? is this gonna flake?
+    const _ = 4.45;
+    await this.layout(`
+      <div style="font: 16px Arimo;">
+        <span style="padding: 5px;">A</span>
+        <span style="border: 10px solid blue;">A</span>
+        <span style="margin: 1px;">A</span>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.shaped).to.have.lengthOf(7);
+    expect(inline.shaped[1].ax).to.equal(5);
+    expect(inline.shaped[3].ax).to.be.approximately(5 + a + 5 +  _ + 10, 0.1);
+    expect(inline.shaped[5].ax).to.be.approximately(5 + a + 5 +  _ + 10 + a + 10 + _ + 1, 0.1);
+  });
+
+  it('puts contiguous padding at the top line except the last padding-lefts', async function () {
+    await this.layout(`
+      <div style="width: 50px; font: 16px Arimo;">
+        It's a <span style="padding: 10px;"></span><span style="padding-left: 10px;"></span>
+        <span style="padding-left: 10px;">wrap!</span>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(3);
+    expect(inline.shaped[inline.shaped.length - 1].ax - inline.lineboxes[2].ax).to.equal(10);
+  });
+
+  it('doesn\'t include padding-right after a space as part of the break width', async function () {
+    await this.layout(`
+      <div style="width: 70px; font: 16px Arimo;">
+        Word <span style="padding-right: 70px;">fits </span>padding
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.shaped[inline.shaped.length - 1].ax - inline.lineboxes[1].ax).to.equal(0);
+  });
+
+  it('does include padding-right after a dash as part of the break width', async function () {
+    await this.layout(`
+      <div style="width: 70px; font: 16px Arimo;">
+        Word <span style="padding-right: 70px;">fits-</span>padding
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(3);
+    expect(inline.lineboxes[1].start).to.equal(6);
+    expect(inline.lineboxes[2].start).to.equal(11);
   });
 });

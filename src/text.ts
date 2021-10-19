@@ -1,7 +1,7 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle} from './cascade';
-import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext} from './flow';
+import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext, createInlineIterator} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
@@ -619,22 +619,19 @@ type GlyphIterator = ReturnType<typeof createGlyphIterator>;
 
 type GlyphIteratorValue = ReturnType<GlyphIterator["next"]>;
 
-type MwRet = [number, number, GlyphIteratorValue];
+type MwRet = [number, GlyphIteratorValue];
 function measureWidth(item: ShapedItem, glyphIterator: GlyphIterator, it: GlyphIteratorValue, ci: number):MwRet {
   let width = 0;
-  let trailingWhitespaceWidth = 0;
 
   while (!it.done && item.glyphs[it.value.start].cl < ci) {
     for (let i = it.value.start; i < it.value.end; ++i) {
-      const firstClusterChar = item.text[item.glyphs[i].cl];
       const glyphWidth = item.glyphs[i].ax / item.face.upem * item.attrs.style.fontSize;
-      trailingWhitespaceWidth = firstClusterChar === ' ' || firstClusterChar === '\t' ? glyphWidth : 0;
       width += glyphWidth;
     }
     it = glyphIterator.next();
   }
 
-  return [width, trailingWhitespaceWidth, it];
+  return [width, it];
 }
 
 const reset = '\x1b[0m';
@@ -675,6 +672,7 @@ export class ShapedItem {
   offset: number;
   text: string;
   attrs: ShapingAttrs;
+  ax: number;
 
   constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
     this.face = face;
@@ -682,15 +680,22 @@ export class ShapedItem {
     this.offset = offset;
     this.text = text;
     this.attrs = attrs;
+    this.ax = 0;
   }
 
   split(i: number) {
     const text = this.text.slice(0, i);
     const offset = this.offset;
+    const left = new ShapedItem(this.face, [], offset, text, this.attrs);
+
+    left.ax = this.ax;
+
     this.text = this.text.slice(i);
     this.glyphs = [];
     this.offset += i;
-    return new ShapedItem(this.face, [], offset, text, this.attrs);
+    this.ax = 0;
+
+    return left;
   }
 }
 
@@ -848,7 +853,6 @@ function createWidthIterator(paragraph: ShapedItem[], start: number) {
   let width = 0;
   let newItem = false;
   let resetWidth = false;
-  let tw: number;
 
   return function advance(offset: number) {
     while (itemIndex < paragraph.length) {
@@ -865,7 +869,7 @@ function createWidthIterator(paragraph: ShapedItem[], start: number) {
       if (resetWidth) width = 0;
       resetWidth = false;
 
-      [dw, tw, it] = measureWidth(item, glyphIterator, it, offset - item.offset);
+      [dw, it] = measureWidth(item, glyphIterator, it, offset - item.offset);
       width += dw;
 
       if (it.done) {
@@ -877,7 +881,7 @@ function createWidthIterator(paragraph: ShapedItem[], start: number) {
         const lastIteration = isLastItem && it.done;
         const clusterIndex = lastIteration ? 0 : paragraph[itemIndex].glyphs[it.value!.start].cl;
         resetWidth = true;
-        return {itemIndex, clusterIndex, width, tw};
+        return {itemIndex, clusterIndex, width};
       }
     }
   };
@@ -889,6 +893,7 @@ export class Linebox {
   descender: number;
   start: number;
   end: number;
+  ax: number;
 
   constructor(offset: number = 0) {
     this.width = 0;
@@ -896,67 +901,159 @@ export class Linebox {
     this.descender = 0;
     this.start = offset;
     this.end = offset;
+    this.ax = 0;
   }
 
   extendTo(i: number) {
     this.end = i;
   }
+
+  hasText() {
+    return this.end > this.start;
+  }
 }
 
-export function createLineboxes(inline: IfcInline, ctx: LayoutContext) {
-  const breaker = new LineBreak(inline.allText);
-  const hb = ctx.hb;
-  const lineStart = bumpOffsetPastCollapsedWhitespace(inline, 0);
-  let widthIterator = createWidthIterator(inline.shaped, lineStart);
-  const lastBreak = {offset: lineStart, itemIndex: 0, pending: false};
+export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
+  const breakIterator = new LineBreak(ifc.allText);
+  const inlineIterator = createInlineIterator(ifc);
+  let iit = inlineIterator.next();
+  let inlineEnd = 0;
+  let itemIndex = 0;
+  let itemEnd = 0;
+  const lineStart = bumpOffsetPastCollapsedWhitespace(ifc, 0);
+  let widthIterator = createWidthIterator(ifc.shaped, lineStart);
+  const lastBreak = {offset: lineStart, itemIndex: 0, pending: false, padding: 0};
   let bk:LineBreakBreak | undefined;
   let line = new Linebox(lineStart);
   const lines = [line];
+  let ax = 0;
+  /**
+   * Since we visit everything until the break character, this remembers padding
+   * before the break character that actually belongs to the _next_ break.
+   */
+  let bufferedPaddingWidth = 0;
 
-  if (!inline.containingBlock) {
-    throw new Error(`Cannot do text layout: ${inline.id} has no containing block`);
+  if (!ifc.containingBlock) {
+    throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
   }
 
-  const paragraphWidth = inline.containingBlock.width === undefined ? Infinity : inline.containingBlock.width;
+  const paragraphWidth = ifc.containingBlock.width === undefined ? Infinity : ifc.containingBlock.width;
 
-  while (bk = breaker.nextBreak()) {
-    let {width, tw, itemIndex, clusterIndex} = widthIterator(bk.position)!;
-    const wrap = line.width > 0 && line.width + width - tw > paragraphWidth;
-    const pending = clusterIndex > 0;
+  while (bk = breakIterator.nextBreak()) {
+    let offset = lastBreak.offset;
+    let breakWidth = 0, trailingSpaceWidth = 0, bkItemIndex, bkClusterIndex;
+    let inkEnd = bk.position;
+    let didStopAtInkEnd = false;
+
+    while (ifc.allText[inkEnd - 1] === ' ' || ifc.allText[inkEnd - 1] === '\t') inkEnd -= 1;
+
+    while (offset < bk.position) {
+      const inkEndMark = didStopAtInkEnd ? Infinity : inkEnd;
+      let width;
+
+      offset = Math.min(inlineEnd, itemEnd, inkEndMark, bk.position);
+
+      didStopAtInkEnd = offset === inkEnd;
+
+      ({width, itemIndex: bkItemIndex, clusterIndex: bkClusterIndex} = widthIterator(offset)!);
+
+      ax += width;
+      if (offset <= inkEnd) {
+        breakWidth += width;
+      } else {
+        trailingSpaceWidth += width;
+      }
+
+      breakWidth += bufferedPaddingWidth;
+      bufferedPaddingWidth = 0;
+
+      while (inlineEnd === offset && !iit.done) {
+        width = 0;
+
+        if (iit.value.state === 'text') {
+          inlineEnd += iit.value.item.text.length;
+        }
+
+        if (iit.value.state === 'pre') {
+          const inline = iit.value.item;
+          bufferedPaddingWidth += inline.leftMarginBorderPadding
+        }
+
+        if (iit.value.state === 'post') {
+          const inline = iit.value.item;
+          width = bufferedPaddingWidth + inline.rightMarginBorderPadding;
+          bufferedPaddingWidth = 0;
+          ax += width;
+        }
+
+        // TODO: Chrome and Safari don't consider textless padding at the end
+        // of the line to be part of the break width. This might not be hard-
+        // buffer 'post' if text wasn't seen? Current impl matches Firefox though
+        if (inlineEnd <= inkEnd) breakWidth += width;
+
+        iit = inlineIterator.next();
+      }
+
+      ax += bufferedPaddingWidth;
+
+      if (itemEnd === offset && itemIndex < ifc.shaped.length) {
+        ifc.shaped[itemIndex].ax = ax;
+        itemEnd = ifc.shaped[itemIndex].offset + ifc.shaped[itemIndex].text.length;
+        itemIndex += 1;
+      }
+    }
+
+    if (bkItemIndex === undefined || bkClusterIndex === undefined) {
+      throw new Error('assertion failed: expected to iterate some text in between breaks');
+    }
+
+    const wrap = line.hasText() && line.width + breakWidth > paragraphWidth;
+    const pending = bkClusterIndex > 0;
 
     if (wrap && lastBreak.pending) {
-      const right = inline.shaped[lastBreak.itemIndex];
+      const hb = ctx.hb;
+      const right = ifc.shaped[lastBreak.itemIndex];
       const left = right.split(lastBreak.offset - right.offset);
       const font = hb.createFont(right.face);
 
-      inline.shaped.splice(lastBreak.itemIndex, 0, left);
+      ifc.shaped.splice(lastBreak.itemIndex, 0, left);
+      lastBreak.itemIndex += 1;
+      bkItemIndex += 1;
       itemIndex += 1;
 
       left.glyphs = createAndShapeBuffer(ctx.hb, font, left.text, left.attrs).json();
       right.glyphs = createAndShapeBuffer(ctx.hb, font, right.text, right.attrs).json();
+
+      const lgi = createWidthIterator([left], left.offset);
+      const lgii = lgi(left.offset + left.text.length);
+      if (lgii === undefined) throw new Error('assertion fail');
+      right.ax = left.ax + lgii.width;
+      // TODO ax needs updating here
     }
 
     if (wrap) {
       lines.push(line = new Linebox(line.end));
-      widthIterator = createWidthIterator(inline.shaped, bk.position);
+      widthIterator = createWidthIterator(ifc.shaped, bk.position);
+      line.ax = ifc.shaped[lastBreak.itemIndex].ax - lastBreak.padding;
     }
 
     line.extendTo(bk.position);
-    line.width += width;
+    line.width += breakWidth + trailingSpaceWidth;
 
     lastBreak.offset = bk.position;
-    lastBreak.itemIndex = itemIndex;
+    lastBreak.itemIndex = bkItemIndex;
     lastBreak.pending = pending;
+    lastBreak.padding = bufferedPaddingWidth;
   }
 
-  if (ctx.logging.text.has(inline.id)) {
-    console.log(`Paragraph ${inline.id}:`);
-    logParagraph(inline.shaped);
+  if (ctx.logging.text.has(ifc.id)) {
+    console.log(`Paragraph ${ifc.id}:`);
+    logParagraph(ifc.shaped);
     for (const [i, line] of lines.entries()) {
-      const range = getLineContents(inline.shaped, line);
+      const range = getLineContents(ifc.shaped, line);
       const rangeText = `${range.startItem}@${range.startOffset} to ${range.endItem}@${range.endOffset}`;
-      let log = `Line ${i} (${rangeText}) (${line.width} width): `;
-      log += inline.allText.slice(line.start, line.end);
+      let log = `Line ${i} ax=${line.ax} (${rangeText}) (${line.width} width): `;
+      log += ifc.allText.slice(line.start, line.end);
       console.log(log);
     }
     console.log();

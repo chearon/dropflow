@@ -56,19 +56,14 @@ function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, level:
   let top = blockContainer.contentArea.y;
   let s = '';
   for (const linebox of rootInline.lineboxes) {
-    left = blockContainer.contentArea.x;
     top += linebox.ascender;
     const range = getLineContents(rootInline.shaped, linebox);
     for (let i = range.startItem; i <= range.endItem; i++) {
       const item = rootInline.shaped[i];
       const startOffset = i === range.startItem ? range.startOffset : 0;
       const endOffset = i === range.endItem ? range.endOffset : item.text.length;
+      const left = blockContainer.contentArea.x + item.ax - linebox.ax;
       s += drawTextAt(item, startOffset, endOffset, left, top, level, hb);
-      for (const glyph of item.glyphs) {
-        if (glyph.cl >= startOffset && glyph.cl < endOffset) {
-          left += glyph.ax / item.face.upem * item.attrs.style.fontSize;
-        }
-      }
     }
     top += linebox.descender;
   }

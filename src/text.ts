@@ -370,7 +370,8 @@ function* styleItemizer(inline: IfcInline) {
     const parent = parents[parents.length - 1];
 
     if (item === END_CHILDREN) {
-      if (parent.style.paddingRight > 0 && ci !== lastYielded) {
+      // TODO: when I support `direction: rtl;`, possibly check the left side here
+      if (parent.rightMarginBorderPadding > 0 && ci !== lastYielded) {
         yield {i: ci, style: currentStyle};
         lastYielded = ci;
       }
@@ -392,7 +393,8 @@ function* styleItemizer(inline: IfcInline) {
     } else if (item.isInline()) {
       parents.push(item);
 
-      if (item.style.paddingLeft > 0 && ci !== lastYielded) {
+      // TODO: when I support `direction: rtl;`, possibly check the right side here
+      if (item.leftMarginBorderPadding > 0 && ci !== lastYielded) {
         yield {i: ci, style: currentStyle};
         lastYielded = ci;
       }

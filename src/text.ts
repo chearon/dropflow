@@ -713,8 +713,9 @@ function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, attrs: S
   const buf = hb.createBuffer();
   buf.setClusterLevel(1);
   buf.addText(text);
-  buf.guessSegmentProperties(); // TODO set script and language manually
   buf.setDirection(attrs.dir);
+  buf.setScript(attrs.script);
+  buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
   hb.shape(font, buf);
   return buf;
 }

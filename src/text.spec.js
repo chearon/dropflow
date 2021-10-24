@@ -574,4 +574,29 @@ describe('Line breaking', function () {
     expect(inline.lineboxes[1].start).to.equal(6);
     expect(inline.lineboxes[2].start).to.equal(11);
   });
+
+  it('ignores empty spans when assigning padding to words', async function () {
+    await this.layout(`
+      <div style="width: 70px; font: 16px Arimo;">
+        Word <span style="padding-left: 70px;"><span></span>hey</span>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.shaped[1].ax - inline.lineboxes[1].ax).to.equal(70);
+  });
+
+  it('adds padding that wasn\'t measured for fit to the line', async function () {
+    await this.layout(`
+      <div style="width: 70px; font: 16px Arimo;">
+        Word <span style="padding-right: 30px;">x </span>x
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(2);
+  });
 });

@@ -917,6 +917,7 @@ export class Linebox {
 export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   const breakIterator = new LineBreak(ifc.allText);
   const inlineIterator = createInlineIterator(ifc);
+  const inlineParents:Inline[] = [];
   let iit = inlineIterator.next();
   let inlineEnd = 0;
   let itemIndex = 0;
@@ -942,7 +943,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
   while (bk = breakIterator.nextBreak()) {
     let offset = lastBreak.offset;
-    let breakWidth = 0, trailingSpaceWidth = 0, bkItemIndex, bkClusterIndex;
+    let breakWidth = 0, width = 0, bkItemIndex, bkClusterIndex;
     let inkEnd = bk.position;
     let didStopAtInkEnd = false;
 
@@ -950,52 +951,52 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
     while (offset < bk.position) {
       const inkEndMark = didStopAtInkEnd ? Infinity : inkEnd;
-      let width;
+      let textWidth, paddingWidth;
 
       offset = Math.min(inlineEnd, itemEnd, inkEndMark, bk.position);
 
       didStopAtInkEnd = offset === inkEnd;
 
-      ({width, itemIndex: bkItemIndex, clusterIndex: bkClusterIndex} = widthIterator(offset)!);
+      ({width: textWidth, itemIndex: bkItemIndex, clusterIndex: bkClusterIndex} = widthIterator(offset)!);
 
-      ax += width;
-      if (offset <= inkEnd) {
-        breakWidth += width;
-      } else {
-        trailingSpaceWidth += width;
-      }
+      ax += textWidth;
+      if (offset <= inkEnd) breakWidth += textWidth;
+      width += textWidth;
 
       breakWidth += bufferedPaddingWidth;
       bufferedPaddingWidth = 0;
+      paddingWidth = 0;
 
       while (inlineEnd === offset && !iit.done) {
-        width = 0;
-
         if (iit.value.state === 'text') {
+          const parent = inlineParents[inlineParents.length - 1];
+
           inlineEnd += iit.value.item.text.length;
+
+          if (parent && parent.leftMarginBorderPadding > 0) {
+            bufferedPaddingWidth = paddingWidth;
+          } else {
+            if (offset <= inkEnd) breakWidth += paddingWidth;
+            width += paddingWidth;
+          }
+
+          ax += paddingWidth;
         }
 
         if (iit.value.state === 'pre') {
           const inline = iit.value.item;
-          bufferedPaddingWidth += inline.leftMarginBorderPadding
+          inlineParents.push(inline);
+          paddingWidth += inline.leftMarginBorderPadding
         }
 
         if (iit.value.state === 'post') {
           const inline = iit.value.item;
-          width = bufferedPaddingWidth + inline.rightMarginBorderPadding;
-          bufferedPaddingWidth = 0;
-          ax += width;
+          inlineParents.pop();
+          paddingWidth += inline.rightMarginBorderPadding;
         }
-
-        // TODO: Chrome and Safari don't consider textless padding at the end
-        // of the line to be part of the break width. This might not be hard-
-        // buffer 'post' if text wasn't seen? Current impl matches Firefox though
-        if (inlineEnd <= inkEnd) breakWidth += width;
 
         iit = inlineIterator.next();
       }
-
-      ax += bufferedPaddingWidth;
 
       if (itemEnd === offset && itemIndex < ifc.shaped.length) {
         ifc.shaped[itemIndex].ax = ax;
@@ -1039,7 +1040,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     }
 
     line.extendTo(bk.position);
-    line.width += breakWidth + trailingSpaceWidth;
+    line.width += width;
 
     lastBreak.offset = bk.position;
     lastBreak.itemIndex = bkItemIndex;

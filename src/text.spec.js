@@ -599,4 +599,16 @@ describe('Line breaking', function () {
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
+
+  it('adds buffered padding to line width', async function () {
+    await this.layout(`
+      <div style="font: 16px Arimo; width: 5em;">
+        Hey<span style="padding-left: 5em;"> wrap</span>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(2);
+  });
 });

@@ -964,6 +964,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       width += textWidth;
 
       breakWidth += bufferedPaddingWidth;
+      width += bufferedPaddingWidth;
       bufferedPaddingWidth = 0;
       paddingWidth = 0;
 

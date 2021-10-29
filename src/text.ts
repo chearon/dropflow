@@ -917,7 +917,6 @@ export class Linebox {
 export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   const breakIterator = new LineBreak(ifc.allText);
   const inlineIterator = createInlineIterator(ifc);
-  const inlineParents:Inline[] = [];
   let iit = inlineIterator.next();
   let inlineEnd = 0;
   let itemIndex = 0;
@@ -951,7 +950,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
     while (offset < bk.position) {
       const inkEndMark = didStopAtInkEnd ? Infinity : inkEnd;
-      let textWidth, paddingWidth;
+      let textWidth, paddingWidth, inlineLevel = 0;
 
       offset = Math.min(inlineEnd, itemEnd, inkEndMark, bk.position);
 
@@ -970,30 +969,25 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
       while (inlineEnd === offset && !iit.done) {
         if (iit.value.state === 'text') {
-          const parent = inlineParents[inlineParents.length - 1];
-
           inlineEnd += iit.value.item.text.length;
-
-          if (parent && parent.leftMarginBorderPadding > 0) {
-            bufferedPaddingWidth = paddingWidth;
-          } else {
-            if (offset <= inkEnd) breakWidth += paddingWidth;
-            width += paddingWidth;
-          }
-
-          ax += paddingWidth;
+          ax += paddingWidth + bufferedPaddingWidth;
+          width += paddingWidth;
+          if (offset <= inkEnd) breakWidth += paddingWidth;
         }
 
         if (iit.value.state === 'pre') {
-          const inline = iit.value.item;
-          inlineParents.push(inline);
-          paddingWidth += inline.leftMarginBorderPadding
+          bufferedPaddingWidth += iit.value.item.leftMarginBorderPadding;
+          inlineLevel += 1;
         }
 
         if (iit.value.state === 'post') {
-          const inline = iit.value.item;
-          inlineParents.pop();
-          paddingWidth += inline.rightMarginBorderPadding;
+          if (inlineLevel > 0) inlineLevel -= 1;
+          if (inlineLevel === 0) {
+            paddingWidth += bufferedPaddingWidth + iit.value.item.rightMarginBorderPadding;
+            bufferedPaddingWidth = 0;
+          } else {
+            bufferedPaddingWidth += iit.value.item.rightMarginBorderPadding;
+          }
         }
 
         iit = inlineIterator.next();

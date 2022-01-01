@@ -612,7 +612,7 @@ function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
     }
   }
 
-  return {pull, next, [Symbol.iterator]: () => next};
+  return {pull, next};
 }
 
 type GlyphIterator = ReturnType<typeof createGlyphIterator>;

@@ -746,7 +746,7 @@ export function createInlineIterator(inline: IfcInline) {
     return {done: true};
   }
 
-  return {[Symbol.iterator]: () => ({next}), next};
+  return {next};
 }
 
 // Helper for generateInlineBox

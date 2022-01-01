@@ -1,6 +1,6 @@
 import {Color} from '../../cascade';
 import {BlockContainer, BlockContainerOfIfc, getAscenderDescender} from '../../flow';
-import {ShapedItem, getLineContents} from '../../text';
+import {ShapedItem} from '../../text';
 import {Area} from '../../box';
 import {Harfbuzz} from 'harfbuzzjs';
 
@@ -22,7 +22,7 @@ function drawDiv(style: StringMap, attrs: StringMap, text: string = '') {
   return `<div style="${styleString};" ${attrString}>${text}</div>`;
 }
 
-function drawTextAt(item: ShapedItem, startOffset: number, endOffset: number, x: number, y: number, level: number, hb: Harfbuzz) {
+function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: Harfbuzz) {
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
   const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
@@ -31,8 +31,10 @@ function drawTextAt(item: ShapedItem, startOffset: number, endOffset: number, x:
   const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`;
   const zIndex = String(level);
   const whiteSpace = 'pre';
+  const firstGlyph = item.glyphs.find(g => g.ax > 0);
+  const text = item.text.slice(firstGlyph && firstGlyph.cl);
   hbFont.destroy();
-  return drawDiv({position: 'absolute', left, top, font, zIndex, whiteSpace}, {}, item.text.slice(startOffset, endOffset));
+  return drawDiv({position: 'absolute', left, top, font, zIndex, whiteSpace}, {}, text);
 }
 
 function drawColoredBoxDiv(area: Area, color: Color, level: number) {
@@ -52,18 +54,18 @@ function drawColoredBoxDiv(area: Area, color: Color, level: number) {
 
 function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, level: number, hb: Harfbuzz) {
   const [rootInline] = blockContainer.children;
-  let left = blockContainer.contentArea.x;
   let top = blockContainer.contentArea.y;
   let s = '';
   for (const linebox of rootInline.lineboxes) {
+    let left = blockContainer.contentArea.x;
     top += linebox.ascender;
-    const range = getLineContents(rootInline.shaped, linebox);
-    for (let i = range.startItem; i <= range.endItem; i++) {
-      const item = rootInline.shaped[i];
-      const startOffset = i === range.startItem ? range.startOffset : 0;
-      const endOffset = i === range.endItem ? range.endOffset : item.text.length;
-      const left = blockContainer.contentArea.x + item.ax - linebox.ax;
-      s += drawTextAt(item, startOffset, endOffset, left, top, level, hb);
+    for (let n = linebox.head; n; n = n.next) {
+      if (typeof n.value === 'number') {
+        left += n.value;
+      } else {
+        s += drawTextAt(n.value, left, top, level, hb);
+        left += n.value.width;
+      }
     }
     top += linebox.descender;
   }

@@ -415,24 +415,26 @@ describe('Line breaking', function () {
     await this.layout('<div style="width: 0;">eat lots of peaches</div>');
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(4);
-    expect(inline.lineboxes[0].start).to.equal(0);
-    expect(inline.lineboxes[1].start).to.equal(4);
-    expect(inline.lineboxes[2].start).to.equal(9);
-    expect(inline.lineboxes[3].start).to.equal(12);
+    expect(inline.lineboxes[0].end()).to.equal(4);
+    expect(inline.lineboxes[1].end()).to.equal(9);
+    expect(inline.lineboxes[2].end()).to.equal(12);
+    expect(inline.lineboxes[3].end()).to.equal(19);
   });
 
   it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
-    await this.layout('<div>  hey</div>');
+    await this.layout(`
+      <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
+    `);
     const [inline] = this.get(0).children;
-    expect(inline.lineboxes[0].start).to.equal(1); // (remember these indices are
-    expect(inline.lineboxes[0].end).to.equal(4);   // post whitespace collapsing)
+    expect(inline.lineboxes.length).to.equal(1);
   });
 
   it('keeps whitespace at the beginning of the line when it\'s not collapsible', async function () {
-    await this.layout('<div style="white-space: pre;">  hey</div>');
+    await this.layout(`
+      <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
+    `);
     const [inline] = this.get(0).children;
-    expect(inline.lineboxes[0].start).to.equal(0);
-    expect(inline.lineboxes[0].end).to.equal(5);
+    expect(inline.lineboxes.length).to.equal(2);
   });
 
   it('breaks between shaping boundaries', async function () {
@@ -444,7 +446,7 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].end).to.equal(13);
+    expect(inline.lineboxes[0].end()).to.equal(13);
     expect(inline.shaped).to.have.lengthOf(3);
   });
 
@@ -457,7 +459,7 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].end).to.equal(13);
+    expect(inline.lineboxes[0].end()).to.equal(13);
     expect(inline.shaped).to.have.lengthOf(2);
   });
 
@@ -481,8 +483,8 @@ describe('Line breaking', function () {
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(2);
     expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].end).to.equal(9);
-    expect(inline.lineboxes[1].end).to.equal(13);
+    expect(inline.lineboxes[0].end()).to.equal(9);
+    expect(inline.lineboxes[1].end()).to.equal(13);
   });
 
   it('measures break width correctly', async function () {
@@ -513,7 +515,7 @@ describe('Line breaking', function () {
     expect(inline.shaped[2].offset).to.equal(13);
   });
 
-  it('updates item advances according to border, padding, margin', async function () {
+  it('includes border, padding, margin in the line', async function () {
     // this isn't really wrapping, it's text processing. should I come up
     // with a new word or should the code change to separate concepts?
     const a = 10.67; // TODO FX says 10.39, what's going on? is this gonna flake?
@@ -529,9 +531,15 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(7);
-    expect(inline.shaped[1].ax).to.equal(5);
-    expect(inline.shaped[3].ax).to.be.approximately(5 + a + 5 +  _ + 10, 0.1);
-    expect(inline.shaped[5].ax).to.be.approximately(5 + a + 5 +  _ + 10 + a + 10 + _ + 1, 0.1);
+    expect(inline.shaped[1].width).to.be.approximately(a, 0.1);
+    expect(inline.shaped[3].width).to.be.approximately(a, 0.1);
+    expect(inline.shaped[5].width).to.be.approximately(a, 0.1);
+    let n = inline.lineboxes[0].head.next; // padding-left
+    expect(n.value).to.equal(5);
+    n = n.next.next.next.next; // border-left
+    expect(n.value).to.equal(10);
+    n = n.next.next.next.next; // margin-left
+    expect(n.value).to.equal(1);
   });
 
   it('puts contiguous padding at the top line except the last padding-lefts', async function () {
@@ -545,10 +553,37 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(3);
-    expect(inline.shaped[inline.shaped.length - 1].ax - inline.lineboxes[2].ax).to.equal(10);
+    let n = inline.lineboxes[1].head.next; // first padding-left + padding-right
+    expect(n.value).to.equal(20);
+    n = n.next; // second padding-left
+    expect(n.value).to.equal(10);
+    n = n.next; // whitespace
+    expect(n.next).to.equal(null);
+
+    n = inline.lineboxes[2].head; // third padding-left
+    expect(n.value).to.equal(10);
+    n = n.next; // "wrap! "
+    expect(n.next).to.equal(null);
   });
 
-  it('doesn\'t include padding-right after a space as part of the break width', async function () {
+  it('measures whitespace before a break if the break has padding on it', async function () {
+    // "Word_fits<5>" does fit on a line, but "Word_fits_<5>" does not
+    //
+    // Interestingly, Firefox fails this one - it puts the padding-right on the
+    // first line right up next to the end of the word "fits", even though that
+    // appears incorrect since we put a space before the padding in the source below.
+    await this.layout(`
+      <div style="width: 70px; font: 16px Arimo;">
+        Word <span style="padding-right: 5px;">fits </span>padding
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes).to.have.lengthOf(3);
+  });
+
+  it('considers padding-right on a break as belonging to the left word', async function () {
     await this.layout(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-right: 70px;">fits </span>padding
@@ -557,22 +592,9 @@ describe('Line breaking', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.shaped[inline.shaped.length - 1].ax - inline.lineboxes[1].ax).to.equal(0);
-  });
-
-  it('does include padding-right after a dash as part of the break width', async function () {
-    await this.layout(`
-      <div style="width: 70px; font: 16px Arimo;">
-        Word <span style="padding-right: 70px;">fits-</span>padding
-      </div>
-    `);
-
-    /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(3);
-    expect(inline.lineboxes[1].start).to.equal(6);
-    expect(inline.lineboxes[2].start).to.equal(11);
+    expect(inline.lineboxes[0].end()).to.equal(6);
+    expect(inline.lineboxes[1].end()).to.equal(11);
   });
 
   it('ignores empty spans when assigning padding to words', async function () {
@@ -585,7 +607,9 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.shaped[1].ax - inline.lineboxes[1].ax).to.equal(70);
+    expect(inline.lineboxes[0].head.value.text).to.equal(' Word ');
+    expect(inline.lineboxes[1].head.value).to.equal(70);
+    expect(inline.lineboxes[1].head.next.value.text).to.equal('hey ');
   });
 
   it('adds padding that wasn\'t measured for fit to the line', async function () {
@@ -624,6 +648,9 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.shaped[1].ax - inline.lineboxes[1].ax).to.equal(150);
+    expect(inline.lineboxes[0].head.value.text).to.equal(' Give_me_the_next_span ');
+    expect(inline.lineboxes[0].head.next.value).to.equal(300);
+    expect(inline.lineboxes[1].head.value).to.equal(150);
+    expect(inline.lineboxes[1].head.next.value.text).to.equal('not me ');
   });
 });

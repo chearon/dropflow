@@ -278,81 +278,6 @@ export class Collapser {
   }
 }
 
-function shapedItemForIndex(shaped: ShapedItem[], v: number) {
-  // Optimization: often v is 0 or small
-  if (v < shaped[0].text.length) return 0;
-
-  let l = 0;
-  let r = shaped.length - 1;
-
-  while (true) {
-    const mi = Math.floor((l + r) / 2);
-    const mv = shaped[mi].offset + shaped[mi].text.length - 1;
-
-    if (v === mv) {
-      return mi;
-    } else if (v > mv) {
-      l = mi + 1;
-      if (l > r) return Math.min(shaped.length - 1, l);
-    } else {
-      r = mi - 1;
-      if (l > r) return l;
-    }
-  }
-}
-
-function runForIndex(runs: Run[], v: number) {
-  let l = 0;
-  let r = runs.length - 1;
-
-  while (true) {
-    const mi = Math.floor((l + r) / 2);
-    const mv = runs[mi].end;
-
-    if (v === mv) {
-      return mi;
-    } else if (v > mv) {
-      l = mi + 1;
-      if (l > r) return r;
-    } else {
-      r = mi - 1;
-      if (l > r) return l;
-    }
-  }
-}
-
-function bumpOffsetPastCollapsedWhitespace(inline: IfcInline, offset: number) {
-  const {runs, allText} = inline;
-  const runi = runForIndex(runs, offset);
-  if (runi < runs.length && runs[runi].wsCollapsible && allText[offset] === ' ') {
-    return offset + 1;
-  }
-  return offset;
-}
-
-function getItemAndGlyphIteratorForOffset(shaped: ShapedItem[], offset: number) {
-  const itemIndex = shapedItemForIndex(shaped, offset);
-  const item = shaped[itemIndex];
-  const g = item.glyphs;
-  const glyphIterator = createGlyphIterator(g, item.attrs.dir);
-  const index = offset - item.offset;
-  let it = glyphIterator.next();
-
-  while (!it.done && g[it.value.start].cl < index) it = glyphIterator.next();
-
-  return {itemIndex, glyphIterator, it};
-}
-
-export function getLineContents(shaped: ShapedItem[], linebox: Linebox) {
-  const startItemIndex = shapedItemForIndex(shaped, linebox.start);
-  const endItemIndex = shapedItemForIndex(shaped, linebox.end);
-  const startItem = shaped[startItemIndex];
-  const endItem = shaped[endItemIndex];
-  const startOffset = linebox.start - startItem.offset;
-  const endOffset = linebox.end - endItem.offset;
-  return {startItem: startItemIndex, startOffset, endItem: endItemIndex, endOffset};
-}
-
 function* styleItemizer(inline: IfcInline) {
   const END_CHILDREN = Symbol('end of children');
   const stack:(InlineLevel | typeof END_CHILDREN)[] = inline.children.slice().reverse();
@@ -457,6 +382,7 @@ function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
     if (!bidi.done && smallest === bidi.value.i) bidi = iBidi.next();
     if (!script.done && smallest === script.value.i) script = iScript.next();
     if (!style.done && smallest === style.value.i) style = iStyle.next();
+    //if (smallest === leadingWs) leadingWs = Infinity;
 
     yield {i: smallest, attrs: ctx};
   }
@@ -666,13 +592,35 @@ type ShapingPart = {
   reshape: boolean
 };
 
+function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') {
+  const rmRange = dir === 'ltr' ? [0, 0] : [glyphs.length, glyphs.length];
+
+  for (let i = 0; i < glyphs.length; ++i) {
+    const cl = glyphs[i].cl - offset;
+    if (cl < 0) {
+      if (dir === 'ltr') {
+        rmRange[1] = i + 1;
+      } else {
+        if (i < rmRange[0]) rmRange[0] = i;
+      }
+    }
+    glyphs[i].cl = cl;
+  }
+
+  glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
+
+  return glyphs;
+}
+
 export class ShapedItem {
   face: HbFace;
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
   attrs: ShapingAttrs;
+  width: number;
   ax: number;
+  needsReshape: boolean;
 
   constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
     this.face = face;
@@ -680,22 +628,63 @@ export class ShapedItem {
     this.offset = offset;
     this.text = text;
     this.attrs = attrs;
+    this.width = 0; // gets increased as it's iterated
     this.ax = 0;
+    this.needsReshape = false;
   }
 
-  split(i: number) {
-    const text = this.text.slice(0, i);
-    const offset = this.offset;
-    const left = new ShapedItem(this.face, [], offset, text, this.attrs);
+  split(offset: number, ctx: LayoutContext) {
+    const rightText = this.text.slice(offset);
+    const rightOffset = this.offset + offset;
+    const rightGlyphs = shiftGlyphs(this.glyphs, offset, this.attrs.dir);
+    const right = new ShapedItem(this.face, rightGlyphs, rightOffset, rightText, this.attrs);
+    const font = ctx.hb.createFont(this.face);
 
-    left.ax = this.ax;
+    this.needsReshape = false;
+    right.needsReshape = true; // TODO 1/2: only if HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 
-    this.text = this.text.slice(i);
-    this.glyphs = [];
-    this.offset += i;
-    this.ax = 0;
+    this.text = this.text.slice(0, offset);
+    this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json(); // TODO 2/2
 
-    return left;
+    const glyphIterator = createGlyphIterator(this.glyphs, this.attrs.dir);
+    const glyph = glyphIterator.next();
+    const [advance] = measureWidth(this, glyphIterator, glyph, this.text.length);
+
+    this.width = advance;
+
+    return right;
+  }
+
+  postprocess(ctx: LayoutContext) {
+    if (this.needsReshape) {
+      const font = ctx.hb.createFont(this.face);
+      this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json();
+    }
+  }
+
+  collapseWhitespace(at: 'start' | 'end') {
+    // TODO: this is copied in Inline
+    if (!this.attrs.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/)) {
+      return {collapsed: 0, stopped: true};
+    }
+
+    const dir = at === 'start' ? this.attrs.dir : this.attrs.dir === 'ltr' ? 'rtl' : 'ltr';
+    const glyphIterator = createGlyphIterator(this.glyphs, dir);
+    let collapsed = 0;
+
+    for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {
+      const cl = this.glyphs[glyph.value.start].cl;
+      if (!isink(this.text[cl])) {
+        const px = this.glyphs[glyph.value.start].ax / this.face.upem * this.attrs.style.fontSize;
+        this.width -= px;
+        this.glyphs[glyph.value.start].ax = 0;
+        collapsed += px;
+      } else {
+        return {collapsed, stopped: true};
+      }
+    }
+
+    return {collapsed, stopped: false};
   }
 }
 
@@ -706,10 +695,11 @@ function logParagraph(paragraph: ShapedItem[]) {
     console.log(`${lead}F:${basename(item.face.name)}`);
     console.log(`${leadsp}T:"${item.text}"`);
     console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
+    console.log(`${leadsp}W:${item.width}`);
   }
 }
 
-function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, attrs: ShapingAttrs) {
+export function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, attrs: ShapingAttrs) {
   const buf = hb.createBuffer();
   buf.setClusterLevel(1);
   buf.addText(text);
@@ -849,208 +839,361 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
   return paragraph;
 }
 
-function createWidthIterator(paragraph: ShapedItem[], start: number) {
-  let {itemIndex, glyphIterator, it} = getItemAndGlyphIteratorForOffset(paragraph, start);
-  let width = 0;
-  let newItem = false;
-  let resetWidth = false;
+type LineItem = {
+  value: ShapedItem | number;
+  next: LineItem | null;
+  previous: LineItem | null;
+};
 
-  return function advance(offset: number) {
-    while (itemIndex < paragraph.length) {
-      const item = paragraph[itemIndex];
-      const isLastItem = itemIndex === paragraph.length - 1;
-      let dw;
+class LineItemLinkedList {
+  head: LineItem | null;
+  tail: LineItem | null;
+  firstShapedItem: ShapedItem | null;
+  lastShapedItem: ShapedItem | null;
 
-      if (newItem) {
-        glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
-        it = glyphIterator.next();
-      }
-      newItem = false;
-
-      if (resetWidth) width = 0;
-      resetWidth = false;
-
-      [dw, it] = measureWidth(item, glyphIterator, it, offset - item.offset);
-      width += dw;
-
-      if (it.done) {
-        newItem = true;
-        itemIndex += 1;
-      }
-
-      if (!it.done || isLastItem) {
-        const lastIteration = isLastItem && it.done;
-        const clusterIndex = lastIteration ? 0 : paragraph[itemIndex].glyphs[it.value!.start].cl;
-        resetWidth = true;
-        return {itemIndex, clusterIndex, width};
-      }
-    }
-  };
-}
-
-export class Linebox {
-  width: number;
-  ascender: number;
-  descender: number;
-  start: number;
-  end: number;
-  ax: number;
-
-  constructor(offset: number = 0) {
-    this.width = 0;
-    this.ascender = 0;
-    this.descender = 0;
-    this.start = offset;
-    this.end = offset;
-    this.ax = 0;
+  constructor() {
+    this.head = null;
+    this.tail = null;
+    this.firstShapedItem = null;
+    this.lastShapedItem = null;
   }
 
-  extendTo(i: number) {
-    this.end = i;
+  clear() {
+    this.head = null;
+    this.tail = null;
+    this.firstShapedItem = null;
+    this.lastShapedItem = null;
+  }
+
+  concat(items: LineItemLinkedList) {
+    if (!items.head) return;
+
+    if (!this.firstShapedItem) this.firstShapedItem = items.firstShapedItem;
+    if (items.lastShapedItem) this.lastShapedItem = items.lastShapedItem;
+
+    if (this.tail) {
+      this.tail.next = items.head;
+      items.head.previous = this.tail;
+      this.tail = items.tail;
+    } else {
+      this.head = items.head;
+      this.tail = items.tail;
+    }
+  }
+
+  push(value: ShapedItem | number) {
+    if (typeof value === 'object') {
+      this.lastShapedItem = value;
+      if (!this.firstShapedItem) this.firstShapedItem = value;
+    }
+
+    if (this.tail) {
+      this.tail = this.tail.next = {value, next: null, previous: this.tail};
+    } else {
+      this.head = this.tail = {value, next: null, previous: null};
+    }
+  }
+
+  unshift(value: ShapedItem | number) {
+    if (typeof value === 'object') {
+      this.firstShapedItem = value;
+      if (!this.lastShapedItem) this.lastShapedItem = value;
+    }
+
+    const item = {value, next: this.head, previous: null};
+    if (this.head) this.head.previous = item;
+    this.head = item;
+    if (!this.tail) this.tail = item;
+  }
+}
+
+class LineCandidates extends LineItemLinkedList {};
+
+export class Linebox extends LineItemLinkedList {
+  ascender: number;
+  descender: number;
+  width: number;
+  inkStart: LineItem | null;
+  inkSeen: boolean;
+
+  constructor() {
+    super();
+    this.ascender = 0;
+    this.descender = 0;
+    this.width = 0;
+    this.inkStart = null;
+    this.inkSeen = false;
+  }
+
+  add(candidates: LineCandidates, width: number) {
+    let n = candidates.head;
+
+    this.concat(candidates);
+    this.width += width;
+
+    while (!this.inkSeen && n) {
+      this.inkStart = n;
+      if (typeof n.value === 'number') {
+        this.inkSeen = true;
+      } else {
+        const {collapsed, stopped} = n.value.collapseWhitespace('start');
+        this.inkSeen = stopped;
+        this.width -= collapsed;
+      }
+
+      n = n.next;
+    }
   }
 
   hasText() {
-    return this.end > this.start;
+    return this.firstShapedItem !== null;
+  }
+
+  hasAnything() {
+    return this.head != null;
+  }
+
+  end() {
+    if (!this.lastShapedItem) throw new Error('Linebox is empty');
+    return this.lastShapedItem.offset + this.lastShapedItem.text.length;
+  }
+
+  postprocess() {
+    const e = this.inkStart;
+
+    if (!e) return;
+
+    for (let n = this.tail; n && n !== e.previous; n = n.previous) {
+      if (typeof n.value === 'number') break;
+      const {collapsed, stopped} = n.value.collapseWhitespace('end');
+      this.width -= collapsed;
+      if (stopped) return;
+    }
   }
 }
 
-export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
-  const breakIterator = new LineBreak(ifc.allText);
-  const inlineIterator = createInlineIterator(ifc);
-  let iit = inlineIterator.next();
-  let inlineEnd = 0;
-  let itemIndex = 0;
-  let itemEnd = 0;
-  const lineStart = bumpOffsetPastCollapsedWhitespace(ifc, 0);
-  let widthIterator = createWidthIterator(ifc.shaped, lineStart);
-  const lastBreak = {offset: lineStart, itemIndex: 0, pending: false, padding: 0};
-  let bk:LineBreakBreak | undefined;
-  let line = new Linebox(lineStart);
-  const lines = [line];
-  let ax = 0;
-  /**
-   * Since we visit everything until the break character, this remembers padding
-   * before the break character that actually belongs to the _next_ break.
-   */
-  let bufferedPaddingWidth = 0;
+type IfcMark = {
+  position: number,
+  isBreak: boolean,
+  isInk: boolean,
+  isItemStart: boolean,
+  isItemEnd: boolean,
+  spans: number,
+  advance: number,
+  itemIndex: number,
+  split: (this: IfcMark, mark: IfcMark) => void
+};
 
+function isink(c: string) {
+  return c !== ' ' && c !== '\t';
+}
+
+function createIfcMarkIterator(ifc: IfcInline) {
+  // Inline iterator
+  const inlineIterator = createInlineIterator(ifc);
+  let inline = inlineIterator.next();
+  let inlineMark = 0;
+  // Break iterator
+  const breakIterator = new LineBreak(ifc.allText);
+  let breakPosition = -1;
+  let breakMark = 0;
+  // Item iterator
+  let itemIndex = -1;
+  let emittedItemEnd = false;
+  let glyphIterator = createGlyphIterator([], 'ltr');
+  let glyph = glyphIterator.next();
+  let itemMark = 0;
+  // Ink iterator
+  let isInk = false;
+  let inkMark = 0;
+  // Other
+  const end = ifc.allText.length;
+  let inlineLevel = 0;
+  let spans = 0;
+
+  function next():{done: true} | {done: false, value: IfcMark} {
+    const mark:IfcMark = {
+      position: Math.min(inlineMark, itemMark, breakMark, inkMark),
+      isBreak: false,
+      isInk: true,
+      isItemStart: false,
+      isItemEnd: false,
+      spans: 0,
+      advance: 0,
+      itemIndex,
+      split
+    };
+
+    if (inline.done && breakPosition > end && itemIndex >= ifc.shaped.length) {
+      return {done: true};
+    }
+
+    if (itemIndex < ifc.shaped.length && itemIndex > -1) {
+      const item = ifc.shaped[itemIndex];
+      const position = mark.position - item.offset;
+      const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, position);
+      mark.advance = advance;
+      item.width += advance;
+      glyph = nextGlyph;
+    }
+
+    mark.isInk = isInk;
+
+    if (inkMark === mark.position) {
+      isInk = isink(ifc.allText[inkMark]);
+      while (inkMark < ifc.allText.length && isInk === isink(ifc.allText[inkMark])) inkMark++;
+    }
+
+    if (itemIndex < ifc.shaped.length && itemMark === mark.position && !emittedItemEnd) {
+      mark.isItemEnd = itemIndex > -1;
+      emittedItemEnd = true;
+    }
+
+    spans = 0;
+
+    while (!inline.done && inlineMark === mark.position) {
+      if (inline.value.state === 'text') {
+        inlineMark += inline.value.item.text.length;
+      }
+
+      if (inline.value.state === 'pre') {
+        spans += inline.value.item.leftMarginBorderPadding;
+        inlineLevel += 1;
+      }
+
+      if (inline.value.state === 'post') {
+        spans += inline.value.item.rightMarginBorderPadding;
+        if (inlineLevel > 0) inlineLevel -= 1;
+        if (inlineLevel === 0 && spans > 0) {
+          mark.spans = spans;
+          inline = inlineIterator.next();
+          return {done: false, value: mark};
+        }
+      }
+
+      inline = inlineIterator.next();
+    }
+
+    mark.spans = spans;
+
+    if (itemIndex < ifc.shaped.length && itemMark === mark.position) {
+      itemIndex += 1;
+
+      if (itemIndex < ifc.shaped.length) {
+        const item = ifc.shaped[itemIndex];
+        itemMark += item.text.length;
+        glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+        glyph = glyphIterator.next();
+        mark.isItemStart = true;
+        mark.itemIndex += 1;
+        emittedItemEnd = false;
+      }
+    }
+
+    if (breakPosition > -1 && inkMark === mark.position) {
+      inkMark = end + 1;
+    }
+
+    if (breakPosition <= end && breakMark === mark.position) {
+      const bk = breakIterator.nextBreak();
+      if (breakPosition > -1) mark.isBreak = true;
+      if (bk) {
+        breakPosition = breakMark = bk.position;
+      } else {
+        breakPosition = end + 1;
+        breakMark = end;
+      }
+    }
+
+    return {done: false, value: mark};
+  }
+
+  function split(this: IfcMark, mark: IfcMark) {
+    itemIndex += 1;
+    this.itemIndex += 1;
+    mark.itemIndex += 1;
+
+    const item = ifc.shaped[this.itemIndex];
+    const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+    const rightGlyph = rightGlyphIterator.next();
+    const position = mark.position - item.offset;
+    const [advance, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);
+
+    item.width = advance;
+
+    if (itemIndex === this.itemIndex) {
+      glyphIterator = rightGlyphIterator;
+      glyph = nextGlyph;
+    }
+  }
+
+  return {next};
+}
+
+export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   if (!ifc.containingBlock) {
     throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
   }
 
   const paragraphWidth = ifc.containingBlock.width === undefined ? Infinity : ifc.containingBlock.width;
+  const candidates = new LineCandidates();
+  let line = new Linebox();
+  let lastBreakMark:IfcMark | undefined;
+  const lines = [line];
+  let breakWidth = 0;
+  let width = 0;
+  let ws = 0;
 
-  while (bk = breakIterator.nextBreak()) {
-    let offset = lastBreak.offset;
-    let breakWidth = 0, width = 0, bkItemIndex, bkClusterIndex;
-    let inkEnd = bk.position;
-    let didStopAtInkEnd = false;
+  for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
+    const item = ifc.shaped[mark.itemIndex];
+    const lastItem = ifc.shaped[mark.isItemStart ? mark.itemIndex - 1 : mark.itemIndex];
 
-    while (ifc.allText[inkEnd - 1] === ' ' || ifc.allText[inkEnd - 1] === '\t') inkEnd -= 1;
+    if (mark.isInk) {
+      breakWidth += mark.advance;
+    } else {
+      ws += mark.advance;
+    }
 
-    while (offset < bk.position) {
-      const inkEndMark = didStopAtInkEnd ? Infinity : inkEnd;
-      let textWidth, paddingWidth, inlineLevel = 0;
+    width += mark.advance;
 
-      offset = Math.min(inlineEnd, itemEnd, inkEndMark, bk.position);
-
-      didStopAtInkEnd = offset === inkEnd;
-
-      ({width: textWidth, itemIndex: bkItemIndex, clusterIndex: bkClusterIndex} = widthIterator(offset)!);
-
-      ax += textWidth;
-      if (offset <= inkEnd) breakWidth += textWidth;
-      width += textWidth;
-
-      breakWidth += bufferedPaddingWidth;
-      width += bufferedPaddingWidth;
-      bufferedPaddingWidth = 0;
-      paddingWidth = 0;
-
-      while (inlineEnd === offset && !iit.done) {
-        if (iit.value.state === 'text') {
-          inlineEnd += iit.value.item.text.length;
-          ax += paddingWidth + bufferedPaddingWidth;
-          width += paddingWidth;
-          if (offset <= inkEnd) breakWidth += paddingWidth;
+    if (mark.isBreak) {
+      if (line.hasText() && line.width + breakWidth > paragraphWidth) {
+        const lastLine = line;
+        lines.push(line = new Linebox());
+        if (!lastBreakMark) throw new Error('Assertion failed');
+        if (!lastBreakMark.isItemStart) {
+          ifc.split(lastBreakMark.itemIndex, lastBreakMark.position, ctx);
+          lastBreakMark.split(mark);
+          candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
         }
-
-        if (iit.value.state === 'pre') {
-          bufferedPaddingWidth += iit.value.item.leftMarginBorderPadding;
-          inlineLevel += 1;
-        }
-
-        if (iit.value.state === 'post') {
-          if (inlineLevel > 0) inlineLevel -= 1;
-          if (inlineLevel === 0) {
-            paddingWidth += bufferedPaddingWidth + iit.value.item.rightMarginBorderPadding;
-            bufferedPaddingWidth = 0;
-          } else {
-            bufferedPaddingWidth += iit.value.item.rightMarginBorderPadding;
-          }
-        }
-
-        iit = inlineIterator.next();
+        lastLine.postprocess();
       }
 
-      if (itemEnd === offset && itemIndex < ifc.shaped.length) {
-        ifc.shaped[itemIndex].ax = ax;
-        itemEnd = ifc.shaped[itemIndex].offset + ifc.shaped[itemIndex].text.length;
-        itemIndex += 1;
-      }
+      line.add(candidates, width);
+
+      candidates.clear();
+      breakWidth = 0;
+      ws = 0;
+      width = 0;
+      lastBreakMark = mark;
     }
 
-    if (bkItemIndex === undefined || bkClusterIndex === undefined) {
-      throw new Error('assertion failed: expected to iterate some text in between breaks');
-    }
-
-    const wrap = line.hasText() && line.width + breakWidth > paragraphWidth;
-    const pending = bkClusterIndex > 0;
-
-    if (wrap && lastBreak.pending) {
-      const hb = ctx.hb;
-      const right = ifc.shaped[lastBreak.itemIndex];
-      const left = right.split(lastBreak.offset - right.offset);
-      const font = hb.createFont(right.face);
-
-      ifc.shaped.splice(lastBreak.itemIndex, 0, left);
-      lastBreak.itemIndex += 1;
-      bkItemIndex += 1;
-      itemIndex += 1;
-
-      left.glyphs = createAndShapeBuffer(ctx.hb, font, left.text, left.attrs).json();
-      right.glyphs = createAndShapeBuffer(ctx.hb, font, right.text, right.attrs).json();
-
-      const lgi = createWidthIterator([left], left.offset);
-      const lgii = lgi(left.offset + left.text.length);
-      if (lgii === undefined) throw new Error('assertion fail');
-      right.ax = left.ax + lgii.width;
-      // TODO ax needs updating here
-    }
-
-    if (wrap) {
-      lines.push(line = new Linebox(line.end));
-      widthIterator = createWidthIterator(ifc.shaped, bk.position);
-      line.ax = ifc.shaped[lastBreak.itemIndex].ax - lastBreak.padding;
-    }
-
-    line.extendTo(bk.position);
-    line.width += width;
-
-    lastBreak.offset = bk.position;
-    lastBreak.itemIndex = bkItemIndex;
-    lastBreak.pending = pending;
-    lastBreak.padding = bufferedPaddingWidth;
+    breakWidth += mark.spans;
+    width += mark.spans;
+    if (mark.spans > 0 || mark.isInk) breakWidth += ws, ws = 0;
+    if (mark.spans > 0) candidates.push(mark.spans);
+    if (mark.isItemStart) candidates.push(item);
+    if (mark.isItemEnd) lastItem.postprocess(ctx);
   }
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);
     logParagraph(ifc.shaped);
     for (const [i, line] of lines.entries()) {
-      const range = getLineContents(ifc.shaped, line);
-      const rangeText = `${range.startItem}@${range.startOffset} to ${range.endItem}@${range.endOffset}`;
-      let log = `Line ${i} ax=${line.ax} (${rangeText}) (${line.width} width): `;
-      log += ifc.allText.slice(line.start, line.end);
+      let log = `Line ${i} (${line.width} width): `;
+      for (let n = line.head; n; n = n.next) {
+        log += typeof n.value === 'number' ? `${n.value} ` : `"${n.value.text}" `;
+      }
       console.log(log);
     }
     console.log();

@@ -593,6 +593,12 @@ export class IfcInline extends Inline {
     }
   }
 
+  split(itemIndex: number, offset: number, ctx: LayoutContext) {
+    const left = this.shaped[itemIndex];
+    const right = left.split(offset - left.offset, ctx);
+    this.shaped.splice(itemIndex + 1, 0, right);
+  }
+
   // Collect text runs, collapse whitespace, create shaping boundaries, and
   // assign fonts
   private prepare() {
@@ -677,12 +683,12 @@ export class IfcInline extends Inline {
       linebox.descender = Math.max(linebox.descender, extents.descender);
       font.destroy();
 
-      const marker = Math.min(run.end, linebox.end, itemEnd);
+      const marker = Math.min(run.end, linebox.end(), itemEnd);
 
       if (marker === run.end) runi += 1;
-      if (marker === linebox.end) linei += 1;
+      if (marker === linebox.end()) linei += 1;
       if (marker === itemEnd) itemi += 1;
-      isNewLine = marker === linebox.end;
+      isNewLine = marker === linebox.end();
       if (isNewLine) bottom += linebox.ascender + linebox.descender;
     }
 

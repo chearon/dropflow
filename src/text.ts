@@ -619,7 +619,6 @@ export class ShapedItem {
   text: string;
   attrs: ShapingAttrs;
   width: number;
-  ax: number;
   needsReshape: boolean;
 
   constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
@@ -629,7 +628,6 @@ export class ShapedItem {
     this.text = text;
     this.attrs = attrs;
     this.width = 0; // gets increased as it's iterated
-    this.ax = 0;
     this.needsReshape = false;
   }
 

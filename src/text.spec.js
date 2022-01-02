@@ -518,8 +518,6 @@ describe('Line breaking', function () {
   it('includes border, padding, margin in the line', async function () {
     // this isn't really wrapping, it's text processing. should I come up
     // with a new word or should the code change to separate concepts?
-    const a = 10.67; // TODO FX says 10.39, what's going on? is this gonna flake?
-    const _ = 4.45;
     await this.layout(`
       <div style="font: 16px Arimo;">
         <span style="padding: 5px;">A</span>
@@ -531,9 +529,6 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(7);
-    expect(inline.shaped[1].width).to.be.approximately(a, 0.1);
-    expect(inline.shaped[3].width).to.be.approximately(a, 0.1);
-    expect(inline.shaped[5].width).to.be.approximately(a, 0.1);
     let n = inline.lineboxes[0].head.next; // padding-left
     expect(n.value).to.equal(5);
     n = n.next.next.next.next; // border-left

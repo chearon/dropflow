@@ -64,7 +64,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, level:
         left += n.value;
       } else {
         s += drawTextAt(n.value, left, top, level, hb);
-        left += n.value.width;
+        left += n.value.glyphs.reduce((s, g) => s + g.ax, 0) / n.value.face.upem * n.value.attrs.style.fontSize;
       }
     }
     top += linebox.descender;

@@ -618,7 +618,6 @@ export class ShapedItem {
   offset: number;
   text: string;
   attrs: ShapingAttrs;
-  width: number;
   needsReshape: boolean;
 
   constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
@@ -627,7 +626,6 @@ export class ShapedItem {
     this.offset = offset;
     this.text = text;
     this.attrs = attrs;
-    this.width = 0; // gets increased as it's iterated
     this.needsReshape = false;
   }
 
@@ -648,12 +646,6 @@ export class ShapedItem {
   reshape(ctx: LayoutContext) {
     const font = ctx.hb.createFont(this.face);
     this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json(); // TODO 2/2
-
-    const glyphIterator = createGlyphIterator(this.glyphs, this.attrs.dir);
-    const glyph = glyphIterator.next();
-    const [advance] = measureWidth(this, glyphIterator, glyph, this.text.length);
-
-    this.width = advance;
   }
 
   collapseWhitespace(at: 'start' | 'end') {
@@ -670,7 +662,6 @@ export class ShapedItem {
       const cl = this.glyphs[glyph.value.start].cl;
       if (!isink(this.text[cl])) {
         const px = this.glyphs[glyph.value.start].ax / this.face.upem * this.attrs.style.fontSize;
-        this.width -= px;
         this.glyphs[glyph.value.start].ax = 0;
         collapsed += px;
       } else {
@@ -689,7 +680,6 @@ function logParagraph(paragraph: ShapedItem[]) {
     console.log(`${lead}F:${basename(item.face.name)}`);
     console.log(`${leadsp}T:"${item.text}"`);
     console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
-    console.log(`${leadsp}W:${item.width}`);
   }
 }
 
@@ -955,14 +945,15 @@ export class Linebox extends LineItemLinkedList {
   postprocess(ctx: LayoutContext) {
     if (this.tail && typeof this.tail.value === 'object') {
       const tail = this.tail.value;
-      const widthBefore = tail.width;
 
+      // TODO reshaping could change the width, meaning the line width is now
+      // wrong. Does the width change in practice? I'm not sure, but if it did,
+      // some ink would overhang the paragraph's boundaries.
       if (tail.needsReshape) tail.reshape(ctx);
       if (this.inkStart && this.inkStart.value === tail) {
-        tail.collapseWhitespace('start');
+        const {collapsed} = tail.collapseWhitespace('start');
+        this.width -= collapsed;
       }
-
-      this.width += tail.width - widthBefore;
     }
 
     for (let n = this.tail; n && this.inkStart && n !== this.inkStart.previous; n = n.previous) {
@@ -1035,7 +1026,6 @@ function createIfcMarkIterator(ifc: IfcInline) {
       const position = mark.position - item.offset;
       const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, position);
       mark.advance = advance;
-      item.width += advance;
       glyph = nextGlyph;
     }
 
@@ -1119,9 +1109,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
     const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
     const rightGlyph = rightGlyphIterator.next();
     const position = mark.position - item.offset;
-    const [advance, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);
-
-    item.width = advance;
+    const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);
 
     if (itemIndex === this.itemIndex) {
       glyphIterator = rightGlyphIterator;

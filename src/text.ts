@@ -633,17 +633,22 @@ export class ShapedItem {
     this.needsReshape = false;
   }
 
-  split(offset: number, ctx: LayoutContext) {
+  split(offset: number) {
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, this.attrs.dir);
     const right = new ShapedItem(this.face, rightGlyphs, rightOffset, rightText, this.attrs);
-    const font = ctx.hb.createFont(this.face);
 
-    this.needsReshape = false;
+    this.needsReshape = true;
     right.needsReshape = true; // TODO 1/2: only if HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 
     this.text = this.text.slice(0, offset);
+
+    return right;
+  }
+
+  reshape(ctx: LayoutContext) {
+    const font = ctx.hb.createFont(this.face);
     this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json(); // TODO 2/2
 
     const glyphIterator = createGlyphIterator(this.glyphs, this.attrs.dir);
@@ -651,15 +656,6 @@ export class ShapedItem {
     const [advance] = measureWidth(this, glyphIterator, glyph, this.text.length);
 
     this.width = advance;
-
-    return right;
-  }
-
-  postprocess(ctx: LayoutContext) {
-    if (this.needsReshape) {
-      const font = ctx.hb.createFont(this.face);
-      this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json();
-    }
   }
 
   collapseWhitespace(at: 'start' | 'end') {
@@ -958,16 +954,24 @@ export class Linebox extends LineItemLinkedList {
     return this.lastShapedItem.offset + this.lastShapedItem.text.length;
   }
 
-  postprocess() {
-    const e = this.inkStart;
+  postprocess(ctx: LayoutContext) {
+    if (this.tail && typeof this.tail.value === 'object') {
+      const tail = this.tail.value;
+      const widthBefore = tail.width;
 
-    if (!e) return;
+      if (tail.needsReshape) tail.reshape(ctx);
+      if (this.inkStart && this.inkStart.value === tail) {
+        tail.collapseWhitespace('start');
+      }
 
-    for (let n = this.tail; n && n !== e.previous; n = n.previous) {
+      this.width += tail.width - widthBefore;
+    }
+
+    for (let n = this.tail; n && this.inkStart && n !== this.inkStart.previous; n = n.previous) {
       if (typeof n.value === 'number') break;
       const {collapsed, stopped} = n.value.collapseWhitespace('end');
       this.width -= collapsed;
-      if (stopped) return;
+      if (stopped) break;
     }
   }
 }
@@ -1162,11 +1166,11 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
         lines.push(line = new Linebox());
         if (!lastBreakMark) throw new Error('Assertion failed');
         if (!lastBreakMark.isItemStart) {
-          ifc.split(lastBreakMark.itemIndex, lastBreakMark.position, ctx);
+          ifc.split(lastBreakMark.itemIndex, lastBreakMark.position);
           lastBreakMark.split(mark);
           candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
         }
-        lastLine.postprocess();
+        lastLine.postprocess(ctx);
       }
 
       line.add(candidates, width);
@@ -1183,8 +1187,9 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     if (mark.spans > 0 || mark.isInk) breakWidth += ws, ws = 0;
     if (mark.spans > 0) candidates.push(mark.spans);
     if (mark.isItemStart) candidates.push(item);
-    if (mark.isItemEnd) lastItem.postprocess(ctx);
   }
+
+  line.postprocess(ctx);
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);

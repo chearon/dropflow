@@ -653,4 +653,16 @@ describe('Line breaking', function () {
     expect(inline.lineboxes[1].head.value).to.equal(150);
     expect(inline.lineboxes[1].head.next.value.text).to.equal('not me ');
   });
+
+  it('collapses whitespace at the start of the line', async function () {
+    await this.layout(`
+      <div style="width: 100px; font: 16px Arimo;">
+        Oh give me a home where the buffalo roam
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
+  });
 });

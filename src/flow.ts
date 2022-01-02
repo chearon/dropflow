@@ -593,9 +593,9 @@ export class IfcInline extends Inline {
     }
   }
 
-  split(itemIndex: number, offset: number, ctx: LayoutContext) {
+  split(itemIndex: number, offset: number) {
     const left = this.shaped[itemIndex];
-    const right = left.split(offset - left.offset, ctx);
+    const right = left.split(offset - left.offset);
     this.shaped.splice(itemIndex + 1, 0, right);
   }
 

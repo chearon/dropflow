@@ -8,7 +8,7 @@
 
 import {TextNode, HTMLElement} from './node';
 import {parse as StyleParser} from './css';
-import {createComputedStyle, uaDeclaredStyles, DeclaredPlainStyle} from './cascade';
+import {createComputedStyle, uaDeclaredStyles} from './cascade';
 import {id} from './util';
 
 /*

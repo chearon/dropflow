@@ -8,7 +8,6 @@ import {FontConfig, Cascade} from 'fontconfig';
 import {Itemizer} from 'itemizer';
 import GraphemeBreaker = require('grapheme-breaker');
 import LineBreak = require('linebreak');
-import {LineBreakBreak} from 'linebreak';
 
 let debug = true;
 
@@ -1135,7 +1134,6 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
   for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
     const item = ifc.shaped[mark.itemIndex];
-    const lastItem = ifc.shaped[mark.isItemStart ? mark.itemIndex - 1 : mark.itemIndex];
 
     if (mark.isInk) {
       breakWidth += mark.advance;

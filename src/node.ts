@@ -1,4 +1,4 @@
-import {id, loggableText} from './util';
+import {loggableText} from './util';
 import {ComputedPlainStyle} from './cascade';
 
 export class TextNode {

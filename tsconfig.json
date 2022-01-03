@@ -6,7 +6,6 @@
     "target": "esnext",
     "module": "commonjs",
     "strict": true,
-    "strictNullChecks": true,
-    "strictPropertyInitialization": true
+    "noUnusedLocals": true
   }
 }

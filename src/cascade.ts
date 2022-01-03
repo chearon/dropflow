@@ -180,8 +180,6 @@ export type ComputedPlainStyle = {
 
 type KeysAre<T, U> = {[K in keyof T]: T[K] extends U ? K : never}[keyof T];
 
-type $ValuePctPx = KeysAre<ComputedPlainStyle, ValuePctPx>;
-
 type $ValuePctPxOrAuto = KeysAre<ComputedPlainStyle, ValuePctPx | 'auto'>;
 
 const pctWidthSide: Set<keyof BoxModelUsed> = new Set([

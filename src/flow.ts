@@ -518,10 +518,6 @@ export class Inline extends Box {
     this.children = children;
   }
 
-  // Hack to get TS to not think an Inline is a Box
-  // Remove when other properties are added
-  private className = "inline";
-
   get leftMarginBorderPadding() {
     return this.style.marginLeft === 'auto' ? 0 : this.style.marginLeft
       + this.style.borderLeftWidth

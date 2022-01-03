@@ -593,23 +593,21 @@ type ShapingPart = {
 };
 
 function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') {
-  const rmRange = dir === 'ltr' ? [0, 0] : [glyphs.length, glyphs.length];
+  const rmRange = dir === 'ltr' ? [glyphs.length, glyphs.length] : [0, 0];
 
   for (let i = 0; i < glyphs.length; ++i) {
     const cl = glyphs[i].cl - offset;
-    if (cl < 0) {
+    if (cl >= 0) {
       if (dir === 'ltr') {
-        rmRange[1] = i + 1;
-      } else {
         if (i < rmRange[0]) rmRange[0] = i;
+      } else {
+        rmRange[1] = i + 1;
       }
+      glyphs[i].cl = cl;
     }
-    glyphs[i].cl = cl;
   }
 
-  glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
-
-  return glyphs;
+  return glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
 }
 
 export class ShapedItem {
@@ -634,9 +632,10 @@ export class ShapedItem {
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, this.attrs.dir);
     const right = new ShapedItem(this.face, rightGlyphs, rightOffset, rightText, this.attrs);
+    const needsReshape = Boolean(rightGlyphs[0].flags & 1);
 
-    this.needsReshape = true;
-    right.needsReshape = true; // TODO 1/2: only if HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+    this.needsReshape = needsReshape;
+    right.needsReshape = needsReshape;
 
     this.text = this.text.slice(0, offset);
 
@@ -645,7 +644,7 @@ export class ShapedItem {
 
   reshape(ctx: LayoutContext) {
     const font = ctx.hb.createFont(this.face);
-    this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json(); // TODO 2/2
+    this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json();
   }
 
   collapseWhitespace(at: 'start' | 'end') {

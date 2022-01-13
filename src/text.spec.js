@@ -373,6 +373,17 @@ describe('Shaping', function () {
       const [inline] = this.get().children;
       expect(inline.shaped).to.have.lengthOf(2);
     });
+
+    it('assigns levels, inlcuding to LRE..PDF', async function () {
+      await this.layout('Saying HNY: \u202Bحلول السنة intruding english! الجديدة\u202C');
+      const [inline] = this.get().children;
+      expect(inline.shaped).to.have.lengthOf(5);
+      expect(inline.shaped[0].attrs.level).to.equal(0); // Saying HNY:_
+      expect(inline.shaped[1].attrs.level).to.equal(1); // حلول السنة
+      expect(inline.shaped[2].attrs.level).to.equal(2); // intruding english
+      expect(inline.shaped[3].attrs.level).to.equal(1); // !
+      expect(inline.shaped[4].attrs.level).to.equal(1); // الجديدة
+    });
   });
 
   describe('Fallbacks', function () {

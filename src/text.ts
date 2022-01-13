@@ -336,14 +336,14 @@ function* styleItemizer(inline: IfcInline) {
 
 type ShapingAttrs = {
   isEmoji: boolean,
-  dir: 'ltr' | 'rtl',
+  level: number,
   script: string,
   style: Style
 };
 
 function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
   const iEmoji = itemizer.emoji(inline.allText);
-  const iBidi = itemizer.bidi(inline.allText);
+  const iBidi = itemizer.bidi(inline.allText, 0);
   const iScript = itemizer.script(inline.allText);
   const iStyle = styleItemizer(inline);
 
@@ -358,7 +358,7 @@ function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
 
   let ctx:ShapingAttrs = {
     isEmoji: emoji.value.isEmoji,
-    dir: bidi.value.dir,
+    level: bidi.value.level,
     script: script.value.script,
     style: style.value.style
   };
@@ -372,7 +372,7 @@ function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
 
     // Map the current iterators to context
     if (!emoji.done) ctx.isEmoji = emoji.value.isEmoji;
-    if (!bidi.done) ctx.dir = bidi.value.dir;
+    if (!bidi.done) ctx.level = bidi.value.level;
     if (!script.done) ctx.script = script.value.script;
     if (!style.done) ctx.style = style.value.style;
 
@@ -627,9 +627,10 @@ export class ShapedItem {
   }
 
   split(offset: number) {
+    const dir = this.attrs.level % 0 ? 'rtl' : 'ltr';
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
-    const rightGlyphs = shiftGlyphs(this.glyphs, offset, this.attrs.dir);
+    const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
     const right = new ShapedItem(this.face, rightGlyphs, rightOffset, rightText, this.attrs);
     const needsReshape = Boolean(rightGlyphs[0].flags & 1);
 
@@ -652,8 +653,8 @@ export class ShapedItem {
       return {collapsed: 0, stopped: true};
     }
 
-    const dir = at === 'start' ? this.attrs.dir : this.attrs.dir === 'ltr' ? 'rtl' : 'ltr';
-    const glyphIterator = createGlyphIterator(this.glyphs, dir);
+    const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
+    const glyphIterator = createGlyphIterator(this.glyphs, level % 0 ? 'rtl' : 'ltr');
     let collapsed = 0;
 
     for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {
@@ -685,7 +686,7 @@ export function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, a
   const buf = hb.createBuffer();
   buf.setClusterLevel(1);
   buf.addText(text);
-  buf.setDirection(attrs.dir);
+  buf.setDirection(attrs.level % 2 ? 'rtl' : 'ltr');
   buf.setScript(attrs.script);
   buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
   hb.shape(font, buf);
@@ -710,7 +711,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
     const shapeWork = [{offset: start, text}];
 
     log += `  Item ${lastItemIndex}..${itemIndex}:\n`;
-    log += `  emoji=${attrs.isEmoji} dir=${attrs.dir} script=${attrs.script} `;
+    log += `  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `;
     log += `size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`;
     log += `  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`;
 
@@ -736,7 +737,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
         let lastClusterIndex = 0;
         let clusterIndex = 0;
         // HB cluster iterator
-        const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.dir);
+        const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level % 2 ? 'rtl' : 'ltr');
         let hbIt = hbGlyphIterator.next();
         let clusterNeedsReshape = false;
 
@@ -1072,7 +1073,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
       if (itemIndex < ifc.shaped.length) {
         const item = ifc.shaped[itemIndex];
         itemMark += item.text.length;
-        glyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+        glyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
         glyph = glyphIterator.next();
         mark.isItemStart = true;
         mark.itemIndex += 1;
@@ -1104,7 +1105,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
     mark.itemIndex += 1;
 
     const item = ifc.shaped[this.itemIndex];
-    const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.dir);
+    const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
     const rightGlyph = rightGlyphIterator.next();
     const position = mark.position - item.offset;
     const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);

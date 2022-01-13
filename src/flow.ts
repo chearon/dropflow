@@ -638,7 +638,7 @@ export class IfcInline extends Inline {
     this.strut = new ShapedItem(strutFace, [], 0, '', {
       style: this.style,
       isEmoji: false,
-      dir: 'ltr',
+      level: 0,
       script: 'Latn'
     });
     this.shaped = await shapeIfc(this, ctx);

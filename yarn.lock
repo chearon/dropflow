@@ -788,10 +788,10 @@ isexe@^2.0.0:
   resolved "https://registry.yarnpkg.com/isexe/-/isexe-2.0.0.tgz#e8fbf374dc556ff8947a10dcb0572d633f2cfa10"
   integrity sha1-6PvzdNxVb/iUehDcsFctYz8s+hA=
 
-itemizer@^0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/itemizer/-/itemizer-0.1.2.tgz#d92363560677b224490f505b03ddc9c199f7e551"
-  integrity sha512-hbj/ilmDajcI8Jj+J0h9gJwN19mRgAbzl+CjqXBL5aVzuB3VftPHeksVsznvuGjC5IL9j57orRtaOAYD6YjeKQ==
+itemizer@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/itemizer/-/itemizer-1.0.0.tgz#df8eb4ec344708ce492f6083ba104400b4a4c212"
+  integrity sha512-3j3hLZ5tpaDy2Nq4UE41OTlzhNobJ8KzMFgfFxOpDSJ6aVsEmumlEzuw4gQ3+TNhBG0DnS2Kwvxbzu9rVJ1hoQ==
   dependencies:
     unicode-properties "1.2.2"
 

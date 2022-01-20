@@ -578,9 +578,6 @@ export class IfcInline extends Inline {
           if (child.end < child.start) {
             inline.children.splice(i, 1);
             i -= 1;
-            const j = this.runs.indexOf(child);
-            if (j < 0) throw new Error('Run expected in this.runs');
-            this.runs.splice(j, 1);
           }
         } else if (child.isInline() && !child.isIfcInline()) {
           stack.unshift(child);

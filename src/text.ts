@@ -627,7 +627,7 @@ export class ShapedItem {
   }
 
   split(offset: number) {
-    const dir = this.attrs.level % 0 ? 'rtl' : 'ltr';
+    const dir = this.attrs.level % 2 ? 'rtl' : 'ltr';
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
@@ -654,7 +654,7 @@ export class ShapedItem {
     }
 
     const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
-    const glyphIterator = createGlyphIterator(this.glyphs, level % 0 ? 'rtl' : 'ltr');
+    const glyphIterator = createGlyphIterator(this.glyphs, level % 2 ? 'rtl' : 'ltr');
     let collapsed = 0;
 
     for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {

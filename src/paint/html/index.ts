@@ -26,15 +26,14 @@ function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: H
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
   const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
-  const top = y - (ascender - (ascender + descender)/2) + 'px';
-  const left = x + 'px';
+  const transform = `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`;
   const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`;
   const zIndex = String(level);
   const whiteSpace = 'pre';
   const firstGlyph = item.glyphs.find(g => g.ax > 0);
   const text = item.text.slice(firstGlyph && firstGlyph.cl);
   hbFont.destroy();
-  return drawDiv({position: 'absolute', left, top, font, zIndex, whiteSpace}, {}, text);
+  return drawDiv({position: 'absolute', left: '0', top: '0', transform, font, zIndex, whiteSpace}, {}, text);
 }
 
 function drawColoredBoxDiv(area: Area, color: Color, level: number) {

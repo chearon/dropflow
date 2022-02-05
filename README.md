@@ -34,21 +34,21 @@ These rules are either working or will be working soon. Shorthand properties are
 
 ## Boxes and positioning
 
-| Property | Values | Status |
-| -- | -- | -- |
-| `display` | `block`, `inline`, `flow-root` | ✅ Works |
-| `display` | `none` | 🚧 Planned |  |
-| `position` | | 🚧 Planned |
-| `margin` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works |
-| `padding` | `em`, `px`, `%`, `cm` etc | ✅ Works |
-| `border-width` | `em`, `px`, `cm` etc | ✅ Works |
-| `border-style` | | 🚧 Planned |
-| `border-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | 🚧 Planned |
-| `background-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | 🚧 Planned |
-| `background-clip` | `border-box`, `content-box`, `padding-box` | ✅ Works |
-| `width` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works |
-| `height` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works |
-| `box-sizing` | `border-box`, `content-box` | ✅ Works |
+| Property | Values | Status | Notes |
+| -- | -- | -- | -- |
+| `display` | `block`, `inline`, `flow-root` | ✅ Works | |
+| `display` | `none` | 🚧 Planned |  | |
+| `position` | | 🚧 Planned | |
+| `margin` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
+| `padding` | `em`, `px`, `%`, `cm` etc | ✅ Works | |
+| `border-width` | `em`, `px`, `cm` etc | ✅ Works | |
+| `border-style` | | 🚧 Planned | |
+| `border-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | 🏗 Partially done | Implemented for blocks but not inlines yet |
+| `background-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | 🏗 Partially done | Implemented for blocks but not inlines yet |
+| `background-clip` | `border-box`, `content-box`, `padding-box` | ✅ Works | |
+| `width` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
+| `height` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
+| `box-sizing` | `border-box`, `content-box` | ✅ Works | |
 
 # Third party components
 

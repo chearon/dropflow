@@ -512,10 +512,12 @@ export function getAscenderDescender(style: Style, font: HbFont, upem: number) {
 
 export class Inline extends Box {
   public children: InlineLevel[];
+  public nshaped: number;
 
   constructor(style: Style, children: InlineLevel[], isAnonymous: boolean) {
     super(style, children, isAnonymous);
     this.children = children;
+    this.nshaped = 0;
   }
 
   get leftMarginBorderPadding() {
@@ -723,26 +725,58 @@ export type InlineLevel = Inline | InlineLevelBfcBlockContainer | Run;
 
 type InlineNotRun = Inline | InlineLevelBfcBlockContainer;
 
-type InlineIteratorInline = {value: {state: 'pre' | 'post', item: Inline}, done: false};
+type InlineIteratorInline = {state: 'pre' | 'post', item: Inline};
 
-type InlineIteratorRun = {value: {state: 'text', item: Run}, done: false};
+type InlineIteratorRun = {state: 'text', item: Run};
+
+type InlineIteratorBreak = {state: 'breakop'};
 
 export function createInlineIterator(inline: IfcInline) {
   const stack:(InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
+  const buffered:(InlineIteratorInline | InlineIteratorRun)[] = [];
+  let minlevel = 0;
+  let level = 0;
+  let bk = 0;
+  let flushedBreak = false;
 
-  function next():{done: true} | InlineIteratorInline | InlineIteratorRun {
-    while (stack.length) {
-      const item = stack.pop()!;
-      if ('post' in item) {
-        return {value: {state: 'post', item: item.post}, done: false};
-      } else if (item.isInline()) {
-        stack.push({post: item});
-        for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
-        return {value: {state: 'pre', item}, done: false};
-      } else if (item.isRun()) {
-        return {value: {state: 'text', item}, done: false};
+  function next():{done: true} | {done: false, value: InlineIteratorInline | InlineIteratorRun | InlineIteratorBreak} {
+
+    if (!buffered.length) {
+      flushedBreak = false;
+
+      while (stack.length) {
+        const item = stack.pop()!;
+        if ('post' in item) {
+          level -= 1;
+          buffered.push({state: 'post', item: item.post});
+          if (level <= minlevel) {
+            bk = buffered.length;
+            minlevel = level;
+          }
+        } else if (item.isInline()) {
+          level += 1;
+          buffered.push({state: 'pre', item});
+          stack.push({post: item});
+          for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
+        } else if (item.isRun()) {
+          minlevel = level;
+          buffered.push({state: 'text', item});
+          break;
+        }
       }
     }
+
+    if (buffered.length) {
+      if (bk > 0) {
+        bk -= 1;
+      } else if (!flushedBreak && /* pre|posts follow the op */ buffered.length > 1) {
+        flushedBreak = true;
+        return {value: {state: 'breakop'}, done: false};
+      }
+
+      return {value: buffered.shift()!, done: false};
+    }
+
     return {done: true};
   }
 

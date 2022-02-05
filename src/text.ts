@@ -343,7 +343,7 @@ type ShapingAttrs = {
 
 function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
   const iEmoji = itemizer.emoji(inline.allText);
-  const iBidi = itemizer.bidi(inline.allText, 0);
+  const iBidi = itemizer.bidi(inline.allText, inline.style.direction === 'ltr' ? 0 : 1);
   const iScript = itemizer.script(inline.allText);
   const iStyle = styleItemizer(inline);
 
@@ -609,13 +609,36 @@ function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') 
   return glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
 }
 
-export class ShapedItem {
+interface IfcRenderItem {
+  end(): number;
+  inlines: Inline[];
+  attrs: ShapingAttrs;
+}
+
+class ShapedShim implements IfcRenderItem {
+  offset: number;
+  inlines: Inline[];
+  attrs: ShapingAttrs;
+
+  constructor(offset: number, inlines: Inline[], attrs: ShapingAttrs) {
+    this.offset = offset;
+    this.inlines = inlines;
+    this.attrs = attrs;
+  }
+
+  end() {
+    return this.offset;
+  }
+}
+
+export class ShapedItem implements IfcRenderItem {
   face: HbFace;
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
   attrs: ShapingAttrs;
   needsReshape: boolean;
+  inlines: Inline[];
 
   constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
     this.face = face;
@@ -624,6 +647,7 @@ export class ShapedItem {
     this.text = text;
     this.attrs = attrs;
     this.needsReshape = false;
+    this.inlines = [];
   }
 
   split(offset: number) {
@@ -636,6 +660,9 @@ export class ShapedItem {
 
     this.needsReshape = needsReshape;
     right.needsReshape = needsReshape;
+    right.inlines = this.inlines;
+
+    for (const i of this.inlines) i.nshaped += 1;
 
     this.text = this.text.slice(0, offset);
 
@@ -669,6 +696,10 @@ export class ShapedItem {
     }
 
     return {collapsed, stopped: false};
+  }
+
+  end() {
+    return this.offset + this.text.length;
   }
 }
 
@@ -823,7 +854,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
 }
 
 type LineItem = {
-  value: ShapedItem | number;
+  value: ShapedItem | ShapedShim;
   next: LineItem | null;
   previous: LineItem | null;
 };
@@ -831,28 +862,26 @@ type LineItem = {
 class LineItemLinkedList {
   head: LineItem | null;
   tail: LineItem | null;
-  firstShapedItem: ShapedItem | null;
-  lastShapedItem: ShapedItem | null;
 
   constructor() {
     this.head = null;
     this.tail = null;
-    this.firstShapedItem = null;
-    this.lastShapedItem = null;
   }
 
   clear() {
     this.head = null;
     this.tail = null;
-    this.firstShapedItem = null;
-    this.lastShapedItem = null;
+  }
+
+  transfer() {
+    const ret = new LineItemLinkedList();
+    ret.concat(this);
+    this.clear();
+    return ret;
   }
 
   concat(items: LineItemLinkedList) {
     if (!items.head) return;
-
-    if (!this.firstShapedItem) this.firstShapedItem = items.firstShapedItem;
-    if (items.lastShapedItem) this.lastShapedItem = items.lastShapedItem;
 
     if (this.tail) {
       this.tail.next = items.head;
@@ -864,12 +893,20 @@ class LineItemLinkedList {
     }
   }
 
-  push(value: ShapedItem | number) {
-    if (typeof value === 'object') {
-      this.lastShapedItem = value;
-      if (!this.firstShapedItem) this.firstShapedItem = value;
-    }
+  rconcat(items: LineItemLinkedList) {
+    if (!items.tail) return;
 
+    if (this.head) {
+      items.tail.next = this.head;
+      this.head.previous = items.tail;
+      this.head = items.head;
+    } else {
+      this.head = items.head;
+      this.tail = items.tail;
+    }
+  }
+
+  push(value: LineItem['value']) {
     if (this.tail) {
       this.tail = this.tail.next = {value, next: null, previous: this.tail};
     } else {
@@ -877,16 +914,23 @@ class LineItemLinkedList {
     }
   }
 
-  unshift(value: ShapedItem | number) {
-    if (typeof value === 'object') {
-      this.firstShapedItem = value;
-      if (!this.lastShapedItem) this.lastShapedItem = value;
-    }
-
+  unshift(value: LineItem['value']) {
     const item = {value, next: this.head, previous: null};
     if (this.head) this.head.previous = item;
     this.head = item;
     if (!this.tail) this.tail = item;
+  }
+
+  reverse() {
+    for (let n = this.head; n; n = n.next) {
+      const tmp = n.previous;
+      n.previous = n.next;
+      n.next = tmp;
+    }
+
+    const tmp = this.head;
+    this.head = this.tail;
+    this.tail = tmp;
   }
 }
 
@@ -895,41 +939,31 @@ class LineCandidates extends LineItemLinkedList {};
 export class Linebox extends LineItemLinkedList {
   ascender: number;
   descender: number;
+  startOffset: number;
+  endOffset: number;
   width: number;
-  inkStart: LineItem | null;
-  inkSeen: boolean;
+  dir: 'ltr' | 'rtl';
+  trimStartFinished: boolean;
 
-  constructor() {
+  constructor(dir: Linebox['dir'], start: number) {
     super();
+    this.dir = dir;
+    this.startOffset = this.endOffset = start;
     this.ascender = 0;
     this.descender = 0;
     this.width = 0;
-    this.inkStart = null;
-    this.inkSeen = false;
+    this.trimStartFinished = false;
   }
 
-  add(candidates: LineCandidates, width: number) {
-    let n = candidates.head;
-
+  addLogical(candidates: LineCandidates, width: number, endOffset: number) {
     this.concat(candidates);
     this.width += width;
-
-    while (!this.inkSeen && n) {
-      this.inkStart = n;
-      if (typeof n.value === 'number') {
-        this.inkSeen = true;
-      } else {
-        const {collapsed, stopped} = n.value.collapseWhitespace('start');
-        this.inkSeen = stopped;
-        this.width -= collapsed;
-      }
-
-      n = n.next;
-    }
+    this.endOffset = endOffset;
+    if (!this.trimStartFinished) this.trimStart();
   }
 
   hasText() {
-    return this.firstShapedItem !== null;
+    return this.endOffset > this.startOffset;
   }
 
   hasAnything() {
@@ -937,30 +971,101 @@ export class Linebox extends LineItemLinkedList {
   }
 
   end() {
-    if (!this.lastShapedItem) throw new Error('Linebox is empty');
-    return this.lastShapedItem.offset + this.lastShapedItem.text.length;
+    if (!this.tail) throw new Error('Linebox is empty');
+    return this.tail.value.end();
   }
 
-  postprocess(ctx: LayoutContext) {
-    if (this.tail && typeof this.tail.value === 'object') {
-      const tail = this.tail.value;
+  trimStart() {
+    for (let n = this.head; n; n = n.next) {
+      if (n.value instanceof ShapedShim) continue;
+      const {collapsed, stopped} = n.value.collapseWhitespace('start');
+      this.width -= collapsed;
+      if (stopped) {
+        this.trimStartFinished = true;
+        return;
+      }
+    }
+  }
 
-      // TODO reshaping could change the width, meaning the line width is now
-      // wrong. Does the width change in practice? I'm not sure, but if it did,
-      // some ink would overhang the paragraph's boundaries.
-      if (tail.needsReshape) tail.reshape(ctx);
-      if (this.inkStart && this.inkStart.value === tail) {
-        const {collapsed} = tail.collapseWhitespace('start');
-        this.width -= collapsed;
+  trimEnd() {
+    for (let n = this.tail; n; n = n.previous) {
+      if (n.value instanceof ShapedShim) continue;
+      const {collapsed, stopped} = n.value.collapseWhitespace('end');
+      this.width -= collapsed;
+      if (stopped) return;
+    }
+  }
+
+  reorderRange(start: LineItem | null, length: number) {
+    const ret = new LineItemLinkedList();
+    let minLevel = Infinity;
+
+    for (let i = 0, n = start; n && i < length; ++i, n = n.next) {
+      minLevel = Math.min(minLevel, n.value.attrs.level);
+    }
+
+    let levelStartIndex = 0;
+    let levelStartNode = start;
+
+    for (let i = 0, n = start; n && i < length; ++i, n = n.next) {
+      if (n.value.attrs.level === minLevel) {
+        if (minLevel % 2) {
+          if (i > levelStartIndex) {
+            ret.rconcat(this.reorderRange(levelStartNode, i - levelStartIndex));
+          }
+          ret.unshift(n.value);
+        } else {
+          if (i > levelStartIndex) {
+            ret.concat(this.reorderRange(levelStartNode, i - levelStartIndex));
+          }
+          ret.push(n.value);
+        }
+
+        levelStartIndex = i + 1;
+        levelStartNode = n.next;
       }
     }
 
-    for (let n = this.tail; n && this.inkStart && n !== this.inkStart.previous; n = n.previous) {
-      if (typeof n.value === 'number') break;
-      const {collapsed, stopped} = n.value.collapseWhitespace('end');
-      this.width -= collapsed;
-      if (stopped) break;
+    if (minLevel % 2) {
+      if (levelStartIndex < length) {
+        ret.rconcat(this.reorderRange(levelStartNode, length - levelStartIndex));
+      }
+    } else {
+      if (levelStartIndex < length) {
+        ret.concat(this.reorderRange(levelStartNode, length - levelStartIndex));
+      }
     }
+
+    return ret;
+  }
+
+  reorder() {
+    let levelOr = 0;
+    let levelAnd = 1;
+    let length = 0;
+
+    for (let n = this.head; n; n = n.next) {
+      levelOr |= n.value.attrs.level;
+      levelAnd &= n.value.attrs.level;
+      length += 1;
+    }
+
+    // If none of the levels had the LSB set, all numbers were even
+    const allEven = (levelOr & 1) === 0;
+
+    // If all of the levels had the LSB set, all numbers were odd
+    const allOdd = (levelAnd & 1) === 1;
+
+    if (!allEven && !allOdd) {
+      this.concat(this.reorderRange(this.transfer().head, length));
+    } else if (allOdd) {
+      this.reverse();
+    }
+  }
+
+  postprocess() {
+    this.trimEnd();
+    this.reorder();
   }
 }
 
@@ -970,7 +1075,8 @@ type IfcMark = {
   isInk: boolean,
   isItemStart: boolean,
   isItemEnd: boolean,
-  spans: number,
+  inlinePre: Inline | null,
+  inlinePost: Inline | null,
   advance: number,
   itemIndex: number,
   split: (this: IfcMark, mark: IfcMark) => void
@@ -1000,17 +1106,16 @@ function createIfcMarkIterator(ifc: IfcInline) {
   let inkMark = 0;
   // Other
   const end = ifc.allText.length;
-  let inlineLevel = 0;
-  let spans = 0;
 
   function next():{done: true} | {done: false, value: IfcMark} {
     const mark:IfcMark = {
       position: Math.min(inlineMark, itemMark, breakMark, inkMark),
       isBreak: false,
-      isInk: true,
+      isInk,
       isItemStart: false,
       isItemEnd: false,
-      spans: 0,
+      inlinePre: null,
+      inlinePost: null,
       advance: 0,
       itemIndex,
       split
@@ -1028,8 +1133,6 @@ function createIfcMarkIterator(ifc: IfcInline) {
       glyph = nextGlyph;
     }
 
-    mark.isInk = isInk;
-
     if (inkMark === mark.position) {
       isInk = isink(ifc.allText[inkMark]);
       while (inkMark < ifc.allText.length && isInk === isink(ifc.allText[inkMark])) inkMark++;
@@ -1040,34 +1143,33 @@ function createIfcMarkIterator(ifc: IfcInline) {
       emittedItemEnd = true;
     }
 
-    spans = 0;
-
-    while (!inline.done && inlineMark === mark.position) {
-      if (inline.value.state === 'text') {
-        inlineMark += inline.value.item.text.length;
-      }
-
-      if (inline.value.state === 'pre') {
-        spans += inline.value.item.leftMarginBorderPadding;
-        inlineLevel += 1;
-      }
-
-      if (inline.value.state === 'post') {
-        spans += inline.value.item.rightMarginBorderPadding;
-        if (inlineLevel > 0) inlineLevel -= 1;
-        if (inlineLevel === 0 && spans > 0) {
-          mark.spans = spans;
-          inline = inlineIterator.next();
-          return {done: false, value: mark};
-        }
-      }
-
+    // Consume the inline break opportunity if we're not on a break
+    if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
       inline = inlineIterator.next();
     }
 
-    mark.spans = spans;
+    // Consume pre[-text], post[-text], or pre-post[-text] before a break
+    if (!inline.done && inline.value.state !== 'breakop' && inlineMark === mark.position) {
+      if (inline.value.state === 'pre' || inline.value.state === 'post') {
+        if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
+        if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
+        inline = inlineIterator.next();
+      }
 
-    if (itemIndex < ifc.shaped.length && itemMark === mark.position) {
+      if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
+        mark.inlinePost = inline.value.item;
+        inline = inlineIterator.next();
+      }
+
+      if (!inline.done && inline.value.state === 'text') {
+        inlineMark += inline.value.item.text.length;
+        inline = inlineIterator.next();
+      }
+
+      if (mark.inlinePre || mark.inlinePost) return {done: false, value: mark};
+    }
+
+    if (itemIndex < ifc.shaped.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
       itemIndex += 1;
 
       if (itemIndex < ifc.shaped.length) {
@@ -1094,6 +1196,10 @@ function createIfcMarkIterator(ifc: IfcInline) {
         breakPosition = end + 1;
         breakMark = end;
       }
+    }
+
+    if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakop') {
+      inline = inlineIterator.next();
     }
 
     return {done: false, value: mark};
@@ -1126,7 +1232,9 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
   const paragraphWidth = ifc.containingBlock.width === undefined ? Infinity : ifc.containingBlock.width;
   const candidates = new LineCandidates();
-  let line = new Linebox();
+  const basedir = ifc.style.direction;
+  const parents:Inline[] = [];
+  let line = new Linebox(basedir, 0);
   let lastBreakMark:IfcMark | undefined;
   const lines = [line];
   let breakWidth = 0;
@@ -1137,27 +1245,63 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     const item = ifc.shaped[mark.itemIndex];
 
     if (mark.isInk) {
-      breakWidth += mark.advance;
+      breakWidth += ws + mark.advance;
+      ws = 0;
     } else {
       ws += mark.advance;
     }
 
     width += mark.advance;
 
+    if (mark.inlinePre) parents.push(mark.inlinePre);
+
+    if (mark.inlinePre || mark.inlinePost) {
+      const p = basedir === 'ltr' ? 'leftMarginBorderPadding' : 'rightMarginBorderPadding';
+      const op = basedir === 'ltr' ? 'rightMarginBorderPadding' : 'leftMarginBorderPadding';
+      const w = mark.inlinePre?.[p] ?? 0 + (mark.inlinePost?.[op] ?? 0);
+
+      if (!mark.isInk) {
+        breakWidth += ws;
+        ws = 0;
+      }
+
+      breakWidth += w;
+      width += w;
+    }
+
+    if (mark.inlinePre && mark.inlinePost) {
+      const [left, right] = [item, ifc.shaped[mark.itemIndex + 1]];
+      let level: number = 0;
+      // Treat the empty span as an Other Neutral (ON) according to UAX29. I
+      // think that's what browsers are doing.
+      if (left && !right /* beyond last item */) level = left.attrs.level;
+      if (!left && right /* before first item */) level = right.attrs.level;
+      // An ON should take on the embedding level if the left and right levels
+      // are diferent, but there is no embedding level for the empty span since
+      // it isn't a character. Taking the min should fit most scenarios.
+      if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
+      if (!left && !right) throw new Error('Assertion failed');
+      const attrs = {level, isEmoji: false, script: 'Latn', style: mark.inlinePre.style};
+      const shiv = new ShapedShim(mark.position, parents.slice(), attrs);
+      candidates.push(shiv);
+      for (const p of parents) p.nshaped += 1;
+    }
+
     if (mark.isBreak) {
       if (line.hasText() && line.width + breakWidth > paragraphWidth) {
         const lastLine = line;
-        lines.push(line = new Linebox());
         if (!lastBreakMark) throw new Error('Assertion failed');
-        if (!lastBreakMark.isItemStart) {
+        lines.push(line = new Linebox(basedir, lastBreakMark.position));
+        const lastBreakMarkItem = ifc.shaped[lastBreakMark.itemIndex];
+        if (lastBreakMarkItem && lastBreakMark.position > lastBreakMarkItem.offset && lastBreakMark.position < lastBreakMarkItem.end()) {
           ifc.split(lastBreakMark.itemIndex, lastBreakMark.position);
           lastBreakMark.split(mark);
           candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
         }
-        lastLine.postprocess(ctx);
+        lastLine.postprocess();
       }
 
-      line.add(candidates, width);
+      line.addLogical(candidates, width, mark.position);
 
       candidates.clear();
       breakWidth = 0;
@@ -1166,14 +1310,22 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       lastBreakMark = mark;
     }
 
-    breakWidth += mark.spans;
-    width += mark.spans;
-    if (mark.spans > 0 || mark.isInk) breakWidth += ws, ws = 0;
-    if (mark.spans > 0) candidates.push(mark.spans);
-    if (mark.isItemStart) candidates.push(item);
+    if (mark.isItemStart) {
+      item.inlines = parents.slice();
+      for (const p of parents) p.nshaped += 1;
+      candidates.push(item);
+    }
+
+    // Handle a span that starts inside a shaped item
+    if (mark.inlinePre && item && mark.position < item.end()) {
+      item.inlines.push(mark.inlinePre);
+      for (const p of parents) p.nshaped += 1;
+    }
+
+    if (mark.inlinePost) parents.pop();
   }
 
-  line.postprocess(ctx);
+  line.postprocess();
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);
@@ -1181,7 +1333,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     for (const [i, line] of lines.entries()) {
       let log = `Line ${i} (${line.width} width): `;
       for (let n = line.head; n; n = n.next) {
-        log += typeof n.value === 'number' ? `${n.value} ` : `"${n.value.text}" `;
+        log += n.value instanceof ShapedItem ? `“${n.value.text}” ` : '“”';
       }
       console.log(log);
     }

@@ -100,6 +100,8 @@ type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed
 
 type BackgroundClip = 'border-box' | 'padding-box' | 'content-box';
 
+type Direction = 'ltr' | 'rtl';
+
 type Display = {outer: OuterDisplay, inner: InnerDisplay};
 
 type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
@@ -130,6 +132,7 @@ export type DeclaredPlainStyle = {
   backgroundColor?: Color | Inherited | Initial;
   backgroundClip?: BackgroundClip | Inherited | Initial;
   display?: Display | Inherited | Initial;
+  direction?: Direction | Inherited | Initial;
   writingMode?: WritingMode | Inherited | Initial;
   borderTopWidth?: number | Inherited | Initial; // TODO take off unit?
   borderRightWidth?: number | Inherited | Initial; // TODO take off unit?
@@ -227,6 +230,7 @@ export class Style implements ComputedPlainStyle {
   backgroundColor: ComputedPlainStyle['backgroundColor'];
   backgroundClip: ComputedPlainStyle['backgroundClip'];
   display: ComputedPlainStyle['display'];
+  direction: ComputedPlainStyle['direction'];
   writingMode: ComputedPlainStyle['writingMode'];
   borderTopStyle: ComputedPlainStyle['borderTopStyle'];
   borderRightStyle: ComputedPlainStyle['borderRightStyle'];
@@ -260,6 +264,7 @@ export class Style implements ComputedPlainStyle {
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;
+    this.direction = style.direction;
     this.writingMode = style.writingMode;
     this.borderTopStyle = style.borderTopStyle;
     this.borderRightStyle = style.borderRightStyle;
@@ -452,6 +457,7 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   backgroundColor: {r: 0, g: 0, b: 0, a: 0},
   backgroundClip: 'border-box',
   display: {outer: 'inline', inner: 'flow'},
+  direction: 'ltr',
   writingMode: 'horizontal-tb',
   borderTopWidth: 0,
   borderRightWidth: 0,
@@ -496,6 +502,7 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   backgroundColor: false,
   backgroundClip: false,
   display: false,
+  direction: true,
   writingMode: true,
   borderTopWidth: false,
   borderRightWidth: false,

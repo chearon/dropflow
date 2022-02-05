@@ -103,6 +103,7 @@ declaration
   / font_family_dec
   / font_dec
   / color_dec
+  / direction_dec
   / display_dec
   / writing_mode_dec
   / white_space_dec
@@ -363,6 +364,9 @@ font
     return ret;
   }
 
+direction
+  = 'ltr' / 'rtl'
+
 display
   = 'block' { return {outer: 'block', inner: 'flow'}; }
   / 'inline-block' { return {outer: 'inline', inner: 'flow-root'}; }
@@ -436,6 +440,11 @@ font_dec
 color_dec
   = 'color'i S* ':' S* color:(color / default) {
     return {color};
+  }
+
+direction_dec
+  = 'direction'i S* ':' S* direction:(direction / default) {
+    return {direction};
   }
 
 display_dec

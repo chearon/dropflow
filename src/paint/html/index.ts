@@ -1,5 +1,5 @@
 import {Color} from '../../cascade';
-import {BlockContainer, BlockContainerOfIfc, getAscenderDescender} from '../../flow';
+import {BlockContainer, BlockContainerOfIfc, Inline, getAscenderDescender} from '../../flow';
 import {ShapedItem} from '../../text';
 import {Area} from '../../box';
 import {Harfbuzz} from 'harfbuzzjs';
@@ -26,14 +26,29 @@ function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: H
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
   const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
-  const transform = `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`;
-  const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`;
-  const zIndex = String(level);
-  const whiteSpace = 'pre';
-  const firstGlyph = item.glyphs.find(g => g.ax > 0);
-  const text = item.text.slice(firstGlyph && firstGlyph.cl);
+  let s = 0;
+  let e = item.glyphs.length - 1;
+
+  while (s < item.glyphs.length && item.glyphs[s].ax === 0) s += 1;
+  while (e >= 0 && item.glyphs[e].ax === 0) e -= 1;
+
+  const glyphs = item.glyphs.slice(s, e + 1);
+  const mi = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
+  const mx = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
+  const text = item.text.slice(mi, mx + 1).replace(/&/g, '&amp');
+
   hbFont.destroy();
-  return drawDiv({position: 'absolute', left: '0', top: '0', transform, font, zIndex, whiteSpace}, {}, text);
+
+  return drawDiv({
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    transform: `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`,
+    font: `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`,
+    zIndex: String(level),
+    whiteSpace: 'pre',
+    direction: item.attrs.level % 2 ? 'rtl' : 'ltr'
+  }, {}, text);
 }
 
 function drawColoredBoxDiv(area: Area, color: Color, level: number) {
@@ -52,22 +67,66 @@ function drawColoredBoxDiv(area: Area, color: Color, level: number) {
 }
 
 function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, level: number, hb: Harfbuzz) {
-  const [rootInline] = blockContainer.children;
+  const [ifc] = blockContainer.children;
+  const direction = ifc.style.direction;
+  const counts:Map<Inline, number> = new Map();
   let top = blockContainer.contentArea.y;
   let s = '';
-  for (const linebox of rootInline.lineboxes) {
+
+  if (blockContainer.contentArea.width === undefined) throw new Error('Assertion failed');
+
+  for (const linebox of ifc.lineboxes) {
+    const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
     let left = blockContainer.contentArea.x;
+
+    if (direction === 'rtl') left += linebox.width;
+
     top += linebox.ascender;
-    for (let n = linebox.head; n; n = n.next) {
-      if (typeof n.value === 'number') {
-        left += n.value;
-      } else {
-        s += drawTextAt(n.value, left, top, level, hb);
-        left += n.value.glyphs.reduce((s, g) => s + g.ax, 0) / n.value.face.upem * n.value.attrs.style.fontSize;
+
+    for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
+      const item = n.value;
+
+      for (let i = 0; i < item.inlines.length; ++i) {
+        const inline = item.inlines[i];
+        const count = counts.get(inline);
+
+        if (count === undefined) {
+          if (direction === 'ltr') {
+            left += inline.leftMarginBorderPadding;
+          } else {
+            left -= inline.rightMarginBorderPadding;
+          }
+
+          counts.set(inline, 1);
+        } else {
+          counts.set(inline, count + 1);
+        }
+      }
+
+      if (item instanceof ShapedItem) {
+        const w = item.glyphs.reduce((s, g) => s + g.ax, 0) / item.face.upem * item.attrs.style.fontSize;
+        const atLeft = direction === 'ltr' ? left : left - w;
+        s += drawTextAt(item, atLeft, top, level, hb);
+        left = direction === 'ltr' ? left + w : left - w;
+      }
+
+      for (let i = item.inlines.length - 1; i >= 0; --i) {
+        const inline = item.inlines[i];
+        const count = counts.get(inline);
+
+        if (count === inline.nshaped) {
+          if (direction === 'ltr') {
+            left += inline.rightMarginBorderPadding;
+          } else {
+            left -= inline.leftMarginBorderPadding;
+          }
+        }
       }
     }
+
     top += linebox.descender;
   }
+
   return s;
 }
 

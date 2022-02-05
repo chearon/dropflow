@@ -29,7 +29,7 @@ These rules are either working or will be working soon. Shorthand properties are
 
 | Property | Values | Status |
 | -- | -- | -- |
-| `direction` | `ltr`, `rtl` | 🚧 Planned |
+| `direction` | `ltr`, `rtl` | ✅ Works |
 | `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | ✅ Works |
 
 ## Boxes and positioning

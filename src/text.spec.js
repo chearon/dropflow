@@ -526,7 +526,7 @@ describe('Line breaking', function () {
     expect(inline.shaped[2].offset).to.equal(13);
   });
 
-  it('includes border, padding, margin in the line', async function () {
+  it('distributes border, margin, and padding to line items', async function () {
     // this isn't really wrapping, it's text processing. should I come up
     // with a new word or should the code change to separate concepts?
     await this.layout(`
@@ -538,38 +538,57 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
-    expect(inline.shaped).to.have.lengthOf(7);
-    let n = inline.lineboxes[0].head.next; // padding-left
-    expect(n.value).to.equal(5);
-    n = n.next.next.next.next; // border-left
-    expect(n.value).to.equal(10);
-    n = n.next.next.next.next; // margin-left
-    expect(n.value).to.equal(1);
+    const [ifc] = this.get(0).children;
+    expect(ifc.shaped).to.have.lengthOf(7);
+
+    const a1 = ifc.lineboxes[0].head.next; // A
+    expect(a1.value.inlines).to.have.lengthOf(1);
+    expect(a1.value.inlines[0].leftMarginBorderPadding).to.equal(5);
+    expect(a1.value.inlines[0].rightMarginBorderPadding).to.equal(5);
+    expect(a1.value.inlines[0].nshaped).to.equal(1);
+
+    const a2 = a1.next.next; // A
+    expect(a2.value.inlines).to.have.lengthOf(1);
+    expect(a2.value.inlines[0].leftMarginBorderPadding).to.equal(10);
+    expect(a2.value.inlines[0].rightMarginBorderPadding).to.equal(10);
+    expect(a2.value.inlines[0].nshaped).to.equal(1);
+
+    const a3 = a2.next.next; // A
+    expect(a3.value.inlines).to.have.lengthOf(1);
+    expect(a3.value.inlines[0].leftMarginBorderPadding).to.equal(1);
+    expect(a3.value.inlines[0].rightMarginBorderPadding).to.equal(1);
+    expect(a3.value.inlines[0].nshaped).to.equal(1);
   });
 
   it('puts contiguous padding at the top line except the last padding-lefts', async function () {
     await this.layout(`
       <div style="width: 50px; font: 16px Arimo;">
-        It's a <span style="padding: 10px;"></span><span style="padding-left: 10px;"></span>
+        It's a <span style="padding: 10px;"></span><span style="padding-left: 11px;"></span>
         <span style="padding-left: 10px;">wrap!</span>
       </div>
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
-    expect(inline.lineboxes).to.have.lengthOf(3);
-    let n = inline.lineboxes[1].head.next; // first padding-left + padding-right
-    expect(n.value).to.equal(20);
-    n = n.next; // second padding-left
-    expect(n.value).to.equal(10);
-    n = n.next; // whitespace
-    expect(n.next).to.equal(null);
+    const [ifc] = this.get(0).children;
+    expect(ifc.lineboxes).to.have.lengthOf(3);
 
-    n = inline.lineboxes[2].head; // third padding-left
-    expect(n.value).to.equal(10);
-    n = n.next; // "wrap! "
-    expect(n.next).to.equal(null);
+    let n = ifc.lineboxes[1].head.next; // 10px shiv
+    expect(n.value.inlines).to.have.lengthOf(1);
+    expect(n.value.inlines[0].nshaped).to.equal(1);
+    expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(10);
+    expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(10);
+
+    n = n.next; // 11px shiv
+    expect(n.value.inlines).to.have.lengthOf(1);
+    expect(n.value.inlines[0].nshaped).to.equal(1);
+    expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(11);
+    expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(0);
+
+    n = ifc.lineboxes[2].head; // 10px "wrap"
+    expect(n.value.inlines).to.have.lengthOf(1);
+    expect(n.value.inlines[0].nshaped).to.equal(1);
+    expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(10);
+    expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(0);
   });
 
   it('measures whitespace before a break if the break has padding on it', async function () {
@@ -611,11 +630,16 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].head.value.text).to.equal(' Word ');
-    expect(inline.lineboxes[1].head.value).to.equal(70);
-    expect(inline.lineboxes[1].head.next.value.text).to.equal('hey ');
+    const [ifc] = this.get(0).children;
+
+    let n = ifc.lineboxes[0].head; // Word
+    expect(n.next).to.equal(null);
+    n = ifc.lineboxes[1].head; // Shiv ""
+    expect(n.value.inlines).to.have.lengthOf(2);
+    expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(70);
+    expect(n.value.inlines[1].leftMarginBorderPadding).to.equal(0);
+    n = n.next // "hey"
+    expect(n.value.inlines).to.have.lengthOf(1);
   });
 
   it('adds padding that wasn\'t measured for fit to the line', async function () {
@@ -654,10 +678,17 @@ describe('Line breaking', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].head.value.text).to.equal(' Give_me_the_next_span ');
-    expect(inline.lineboxes[0].head.next.value).to.equal(300);
-    expect(inline.lineboxes[1].head.value).to.equal(150);
-    expect(inline.lineboxes[1].head.next.value.text).to.equal('not me ');
+
+    let n = inline.lineboxes[0].head; // ' Give_me_the_next_span '
+    expect(n.value.text).to.equal(' Give_me_the_next_span ');
+    n = n.next; // Shiv ''
+    expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(300);
+    expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(0);
+    expect(n.next).to.be.null;
+
+    n = inline.lineboxes[1].head; // 'not me'
+    expect(n.value.text).to.equal('not me ');
+    expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(150);
   });
 
   it('collapses whitespace at the start of the line', async function () {

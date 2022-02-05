@@ -671,4 +671,19 @@ describe('Line breaking', function () {
     const [inline] = this.get(0).children;
     expect(inline.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
   });
+
+  it('calculates line height with the correct shaped item/inline pairings', async function () {
+    await this.layout(`
+      <div style="width: 0;"><span style="font: 16px/2 Noto Sans Hebrew;">אוטו </span><span style="font: 16px/3 Cairo;">Car</span></div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    // Noto Sans ascender = 1069/1000 descender = 293/1000
+    expect(inline.lineboxes[0].ascender).to.be.approximately(22.2, 0.1);
+    expect(inline.lineboxes[0].descender).to.be.approximately(9.8, 0.1);
+    // Cairo ascender = 1303/1000 descender = 571/1000
+    expect(inline.lineboxes[1].ascender).to.be.approximately(29.9, 0.1);
+    expect(inline.lineboxes[1].descender).to.be.approximately(18.1, 0.1);
+  });
 });

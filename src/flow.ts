@@ -657,7 +657,8 @@ export class IfcInline extends Inline {
 
     // Since runs are the smallest ranges that can change style, iterate them to
     // look at lineHeight. Shaping items also affect lineHeight, so those have
-    // to be iterated too. Every combination of the three must be checked.
+    // to be iterated too. Line height is calculated per-line, so every
+    // combination of the three must be checked.
     while (linei < this.lineboxes.length && runi < this.runs.length && itemi < this.shaped.length) {
       const linebox = this.lineboxes[linei];
       const run = this.runs[runi];
@@ -676,9 +677,9 @@ export class IfcInline extends Inline {
       linebox.descender = Math.max(linebox.descender, extents.descender);
       font.destroy();
 
-      const marker = Math.min(run.end, linebox.end(), itemEnd);
+      const marker = Math.min(run.end + 1, linebox.end(), itemEnd);
 
-      if (marker === run.end) runi += 1;
+      if (marker === run.end + 1) runi += 1;
       if (marker === linebox.end()) linei += 1;
       if (marker === itemEnd) itemi += 1;
       isNewLine = marker === linebox.end();

@@ -3,6 +3,7 @@ import {BlockContainer, BlockContainerOfIfc, Inline, getAscenderDescender} from 
 import {ShapedItem} from '../../text';
 import {Area} from '../../box';
 import {Harfbuzz} from 'harfbuzzjs';
+import {encode} from 'entities';
 
 type StringMap = {[s: string]: string};
 
@@ -35,7 +36,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: H
   const glyphs = item.glyphs.slice(s, e + 1);
   const mi = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
   const mx = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
-  const text = item.text.slice(mi, mx + 1).replace(/&/g, '&amp');
+  const text = encode(item.text.slice(mi, mx + 1));
 
   hbFont.destroy();
 

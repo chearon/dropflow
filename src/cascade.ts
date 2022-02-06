@@ -119,6 +119,8 @@ type BorderStyle = 'none' | 'hiden' | 'dotted' | 'dashed' | 'solid'
 
 type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
 
+type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center';
+
 export type DeclaredPlainStyle = {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
@@ -159,6 +161,7 @@ export type DeclaredPlainStyle = {
   width?: ValuePctPx | 'auto' | Inherited | Initial;
   height?: ValuePctPx | 'auto' | Inherited | Initial;
   boxSizing?: BoxSizing | Inherited | Initial;
+  textAlign?: TextAlign | Inherited | Initial;
 };
 
 export type CascadedPlainStyle = DeclaredPlainStyle;
@@ -214,7 +217,7 @@ type BoxModelUsed = Pick<ComputedPlainStyle,
   'height'
 >;
 
-type Used = BoxModelUsed & Pick<ComputedPlainStyle, 'lineHeight'>;
+type Used = BoxModelUsed & Pick<ComputedPlainStyle, 'lineHeight' | 'textAlign'>;
 
 export class Style implements ComputedPlainStyle {
   id: string;
@@ -294,7 +297,8 @@ export class Style implements ComputedPlainStyle {
       marginLeft: style.marginLeft,
       width: style.width,
       height: style.height,
-      lineHeight: style.lineHeight
+      lineHeight: style.lineHeight,
+      textAlign: style.textAlign
     };
 
     this.used = new Map();
@@ -433,6 +437,26 @@ export class Style implements ComputedPlainStyle {
     return this.s.lineHeight;
   }
 
+  get textAlign() {
+    if (this.s.textAlign === 'start') {
+      if (this.direction === 'ltr') {
+        return 'left';
+      } else {
+        return 'right';
+      }
+    }
+
+    if (this.s.textAlign === 'end') {
+      if (this.direction === 'ltr') {
+        return 'right';
+      } else {
+        return 'left';
+      }
+    }
+
+    return this.s.textAlign;
+  }
+
   createLogicalView(writingMode: WritingMode) {
     return writingMode === 'horizontal-tb' ? horizontalTb(this) :
       writingMode === 'vertical-lr' ? verticalLr(this) :
@@ -483,7 +507,8 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   position: 'static',
   width: 'auto',
   height: 'auto',
-  boxSizing: 'content-box'
+  boxSizing: 'content-box',
+  textAlign: 'start'
 });
 
 type InheritedStyleDefinitions = {[K in keyof ComputedPlainStyle]: boolean};
@@ -528,7 +553,8 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   position: false,
   width: false,
   height: false,
-  boxSizing: false
+  boxSizing: false,
+  textAlign: true
 });
 
 type UaDeclaredStyles = {[tagName: string]: DeclaredPlainStyle};

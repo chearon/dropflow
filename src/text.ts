@@ -944,6 +944,7 @@ export class Linebox extends LineItemLinkedList {
   width: number;
   dir: 'ltr' | 'rtl';
   trimStartFinished: boolean;
+  inlineStart: number;
 
   constructor(dir: Linebox['dir'], start: number) {
     super();
@@ -953,6 +954,7 @@ export class Linebox extends LineItemLinkedList {
     this.descender = 0;
     this.width = 0;
     this.trimStartFinished = false;
+    this.inlineStart = 0;
   }
 
   addLogical(candidates: LineCandidates, width: number, endOffset: number) {
@@ -1063,9 +1065,14 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  postprocess() {
+  postprocess(paragraphWidth: number, textAlign: 'left' | 'right' | 'center') {
     this.trimEnd();
     this.reorder();
+    if (textAlign === 'right') {
+      this.inlineStart = paragraphWidth - this.width;
+    } else if (textAlign === 'center') {
+      this.inlineStart = (paragraphWidth - this.width) / 2;
+    }
   }
 }
 
@@ -1298,7 +1305,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
           lastBreakMark.split(mark);
           candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
         }
-        lastLine.postprocess();
+        lastLine.postprocess(paragraphWidth, ifc.style.textAlign);
       }
 
       line.addLogical(candidates, width, mark.position);
@@ -1325,7 +1332,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     if (mark.inlinePost) parents.pop();
   }
 
-  line.postprocess();
+  line.postprocess(paragraphWidth, ifc.style.textAlign);
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);

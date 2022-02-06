@@ -78,7 +78,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, level:
 
   for (const linebox of ifc.lineboxes) {
     const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
-    let left = blockContainer.contentArea.x;
+    let left = blockContainer.contentArea.x + linebox.inlineStart;
 
     if (direction === 'rtl') left += linebox.width;
 

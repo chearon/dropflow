@@ -140,6 +140,7 @@ declaration
   / box_sizing_dec
   / background_color_dec
   / background_clip_dec
+  / text_align_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -711,6 +712,11 @@ background_color_dec
 background_clip_dec
   = 'background-clip'i S* ':' S* backgroundClip:('border-box' / 'content-box' / 'padding-box' / default) {
     return {backgroundClip};
+  }
+
+text_align_dec
+  = 'text-align'i S* ':' S* textAlign:('start' / 'end' / 'left' / 'right' / 'center' / default) {
+    return {textAlign};
   }
 
 width_dec

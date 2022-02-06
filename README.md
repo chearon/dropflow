@@ -31,6 +31,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | -- | -- | -- | -- |
 | `direction` | `ltr`, `rtl` | ✅ Works | |
 | `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for blocks but not inlines yet |
+| `text-align` | `start`, `end`, `left`, `right`, `center` | ✅ Works | Implemented for blocks but not inlines yet |
 
 ## Boxes and positioning
 

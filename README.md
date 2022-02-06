@@ -27,10 +27,10 @@ These rules are either working or will be working soon. Shorthand properties are
 
 ## Block formatting
 
-| Property | Values | Status |
-| -- | -- | -- |
-| `direction` | `ltr`, `rtl` | ✅ Works |
-| `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | ✅ Works |
+| Property | Values | Status | Notes |
+| -- | -- | -- | -- |
+| `direction` | `ltr`, `rtl` | ✅ Works | |
+| `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for blocks but not inlines yet |
 
 ## Boxes and positioning
 

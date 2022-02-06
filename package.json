@@ -26,6 +26,7 @@
   "author": "Caleb Hearon <caleb@chearon.net>",
   "license": "MIT",
   "dependencies": {
+    "entities": "^3.0.1",
     "fontconfig": "^0.2.2",
     "grapheme-breaker": "^0.3.2",
     "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",

@@ -59,7 +59,9 @@ describe('CSS Style', function () {
     const computed = createComputedStyle(initialStyle, {
       width: 100,
       borderLeftWidth: 10,
+      borderLeftStyle: 'solid',
       borderRightWidth: 10,
+      borderRightStyle: 'solid',
       paddingRight: 10,
       paddingLeft: 10,
       boxSizing: 'border-box'

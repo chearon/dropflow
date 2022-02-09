@@ -374,7 +374,7 @@ describe('Flow', function () {
       this.layout(`
         <div style="width: 100px;">
           <div style="margin-left: 20%;"></div>
-          <div style="margin-top: 25%; border-bottom-width: 25px;"></div>
+          <div style="margin-top: 25%; border-bottom-width: 25px; border-bottom-style: solid;"></div>
           <div style="margin: 50%;"></div>
         </div>
       `);

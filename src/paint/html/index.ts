@@ -48,7 +48,8 @@ function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: H
     font: `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`,
     zIndex: String(level),
     whiteSpace: 'pre',
-    direction: item.attrs.level % 2 ? 'rtl' : 'ltr'
+    direction: item.attrs.level % 2 ? 'rtl' : 'ltr',
+    unicodeBidi: 'bidi-override'
   }, {}, text);
 }
 

@@ -415,6 +415,15 @@ describe('Shaping', function () {
       expect(inline.shaped[0].glyphs).to.have.lengthOf(1);
       expect(inline.shaped[0].glyphs[0].g).to.equal(0);
     });
+
+    it('reshapes the correct segments', async function () {
+      await this.layout(`
+        <span style="font-family: Arimo, Cairo;">هل تتحدث لغة أخرى بجانب العربية؟</span>
+      `);
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get().children;
+      expect(inline.shaped[1].text.length).to.equal(2);
+    });
   });
 });
 

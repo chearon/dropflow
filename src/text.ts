@@ -492,10 +492,13 @@ function langForScript(script: string) {
 
 function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
   let i = dir === 'ltr' ? 0 : shaped.length - 1;
-  let ii = i;
+  let coveredIndexStart = i;
+  let coveredIndexEnd = i;
 
   function next() {
     const done = dir === 'ltr' ? i >= shaped.length : i < 0;
+
+    coveredIndexEnd = i;
 
     if (done) return {done};
 
@@ -528,13 +531,13 @@ function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
   }
 
   function pull() {
-    const iii = ii;
-    ii = i;
-    if (dir === 'ltr') {
-      return [iii, i];
-    } else {
-      return [i + 1, iii + 1];
-    }
+    const ret = dir === 'ltr'
+      ? [coveredIndexStart, coveredIndexEnd]
+      : [coveredIndexEnd + 1, coveredIndexStart + 1];
+
+    coveredIndexStart = coveredIndexEnd;
+
+    return ret;
   }
 
   return {pull, next};
@@ -765,42 +768,37 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
         log += '    Shaper returned: ' + logGlyphs(shapedPart) + '\n';
 
         // Grapheme cluster iterator
-        let lastClusterIndex = 0;
-        let clusterIndex = 0;
+        let ucClusterStart = 0;
+        let ucClusterEnd = 0;
         // HB cluster iterator
         const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level % 2 ? 'rtl' : 'ltr');
         let hbIt = hbGlyphIterator.next();
+        let hbClusterEnd = 0;
         let clusterNeedsReshape = false;
 
         do {
-          const mark = Math.min(
-            clusterIndex,
-            hbIt.done ? Infinity : shapedPart[hbIt.value.start].cl
-          );
+          const mark = Math.min(ucClusterEnd, hbClusterEnd);
 
-          if (clusterIndex < text.length && mark === clusterIndex) {
-            lastClusterIndex = clusterIndex;
-            clusterIndex = GraphemeBreaker.nextBreak(text, clusterIndex);
-            clusterNeedsReshape = false; // TODO this seems wrong if many clusters in hb cluster
+          if (ucClusterEnd < text.length && mark === ucClusterEnd) {
+            ucClusterStart = ucClusterEnd;
+            ucClusterEnd = GraphemeBreaker.nextBreak(text, ucClusterEnd);
           }
 
-          if (!hbIt.done && mark === shapedPart[hbIt.value.start].cl) {
+          if (hbClusterEnd < text.length && mark === hbClusterEnd) {
+            clusterNeedsReshape = hbIt.done ? /* impossible */ false : hbIt.value.needsReshape;
             hbIt = hbGlyphIterator.next();
-            if (!hbIt.done && hbIt.value.needsReshape) clusterNeedsReshape = true;
+            hbClusterEnd = hbIt.done ? text.length : shapedPart[hbIt.value.start].cl;
           }
 
-          const nextMark = Math.min(
-            clusterIndex,
-            hbIt.done ? Infinity : shapedPart[hbIt.value.start].cl
-          );
+          const nextMark = Math.min(ucClusterEnd, hbClusterEnd);
 
-          if (nextMark === clusterIndex) {
+          if (nextMark === ucClusterEnd) {
             const [glyphStart, glyphEnd] = hbGlyphIterator.pull();
             if (!didPushPart || clusterNeedsReshape !== parts[parts.length - 1].reshape) {
               parts.push({
                 offset,
-                cstart: lastClusterIndex,
-                cend: clusterIndex,
+                cstart: ucClusterStart,
+                cend: ucClusterEnd,
                 gstart: glyphStart,
                 gend: glyphEnd,
                 reshape: clusterNeedsReshape,
@@ -809,12 +807,12 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
               });
               didPushPart = true;
             } else {
-              parts[parts.length - 1].cend = clusterIndex;
+              parts[parts.length - 1].cend = ucClusterEnd;
               parts[parts.length - 1].gstart = Math.min(parts[parts.length - 1].gstart, glyphStart);
               parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
             }
           }
-        } while (clusterIndex < text.length || !hbIt.done);
+        } while (ucClusterEnd < text.length || hbClusterEnd < text.length);
       }
 
       for (const part of parts) {

@@ -8,6 +8,7 @@ import {FontConfig, Cascade} from 'fontconfig';
 import {Itemizer} from 'itemizer';
 import GraphemeBreaker = require('grapheme-breaker');
 import LineBreak = require('linebreak');
+import type {FontConfigCssMatch} from 'fontconfig';
 
 let debug = true;
 
@@ -636,6 +637,7 @@ class ShapedShim implements IfcRenderItem {
 
 export class ShapedItem implements IfcRenderItem {
   face: HbFace;
+  match: FontConfigCssMatch;
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
@@ -643,8 +645,9 @@ export class ShapedItem implements IfcRenderItem {
   needsReshape: boolean;
   inlines: Inline[];
 
-  constructor(face: HbFace, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
+  constructor(face: HbFace, match: FontConfigCssMatch, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
     this.face = face;
+    this.match = match;
     this.glyphs = glyphs;
     this.offset = offset;
     this.text = text;
@@ -658,7 +661,7 @@ export class ShapedItem implements IfcRenderItem {
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
-    const right = new ShapedItem(this.face, rightGlyphs, rightOffset, rightText, this.attrs);
+    const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, this.attrs);
     const needsReshape = Boolean(rightGlyphs[0].flags & 1);
 
     this.needsReshape = needsReshape;
@@ -750,7 +753,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
     log += `  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`;
 
     cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
-      const match = cascade.matches[i];
+      const match = cascade.matches[i].toCssMatch();
       const isLastMatch = i === cascade.matches.length - 1;
       const face = await getFace(hb, match.file, match.index);
       // TODO set size and such for hinting?
@@ -826,7 +829,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
         } else {
           const glyphs = part.glyphs.slice(gstart, gend);
           for (const g of glyphs) g.cl -= cstart;
-          paragraph.push(new ShapedItem(face, glyphs, offset, text, Object.assign({}, attrs)));
+          paragraph.push(new ShapedItem(face, match, glyphs, offset, text, {...attrs}));
           if (isLastMatch) {
             log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
             break cascade;

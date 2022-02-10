@@ -632,9 +632,9 @@ export class IfcInline extends Inline {
 
   async preprocessIfc(ctx: PreprocessContext) {
     const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
-    const strutFontMatch = strutCascade.matches[0];
+    const strutFontMatch = strutCascade.matches[0].toCssMatch();
     const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
-    this.strut = new ShapedItem(strutFace, [], 0, '', {
+    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, '', {
       style: this.style,
       isEmoji: false,
       level: 0,

@@ -27,7 +27,7 @@
   "license": "MIT",
   "dependencies": {
     "entities": "^3.0.1",
-    "fontconfig": "^0.2.2",
+    "fontconfig": "^0.3.1",
     "grapheme-breaker": "^0.3.2",
     "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",
     "itemizer": "^1.0.0",

@@ -570,10 +570,10 @@ flat@^4.1.0:
   dependencies:
     is-buffer "~2.0.3"
 
-fontconfig@^0.2.2:
-  version "0.2.2"
-  resolved "https://registry.yarnpkg.com/fontconfig/-/fontconfig-0.2.2.tgz#1e971aeaf58dd7ce0944b585e07e360b4d58b4a6"
-  integrity sha512-u4D0s2ZFTY6LF1K1U5weSFy72vzmoK1e/ni9itBZfFDJ5SJsM/2yMQCL1K0LOqSOPiEiGWnbJj5Z0hPCod6vMw==
+fontconfig@^0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/fontconfig/-/fontconfig-0.3.1.tgz#3c34d44c1fb5860eef3e0150aef4d2351cb54010"
+  integrity sha512-BS3KlnuEF9u6KBJUeFJXOVPHkw/970z4+EpetJmlG3bS8wmJV//OtDljlYrqFpfEOQ7ElGD8w+4U4Un+Dg/1oA==
   dependencies:
     fontkit "^1.8.0"
 

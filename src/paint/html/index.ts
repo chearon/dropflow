@@ -23,7 +23,8 @@ function drawDiv(style: StringMap, attrs: StringMap, text: string = '') {
   return `<div style="${styleString};" ${attrString}>${text}</div>`;
 }
 
-function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: Harfbuzz) {
+function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: Harfbuzz) {
+  const match = item.match;
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
   const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
@@ -45,8 +46,8 @@ function drawTextAt(item: ShapedItem, x: number, y: number, level: number, hb: H
     left: '0',
     top: '0',
     transform: `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`,
-    font: `${style.fontStyle} ${style.fontWeight} ${style.fontSize}px/0 ${style.fontFamily.join(',')}`,
-    zIndex: String(level),
+    font: `${match.slant} ${match.weight} ${match.width} ${style.fontSize}px/0 ${match.family}`,
+    zIndex: String(depth),
     whiteSpace: 'pre',
     direction: item.attrs.level % 2 ? 'rtl' : 'ltr',
     unicodeBidi: 'bidi-override'

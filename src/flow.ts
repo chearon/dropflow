@@ -513,11 +513,19 @@ export function getAscenderDescender(style: Style, font: HbFont, upem: number) {
 export class Inline extends Box {
   public children: InlineLevel[];
   public nshaped: number;
+  public start: number;
+  public end: number;
 
   constructor(style: Style, children: InlineLevel[], isAnonymous: boolean) {
     super(style, children, isAnonymous);
     this.children = children;
     this.nshaped = 0;
+
+    // TODO: these get set in ifc.prepare() because it needs to happen after
+    // whitespace collapsing. Instead I should do whitespace collapsing on
+    // shaped items, that way these can be set at parse time and not be affected
+    this.start = 0;
+    this.end = 0;
   }
 
   get leftMarginBorderPadding() {
@@ -568,21 +576,39 @@ export class IfcInline extends Inline {
     return true;
   }
 
-  removeCollapsedRuns() {
-    const stack: Inline[] = [this];
+  // TODO this would be unnecessary (both removing collapsed runs but also
+  // setting start and end) if I did whitespace collapsing on shaped items
+  postprepare() {
+    const parents: Inline[] = [];
+    const END_PARENT = Symbol('end parent');
+    const stack: (Inline | Run | typeof END_PARENT)[] = [this];
+    let cursor = 0;
 
     while (stack.length) {
-      const inline = stack.shift()!;
+      const item = stack.shift()!;
 
-      for (let i = 0; i < inline.children.length; ++i) {
-        const child = inline.children[i];
-        if (child.isRun()) {
-          if (child.end < child.start) {
-            inline.children.splice(i, 1);
+      if (item === END_PARENT) {
+        parents.pop()!.end = cursor;
+      } else if (item.isRun()) {
+        cursor = item.end + 1;
+      } else {
+        parents.push(item);
+
+        item.start = cursor;
+
+        for (let i = 0; i < item.children.length; ++i) {
+          const child = item.children[i];
+          if (child.isRun() && child.end < child.start) {
+            item.children.splice(i, 1);
             i -= 1;
           }
-        } else if (child.isInline() && !child.isIfcInline()) {
-          stack.unshift(child);
+        }
+
+        stack.unshift(END_PARENT);
+
+        for (let i = item.children.length - 1; i >= 0; --i) {
+          const child = item.children[i];
+          if (!child.isInlineLevelBfcBlockContainer()) stack.unshift(child);
         }
       }
     }
@@ -623,7 +649,7 @@ export class IfcInline extends Inline {
     const collapser = new Collapser(this.allText, this.runs);
     collapser.collapse();
     this.allText = collapser.buf;
-    this.removeCollapsedRuns();
+    this.postprepare();
 
     // TODO step 2
     // TODO step 3

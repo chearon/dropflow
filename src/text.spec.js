@@ -610,6 +610,24 @@ describe('Line breaking', function () {
     expect(ifc.children[1].nshaped).to.equal(1);
   });
 
+  it('updates item inlines/count when wrapping', async function () {
+    await this.layout(`
+      <div style="width: 100px; font: Arimo;">
+        <span><span>One span </span><span>Two spans</span></span>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get(0).children;
+    expect(ifc.shaped).to.have.lengthOf(2);
+    expect(ifc.shaped[0].inlines).to.have.lengthOf(2);
+    expect(ifc.shaped[0].inlines[0].end).to.equal(19);
+    expect(ifc.shaped[0].inlines[1].end).to.equal(10);
+    expect(ifc.shaped[1].inlines).to.have.lengthOf(2);
+    expect(ifc.shaped[1].inlines[0].end).to.equal(19);
+    expect(ifc.shaped[1].inlines[1].end).to.equal(19);
+  });
+
   it('measures whitespace before a break if the break has padding on it', async function () {
     // "Word_fits<5>" does fit on a line, but "Word_fits_<5>" does not
     //

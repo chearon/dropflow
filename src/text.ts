@@ -1327,7 +1327,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     // Handle a span that starts inside a shaped item
     if (mark.inlinePre && item && mark.position < item.end()) {
       item.inlines.push(mark.inlinePre);
-      for (const p of parents) p.nshaped += 1;
+      mark.inlinePre.nshaped += 1;
     }
 
     if (mark.inlinePost) parents.pop();

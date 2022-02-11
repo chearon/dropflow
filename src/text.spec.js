@@ -600,6 +600,16 @@ describe('Line breaking', function () {
     expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(0);
   });
 
+  it('assigns the right number of shaped items with non-shaping-boundary spans', async function () {
+    await this.layout(`
+      <span>One span<span>Two spans</span></span>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get().children;
+    expect(ifc.children[1].nshaped).to.equal(1);
+  });
+
   it('measures whitespace before a break if the break has padding on it', async function () {
     // "Word_fits<5>" does fit on a line, but "Word_fits_<5>" does not
     //

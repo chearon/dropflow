@@ -234,11 +234,11 @@ async function setupLayoutTests() {
 
   await Promise.all([
     cfg.addFont('assets/Arimo/Arimo-Regular.ttf'),
-    cfg.addFont('assets/Noto/NotoSansCJKsc-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansCJKjp-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansCJKtc-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansCJKkr-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansHebrew-Medium.ttf'),
+    cfg.addFont('assets/Noto/NotoSansSC-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansJP-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansTC-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansKR-Regular.otf'),
+    cfg.addFont('assets/Noto/NotoSansHebrew-Regular.ttf'),
     cfg.addFont('assets/Noto/NotoSansCherokee-Regular.ttf'),
     cfg.addFont('assets/Ramabhadra/Ramabhadra-Regular.ttf'),
     cfg.addFont('assets/Cairo/Cairo-Regular.ttf'),

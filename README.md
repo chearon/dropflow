@@ -1,6 +1,6 @@
 # overflow
 
-Overflow is CSS layout engine written in TypeScript. It has a high quality text layout engine capable of displaying many of the beautiful languages of the world. It tries to be fast, but it's more concerned with exploring the reaches of the CSS specifications (particularly the earlier ones).
+Overflow is CSS layout engine written in TypeScript. It has high quality text layout and is capable of displaying many of the beautiful languages of the world. It tries to be fast, but it's more concerned with exploring the reaches of the CSS standards.
 
 # Usage
 
@@ -31,7 +31,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | -- | -- | -- | -- |
 | `direction` | `ltr`, `rtl` | ✅ Works | |
 | `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for blocks but not inlines yet |
-| `text-align` | `start`, `end`, `left`, `right`, `center` | ✅ Works | Implemented for blocks but not inlines yet |
+| `text-align` | `start`, `end`, `left`, `right`, `center` | ✅ Works |  |
 
 ## Boxes and positioning
 

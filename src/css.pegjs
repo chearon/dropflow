@@ -239,7 +239,7 @@ color
       a: a ? parseInt(a + a, 16) / 255 : 1
     }
   }
-  / ('maroon' / 'red' / 'orange' / 'yellow' / 'olive' / 'purple' / 'fuchsia' / 'white' / 'lime' / 'green' / 'navy' / 'blue' / 'aqua' / 'teal' / 'black' / 'silver' / 'gray')
+  / ('maroon' / 'red' / 'orange' / 'yellow' / 'olive' / 'purple' / 'fuchsia' / 'white' / 'lime' / 'green' / 'navy' / 'blue' / 'aqua' / 'teal' / 'black' / 'silver' / 'gray' / 'transparent')
   {
     return colorMap.get(text())
   }

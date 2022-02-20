@@ -1076,10 +1076,12 @@ export class Linebox extends LineItemLinkedList {
   postprocess(paragraphWidth: number, textAlign: 'left' | 'right' | 'center') {
     this.trimEnd();
     this.reorder();
-    if (textAlign === 'right') {
-      this.inlineStart = paragraphWidth - this.width;
-    } else if (textAlign === 'center') {
-      this.inlineStart = (paragraphWidth - this.width) / 2;
+    if (this.width < paragraphWidth) {
+      if (textAlign === 'right') {
+        this.inlineStart = paragraphWidth - this.width;
+      } else if (textAlign === 'center') {
+        this.inlineStart = (paragraphWidth - this.width) / 2;
+      }
     }
   }
 }

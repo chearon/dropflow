@@ -21,6 +21,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | `font-style` | `normal`, `italic`, `oblique` | ✅ Works |
 | `font-variant` | | 🚧 Planned |
 | `font-weight` | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅ Works |
+| `line-height` | `normal`, `px`, `em`, `%`, `number` | ✅ Works |
 | `tab-size` | | 🚧 Planned |
 | `vertical-align` | | 🚧 Planned |
 | `white-space` | `normal`, `pre-wrap`, `pre-line` | ✅ Works |

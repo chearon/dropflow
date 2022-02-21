@@ -14,42 +14,43 @@ These rules are either working or will be working soon. Shorthand properties are
 
 | Property | Values | Status |
 | -- | -- | -- |
-| `font-size` | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅ Works |
-| `font-style` | `normal`, `italic`, `oblique` | ✅ Works |
-| `font-weight` | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅ Works |
-| `font-variant` | | 🚧 Planned |
-| `font-stretch` | `condensed` etc | ✅ Works |
-| `font-family` |  | ✅ Works |
 | `color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works |
+| `font-family` |  | ✅ Works |
+| `font-size` | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅ Works |
+| `font-stretch` | `condensed` etc | ✅ Works |
+| `font-style` | `normal`, `italic`, `oblique` | ✅ Works |
+| `font-variant` | | 🚧 Planned |
+| `font-weight` | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅ Works |
+| `tab-size` | | 🚧 Planned |
+| `vertical-align` | | 🚧 Planned |
 | `white-space` | `normal`, `pre-wrap`, `pre-line` | ✅ Works |
 | `white-space` | `nowrap`, `pre` | ✅ Works |
-| `tab-size` | | 🚧 Planned |
 
 ## Block formatting
 
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
 | `direction` | `ltr`, `rtl` | ✅ Works | |
-| `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for blocks but not inlines yet |
 | `text-align` | `start`, `end`, `left`, `right`, `center` | ✅ Works |  |
+| `writing-mode` | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for BFCs but not IFCs yet |
 
 ## Boxes and positioning
 
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
+| `background-clip` | `border-box`, `content-box`, `padding-box` | ✅ Works | |
+| `background-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
+| `border-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
+| `border-style` | | 🚧 Planned | |
+| `border-width` | `em`, `px`, `cm` etc | ✅ Works | |
+| `box-sizing` | `border-box`, `content-box` | ✅ Works | |
 | `display` | `block`, `inline`, `flow-root` | ✅ Works | |
 | `display` | `none` | 🚧 Planned |  | |
-| `position` | | 🚧 Planned | |
+| `height` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
 | `margin` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
 | `padding` | `em`, `px`, `%`, `cm` etc | ✅ Works | |
-| `border-width` | `em`, `px`, `cm` etc | ✅ Works | |
-| `border-style` | | 🚧 Planned | |
-| `border-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` || ✅ Works | |
-| `background-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
-| `background-clip` | `border-box`, `content-box`, `padding-box` | ✅ Works | |
+| `position` | | 🚧 Planned | |
 | `width` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
-| `height` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
-| `box-sizing` | `border-box`, `content-box` | ✅ Works | |
 
 # Third party components
 

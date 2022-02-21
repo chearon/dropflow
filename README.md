@@ -12,20 +12,20 @@ These rules are either working or will be working soon. Shorthand properties are
 
 ## Inline formatting
 
-| Property | Values | Status |
-| -- | -- | -- |
-| `color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works |
-| `font-family` |  | ✅ Works |
-| `font-size` | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅ Works |
-| `font-stretch` | `condensed` etc | ✅ Works |
-| `font-style` | `normal`, `italic`, `oblique` | ✅ Works |
-| `font-variant` | | 🚧 Planned |
-| `font-weight` | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅ Works |
-| `line-height` | `normal`, `px`, `em`, `%`, `number` | ✅ Works |
-| `tab-size` | | 🚧 Planned |
-| `vertical-align` | | 🚧 Planned |
-| `white-space` | `normal`, `pre-wrap`, `pre-line` | ✅ Works |
-| `white-space` | `nowrap`, `pre` | ✅ Works |
+| Property | Values | Status | Notes |
+| -- | -- | -- | -- |
+| `color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
+| `font-family` |  | ✅ Works | |
+| `font-size` | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅ Works | |
+| `font-stretch` | `condensed` etc | ✅ Works | |
+| `font-style` | `normal`, `italic`, `oblique` | ✅ Works | |
+| `font-variant` | | 🚧 Planned | |
+| `font-weight` | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅ Works | |
+| `line-height` | `normal`, `px`, `em`, `%`, `number` | ✅ Works | |
+| `tab-size` | | 🚧 Planned | |
+| `vertical-align` | | 🚧 Planned | |
+| `white-space` | `normal` | ✅ Works | |
+| `white-space` | `pre-wrap`, `pre-line`, `nowrap`, `pre` | 🏗 Partially done | Hard breaks and removing soft breaks not implemented |
 
 ## Block formatting
 

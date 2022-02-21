@@ -66,11 +66,16 @@ Promise.all([
   // \u0308n
   parseNodes(rootElement, `
     <div style="font-family: Arimo; font-size: 16px; line-height: 1.4;">
-      I <span style="font-family: Cousine;">like</span> to write
-      <span style="font-size: 3em;">layout code</span> because it is
-      equal parts <span style="font-weight: bold;">challenging</span>,
-      <span style="font-weight: bold;">fun</span>, and
-      <span style="font-weight: bold;">arcane</span>.
+      <span style="background-color: #eee;">
+        I <span style="font-family: Cousine;">like</span> to write
+        <span style="font-size: 3em;">layout code</span>
+      </span>
+      <span style="background-color: #ddd;">
+        because it is
+        equal parts <span style="font-weight: bold;">challenging</span>,
+        <span style="font-weight: bold;">fun</span>, and
+        <span style="font-weight: bold;">arcane</span>.
+      </span>
     </div>
   `);
   console.log(rootElement.repr(0, 'backgroundColor'));

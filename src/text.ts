@@ -687,6 +687,29 @@ export class ShapedItem implements IfcRenderItem {
     this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json();
   }
 
+  measure(ci: number = this.text.length) {
+    const g = this.glyphs;
+    let w = 0;
+
+    if (this.attrs.level % 2) {
+      if (ci < 0) {
+        ci += this.text.length;
+        for (let i = 0; i < g.length && g[i].cl >= ci; i++) w += g[i].ax;
+      } else {
+        for (let i = g.length - 1; i >= 0 && g[i].cl < ci; i--) w += g[i].ax;
+      }
+    } else {
+      if (ci < 0) {
+        ci += this.text.length;
+        for (let i = g.length - 1; i >= 0 && g[i].cl >= ci; i--) w += g[i].ax;
+      } else {
+        for (let i = 0; i < g.length && g[i].cl < ci; i++) w += g[i].ax;
+      }
+    }
+
+    return w / this.face.upem * this.attrs.style.fontSize;
+  }
+
   collapseWhitespace(at: 'start' | 'end') {
     // TODO: this is copied in Inline
     if (!this.attrs.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/)) {
@@ -737,21 +760,23 @@ export function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, a
   return buf;
 }
 
-export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
+export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
+  const inlineIterator = createInlineIterator(ifc);
   const {hb, itemizer, fcfg} = ctx;
   const paragraph:ShapedItem[] = [];
+  let inline = inlineIterator.next();
 
   let log = '';
-  log += `Preprocess ${inline.id}\n`;
-  log += '='.repeat(`Preprocess ${inline.id}`.length) + '\n';
-  log += `Full text: "${inline.allText}"\n`;
+  log += `Preprocess ${ifc.id}\n`;
+  log += '='.repeat(`Preprocess ${ifc.id}`.length) + '\n';
+  log += `Full text: "${ifc.allText}"\n`;
   let lastItemIndex = 0;
 
-  for (const {i: itemIndex, attrs} of shapingItemizer(inline, itemizer)) {
+  for (const {i: itemIndex, attrs} of shapingItemizer(ifc, itemizer)) {
     const start = lastItemIndex;
     const end = itemIndex;
     const cascade = getCascade(fcfg, attrs.style, attrs.script);
-    const text = inline.allText.slice(start, end);
+    const text = ifc.allText.slice(start, end);
     const shapeWork = [{offset: start, text}];
 
     log += `  Item ${lastItemIndex}..${itemIndex}:\n`;
@@ -762,11 +787,24 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
     cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
       const match = cascade.matches[i].toCssMatch();
       const isLastMatch = i === cascade.matches.length - 1;
+      const isFirstMatch = i === 0;
       const face = await getFace(hb, match.file, match.index);
       // TODO set size and such for hinting?
       const font = hb.createFont(face);
       // Allows to tack successive (re)shaping parts onto one larger item
       const parts:ShapingPart[] = [];
+
+      while (isFirstMatch && !inline.done) {
+        if (inline.value.state === 'pre') {
+          if (inline.value.item.start < itemIndex) {
+            inline.value.item.face = face;
+          } else {
+            break;
+          }
+        }
+
+        inline = inlineIterator.next();
+      }
 
       while (shapeWork.length) {
         const {text, offset} = shapeWork.pop()!;
@@ -853,7 +891,7 @@ export async function shapeIfc(inline: IfcInline, ctx: PreprocessContext) {
   }
 
   paragraph.sort((a, b) => a.offset - b.offset);
-  if (ctx.logging.text.has(inline.id)) {
+  if (ctx.logging.text.has(ifc.id)) {
     console.log(log.slice(0, -1));
     console.log();
   }
@@ -1077,7 +1115,7 @@ export class Linebox extends LineItemLinkedList {
     this.trimEnd();
     this.reorder();
     if (this.width < paragraphWidth) {
-      if (textAlign === 'right') {
+      if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
         this.inlineStart = paragraphWidth - this.width;
       } else if (textAlign === 'center') {
         this.inlineStart = (paragraphWidth - this.width) / 2;

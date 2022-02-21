@@ -2,7 +2,7 @@ import {HTMLElement, TextNode} from './node';
 import {createComputedStyle, Style, LogicalStyle} from './cascade';
 import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes} from './text';
 import {Box, Area, WritingMode} from './box';
-import {Harfbuzz, HbFont} from 'harfbuzzjs';
+import {Harfbuzz, HbFont, HbFace} from 'harfbuzzjs';
 import {FontConfig} from 'fontconfig';
 import {Itemizer} from 'itemizer';
 
@@ -515,6 +515,7 @@ export class Inline extends Box {
   public nshaped: number;
   public start: number;
   public end: number;
+  public face: HbFace | null;
 
   constructor(style: Style, children: InlineLevel[], isAnonymous: boolean) {
     super(style, children, isAnonymous);
@@ -526,6 +527,8 @@ export class Inline extends Box {
     // shaped items, that way these can be set at parse time and not be affected
     this.start = 0;
     this.end = 0;
+
+    this.face = null;
   }
 
   get leftMarginBorderPadding() {

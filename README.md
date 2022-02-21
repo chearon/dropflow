@@ -44,8 +44,8 @@ These rules are either working or will be working soon. Shorthand properties are
 | `padding` | `em`, `px`, `%`, `cm` etc | ✅ Works | |
 | `border-width` | `em`, `px`, `cm` etc | ✅ Works | |
 | `border-style` | | 🚧 Planned | |
-| `border-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | 🏗 Partially done | Implemented for blocks but not inlines yet |
-| `background-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | 🏗 Partially done | Implemented for blocks but not inlines yet |
+| `border-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` || ✅ Works | |
+| `background-color` | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
 | `background-clip` | `border-box`, `content-box`, `padding-box` | ✅ Works | |
 | `width` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
 | `height` | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |

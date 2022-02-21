@@ -968,15 +968,11 @@ class LineItemLinkedList {
   }
 
   reverse() {
-    for (let n = this.head; n; n = n.next) {
-      const tmp = n.previous;
-      n.previous = n.next;
-      n.next = tmp;
+    for (let n = this.head; n; n = n.previous) {
+      [n.next, n.previous] = [n.previous, n.next];
     }
 
-    const tmp = this.head;
-    this.head = this.tail;
-    this.tail = tmp;
+    [this.head, this.tail] = [this.tail, this.head];
   }
 }
 

@@ -14,54 +14,54 @@ These rules are either working or will be working soon. Shorthand properties are
 
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
-| <code>color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
-| <code>font-&zwj;family</code> |  | ✅ Works | |
-| <code>font-&zwj;size</code> | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅ Works | |
-| <code>font-&zwj;stretch</code> | `condensed` etc | ✅ Works | |
-| <code>font-&zwj;style</code> | `normal`, `italic`, `oblique` | ✅ Works | |
-| <code>font-&zwj;variant</code> | | 🚧 Planned | |
-| <code>font-&zwj;weight</code> | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅ Works | |
-| <code>line-&zwj;height</code> | `normal`, `px`, `em`, `%`, `number` | ✅ Works | |
-| <code>tab-&zwj;size</code> | | 🚧 Planned | |
-| <code>text-&zwj;decoration</code> | | 🚧 Planned | |
-| <code>unicode-&zwj;bidi</code> | | 🚧 Planned | |
-| <code>vertical-&zwj;align</code> | | 🚧 Planned | |
-| <code>white-&zwj;space</code> | `normal` | ✅ Works | |
+| <code>color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works | |
+| <code>font-&zwj;family</code> |  | ✅&zwj;&nbsp;Works | |
+| <code>font-&zwj;size</code> | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅&zwj;&nbsp;Works | |
+| <code>font-&zwj;stretch</code> | `condensed` etc | ✅&zwj;&nbsp;Works | |
+| <code>font-&zwj;style</code> | `normal`, `italic`, `oblique` | ✅&zwj;&nbsp;Works | |
+| <code>font-&zwj;variant</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>font-&zwj;weight</code> | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅&zwj;&nbsp;Works | |
+| <code>line-&zwj;height</code> | `normal`, `px`, `em`, `%`, `number` | ✅&zwj;&nbsp;Works | |
+| <code>tab-&zwj;size</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>text-&zwj;decoration</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>unicode-&zwj;bidi</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>vertical-&zwj;align</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>white-&zwj;space</code> | `normal` | ✅&zwj;&nbsp;Works | |
 | <code>white-&zwj;space</code> | `pre-wrap`, `pre-line`, `nowrap`, `pre` | 🏗 Partially done | Hard breaks and removing soft breaks not implemented |
 
 ## Block formatting
 
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
-| <code>clear</code> | | 🚧 Planned | |
-| <code>direction</code> | `ltr`, `rtl` | ✅ Works | |
-| <code>float</code> | | 🚧 Planned | |
-| <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅ Works |  |
+| <code>clear</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>direction</code> | `ltr`, `rtl` | ✅&zwj;&nbsp;Works | |
+| <code>float</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |  |
 | <code>writing-&zwj;mode</code> | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for BFCs but not IFCs yet |
 
 ## Boxes and positioning
 
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
-| <code>background-&zwj;clip</code> | `border-box`, `content-box`, `padding-box` | ✅ Works | |
-| <code>background-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
-| <code>border-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅ Works | |
-| <code>border-&zwj;style</code> | `solid`, `none` | ✅ Works | |
-| <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅ Works | |
-| <code>bottom</code> | | 🚧 Planned | |
-| <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅ Works | |
-| <code>display</code> | `block`, `inline`, `flow-root` | ✅ Works | |
-| <code>display</code> | `none`, `inline-block`, `table` | 🚧 Planned |  | |
-| <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
-| <code>left</code> | | 🚧 Planned | |
-| <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
-| <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅ Works | |
-| <code>position</code> | | 🚧 Planned | |
-| <code>right</code> | | 🚧 Planned | |
-| <code>top</code> | | 🚧 Planned | |
-| <code>overflow</code> | | 🚧 Planned | |
-| <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅ Works | |
-| <code>z-index</code> | | 🚧 Planned | |
+| <code>background-&zwj;clip</code> | `border-box`, `content-box`, `padding-box` | ✅&zwj;&nbsp;Works | |
+| <code>background-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works | |
+| <code>border-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works | |
+| <code>border-&zwj;style</code> | `solid`, `none` | ✅&zwj;&nbsp;Works | |
+| <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works | |
+| <code>bottom</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works | |
+| <code>display</code> | `block`, `inline`, `flow-root` | ✅&zwj;&nbsp;Works | |
+| <code>display</code> | `none`, `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  | |
+| <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
+| <code>left</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
+| <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works | |
+| <code>position</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>right</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>top</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>overflow</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
+| <code>z-index</code> | | 🚧&zwj;&nbsp;Planned | |
 
 # Third party components
 

@@ -663,7 +663,7 @@ export class IfcInline extends Inline {
     const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
     const strutFontMatch = strutCascade.matches[0].toCssMatch();
     const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
-    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, '', {
+    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, '', [], {
       style: this.style,
       isEmoji: false,
       level: 0,
@@ -760,6 +760,7 @@ type InlineIteratorRun = {state: 'text', item: Run};
 
 type InlineIteratorBreak = {state: 'breakop'};
 
+// TODO emit inline-block
 export function createInlineIterator(inline: IfcInline) {
   const stack:(InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
   const buffered:(InlineIteratorInline | InlineIteratorRun)[] = [];
@@ -804,6 +805,30 @@ export function createInlineIterator(inline: IfcInline) {
       }
 
       return {value: buffered.shift()!, done: false};
+    }
+
+    return {done: true};
+  }
+
+  return {next};
+}
+
+// TODO emit inline-block
+export function createPreorderInlineIterator(inline: IfcInline) {
+  const stack:InlineLevel[] = inline.children.slice().reverse();
+
+  function next():{done: true} | {done: false, value: Inline | Run} {
+    while (stack.length) {
+      const item = stack.pop()!;
+
+      if (item.isInline()) {
+        for (let i = item.children.length - 1; i >= 0; --i) {
+          stack.push(item.children[i]);
+        }
+        return {done: false, value: item};
+      } else if (item.isRun()) {
+        return {done: false, value: item};
+      }
     }
 
     return {done: true};

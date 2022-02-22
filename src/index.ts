@@ -72,7 +72,8 @@ Promise.all([
       </span>
       <span style="background-color: #ddd;">
         because it is
-        equal parts <span style="font-weight: bold;">challenging</span>,
+        <span style="color: #999;">equal parts</span>
+        <span style="font-weight: bold;">challenging</span>,
         <span style="font-weight: bold;">fun</span>, and
         <span style="font-weight: bold;">arcane</span>.
       </span>

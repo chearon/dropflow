@@ -1,7 +1,7 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
-import {Style, initialStyle, createComputedStyle} from './cascade';
-import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext, createInlineIterator} from './flow';
+import {Style, initialStyle, createComputedStyle, Color} from './cascade';
+import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
@@ -613,6 +613,18 @@ function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') 
   return glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
 }
 
+function shiftColors(colors: [Color, number][], newOffset: number) {
+  const ret:[Color, number][] = [];
+  let i = colors.length;
+
+  do {
+    const [color, offset] = colors[--i];
+    ret.unshift([color, Math.max(0, offset - newOffset)]);
+  } while (i > 0 && colors[i][1] > newOffset);
+
+  return ret;
+}
+
 interface IfcRenderItem {
   end(): number;
   inlines: Inline[];
@@ -641,16 +653,18 @@ export class ShapedItem implements IfcRenderItem {
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
+  colors: [Color, number][];
   attrs: ShapingAttrs;
   needsReshape: boolean;
   inlines: Inline[];
 
-  constructor(face: HbFace, match: FontConfigCssMatch, glyphs: HbGlyphInfo[], offset: number, text: string, attrs: ShapingAttrs) {
+  constructor(face: HbFace, match: FontConfigCssMatch, glyphs: HbGlyphInfo[], offset: number, text: string, colors: [Color, number][], attrs: ShapingAttrs) {
     this.face = face;
     this.match = match;
     this.glyphs = glyphs;
     this.offset = offset;
     this.text = text;
+    this.colors = colors;
     this.attrs = attrs;
     this.needsReshape = false;
     this.inlines = [];
@@ -661,7 +675,8 @@ export class ShapedItem implements IfcRenderItem {
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
-    const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, this.attrs);
+    const rightColors = shiftColors(this.colors, rightOffset);
+    const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, rightColors, this.attrs);
     const needsReshape = Boolean(rightGlyphs[0].flags & 1);
     const inlines = this.inlines;
 
@@ -761,10 +776,12 @@ export function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, a
 }
 
 export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
-  const inlineIterator = createInlineIterator(ifc);
+  const inlineIterator = createPreorderInlineIterator(ifc);
   const {hb, itemizer, fcfg} = ctx;
   const paragraph:ShapedItem[] = [];
+  const colors:[Color, number][] = [[ifc.style.color, 0]];
   let inline = inlineIterator.next();
+  let inlineEnd = 0;
 
   let log = '';
   log += `Preprocess ${ifc.id}\n`;
@@ -787,20 +804,27 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
     cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
       const match = cascade.matches[i].toCssMatch();
       const isLastMatch = i === cascade.matches.length - 1;
-      const isFirstMatch = i === 0;
       const face = await getFace(hb, match.file, match.index);
       // TODO set size and such for hinting?
       const font = hb.createFont(face);
       // Allows to tack successive (re)shaping parts onto one larger item
       const parts:ShapingPart[] = [];
 
-      while (isFirstMatch && !inline.done) {
-        if (inline.value.state === 'pre') {
-          if (inline.value.item.start < itemIndex) {
-            inline.value.item.face = face;
+      // note this won't budge for matches i=1, 2, ...
+      while (!inline.done && inlineEnd < itemIndex) {
+        if (inline.value.isInline()) {
+          inline.value.face = face;
+        }
+
+        if (inline.value.isRun()) {
+          const [, lastOffset] = colors[colors.length - 1];
+          if (lastOffset !== inline.value.start) {
+            colors.push([inline.value.style.color, inline.value.start]);
           } else {
-            break;
+            colors[colors.length - 1][0] = inline.value.style.color;
           }
+
+          inlineEnd += inline.value.text.length;
         }
 
         inline = inlineIterator.next();
@@ -873,8 +897,10 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
           log += `    ==> Must reshape "${text}"\n`;
         } else {
           const glyphs = part.glyphs.slice(gstart, gend);
+          const theseColors = shiftColors(colors, offset);
+
           for (const g of glyphs) g.cl -= cstart;
-          paragraph.push(new ShapedItem(face, match, glyphs, offset, text, {...attrs}));
+          paragraph.push(new ShapedItem(face, match, glyphs, offset, text, theseColors, {...attrs}));
           if (isLastMatch) {
             log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
             break cascade;

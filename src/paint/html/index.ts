@@ -27,19 +27,37 @@ function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: H
   const match = item.match;
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
-  const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
-  let s = 0;
-  let e = item.glyphs.length - 1;
+  const {ascender, descender} = getAscenderDescender(style, hbFont, item.face.upem);
+  let spans = '';
+  let glyphStart = 0;
+  let glyphEnd = item.glyphs.length - 1;
 
-  while (s < item.glyphs.length && item.glyphs[s].ax === 0) s += 1;
-  while (e >= 0 && item.glyphs[e].ax === 0) e -= 1;
+  while (glyphStart < item.glyphs.length && item.glyphs[glyphStart].ax === 0) glyphStart += 1;
+  while (glyphEnd >= 0 && item.glyphs[glyphEnd].ax === 0) glyphEnd -= 1;
 
-  const glyphs = item.glyphs.slice(s, e + 1);
-  const mi = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
-  const mx = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
-  const text = encode(item.text.slice(mi, mx + 1));
+  const glyphs = item.glyphs.slice(glyphStart, glyphEnd + 1);
+  const textStart = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
+  const textEnd = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) + 1 : 1;
 
   hbFont.destroy();
+
+  // Split the colors into spans so that colored diacritics can work.
+  // Sadly this seems to only work in Firefox and only when the font doesn't do
+  // any normalizination, so I could probably stop trying to support it
+  // https://github.com/w3c/csswg-drafts/issues/699
+  for (let i = 0; i < item.colors.length; ++i) {
+    const [color, offset] = item.colors[i];
+    const colorStart = offset;
+    const colorEnd = i + 1 < item.colors.length ? item.colors[i + 1][1] : textEnd;
+
+    if (colorEnd > textStart && colorStart < textEnd) {
+      const start = Math.max(colorStart, textStart);
+      const end = Math.min(colorEnd, textEnd);
+      const text = encode(item.text.slice(start, end));
+
+      spans += `<span style="color: rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})">${text}</span>`;
+    }
+  }
 
   return drawDiv({
     position: 'absolute',
@@ -51,7 +69,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: H
     whiteSpace: 'pre',
     direction: item.attrs.level % 2 ? 'rtl' : 'ltr',
     unicodeBidi: 'bidi-override'
-  }, {}, text);
+  }, {}, spans);
 }
 
 function drawColoredBoxDiv(area: Area, color: Color, depth: number) {

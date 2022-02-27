@@ -119,7 +119,7 @@ export class Collapser {
     if (end < start) return 0;
 
     const rstart = bsearch(this.runs, start);
-    const rend = end <= this.runs[rstart].end ? rstart : bsearch(this.runs, end);
+    let rend = end <= this.runs[rstart].end ? rstart : bsearch(this.runs, end);
     let shrinkahead = 0;
 
     this.buf = this.buf.slice(0, start) + s + this.buf.slice(end + 1);
@@ -130,7 +130,10 @@ export class Collapser {
       run.shift(shrinkahead);
 
       if (k <= rend) shrinkahead += run.mod(start, end - shrinkahead, s);
-      if (run.end < run.start) this.runs.splice(k--, 1);
+      if (run.end < run.start) {
+        this.runs.splice(k--, 1);
+        rend--;
+      }
 
       s = '';
     }

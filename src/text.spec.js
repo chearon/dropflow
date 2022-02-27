@@ -224,6 +224,28 @@ describe('Text Module', function () {
         c.collapse();
         expect(c.buf).to.equal(' here I go killin   \n\t\n\t  again  ');
       });
+
+      it('doesnt break runs that are consecutive', function () {
+        const a = [];
+        let r;
+
+        // sorry for the garbled words, it is difficult to repro the bug this
+        // is for and took forever to find it so I ran out of time to narrow it
+        r = new Run('layout code', {whiteSpace: 'normal'}), r.setRange(0, 10), a.push(r);
+        r = new Run('\n', {whiteSpace: 'normal'}), r.setRange(11,11), a.push(r);
+        r = new Run('\n', {whiteSpace: 'normal'}), r.setRange(12,12), a.push(r);
+        r = new Run('\nbecause ', {whiteSpace: 'normal'}), r.setRange(13,21), a.push(r);
+        r = new Run('it really very ', {whiteSpace: 'normal'}), r.setRange(22,36), a.push(r);
+        r = new Run('is very', {whiteSpace: 'normal'}), r.setRange(37,43), a.push(r);
+        r = new Run('I love this!', {whiteSpace: 'normal'}), r.setRange(44,55), a.push(r);
+        r = new Run('\n', {whiteSpace: 'normal'}), r.setRange(56,56), a.push(r);
+
+        let buf = '';
+        for (const r of a) buf += r.text;
+        const c = new Collapser(buf, a);
+        c.collapse();
+        expect(c.buf).to.equal('layout code because it really very is veryI love this! ');
+      });
     });
   });
 });

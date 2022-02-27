@@ -754,4 +754,17 @@ describe('Line breaking', function () {
     expect(inline.lineboxes[1].ascender).to.be.approximately(29.9, 0.1);
     expect(inline.lineboxes[1].descender).to.be.approximately(18.1, 0.1);
   });
+
+  it('uses the correct inline side to create shaping boundaries', async function () {
+    await this.layout(`
+      <div style="width: 300px; direction: rtl; font: 16px Cairo;">
+        <span style="padding-left: 1em;">أنا </span>بخير شكرا و أنت؟
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get(0).children;
+    expect(ifc.shaped).to.have.lengthOf(2);
+    expect(ifc.shaped[0].end()).to.equal(5);
+  });
 });

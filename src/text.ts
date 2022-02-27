@@ -278,13 +278,14 @@ export class Collapser {
   }
 }
 
-function* styleItemizer(inline: IfcInline) {
+function* styleItemizer(ifc: IfcInline) {
   const END_CHILDREN = Symbol('end of children');
-  const stack:(InlineLevel | typeof END_CHILDREN)[] = inline.children.slice().reverse();
-  const parents:Inline[] = [inline];
-  let currentStyle = inline.style;
+  const stack:(InlineLevel | typeof END_CHILDREN)[] = ifc.children.slice().reverse();
+  const parents:Inline[] = [ifc];
+  const direction = ifc.style.direction;
+  let currentStyle = ifc.style;
   let ci = 0;
-  // Shaping boundaries can overlap when the happen because of padding. We can
+  // Shaping boundaries can overlap when they happen because of padding. We can
   // pretend 0 has been emitted since runs at 0 which appear to have different
   // style than `currentStyle` are just differing from the IFC's style, which
   // is the initial `currentStyle` so that yields always have a concrete style.
@@ -295,10 +296,11 @@ function* styleItemizer(inline: IfcInline) {
     const parent = parents[parents.length - 1];
 
     if (item === END_CHILDREN) {
-      // TODO: when I support `direction: rtl;`, possibly check the left side here
-      if (parent.rightMarginBorderPadding > 0 && ci !== lastYielded) {
-        yield {i: ci, style: currentStyle};
-        lastYielded = ci;
+      if (direction === 'ltr' ? parent.rightMarginBorderPadding > 0 : parent.leftMarginBorderPadding > 0) {
+        if (ci !== lastYielded) {
+          yield {i: ci, style: currentStyle};
+          lastYielded = ci;
+        }
       }
       parents.pop();
     } else if (item.isRun()) {
@@ -318,10 +320,11 @@ function* styleItemizer(inline: IfcInline) {
     } else if (item.isInline()) {
       parents.push(item);
 
-      // TODO: when I support `direction: rtl;`, possibly check the right side here
-      if (item.leftMarginBorderPadding > 0 && ci !== lastYielded) {
-        yield {i: ci, style: currentStyle};
-        lastYielded = ci;
+      if (direction === 'ltr' ? item.leftMarginBorderPadding > 0 : item.rightMarginBorderPadding > 0) {
+        if (ci !== lastYielded) {
+          yield {i: ci, style: currentStyle};
+          lastYielded = ci;
+        }
       }
 
       stack.push(END_CHILDREN);
@@ -382,7 +385,6 @@ function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
     if (!bidi.done && smallest === bidi.value.i) bidi = iBidi.next();
     if (!script.done && smallest === script.value.i) script = iScript.next();
     if (!style.done && smallest === style.value.i) style = iStyle.next();
-    //if (smallest === leadingWs) leadingWs = Infinity;
 
     yield {i: smallest, attrs: ctx};
   }

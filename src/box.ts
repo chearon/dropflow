@@ -2,6 +2,7 @@ import {id} from './util';
 import {Style} from './cascade';
 import {Run} from './text';
 import {
+  Break,
   Inline,
   IfcInline,
   BlockContainer,
@@ -272,6 +273,10 @@ export class Box {
   }
 
   isInline(): this is Inline {
+    return false;
+  }
+
+  isBreak(): this is Break {
     return false;
   }
 

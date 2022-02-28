@@ -335,6 +335,13 @@ function* styleItemizer(ifc: IfcInline) {
       for (let i = item.children.length - 1; i >= 0; --i) {
         stack.push(item.children[i]);
       }
+    } else if (item.isBreak()) {
+      if (ci !== lastYielded) {
+        yield {i: ci, style: currentStyle};
+        lastYielded = ci;
+      }
+    } else {
+      throw new Error('Inline block not supported yet');
     }
   }
 
@@ -1046,8 +1053,7 @@ export class Linebox extends LineItemLinkedList {
   }
 
   end() {
-    if (!this.tail) throw new Error('Linebox is empty');
-    return this.tail.value.end();
+    return this.endOffset;
   }
 
   trimStart() {
@@ -1154,6 +1160,7 @@ export class Linebox extends LineItemLinkedList {
 type IfcMark = {
   position: number,
   isBreak: boolean,
+  isBreakForced: boolean,
   isInk: boolean,
   isItemStart: boolean,
   isItemEnd: boolean,
@@ -1193,6 +1200,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
     const mark:IfcMark = {
       position: Math.min(inlineMark, itemMark, breakMark, inkMark),
       isBreak: false,
+      isBreakForced: false,
       isInk,
       isItemStart: false,
       isItemEnd: false,
@@ -1230,7 +1238,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
       inline = inlineIterator.next();
     }
 
-    // Consume pre[-text], post[-text], or pre-post[-text] before a break
+    // Consume pre[-text|-break], post[-text|-break], or pre-post[-text|-break] before a breakop
     if (!inline.done && inline.value.state !== 'breakop' && inlineMark === mark.position) {
       if (inline.value.state === 'pre' || inline.value.state === 'post') {
         if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
@@ -1238,13 +1246,19 @@ function createIfcMarkIterator(ifc: IfcInline) {
         inline = inlineIterator.next();
       }
 
+      // Consume post if we consumed pre above
       if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
         mark.inlinePost = inline.value.item;
         inline = inlineIterator.next();
       }
 
+      // Consume text or hard break
       if (!inline.done && inline.value.state === 'text') {
         inlineMark += inline.value.item.text.length;
+        inline = inlineIterator.next();
+      } else if (!inline.done && inline.value.state === 'break') {
+        mark.isBreak = true;
+        mark.isBreakForced = true;
         inline = inlineIterator.next();
       }
 
@@ -1390,6 +1404,11 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       ws = 0;
       width = 0;
       lastBreakMark = mark;
+
+      if (mark.isBreakForced) {
+        line.postprocess(paragraphWidth, ifc.style.textAlign);
+        lines.push(line = new Linebox(basedir, mark.position));
+      }
     }
 
     if (mark.isItemStart) {

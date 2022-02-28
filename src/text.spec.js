@@ -789,4 +789,21 @@ describe('Line breaking', function () {
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].end()).to.equal(5);
   });
+
+  it('adds new lines at <br>', async function () {
+    // Translation from Arabic:
+    // How are you?
+    // I'm fine thank you, and you?
+    await this.layout(`
+      <div style="width: 150px; direction: rtl; font: 16px Cairo;">
+        كيف حالك؟
+        <br>أنا بخير شكرا و أنت؟
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get(0).children;
+    expect(ifc.shaped).to.have.lengthOf(2);
+    expect(ifc.shaped[0].end()).to.equal(11);
+  });
 });

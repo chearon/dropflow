@@ -510,6 +510,22 @@ export function getAscenderDescender(style: Style, font: HbFont, upem: number) {
   return {ascender: halfLeading + ascenderPx, descender: halfLeading + descenderPx};
 }
 
+export class Break extends Box {
+  public className = 'break';
+
+  isBreak(): this is Break {
+    return true;
+  }
+
+  get sym() {
+    return '⏎';
+  }
+
+  get desc() {
+    return 'BR';
+  }
+}
+
 export class Inline extends Box {
   public children: InlineLevel[];
   public nshaped: number;
@@ -584,7 +600,7 @@ export class IfcInline extends Inline {
   postprepare() {
     const parents: Inline[] = [];
     const END_PARENT = Symbol('end parent');
-    const stack: (Inline | Run | typeof END_PARENT)[] = [this];
+    const stack: (InlineLevel | typeof END_PARENT)[] = [this];
     let cursor = 0;
 
     while (stack.length) {
@@ -592,6 +608,8 @@ export class IfcInline extends Inline {
 
       if (item === END_PARENT) {
         parents.pop()!.end = cursor;
+      } else if (item.isBreak() || item.isInlineLevelBfcBlockContainer()) {
+        // skip
       } else if (item.isRun()) {
         cursor = item.end + 1;
       } else {
@@ -610,8 +628,7 @@ export class IfcInline extends Inline {
         stack.unshift(END_PARENT);
 
         for (let i = item.children.length - 1; i >= 0; --i) {
-          const child = item.children[i];
-          if (!child.isInlineLevelBfcBlockContainer()) stack.unshift(child);
+          stack.unshift(item.children[i]);
         }
       }
     }
@@ -642,6 +659,8 @@ export class IfcInline extends Inline {
         this.runs.push(box);
       } else if (box.isInline()) {
         stack.unshift(...box.children);
+      } else if (box.isBreak()) {
+        // ok
       } else {
         // TODO: this is e.g. a block container. store it somewhere for future
         // layout here
@@ -750,26 +769,27 @@ export class IfcInline extends Inline {
   }
 }
 
-export type InlineLevel = Inline | InlineLevelBfcBlockContainer | Run;
+export type InlineLevel = Inline | InlineLevelBfcBlockContainer | Run | Break;
 
 type InlineNotRun = Inline | InlineLevelBfcBlockContainer;
 
-type InlineIteratorInline = {state: 'pre' | 'post', item: Inline};
 
-type InlineIteratorRun = {state: 'text', item: Run};
+type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
+  | {state: 'text', item: Run}
+  | {state: 'break'}
 
-type InlineIteratorBreak = {state: 'breakop'};
+type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakop'};
 
 // TODO emit inline-block
 export function createInlineIterator(inline: IfcInline) {
   const stack:(InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
-  const buffered:(InlineIteratorInline | InlineIteratorRun)[] = [];
+  const buffered:InlineIteratorBuffered[] = [];
   let minlevel = 0;
   let level = 0;
   let bk = 0;
   let flushedBreak = false;
 
-  function next():{done: true} | {done: false, value: InlineIteratorInline | InlineIteratorRun | InlineIteratorBreak} {
+  function next():{done: true} | {done: false, value: InlineIteratorValue} {
 
     if (!buffered.length) {
       flushedBreak = false;
@@ -788,10 +808,16 @@ export function createInlineIterator(inline: IfcInline) {
           buffered.push({state: 'pre', item});
           stack.push({post: item});
           for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
-        } else if (item.isRun()) {
+        } else if (item.isRun() || item.isBreak()) {
           minlevel = level;
-          buffered.push({state: 'text', item});
+          if (item.isRun()) {
+            buffered.push({state: 'text', item});
+          } else {
+            buffered.push({state: 'break'});
+          }
           break;
+        } else {
+          throw new Error('Inline block not supported yet');
         }
       }
     }
@@ -852,7 +878,9 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
       let child: InlineLevel | undefined, childEl = el.children[stack[level]];
 
       if (childEl instanceof HTMLElement) {
-        if (childEl.style.display.outer === 'block') {
+        if (childEl.tagName === 'br') {
+          child = new Break(new Style('', childEl.style), [], false);
+        } else if (childEl.style.display.outer === 'block') {
           bail = true;
         } else if (childEl.style.display.inner === 'flow-root') {
           child = generateBlockContainer(childEl) as InlineLevelBfcBlockContainer;
@@ -902,7 +930,7 @@ function generateInlineBox(el: HTMLElement) {
 }
 
 function isInlineLevel(box: Box): box is InlineLevel {
-  return box.isInline() || box.isInlineLevelBfcBlockContainer() || box.isRun();
+  return box.isInline() || box.isInlineLevelBfcBlockContainer() || box.isRun() || box.isBreak();
 }
 
 // Wraps consecutive inlines and runs in block-level block containers. The
@@ -948,7 +976,10 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
 
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
-      if (child.style.display.outer === 'block') {
+      if (child.tagName === 'br') {
+        boxes.push(new Break(new Style('', child.style), [], false));
+        hasInline = true;
+      } else if (child.style.display.outer === 'block') {
         boxes.push(generateBlockContainer(child, el));
         hasBlock = true;
       } else if (child.style.display.outer === 'inline') {

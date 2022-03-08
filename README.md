@@ -56,12 +56,16 @@ These rules are either working or will be working soon. Shorthand properties are
 | <code>left</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
 | <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works | |
-| <code>position</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>position</code> | `absolute` | 🚧&zwj;&nbsp;Planned | |
+| <code>position</code> | `fixed` | 👎&zwj;&nbsp;No&nbsp;interest<sup>1</sup> | |
+| <code>position</code> | `relative` | 🚧&zwj;&nbsp;Planned | |
 | <code>right</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>top</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>overflow</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
 | <code>z-index</code> | | 🚧&zwj;&nbsp;Planned | |
+
+<sup>1</sup>Any document that uses `position: fixed` could be reorganized and updated to use `position: absolute` and look identical. For that reason, I don't find fixed positioning very interesting. In web development, it can also get you into difficult traps if an ancestor, which may be a different component, has a `transform` other than `none`. However it is useful on simpler webpages or codebases without strong organization.
 
 # Third party components
 

@@ -85,7 +85,6 @@ Promise.all([
   // -------------- Step 1 --------------
   //console.log('Box Tree');
   const blockContainer = generateBlockContainer(rootElement);
-  if (!blockContainer.isBlockBox()) throw new Error('wat');
   console.log('Box Tree');
   console.log(blockContainer.repr());
   console.log();
@@ -112,7 +111,7 @@ Promise.all([
   console.log('Absolutify');
   blockContainer.absolutify();
   const blocks = new Set([blockContainer.borderArea]);
-  for (const [order, child] of blockContainer.descendents(b => b.isBlockBox())) {
+  for (const [order, child] of blockContainer.descendents(b => b.isBlockContainer() && b.isBlockLevel())) {
     if (order === 'pre') blocks.add(child.borderArea);
   }
   for (const area of blocks) console.log(area.repr());

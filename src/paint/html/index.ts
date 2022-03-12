@@ -1,5 +1,5 @@
 import {Color} from '../../cascade';
-import {BlockContainer, BlockContainerOfIfc, IfcInline, Inline, getAscenderDescender} from '../../flow';
+import {BlockContainer, IfcInline, Inline, getAscenderDescender} from '../../flow';
 import {ShapedItem} from '../../text';
 import {Area} from '../../box';
 import {Harfbuzz} from 'harfbuzzjs';
@@ -245,14 +245,16 @@ type IfcPaintState = {
   depth: number
 };
 
-function paintBlockContainerOfInline(blockContainer: BlockContainerOfIfc, depth: number, hb: Harfbuzz) {
+function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: number, hb: Harfbuzz) {
+  if (blockContainer.contentArea.width === undefined) throw new Error('Assertion failed');
+
+  if (!blockContainer.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+
   const [ifc] = blockContainer.children;
   const direction = ifc.style.direction;
   const counts:Map<Inline, number> = new Map();
   const state:IfcPaintState = {ifc, left: 0, top: blockContainer.contentArea.y, bgcursor: 0, depth};
   let ret = '';
-
-  if (blockContainer.contentArea.width === undefined) throw new Error('Assertion failed');
 
   for (const linebox of ifc.lineboxes) {
     const boxBuilder = new ContiguousBoxBuilder();
@@ -442,7 +444,7 @@ function paintBlockContainer(blockContainer: BlockContainer, hb: Harfbuzz, depth
     }
   }
 
-  if (blockContainer.isBlockContainerOfIfc()) {
+  if (blockContainer.isBlockContainerOfInlines()) {
     s += paintBlockContainerOfInline(blockContainer, depth, hb);
   }
 

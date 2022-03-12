@@ -32,7 +32,7 @@ export type LayoutContext = {
   lastBlockContainerArea: Area,
   lastPositionedArea: Area,
   bfcWritingMode: WritingMode,
-  bfcStack: (BlockBox | 'post')[],
+  bfcStack: (BlockContainer | 'post')[],
   hb: Harfbuzz,
   logging: {text: Set<string>}
 };
@@ -62,6 +62,7 @@ class MarginCollapseContext {
       && style.borderBlockStartWidth === 0;
 
     assumePx(style.marginBlockStart);
+    if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
     if (this.current) {
       this.current.margins.push(style.marginBlockStart);
@@ -80,6 +81,7 @@ class MarginCollapseContext {
       && style.borderBlockEndWidth === 0;
 
     assumePx(style.marginBlockEnd);
+    if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
     if (this.current && adjoins) {
       if (this.last === 'start') {
@@ -87,7 +89,7 @@ class MarginCollapseContext {
         // TODO 1 min-height (minHeightOk)
         // TODO 2 clearance
         const heightOk = style.blockSize === 'auto' || style.blockSize === 0;
-        adjoins = box.children.length === 0 && !box.isBlockLevelBfcBlockContainer() && heightOk;
+        adjoins = box.children.length === 0 && !box.isBfcRoot() && heightOk;
       } else {
         // Handle the end of a block box that was at the end of its parent
         adjoins = style.blockSize === 'auto';
@@ -140,13 +142,26 @@ class MarginCollapseContext {
   }
 }
 
-export abstract class BlockContainer extends Box {
+type BlockContainerOfInlines = BlockContainer & {
+  children: IfcInline[];
+}
+
+type BlockContainerOfBlockContainers = BlockContainer & {
+  children: BlockContainer[];
+}
+
+export class BlockContainer extends Box {
+  public children: IfcInline[] | BlockContainer[];
+
+  constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
+    super(style, children, attrs);
+    this.children = children;
+  }
+
   get desc() {
-    const isBfcRoot = this.isBlockLevelBfcBlockContainer() || this.isInlineLevelBfcBlockContainer();
-    // TODO is this not super ideal? to down-cast in a base class?
-    return (this.isAnonymous ? dim : '')
-      + (isBfcRoot ? underline : '')
-      + (this.isInlineLevelBfcBlockContainer() ? 'Inline' : 'Block')
+    return (this.isAnonymous() ? dim : '')
+      + (this.isBfcRoot() ? underline : '')
+      + (this.isBlockLevel() ? 'Block' : 'Inline')
       + ' ' + this.id
       + reset;
   }
@@ -168,19 +183,6 @@ export abstract class BlockContainer extends Box {
       + style.borderBlockEndWidth;
   }
 
-  isBlockContainer(): this is BlockContainer {
-    return true;
-  }
-
-  abstract doInlineBoxModel(ctx: LayoutContext): void;
-  abstract doBlockBoxModel(ctx: LayoutContext): void;
-}
-
-export abstract class BlockBox extends BlockContainer {
-  isBlockBox(): this is BlockBox {
-    return true;
-  }
-
   setBlockPosition(position: number, bfcWritingMode: WritingMode) {
     const content = this.contentArea.createLogicalView(bfcWritingMode);
     const padding = this.paddingArea.createLogicalView(bfcWritingMode);
@@ -192,195 +194,51 @@ export abstract class BlockBox extends BlockContainer {
     content.blockStart = style.paddingBlockStart;
   }
 
-  doInlineBoxModel(ctx: LayoutContext) {
-    // CSS 2.2 §10.3.3
-    // ---------------
-
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
-    const style = this.style.createLogicalView(ctx.bfcWritingMode);
-    const container = this.containingBlock.createLogicalView(ctx.bfcWritingMode);
-    let marginInlineStart = style.marginInlineStart;
-    let marginInlineEnd = style.marginInlineEnd;
-
-    if (container.inlineSize === undefined) {
-      throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
-    }
-
-    // Paragraphs 2 and 3
-    if (style.inlineSize !== 'auto') {
-      const specifiedInlineSize = style.inlineSize
-        + style.borderInlineStartWidth
-        + style.paddingInlineStart
-        + style.paddingInlineEnd
-        + style.borderInlineEndWidth
-        + (marginInlineStart === 'auto' ? 0 : marginInlineStart)
-        + (marginInlineEnd === 'auto' ? 0 : marginInlineEnd);
-
-      // Paragraph 2: zero out auto margins if specified values sum to a length
-      // greater than the containing block's width.
-      if (specifiedInlineSize > container.inlineSize) {
-        if (marginInlineStart === 'auto') marginInlineStart = 0;
-        if (marginInlineEnd === 'auto') marginInlineEnd = 0;
-      }
-
-      if (marginInlineStart !== 'auto' && marginInlineEnd !== 'auto') {
-        // Paragraph 3: check over-constrained values. This expands the right
-        // margin in LTR documents to fill space, or, if the above scenario was
-        // hit, it makes the right margin negative.
-        // TODO support the `direction` CSS property
-        marginInlineEnd = container.inlineSize - specifiedInlineSize;
-      } else { // one or both of the margins is auto, specifiedWidth < cb width
-        if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
-          // Paragraph 4: only auto value is margin-left
-          marginInlineStart = container.inlineSize - specifiedInlineSize;
-        } else if (marginInlineEnd === 'auto' && marginInlineStart !== 'auto') {
-          // Paragraph 4: only auto value is margin-right
-          marginInlineEnd = container.inlineSize - specifiedInlineSize;
-        } else {
-          // Paragraph 6: two auto values, center the content
-          const margin = (container.inlineSize - specifiedInlineSize) / 2;
-          marginInlineStart = marginInlineEnd = margin;
-        }
-      }
-    }
-
-    const content = this.contentArea.createLogicalView(ctx.bfcWritingMode);
-    // Paragraph 5: auto width
-    if (style.inlineSize === 'auto') {
-      if (marginInlineStart === 'auto') marginInlineStart = 0;
-      if (marginInlineEnd === 'auto') marginInlineEnd = 0;
-    }
-
-    const padding = this.paddingArea.createLogicalView(ctx.bfcWritingMode);
-    const border = this.borderArea.createLogicalView(ctx.bfcWritingMode);
-
-    assumePx(marginInlineStart);
-    assumePx(marginInlineEnd);
-
-    border.inlineStart = marginInlineStart;
-    border.inlineEnd = marginInlineEnd;
-
-    padding.inlineStart = style.borderInlineStartWidth;
-    padding.inlineEnd = style.borderInlineEndWidth;
-
-    content.inlineStart = style.paddingInlineStart;
-    content.inlineEnd = style.paddingInlineEnd;
-  }
-
-  doBlockBoxModel(ctx: LayoutContext) {
-    // CSS 2.2 §10.6.3
-    // ---------------
-
-    const style = this.style.createLogicalView(ctx.bfcWritingMode);
-
-    if (style.blockSize === 'auto') {
-      if (this.children.length === 0) {
-        this.setBlockSize(0, ctx.bfcWritingMode); // Case 4
-      } else {
-        // Cases 1-4 should be handled by doBoxPositioning, where margin
-        // calculation happens. These bullet points seem to be re-phrasals of
-        // margin collapsing in CSS 2.2 § 8.3.1 at the very end. If I'm wrong,
-        // more might need to happen here.
-      }
-    } else {
-      this.setBlockSize(style.blockSize, ctx.bfcWritingMode);
-    }
-  }
-
-  abstract preprocess(ctx: PreprocessContext): Promise<void>;
-}
-
-export class BlockContainerOfIfc extends BlockBox {
-  public children: IfcInline[];
-
-  constructor(style: Style, children: IfcInline[], isAnonymous: boolean) {
-    super(style, children, isAnonymous);
-    this.children = children;
-  }
-
-  isBlockContainerOfIfc(): this is BlockContainerOfIfc {
+  isBlockContainer(): this is BlockContainer {
     return true;
   }
 
+  isInlineLevel() {
+    return Boolean(this.attrs & Box.ATTRS.isInline);
+  }
+
+  isBlockLevel() {
+    return !this.isInlineLevel();
+  }
+
+  isBfcRoot() {
+    return Boolean(this.attrs & Box.ATTRS.isBfcRoot);
+  }
+
+  isBlockContainerOfInlines(): this is BlockContainerOfInlines {
+    return Boolean(this.children.length && this.children[0].isIfcInline());
+  }
+
+  isBlockContainerOfBlockContainers(): this is BlockContainerOfBlockContainers {
+    return !this.isBlockContainerOfInlines();
+  }
+
+  async preprocess(ctx: PreprocessContext) {
+    const promises:Promise<any>[] = [];
+    for (const child of this.children) {
+      promises.push(child.preprocess(ctx));
+    }
+    await Promise.all(promises);
+  }
+
   doTextLayout(ctx: LayoutContext) {
+    if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
     const [rootInline] = this.children;
     rootInline.doTextLayout(ctx);
     this.setBlockSize(rootInline.height, ctx.bfcWritingMode);
   }
-
-  async preprocess(ctx: PreprocessContext) {
-    const [rootInline] = this.children;
-    return rootInline.preprocessIfc(ctx);
-  }
 }
 
-export class BlockContainerOfBlockBoxes extends BlockBox {
-  public children: BlockBox[];
-
-  constructor(style: Style, children: BlockBox[], isAnonymous: boolean) {
-    super(style, children, isAnonymous);
-    this.children = children;
-  }
-
-  isBlockContainerOfBlockBoxes(): this is BlockContainerOfBlockBoxes {
-    return true;
-  }
-
-  async preprocess(ctx: PreprocessContext) {
-    const promises:Promise<any>[] = [];
-    for (const child of this.children) promises.push(child.preprocess(ctx));
-    await Promise.all(promises);
-  }
-}
-
-export class BlockLevelBfcBlockContainer extends BlockBox {
-  public children: BlockBox[];
-
-  constructor(style: Style, children: BlockBox[], isAnonymous: boolean) {
-    super(style, children, isAnonymous);
-    this.children = children;
-  }
-
-  isBlockLevelBfcBlockContainer(): this is BlockLevelBfcBlockContainer {
-    return true;
-  }
-
-  async preprocess(ctx: PreprocessContext) {
-    const promises:Promise<any>[] = [];
-    for (const child of this.children) promises.push(child.preprocess(ctx));
-    await Promise.all(promises);
-  }
-}
-
-export class InlineLevelBfcBlockContainer extends BlockContainer {
-  public children: BlockBox[];
-
-  constructor(style: Style, children: BlockBox[], isAnonymous: boolean) {
-    super(style, children, isAnonymous);
-    this.children = children;
-  }
-
-  isInlineLevelBfcBlockContainer(): this is InlineLevelBfcBlockContainer {
-    return true;
-  }
-
-  doInlineBoxModel(ctx: LayoutContext) {
-    throw new Error('Not yet implemented');
-  }
-
-  doBlockBoxModel(ctx: LayoutContext) {
-    throw new Error('Not yet implemented');
-  }
-}
-
-type BfcBlockContainer = BlockLevelBfcBlockContainer | InlineLevelBfcBlockContainer;
-
-function doBoxPositioning(box: BfcBlockContainer, ctx: LayoutContext) {
+function doBoxPositioning(box: BlockContainer, ctx: LayoutContext) {
   const mctx = new MarginCollapseContext();
   let order = 'pre';
+
+  if (!box.isBfcRoot()) throw new Error('doBoxPositioning called on non-BFC');
 
   // Collapse margins first
   for (const block of ctx.bfcStack) {
@@ -419,7 +277,7 @@ function doBoxPositioning(box: BfcBlockContainer, ctx: LayoutContext) {
       block.setBlockPosition(blockOffset, ctx.bfcWritingMode);
       blockOffset = 0;
     } else { // post
-      if (style.blockSize === 'auto' && block.isBlockContainerOfBlockBoxes()) {
+      if (style.blockSize === 'auto' && !block.isBfcRoot()) {
         block.setBlockSize(blockOffset, ctx.bfcWritingMode);
       }
 
@@ -444,7 +302,113 @@ function doBoxPositioning(box: BfcBlockContainer, ctx: LayoutContext) {
   }
 }
 
-export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
+function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
+  // CSS 2.2 §10.3.3
+  // ---------------
+
+  if (!box.containingBlock) {
+    throw new Error(`Inline layout called too early on ${box.id}: no containing block`);
+  }
+
+  if (!box.isBlockLevel()) {
+    throw new Error('doInlineBoxModelForBlockBox called with inline');
+  }
+
+  const style = box.style.createLogicalView(ctx.bfcWritingMode);
+  const container = box.containingBlock.createLogicalView(ctx.bfcWritingMode);
+  let marginInlineStart = style.marginInlineStart;
+  let marginInlineEnd = style.marginInlineEnd;
+
+  if (container.inlineSize === undefined) {
+    throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
+  }
+
+  // Paragraphs 2 and 3
+  if (style.inlineSize !== 'auto') {
+    const specifiedInlineSize = style.inlineSize
+      + style.borderInlineStartWidth
+      + style.paddingInlineStart
+      + style.paddingInlineEnd
+      + style.borderInlineEndWidth
+      + (marginInlineStart === 'auto' ? 0 : marginInlineStart)
+      + (marginInlineEnd === 'auto' ? 0 : marginInlineEnd);
+
+    // Paragraph 2: zero out auto margins if specified values sum to a length
+    // greater than the containing block's width.
+    if (specifiedInlineSize > container.inlineSize) {
+      if (marginInlineStart === 'auto') marginInlineStart = 0;
+      if (marginInlineEnd === 'auto') marginInlineEnd = 0;
+    }
+
+    if (marginInlineStart !== 'auto' && marginInlineEnd !== 'auto') {
+      // Paragraph 3: check over-constrained values. This expands the right
+      // margin in LTR documents to fill space, or, if the above scenario was
+      // hit, it makes the right margin negative.
+      // TODO support the `direction` CSS property
+      marginInlineEnd = container.inlineSize - specifiedInlineSize;
+    } else { // one or both of the margins is auto, specifiedWidth < cb width
+      if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
+        // Paragraph 4: only auto value is margin-left
+        marginInlineStart = container.inlineSize - specifiedInlineSize;
+      } else if (marginInlineEnd === 'auto' && marginInlineStart !== 'auto') {
+        // Paragraph 4: only auto value is margin-right
+        marginInlineEnd = container.inlineSize - specifiedInlineSize;
+      } else {
+        // Paragraph 6: two auto values, center the content
+        const margin = (container.inlineSize - specifiedInlineSize) / 2;
+        marginInlineStart = marginInlineEnd = margin;
+      }
+    }
+  }
+
+  const content = box.contentArea.createLogicalView(ctx.bfcWritingMode);
+  // Paragraph 5: auto width
+  if (style.inlineSize === 'auto') {
+    if (marginInlineStart === 'auto') marginInlineStart = 0;
+    if (marginInlineEnd === 'auto') marginInlineEnd = 0;
+  }
+
+  const padding = box.paddingArea.createLogicalView(ctx.bfcWritingMode);
+  const border = box.borderArea.createLogicalView(ctx.bfcWritingMode);
+
+  assumePx(marginInlineStart);
+  assumePx(marginInlineEnd);
+
+  border.inlineStart = marginInlineStart;
+  border.inlineEnd = marginInlineEnd;
+
+  padding.inlineStart = style.borderInlineStartWidth;
+  padding.inlineEnd = style.borderInlineEndWidth;
+
+  content.inlineStart = style.paddingInlineStart;
+  content.inlineEnd = style.paddingInlineEnd;
+}
+
+function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
+  // CSS 2.2 §10.6.3
+  // ---------------
+
+  const style = box.style.createLogicalView(ctx.bfcWritingMode);
+
+  if (!box.isBlockLevel()) {
+    throw new Error('doBlockBoxModelForBlockBox called with inline');
+  }
+
+  if (style.blockSize === 'auto') {
+    if (box.children.length === 0) {
+      box.setBlockSize(0, ctx.bfcWritingMode); // Case 4
+    } else {
+      // Cases 1-4 should be handled by doBoxPositioning, where margin
+      // calculation happens. These bullet points seem to be re-phrasals of
+      // margin collapsing in CSS 2.2 § 8.3.1 at the very end. If I'm wrong,
+      // more might need to happen here.
+    }
+  } else {
+    box.setBlockSize(style.blockSize, ctx.bfcWritingMode);
+  }
+}
+
+export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   ctx.bfcStack.push(box);
 
   const cctx = Object.assign({}, ctx);
@@ -455,13 +419,17 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
     throw new Error(`BlockContainer ${box.id} has no containing block!`);
   }
 
+  if (!box.isBlockLevel()) {
+    throw new Error(`BlockContainer ${box.id} is not block-level`);
+  }
+
   // First resolve percentages into actual values
   box.style.resolvePercentages(box.containingBlock);
 
   // And resolve box-sizing (which has a dependency on the above)
   box.style.resolveBoxModel();
 
-  if (box.isBlockContainerOfIfc()) {
+  if (box.isBlockContainerOfInlines()) {
     const [inline] = box.children;
     inline.assignContainingBlocks(cctx);
   }
@@ -471,18 +439,18 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
   // still go on this class while the IFC methods would go on the inline
   // class
 
-  box.doInlineBoxModel(ctx);
-  box.doBlockBoxModel(ctx);
+  doInlineBoxModelForBlockBox(box, ctx);
+  doBlockBoxModelForBlockBox(box, ctx);
 
   // Child flow is now possible
-  if (box.isBlockLevelBfcBlockContainer()) {
+  if (box.isBfcRoot()) {
     cctx.bfcWritingMode = box.style.writingMode;
     cctx.bfcStack = [];
   }
 
-  if (box.isBlockContainerOfIfc()) {
+  if (box.isBlockContainerOfInlines()) {
     box.doTextLayout(ctx);
-  } else if (box.isBlockLevelBfcBlockContainer() || box.isBlockContainerOfBlockBoxes()) {
+  } else if (box.isBlockContainerOfBlockContainers()) {
     for (const child of box.children) {
       layoutBlockBox(child, cctx);
     }
@@ -490,7 +458,7 @@ export function layoutBlockBox(box: BlockBox, ctx: LayoutContext) {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  if (box.isBlockLevelBfcBlockContainer()) {
+  if (box.isBfcRoot()) {
     doBoxPositioning(box, cctx);
   }
 
@@ -533,8 +501,8 @@ export class Inline extends Box {
   public end: number;
   public face: HbFace | null;
 
-  constructor(style: Style, children: InlineLevel[], isAnonymous: boolean) {
-    super(style, children, isAnonymous);
+  constructor(style: Style, children: InlineLevel[], attrs: number) {
+    super(style, children, attrs);
     this.children = children;
     this.nshaped = 0;
 
@@ -568,7 +536,7 @@ export class Inline extends Box {
   }
 
   get desc() {
-    return (this.isAnonymous ? dim : '')
+    return (this.isAnonymous() ? dim : '')
       + (this.isIfcInline() ? underline : '')
       + 'Inline'
       + ' ' + this.id
@@ -586,7 +554,7 @@ export class IfcInline extends Inline {
   public children: InlineLevel[];
 
   constructor(style: Style, children: InlineLevel[]) {
-    super(style, children, true);
+    super(style, children, Box.ATTRS.isAnonymous);
     this.children = children;
     this.prepare();
   }
@@ -608,7 +576,7 @@ export class IfcInline extends Inline {
 
       if (item === END_PARENT) {
         parents.pop()!.end = cursor;
-      } else if (item.isBreak() || item.isInlineLevelBfcBlockContainer()) {
+      } else if (item.isBreak() || item.isBlockContainer()) {
         // skip
       } else if (item.isRun()) {
         cursor = item.end + 1;
@@ -643,7 +611,7 @@ export class IfcInline extends Inline {
   // Collect text runs, collapse whitespace, create shaping boundaries, and
   // assign fonts
   private prepare() {
-    const stack:Box[] = this.children.slice();
+    const stack = this.children.slice();
     let i = 0;
 
     // CSS Text Module Level 3, Appendix A, steps 1-4
@@ -678,7 +646,7 @@ export class IfcInline extends Inline {
     // TODO step 4
   }
 
-  async preprocessIfc(ctx: PreprocessContext) {
+  async preprocess(ctx: PreprocessContext) {
     const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
     const strutFontMatch = strutCascade.matches[0].toCssMatch();
     const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
@@ -769,10 +737,9 @@ export class IfcInline extends Inline {
   }
 }
 
-export type InlineLevel = Inline | InlineLevelBfcBlockContainer | Run | Break;
+export type InlineLevel = Inline | BlockContainer | Run | Break;
 
-type InlineNotRun = Inline | InlineLevelBfcBlockContainer;
-
+type InlineNotRun = Inline | BlockContainer;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
@@ -879,11 +846,11 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
 
       if (childEl instanceof HTMLElement) {
         if (childEl.tagName === 'br') {
-          child = new Break(new Style('', childEl.style), [], false);
+          child = new Break(new Style('', childEl.style), [], 0);
         } else if (childEl.style.display.outer === 'block') {
           bail = true;
         } else if (childEl.style.display.inner === 'flow-root') {
-          child = generateBlockContainer(childEl) as InlineLevelBfcBlockContainer;
+          child = generateBlockContainer(childEl);
         } else if (childEl.children) {
           [bail, child] = mapTree(childEl, stack, level + 1);
         }
@@ -898,9 +865,9 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
 
     if (!bail) stack.pop();
     const id = el.id + '.1';
-    box = new Inline(new Style(id, el.style), children, false);
+    box = new Inline(new Style(id, el.style), children, 0);
   } else if (el.style.display.inner == 'flow-root') {
-    box = generateBlockContainer(el) as InlineLevelBfcBlockContainer;
+    box = generateBlockContainer(el);
   }
 
   return [bail, box];
@@ -909,7 +876,7 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
 // Generates an inline box for the element. Also generates blocks if the element
 // has any descendents which generate them. These are not included in the inline.
 function generateInlineBox(el: HTMLElement) {
-  const path: number[] = [], boxes:(InlineLevel | BlockBox)[] = [];
+  const path: number[] = [], boxes:(InlineLevel | BlockContainer)[] = [];
   let inline: InlineNotRun | undefined, more = true;
 
   if (el.style.display.outer !== 'inline') throw Error('Inlines only');
@@ -921,7 +888,7 @@ function generateInlineBox(el: HTMLElement) {
     if (inline) boxes.push(inline);
 
     while ((childEl = el.getEl(path)) instanceof HTMLElement && childEl.style.display.outer === 'block') {
-      boxes.push(generateBlockContainer(childEl, el) as BlockBox);
+      boxes.push(generateBlockContainer(childEl, el));
       ++path[path.length - 1];
     }
   }
@@ -930,14 +897,14 @@ function generateInlineBox(el: HTMLElement) {
 }
 
 function isInlineLevel(box: Box): box is InlineLevel {
-  return box.isInline() || box.isInlineLevelBfcBlockContainer() || box.isRun() || box.isBreak();
+  return box.isInline() || box.isRun() || box.isBreak() || box.isBlockContainer() && box.isInlineLevel();
 }
 
 // Wraps consecutive inlines and runs in block-level block containers. The
 // returned list is guaranteed to be a list of only blocks. This obeys CSS21
 // section 9.2.1.1
 function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
-  const blocks:BlockBox[] = [];
+  const blocks:BlockContainer[] = [];
   let subId = 0;
 
   for (let i = 0; i < boxes.length; ++i) {
@@ -951,11 +918,15 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
       const anonStyle = new Style(anonStyleId, anonComputedStyle);
       const rootInline = new IfcInline(anonStyle, inlines);
       if (!rootInline.containsAllCollapsibleWs()) {
-        blocks.push(new BlockContainerOfIfc(anonStyle, [rootInline], true));
+        blocks.push(new BlockContainer(anonStyle, [rootInline], Box.ATTRS.isAnonymous));
       }
     }
 
-    if (i < boxes.length) blocks.push(boxes[i] as BlockBox);
+    if (i < boxes.length) {
+      const block = boxes[i];
+      if (!block.isBlockContainer()) throw new Error('Unknown box type encountered');
+      blocks.push(block);
+    }
   }
 
   return blocks;
@@ -963,13 +934,13 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
 
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement): BlockContainer {
-  let boxes: Box[] = [], hasInline = false, hasBlock = false, isBfcRoot = false;
+  let boxes: Box[] = [], hasInline = false, hasBlock = false, attrs = 0;
   
   if (
     el.style.display.inner === 'flow-root' ||
     parentEl && writingModeInlineAxis(el) !== writingModeInlineAxis(parentEl)
   ) {
-    isBfcRoot = true;
+    attrs |= Box.ATTRS.isBfcRoot;
   } else if (el.style.display.inner !== 'flow') {
     throw Error('Only flow layout supported');
   }
@@ -977,7 +948,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
       if (child.tagName === 'br') {
-        boxes.push(new Break(new Style('', child.style), [], false));
+        boxes.push(new Break(new Style('', child.style), [], 0));
         hasInline = true;
       } else if (child.style.display.outer === 'block') {
         boxes.push(generateBlockContainer(child, el));
@@ -996,7 +967,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     }
   }
 
-  const level = el.style.display.outer;
+  if (el.style.display.outer === 'inline') attrs |= Box.ATTRS.isInline;
 
   const style = new Style(el.id, el.style);
 
@@ -1005,24 +976,10 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     const anonComputedStyle = createComputedStyle(el.style, {});
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
     const inline = new IfcInline(anonStyle, boxes as InlineLevel[]);
-    const block = new BlockContainerOfIfc(style, [inline], false);
-
-    if (level === 'block') {
-      // TODO: I'm not checking isBfcRoot here because is there any difference
-      // between a BFC root with only inlines and a block container of inlines
-      // (IFC root/paragraph)? If there is, it's easy to fix, but I don't think
-      // there is a difference
-      return block;
-    } else {
-      return new InlineLevelBfcBlockContainer(style, [block], false);
-    }
+    return new BlockContainer(style, [inline], attrs);
   }
 
   if (hasInline && hasBlock) boxes = wrapInBlockContainers(boxes, el);
 
-  if (isBfcRoot) {
-    return new BlockLevelBfcBlockContainer(style, boxes as BlockBox[], false);
-  } else {
-    return new BlockContainerOfBlockBoxes(style, boxes as BlockBox[], false);
-  }
+  return new BlockContainer(style, boxes as BlockContainer[], attrs);
 }

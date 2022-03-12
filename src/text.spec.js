@@ -273,7 +273,6 @@ async function setupLayoutTests() {
     this.rootElement = new HTMLElement('root', 'root', rootStyle);
     parseNodes(this.rootElement, html);
     this.blockContainer = generateBlockContainer(this.rootElement);
-    if (!this.blockContainer.isBlockBox()) throw new Error('wat');
     await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
     layoutBlockBox(this.blockContainer, {
       lastBlockContainerArea: this.initialContainingBlock,
@@ -521,7 +520,7 @@ describe('Line breaking', function () {
     // "I love you" according to https://omniglot.com/language/phrases/hebrew.php
     // Three words, Arimo@16px in 60px the first two should fit on the first line
     await this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
-    /** @type import('./flow').Inline[] */
+    /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;
     expect(inline.shaped).to.have.lengthOf(2);
     expect(inline.lineboxes).to.have.lengthOf(2);

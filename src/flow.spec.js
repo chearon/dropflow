@@ -8,6 +8,8 @@ const {Area} = require('./box');
 const {expect} = require('chai');
 
 const HarfbuzzInit = require('harfbuzzjs');
+const FontConfigInit = require('fontconfig');
+const ItemizerInit = require('itemizer');
 
 const rootDeclaredStyle = createComputedStyle(initialStyle, {
   fontSize: 16,
@@ -27,15 +29,29 @@ const rootDeclaredStyle = createComputedStyle(initialStyle, {
 
 describe('Flow', function () {
   before(async function () {
-    const hb = await HarfbuzzInit;
+    const [hb, itemizer, FontConfig] = await Promise.all([HarfbuzzInit, ItemizerInit, FontConfigInit]);
+    const cfg = new FontConfig();
 
-    this.layout = function (html) {
+    await cfg.addFont('assets/Arimo/Arimo-Regular.ttf');
+
+    /**
+     * @param {string | boolean} htmlOrIsAsync
+     * @param {string} [html]
+     */
+    this.layout = async function (htmlOrIsAsync, html) {
+      let isAsync = false;
+      if (typeof htmlOrIsAsync === 'boolean') {
+        isAsync = htmlOrIsAsync;
+        if (!html) throw new Error('specify html');
+      } else {
+        html = htmlOrIsAsync;
+      }
       this.initialContainingBlock = new Area('', 0, 0, 300, 500);
       this.rootComputed = createComputedStyle(initialStyle, rootDeclaredStyle);
       this.rootElement = new HTMLElement('root', 'root', this.rootComputed);
       parseNodes(this.rootElement, html);
       this.blockContainer = generateBlockContainer(this.rootElement);
-      if (!this.blockContainer.isBlockBox()) throw new Error('wat');
+      if (isAsync) await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging: {text: new Set()}});
       layoutBlockBox(this.blockContainer, {
         lastBlockContainerArea: this.initialContainingBlock,
         lastPositionedArea: this.initialContainingBlock,
@@ -62,6 +78,68 @@ describe('Flow', function () {
       console.log('  '.repeat(indent) + "Box tree:");
       console.log(this.currentTest.ctx.blockContainer.repr(indent));
     }
+  });
+
+  describe('Box generation', function () {
+    it('wraps inlines in block boxes', async function () {
+      await this.layout(true, '<div><span>abc</span><div></div>def</div>');
+
+      // <span>abc</span>
+      expect(this.get(0, 0).isBlockContainer()).to.be.true;
+      expect(this.get(0, 0).isAnonymous()).to.be.true;
+      expect(this.get(0, 0, 0).isIfcInline()).to.be.true;
+      expect(this.get(0, 0, 0, 0).isInline()).to.be.true;
+      // <div></div>
+      expect(this.get(0, 1).isBlockContainer()).to.be.true;
+      expect(this.get(0, 1).isAnonymous()).to.be.false;
+      // def
+      expect(this.get(0, 2).isBlockContainer()).to.be.true;
+      expect(this.get(0, 2).isAnonymous()).to.be.true;
+      expect(this.get(0, 2, 0).isIfcInline()).to.be.true;
+      expect(this.get(0, 2, 0, 0).isRun()).to.be.true;
+    });
+
+    it('breaks out block level elements', async function () {
+      await this.layout(true, `
+        <div>
+          <span>1break <div>1out</div></span>
+          2break <div><span> 2out<div> 2deep</div></span></div>
+        </div>
+      `);
+
+      // <anon div> <span>1break </span></anon div>
+      expect(this.get(0, 0).isBlockContainer()).to.be.true;
+      expect(this.get(0, 0).isBlockContainerOfInlines()).to.be.true;
+      expect(this.get(0, 0).isAnonymous()).to.be.true;
+      expect(this.get(0, 0).isBlockLevel()).to.be.true;
+      // <span>1break </span>
+      expect(this.get(0, 0, 0, 1).isInline()).to.be.true;
+      expect(this.get(0, 0, 0, 1).isAnonymous()).to.be.false;
+      // <div>1out</div>
+      expect(this.get(0, 1).isBlockContainer()).to.be.true;
+      expect(this.get(0, 1).isBlockContainerOfInlines()).to.be.true;
+      expect(this.get(0, 1).isAnonymous()).to.be.false;
+      expect(this.get(0, 1).isBlockLevel()).to.be.true;
+      // 2break
+      expect(this.get(0, 2).isBlockContainer()).to.be.true;
+      expect(this.get(0, 2).isBlockContainerOfInlines()).to.be.true;
+      expect(this.get(0, 2).isAnonymous()).to.be.true;
+      expect(this.get(0, 2).isBlockLevel()).to.be.true;
+      // <div><span> 2out<div> 2deep</div></span></div>
+      expect(this.get(0, 3).isBlockContainer()).be.true
+      expect(this.get(0, 3).isBlockContainerOfBlockContainers()).be.true
+      expect(this.get(0, 3).children).to.have.lengthOf(2);
+      // <anon div><span> 2out</span></anon div>
+      expect(this.get(0, 3, 0).isBlockContainer()).be.true
+      expect(this.get(0, 3, 0).isAnonymous()).be.true
+      // end
+      expect(this.get(0).children).to.have.lengthOf(4);
+    });
+
+    it('generates BFCs', async function () {
+      await this.layout(true, '<div style="display: flow-root;"></div>');
+      expect(this.get(0).isBfcRoot()).to.be.true;
+    });
   });
 
   describe('Collapsing', function () {

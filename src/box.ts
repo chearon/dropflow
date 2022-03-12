@@ -1,18 +1,7 @@
 import {id} from './util';
 import {Style} from './cascade';
 import {Run} from './text';
-import {
-  Break,
-  Inline,
-  IfcInline,
-  BlockContainer,
-  BlockBox,
-  BlockContainerOfIfc,
-  BlockContainerOfBlockBoxes,
-  BlockLevelBfcBlockContainer,
-  InlineLevelBfcBlockContainer,
-  LayoutContext
-} from './flow';
+import {Break, Inline, IfcInline, BlockContainer, LayoutContext} from './flow';
 
 export type LogicalArea = {
   blockStart: number
@@ -224,18 +213,24 @@ export class Box {
   public id: string;
   public style: Style;
   public children: Box[];
-  public isAnonymous: boolean;
+  public attrs: number;
   public containingBlock: Area | null = null;
 
   public borderArea: Area;
   public paddingArea: Area;
   public contentArea: Area;
 
-  constructor(style: Style, children: Box[], isAnonymous: boolean) {
+  public static ATTRS = {
+    isAnonymous: 1,
+    isInline: 1 << 1,
+    isBfcRoot: 1 << 2
+  };
+
+  constructor(style: Style, children: Box[], attrs: number) {
     this.id = id();
     this.style = style;
     this.children = children;
-    this.isAnonymous = isAnonymous;
+    this.attrs = attrs;
 
     this.borderArea = new Area(this.id + 'b');
     this.paddingArea = new Area(this.id + 'p');
@@ -245,26 +240,6 @@ export class Box {
   }
 
   isBlockContainer(): this is BlockContainer {
-    return false;
-  }
-
-  isBlockContainerOfIfc(): this is BlockContainerOfIfc {
-    return false;
-  }
-
-  isBlockBox(): this is BlockBox {
-    return false;
-  }
-
-  isBlockContainerOfBlockBoxes(): this is BlockContainerOfBlockBoxes {
-    return false;
-  }
-
-  isBlockLevelBfcBlockContainer(): this is BlockLevelBfcBlockContainer {
-    return false;
-  }
-
-  isInlineLevelBfcBlockContainer(): this is InlineLevelBfcBlockContainer {
     return false;
   }
 
@@ -284,12 +259,16 @@ export class Box {
     return false;
   }
 
+  isAnonymous() {
+    return Boolean(this.attrs & Box.ATTRS.isAnonymous);
+  }
+
   get isRelativeOrStatic() {
     return this.style.position === 'relative'
       || this.style.position === 'static'
       // XXX anonymous boxes won't have a position since position doesn't
       // inherit. Possible this could cause a problem later, so take note
-      || this.isAnonymous && !this.style.position;
+      || this.isAnonymous() && !this.style.position;
   }
 
   get isAbsolute() {

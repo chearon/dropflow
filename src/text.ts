@@ -18,7 +18,7 @@ export class Run extends Box {
   public text: string;
 
   constructor(text: string, style: Style) {
-    super(style, [], false);
+    super(style, [], 0);
 
     this.text = text;
     this.style = style || new Style('anontext', createComputedStyle(initialStyle, {

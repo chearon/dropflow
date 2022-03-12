@@ -2,10 +2,9 @@
 
 const {HTMLElement} = require('./node');
 const {parseNodes} = require('./parser');
-const {createComputedStyle, initialStyle, Style} = require('./cascade');
+const {createComputedStyle, initialStyle} = require('./cascade');
 const {generateBlockContainer, layoutBlockBox} = require('./flow');
 const {Area} = require('./box');
-const {paint} = require('./paint/html/index');
 const {expect} = require('chai');
 
 const HarfbuzzInit = require('harfbuzzjs');

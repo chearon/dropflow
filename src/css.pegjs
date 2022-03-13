@@ -267,7 +267,7 @@ font_size
   = font_size:(relative_size / absolute_size / LENGTH / PERCENTAGE) { return font_size; }
 
 line_height
-  = line_height:('normal' / NUMBER / LENGTH / PERCENTAGE) { return line_height; }
+  = line_height:('normal' / LENGTH / PERCENTAGE / NUMBER) { return line_height; }
 
 font_style
   = 'normal' / 'italic' / 'oblique'

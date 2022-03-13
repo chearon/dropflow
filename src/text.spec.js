@@ -776,6 +776,16 @@ describe('Line breaking', function () {
     expect(inline.lineboxes[1].descender).to.be.approximately(18.1, 0.1);
   });
 
+  it('supports line-height: px', async function () {
+    await this.layout(`
+      <div style="font: 16px/100px Arimo;">The lines are so big!</div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get(0).children;
+    expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(100);
+  });
+
   it('uses the correct inline side to create shaping boundaries', async function () {
     await this.layout(`
       <div style="width: 300px; direction: rtl; font: 16px Cairo;">

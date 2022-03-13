@@ -505,11 +505,11 @@ describe('Line breaking', function () {
   });
 
   it('leaves shaping boundaries whole if they can be', async function () {
-   await this.layout(`
-    <div style="width: 16px; font: 16px Roboto;">
-      <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
-      <span style="color: green;">lorem</span><span style="color: purple;">ipsum</span>
-    </div>
+    await this.layout(`
+      <div style="width: 16px; font: 16px Roboto;">
+        <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
+        <span style="color: green;">lorem</span><span style="color: purple;">ipsum</span>
+      </div>
    `);
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get(0).children;

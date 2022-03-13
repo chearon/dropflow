@@ -354,6 +354,15 @@ describe('Flow', function () {
       this.layout('<div style="width: 50px; margin: 0 auto 0 50px;"></div>');
       expect(this.get(0).contentArea.x).to.equal(50);
     });
+
+    it('sizes ifc containers and their parents correctly', async function () {
+      await this.layout(true, `
+        <div>
+          <div style="line-height: 100px;">hey dont forget to size your parent</div>
+        </div>
+      `);
+      expect(this.get(0).contentArea.height).to.equal(100);
+    });
   });
 
   describe('Vertical writing modes', function () {

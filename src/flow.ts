@@ -277,7 +277,7 @@ function doBoxPositioning(box: BlockContainer, ctx: LayoutContext) {
       block.setBlockPosition(blockOffset, ctx.bfcWritingMode);
       blockOffset = 0;
     } else { // post
-      if (style.blockSize === 'auto' && !block.isBfcRoot()) {
+      if (style.blockSize === 'auto' && block.isBlockContainerOfBlockContainers() && !block.isBfcRoot()) {
         block.setBlockSize(blockOffset, ctx.bfcWritingMode);
       }
 

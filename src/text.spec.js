@@ -1,7 +1,7 @@
 //@ts-check
 const {expect} = require('chai');
 const {Area} = require('./box');
-const {generateBlockContainer, layoutBlockBox} = require('./flow');
+const {generateBlockContainer, layoutBlockBox, BlockFormattingContext} = require('./flow');
 const {initialStyle, createComputedStyle} = require('./cascade');
 const {HTMLElement} = require('./node');
 const {parseNodes} = require('./parser');
@@ -277,8 +277,7 @@ async function setupLayoutTests() {
     layoutBlockBox(this.blockContainer, {
       lastBlockContainerArea: this.initialContainingBlock,
       lastPositionedArea: this.initialContainingBlock,
-      bfcWritingMode: rootStyle.writingMode,
-      bfcStack: [],
+      bfc: new BlockFormattingContext("horizontal-tb"),
       hb,
       logging
     });

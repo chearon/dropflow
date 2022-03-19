@@ -3,7 +3,7 @@
 const {HTMLElement} = require('./node');
 const {parseNodes} = require('./parser');
 const {createComputedStyle, initialStyle} = require('./cascade');
-const {generateBlockContainer, layoutBlockBox} = require('./flow');
+const {generateBlockContainer, layoutBlockBox, BlockFormattingContext} = require('./flow');
 const {Area} = require('./box');
 const {expect} = require('chai');
 
@@ -47,10 +47,9 @@ describe('Flow', function () {
 
     this.postlayout = function () {
       layoutBlockBox(this.blockContainer, {
+        bfc: new BlockFormattingContext("horizontal-tb"),
         lastBlockContainerArea: this.initialContainingBlock,
         lastPositionedArea: this.initialContainingBlock,
-        bfcWritingMode: rootDeclaredStyle.writingMode,
-        bfcStack: [],
         hb,
         logging: {text: new Set()}
       });

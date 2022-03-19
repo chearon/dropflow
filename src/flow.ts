@@ -31,8 +31,7 @@ const underline = '\x1b[4m';
 export type LayoutContext = {
   lastBlockContainerArea: Area,
   lastPositionedArea: Area,
-  bfcWritingMode: WritingMode,
-  bfcStack: (BlockContainer | 'post')[],
+  bfc: BlockFormattingContext,
   hb: Harfbuzz,
   logging: {text: Set<string>}
 };
@@ -45,13 +44,27 @@ export type PreprocessContext = {
 };
 
 type MarginCollapseCollection = {
-  root: Box,
+  root: BlockContainer,
   margins: number[],
   position: 'start' | 'end',
   through?: true
 };
 
 // CSS 2 § 8.3.1
+//
+// TODO: while the method of calculating positions up until an IFC or up until
+// the end of the BFC works well, I implemented it that way because
+// MarginCollapseContext was built to run in one pass, with positioning
+// happening later. I built it that way because at the time I did not realize
+// that flow must happen in document order, in a streaming sort of way, since
+// floats are placed throughout the entire BFC and the IFC must calcluate
+// collisions with floats (thus the IFC position within the BFC position must
+// be known at time of text layout).
+//
+// All that's to say I might be able to come up with a better flow algorithm
+// that doesn't involve backing up and doing calculations every time an IFC is
+// hit. It could be possible to rewrite MarginCollapseContext to have determined
+// margins every time a margin can't adjoin (eg IFC is hit).
 class MarginCollapseContext {
   private current: null | MarginCollapseCollection = null;
   private last:'start' | 'end' | null = null;
@@ -139,6 +152,96 @@ class MarginCollapseContext {
     }
 
     return {start, end};
+  }
+}
+
+export class BlockFormattingContext {
+  public writingMode: WritingMode;
+  public mctx: MarginCollapseContext;
+  public stack: (BlockContainer | {post: BlockContainer})[];
+  public blockOffset: number;
+  private sizeStack: number[];
+  private offsetStack: number[];
+
+  constructor(writingMode: WritingMode) {
+    this.writingMode = writingMode;
+    this.mctx = new MarginCollapseContext();
+    this.stack = [];
+    this.blockOffset = 0;
+    this.sizeStack = [0];
+    this.offsetStack = [];
+  }
+
+  boxStart(box: BlockContainer) {
+    this.mctx.boxStart(box, box.style.createLogicalView(this.writingMode));
+    this.stack.push(box);
+
+    // Position everything up until now so floating is possible
+    if (box.isBlockContainerOfInlines()) {
+      this.positionBlockContainers();
+      // Not exactly necessary, but keeps memory down and makes the next
+      // toBoxMaps() faster. Since an IFC never adjoins it's safe. See the note
+      // above MarginCollapseContext for some insight into future improvements.
+      this.mctx = new MarginCollapseContext();
+    }
+  }
+
+  boxEnd(box: BlockContainer) {
+    this.mctx.boxEnd(box, box.style.createLogicalView(this.writingMode));
+    this.stack.push({post: box});
+  }
+
+  finalize(box: BlockContainer) {
+    if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
+
+    const content = box.contentArea.createLogicalView(this.writingMode);
+
+    this.positionBlockContainers();
+
+    if (content.blockSize === undefined) {
+      box.setBlockSize(this.blockOffset, this.writingMode);
+    }
+  }
+
+  positionBlockContainers() {
+    const {start, end} = this.mctx.toBoxMaps();
+    const sizeStack = this.sizeStack;
+    const offsetStack = this.offsetStack;
+
+    for (const item of this.stack) {
+      const box = 'post' in item ? item.post : item;
+      const border = box.borderArea.createLogicalView(this.writingMode);
+      const style = box.style.createLogicalView(this.writingMode);
+
+      if ('post' in item) {
+        const childSize = sizeStack.pop()!;
+        const offset = offsetStack.pop()!;
+
+        if (style.blockSize === 'auto' && box.isBlockContainerOfBlockContainers() && !box.isBfcRoot()) {
+          box.setBlockSize(childSize, this.writingMode);
+        }
+
+        // The block size would only be indeterminate for floats, which are
+        // not a part of the descendants() return value, or for orthogonal
+        // writing modes, which are also not in descendants() due to their
+        // establishing a new BFC. If neither of those are true and the block
+        // size is indeterminate that's a bug.
+        assumePx(border.blockSize);
+
+        const size = border.blockSize + (end.has(box.id) ? end.get(box.id)! : 0);
+        sizeStack[sizeStack.length - 1] += size;
+        this.blockOffset = offset + size;
+      } else {
+        const size = start.has(box.id) ? start.get(box.id)! : 0;
+        sizeStack[sizeStack.length - 1] += size;
+        this.blockOffset += size;
+        box.setBlockPosition(sizeStack[sizeStack.length - 1], this.writingMode);
+        sizeStack.push(0);
+        offsetStack.push(this.blockOffset);
+      }
+    }
+
+    this.stack = [];
   }
 }
 
@@ -230,75 +333,7 @@ export class BlockContainer extends Box {
     if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
     const [rootInline] = this.children;
     rootInline.doTextLayout(ctx);
-    this.setBlockSize(rootInline.height, ctx.bfcWritingMode);
-  }
-}
-
-function doBoxPositioning(box: BlockContainer, ctx: LayoutContext) {
-  const mctx = new MarginCollapseContext();
-  let order = 'pre';
-
-  if (!box.isBfcRoot()) throw new Error('doBoxPositioning called on non-BFC');
-
-  // Collapse margins first
-  for (const block of ctx.bfcStack) {
-    if (block === 'post') {
-      order = 'post';
-      continue;
-    }
-
-    const style = block.style.createLogicalView(ctx.bfcWritingMode);
-
-    if (order === 'pre') {
-      mctx.boxStart(block, style);
-    } else { // post
-      mctx.boxEnd(block, style);
-    }
-
-    order = 'pre';
-  }
-
-  const {start, end} = mctx.toBoxMaps();
-  const stack = [];
-  let blockOffset = 0;
-
-  for (const block of ctx.bfcStack) {
-    if (block === 'post') {
-      order = 'post';
-      continue;
-    }
-
-    const border = block.borderArea.createLogicalView(ctx.bfcWritingMode);
-    const style = block.style.createLogicalView(ctx.bfcWritingMode);
-
-    if (order === 'pre') {
-      blockOffset += start.has(block.id) ? start.get(block.id)! : 0;
-      stack.push(blockOffset);
-      block.setBlockPosition(blockOffset, ctx.bfcWritingMode);
-      blockOffset = 0;
-    } else { // post
-      if (style.blockSize === 'auto' && block.isBlockContainerOfBlockContainers() && !block.isBfcRoot()) {
-        block.setBlockSize(blockOffset, ctx.bfcWritingMode);
-      }
-
-      // The block size would only be indeterminate for floats, which are
-      // not a part of the descendants() return value, or for orthogonal
-      // writing modes, which are also not in descendants() due to their
-      // establishing a new BFC. If neither of those are true and the block
-      // size is indeterminate that's a bug.
-      assumePx(border.blockSize);
-
-      blockOffset = stack.pop()! + border.blockSize;
-      blockOffset += end.has(block.id) ? end.get(block.id)! : 0;
-    }
-
-    order = 'pre';
-  }
-
-  const content = box.contentArea.createLogicalView(ctx.bfcWritingMode);
-
-  if (content.blockSize === undefined) {
-    box.setBlockSize(blockOffset, ctx.bfcWritingMode);
+    this.setBlockSize(rootInline.height, ctx.bfc.writingMode);
   }
 }
 
@@ -314,8 +349,8 @@ function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
     throw new Error('doInlineBoxModelForBlockBox called with inline');
   }
 
-  const style = box.style.createLogicalView(ctx.bfcWritingMode);
-  const container = box.containingBlock.createLogicalView(ctx.bfcWritingMode);
+  const style = box.style.createLogicalView(ctx.bfc.writingMode);
+  const container = box.containingBlock.createLogicalView(ctx.bfc.writingMode);
   let marginInlineStart = style.marginInlineStart;
   let marginInlineEnd = style.marginInlineEnd;
 
@@ -361,15 +396,15 @@ function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
     }
   }
 
-  const content = box.contentArea.createLogicalView(ctx.bfcWritingMode);
+  const content = box.contentArea.createLogicalView(ctx.bfc.writingMode);
   // Paragraph 5: auto width
   if (style.inlineSize === 'auto') {
     if (marginInlineStart === 'auto') marginInlineStart = 0;
     if (marginInlineEnd === 'auto') marginInlineEnd = 0;
   }
 
-  const padding = box.paddingArea.createLogicalView(ctx.bfcWritingMode);
-  const border = box.borderArea.createLogicalView(ctx.bfcWritingMode);
+  const padding = box.paddingArea.createLogicalView(ctx.bfc.writingMode);
+  const border = box.borderArea.createLogicalView(ctx.bfc.writingMode);
 
   assumePx(marginInlineStart);
   assumePx(marginInlineEnd);
@@ -388,7 +423,7 @@ function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
   // CSS 2.2 §10.6.3
   // ---------------
 
-  const style = box.style.createLogicalView(ctx.bfcWritingMode);
+  const style = box.style.createLogicalView(ctx.bfc.writingMode);
 
   if (!box.isBlockLevel()) {
     throw new Error('doBlockBoxModelForBlockBox called with inline');
@@ -396,7 +431,7 @@ function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
 
   if (style.blockSize === 'auto') {
     if (box.children.length === 0) {
-      box.setBlockSize(0, ctx.bfcWritingMode); // Case 4
+      box.setBlockSize(0, ctx.bfc.writingMode); // Case 4
     } else {
       // Cases 1-4 should be handled by doBoxPositioning, where margin
       // calculation happens. These bullet points seem to be re-phrasals of
@@ -404,26 +439,26 @@ function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
       // more might need to happen here.
     }
   } else {
-    box.setBlockSize(style.blockSize, ctx.bfcWritingMode);
+    box.setBlockSize(style.blockSize, ctx.bfc.writingMode);
   }
 }
 
 export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
-  ctx.bfcStack.push(box);
+  if (!box.isBlockLevel()) {
+    throw new Error(`BlockContainer ${box.id} is not block-level`);
+  }
 
-  const cctx = Object.assign({}, ctx);
+  const bfc = ctx.bfc;
+  const cctx = {...ctx};
 
+  // Containing blocks first, for absolute positioning later
   box.assignContainingBlocks(cctx);
 
   if (!box.containingBlock) {
     throw new Error(`BlockContainer ${box.id} has no containing block!`);
   }
 
-  if (!box.isBlockLevel()) {
-    throw new Error(`BlockContainer ${box.id} is not block-level`);
-  }
-
-  // First resolve percentages into actual values
+  // Resolve percentages into actual values
   box.style.resolvePercentages(box.containingBlock);
 
   // And resolve box-sizing (which has a dependency on the above)
@@ -434,19 +469,12 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
     inline.assignContainingBlocks(cctx);
   }
 
-  // TODO: box goes for any block-level box, not just block containers.
-  // It should probably go on the box class, but the BFC methods could
-  // still go on this class while the IFC methods would go on the inline
-  // class
-
   doInlineBoxModelForBlockBox(box, ctx);
   doBlockBoxModelForBlockBox(box, ctx);
-
+  bfc.boxStart(box); // Assign block position if it's an IFC
   // Child flow is now possible
-  if (box.isBfcRoot()) {
-    cctx.bfcWritingMode = box.style.writingMode;
-    cctx.bfcStack = [];
-  }
+
+  if (box.isBfcRoot()) cctx.bfc = new BlockFormattingContext(box.style.writingMode);
 
   if (box.isBlockContainerOfInlines()) {
     box.doTextLayout(ctx);
@@ -458,11 +486,9 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  if (box.isBfcRoot()) {
-    doBoxPositioning(box, cctx);
-  }
+  if (box.isBfcRoot()) cctx.bfc.finalize(box);
 
-  ctx.bfcStack.push('post', box);
+  bfc.boxEnd(box);
 }
 
 // exported because used by painter

@@ -3,7 +3,7 @@
 import {HTMLElement} from './node';
 import {parseNodes} from './parser';
 import {createComputedStyle, initialStyle} from './cascade';
-import {generateBlockContainer, layoutBlockBox} from './flow';
+import {generateBlockContainer, layoutBlockBox, BlockFormattingContext} from './flow';
 import {Area} from './box';
 import {paint} from './paint/html/index';
 import FontConfigInit = require('fontconfig');
@@ -96,8 +96,7 @@ Promise.all([
   const logging = {text: new Set([])};
   await blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
   layoutBlockBox(blockContainer, {
-    bfcWritingMode: blockContainer.style.writingMode,
-    bfcStack: [],
+    bfc: new BlockFormattingContext("horizontal-tb"),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
     logging,

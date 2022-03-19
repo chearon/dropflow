@@ -35,23 +35,17 @@ describe('Flow', function () {
     await cfg.addFont('assets/Arimo/Arimo-Regular.ttf');
 
     /**
-     * @param {string | boolean} htmlOrIsAsync
      * @param {string} [html]
      */
-    this.layout = async function (htmlOrIsAsync, html) {
-      let isAsync = false;
-      if (typeof htmlOrIsAsync === 'boolean') {
-        isAsync = htmlOrIsAsync;
-        if (!html) throw new Error('specify html');
-      } else {
-        html = htmlOrIsAsync;
-      }
+    this.prelayout = function (html) {
       this.initialContainingBlock = new Area('', 0, 0, 300, 500);
       this.rootComputed = createComputedStyle(initialStyle, rootDeclaredStyle);
       this.rootElement = new HTMLElement('root', 'root', this.rootComputed);
       parseNodes(this.rootElement, html);
       this.blockContainer = generateBlockContainer(this.rootElement);
-      if (isAsync) await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging: {text: new Set()}});
+    };
+
+    this.postlayout = function () {
       layoutBlockBox(this.blockContainer, {
         lastBlockContainerArea: this.initialContainingBlock,
         lastPositionedArea: this.initialContainingBlock,
@@ -69,6 +63,23 @@ describe('Flow', function () {
         return ret;
       };
     };
+
+    /**
+     * @param {string} [html]
+     */
+    this.layout = function (html) {
+      this.prelayout(html);
+      this.postlayout();
+    };
+
+    /**
+     * @param {string} [html]
+     */
+    this.layoutAsync = async function (html) {
+      this.prelayout(html);
+      await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging: {text: new Set()}});
+      this.postlayout();
+    };
   });
 
   afterEach(function () {
@@ -82,7 +93,7 @@ describe('Flow', function () {
 
   describe('Box generation', function () {
     it('wraps inlines in block boxes', async function () {
-      await this.layout(true, '<div><span>abc</span><div></div>def</div>');
+      await this.layoutAsync('<div><span>abc</span><div></div>def</div>');
 
       // <span>abc</span>
       expect(this.get(0, 0).isBlockContainer()).to.be.true;
@@ -100,7 +111,7 @@ describe('Flow', function () {
     });
 
     it('breaks out block level elements', async function () {
-      await this.layout(true, `
+      await this.layoutAsync(`
         <div>
           <span>1break <div>1out</div></span>
           2break <div><span> 2out<div> 2deep</div></span></div>
@@ -137,7 +148,7 @@ describe('Flow', function () {
     });
 
     it('generates BFCs', async function () {
-      await this.layout(true, '<div style="display: flow-root;"></div>');
+      await this.layoutAsync('<div style="display: flow-root;"></div>');
       expect(this.get(0).isBfcRoot()).to.be.true;
     });
   });
@@ -356,7 +367,7 @@ describe('Flow', function () {
     });
 
     it('sizes ifc containers and their parents correctly', async function () {
-      await this.layout(true, `
+      await this.layoutAsync(`
         <div>
           <div style="line-height: 100px;">hey dont forget to size your parent</div>
         </div>

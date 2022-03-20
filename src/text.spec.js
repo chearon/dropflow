@@ -785,6 +785,17 @@ describe('Line breaking', function () {
     expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(100);
   });
 
+  it('uses the correct line height when multiple spans cross a shaped item', async function () {
+    await this.layout(`
+      <div style="width: 16px; font: 16px Roboto;">
+        <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
+      </div>
+   `);
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get(0).children;
+    expect(inline.lineboxes[0].ascender + inline.lineboxes[0].descender).to.equal(32);
+  });
+
   it('uses the correct inline side to create shaping boundaries', async function () {
     await this.layout(`
       <div style="width: 300px; direction: rtl; font: 16px Cairo;">

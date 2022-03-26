@@ -503,6 +503,19 @@ function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 
+// exported because used by painter
+export function getAscenderDescender(style: Style, font: HbFont, upem: number) { // CSS2 §10.8.1
+  const {fontSize, lineHeight: cssLineHeight} = style;
+  const {ascender, descender, lineGap} = font.getExtents("ltr"); // TODO
+  const emHeight = (ascender - descender) / upem;
+  const pxHeight = emHeight * fontSize;
+  const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap / upem * fontSize : cssLineHeight;
+  const halfLeading = (lineHeight - pxHeight) / 2;
+  const ascenderPx = ascender / upem * fontSize;
+  const descenderPx = -descender / upem * fontSize;
+  return {ascender: halfLeading + ascenderPx, descender: halfLeading + descenderPx};
+}
+
 function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
   let i = dir === 'ltr' ? 0 : shaped.length - 1;
   let coveredIndexStart = i;
@@ -625,8 +638,8 @@ function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') 
   return glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
 }
 
-function shiftColors(colors: [Color, number][], newOffset: number) {
-  const ret:[Color, number][] = [];
+function sliceMarkedObjects<T>(colors: [T, number][], newOffset: number) {
+  const ret:[T, number][] = [];
   let i = colors.length;
 
   do {
@@ -669,9 +682,20 @@ export class ShapedItem implements IfcRenderItem {
   attrs: ShapingAttrs;
   needsReshape: boolean;
   inlines: Inline[];
+  extents: {ascender: number, descender: number};
 
-  constructor(face: HbFace, match: FontConfigCssMatch, glyphs: HbGlyphInfo[], offset: number, text: string, colors: [Color, number][], attrs: ShapingAttrs) {
+  constructor(
+    face: HbFace,
+    extents: {ascender: number, descender: number},
+    match: FontConfigCssMatch,
+    glyphs: HbGlyphInfo[],
+    offset: number,
+    text: string,
+    colors: [Color, number][],
+    attrs: ShapingAttrs
+  ) {
     this.face = face;
+    this.extents = extents;
     this.match = match;
     this.glyphs = glyphs;
     this.offset = offset;
@@ -687,8 +711,8 @@ export class ShapedItem implements IfcRenderItem {
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
-    const rightColors = shiftColors(this.colors, rightOffset);
-    const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, rightColors, this.attrs);
+    const rightColors = sliceMarkedObjects(this.colors, rightOffset);
+    const right = new ShapedItem(this.face, this.extents, this.match, rightGlyphs, rightOffset, rightText, rightColors, this.attrs);
     const needsReshape = Boolean(rightGlyphs[0].flags & 1);
     const inlines = this.inlines;
 
@@ -792,6 +816,7 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
   const {hb, itemizer, fcfg} = ctx;
   const paragraph:ShapedItem[] = [];
   const colors:[Color, number][] = [[ifc.style.color, 0]];
+  const styles:[Style, number][] = [[ifc.style, 0]];
   let inline = inlineIterator.next();
   let inlineEnd = 0;
 
@@ -829,11 +854,18 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
         }
 
         if (inline.value.isRun()) {
-          const [, lastOffset] = colors[colors.length - 1];
-          if (lastOffset !== inline.value.start) {
-            colors.push([inline.value.style.color, inline.value.start]);
-          } else {
+          const [, lastColorOffset] = colors[colors.length - 1];
+          if (lastColorOffset === inline.value.start) {
             colors[colors.length - 1][0] = inline.value.style.color;
+          } else {
+            colors.push([inline.value.style.color, inline.value.start]);
+          }
+
+          const [, lastStyleOffset] = styles[styles.length - 1];
+          if (lastStyleOffset === inline.value.start) {
+            styles[styles.length - 1][0] = inline.value.style;
+          } else {
+            styles.push([inline.value.style, inline.value.start]);
           }
 
           inlineEnd += inline.value.text.length;
@@ -908,11 +940,20 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
           shapeWork.push({offset, text});
           log += `    ==> Must reshape "${text}"\n`;
         } else {
+          const extents = {ascender: 0, descender: 0};
           const glyphs = part.glyphs.slice(gstart, gend);
-          const theseColors = shiftColors(colors, offset);
+          // Note: for reshapes, this array will have unused colors on the end
+          const theseColors = sliceMarkedObjects(colors, offset);
+
+          for (const [style, soffset] of sliceMarkedObjects(styles, offset)) {
+            if (soffset > end) break;
+            const sextents = getAscenderDescender(style, font, face.upem);
+            extents.ascender = Math.max(extents.ascender, sextents.ascender);
+            extents.descender = Math.max(extents.descender, sextents.descender);
+          }
 
           for (const g of glyphs) g.cl -= cstart;
-          paragraph.push(new ShapedItem(face, match, glyphs, offset, text, theseColors, {...attrs}));
+          paragraph.push(new ShapedItem(face, extents, match, glyphs, offset, text, theseColors, {...attrs}));
           if (isLastMatch) {
             log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
             break cascade;
@@ -1026,12 +1067,12 @@ export class Linebox extends LineItemLinkedList {
   trimStartFinished: boolean;
   inlineStart: number;
 
-  constructor(dir: Linebox['dir'], start: number) {
+  constructor(dir: Linebox['dir'], start: number, strut: ShapedItem) {
     super();
     this.dir = dir;
     this.startOffset = this.endOffset = start;
-    this.ascender = 0;
-    this.descender = 0;
+    this.ascender = strut.extents.ascender;
+    this.descender = strut.extents.descender;
     this.width = 0;
     this.trimStartFinished = false;
     this.inlineStart = 0;
@@ -1144,9 +1185,21 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
+  calculateExtents() {
+    // TODO technically trimmed whitespace is still affecting ascender/descender
+    // I wonder if this is something browsers handle? extreme edge case though
+    for (let n = this.head; n; n = n.next) {
+      if (n.value instanceof ShapedItem) {
+        this.ascender = Math.max(this.ascender, n.value.extents.ascender);
+        this.descender = Math.max(this.descender, n.value.extents.descender);
+      }
+    }
+  }
+
   postprocess(paragraphWidth: number, textAlign: 'left' | 'right' | 'center') {
     this.trimEnd();
     this.reorder();
+    this.calculateExtents();
     if (this.width < paragraphWidth) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
         this.inlineStart = paragraphWidth - this.width;
@@ -1326,16 +1379,19 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
   }
 
+  if (!ifc.strut) throw new Error('Preprocess first');
+
   const paragraphWidth = ifc.containingBlock.width === undefined ? Infinity : ifc.containingBlock.width;
   const candidates = new LineCandidates();
   const basedir = ifc.style.direction;
   const parents:Inline[] = [];
-  let line = new Linebox(basedir, 0);
+  let line = new Linebox(basedir, 0, ifc.strut);
   let lastBreakMark:IfcMark | undefined;
   const lines = [line];
   let breakWidth = 0;
   let width = 0;
   let ws = 0;
+  let bottom = 0;
 
   for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
     const item = ifc.shaped[mark.itemIndex];
@@ -1387,7 +1443,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       if (line.hasText() && line.width + breakWidth > paragraphWidth) {
         const lastLine = line;
         if (!lastBreakMark) throw new Error('Assertion failed');
-        lines.push(line = new Linebox(basedir, lastBreakMark.position));
+        lines.push(line = new Linebox(basedir, lastBreakMark.position, ifc.strut));
         const lastBreakMarkItem = ifc.shaped[lastBreakMark.itemIndex];
         if (lastBreakMarkItem && lastBreakMark.position > lastBreakMarkItem.offset && lastBreakMark.position < lastBreakMarkItem.end()) {
           ifc.split(lastBreakMark.itemIndex, lastBreakMark.position);
@@ -1395,6 +1451,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
           candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
         }
         lastLine.postprocess(paragraphWidth, ifc.style.textAlign);
+        bottom += lastLine.ascender + lastLine.descender;
       }
 
       line.addLogical(candidates, width, mark.position);
@@ -1407,7 +1464,8 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
       if (mark.isBreakForced) {
         line.postprocess(paragraphWidth, ifc.style.textAlign);
-        lines.push(line = new Linebox(basedir, mark.position));
+        bottom += line.ascender + line.descender;
+        lines.push(line = new Linebox(basedir, mark.position, ifc.strut));
       }
     }
 
@@ -1427,6 +1485,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   }
 
   line.postprocess(paragraphWidth, ifc.style.textAlign);
+  bottom += line.ascender + line.descender;
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);
@@ -1441,5 +1500,6 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     console.log();
   }
 
-  return lines;
+  ifc.lineboxes = lines;
+  ifc.height = bottom;
 }

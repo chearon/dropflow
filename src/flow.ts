@@ -1,8 +1,8 @@
 import {HTMLElement, TextNode} from './node';
 import {createComputedStyle, Style, LogicalStyle} from './cascade';
-import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes} from './text';
+import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes, getAscenderDescender} from './text';
 import {Box, Area, WritingMode} from './box';
-import {Harfbuzz, HbFont, HbFace} from 'harfbuzzjs';
+import {Harfbuzz, HbFace} from 'harfbuzzjs';
 import {FontConfig} from 'fontconfig';
 import {Itemizer} from 'itemizer';
 
@@ -491,19 +491,6 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   bfc.boxEnd(box);
 }
 
-// exported because used by painter
-export function getAscenderDescender(style: Style, font: HbFont, upem: number) { // CSS2 §10.8.1
-  const {fontSize, lineHeight: cssLineHeight} = style;
-  const {ascender, descender, lineGap} = font.getExtents("ltr"); // TODO
-  const emHeight = (ascender - descender) / upem;
-  const pxHeight = emHeight * fontSize;
-  const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap / upem * fontSize : cssLineHeight;
-  const halfLeading = (lineHeight - pxHeight) / 2;
-  const ascenderPx = ascender / upem * fontSize;
-  const descenderPx = -descender / upem * fontSize;
-  return {ascender: halfLeading + ascenderPx, descender: halfLeading + descenderPx};
-}
-
 export class Break extends Box {
   public className = 'break';
 
@@ -676,67 +663,20 @@ export class IfcInline extends Inline {
     const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
     const strutFontMatch = strutCascade.matches[0].toCssMatch();
     const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
-    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, '', [], {
+    const strutFont = ctx.hb.createFont(strutFace);
+    const extents = getAscenderDescender(this.style, strutFont, strutFace.upem);
+    this.strut = new ShapedItem(strutFace, extents, strutFontMatch, [], 0, '', [], {
       style: this.style,
       isEmoji: false,
       level: 0,
       script: 'Latn'
     });
     this.shaped = await shapeIfc(this, ctx);
+    strutFont.destroy();
   }
 
   doTextLayout(ctx: LayoutContext) {
-    const hb = ctx.hb;
-    let bottom = 0;
-    let runi = 0;
-    let linei = 0;
-    let itemi = 0;
-    let isNewLine = true;
-
-    if (!this.strut) throw new Error('Preprocess first');
-
-    this.lineboxes = createLineboxes(this, ctx);
-
-    const strutFont = hb.createFont(this.strut.face);
-
-    // Since runs are the smallest ranges that can change style, iterate them to
-    // look at lineHeight. Shaping items also affect lineHeight, so those have
-    // to be iterated too. Line height is calculated per-line, so every
-    // combination of the three must be checked.
-    while (linei < this.lineboxes.length && runi < this.runs.length && itemi < this.shaped.length) {
-      const linebox = this.lineboxes[linei];
-      const run = this.runs[runi];
-      const item = this.shaped[itemi];
-      const itemEnd = item.offset + item.text.length; // TODO make it use {start, end}
-
-      if (isNewLine) {
-        const extents = getAscenderDescender(this.strut.attrs.style, strutFont, this.strut.face.upem);
-        linebox.ascender = extents.ascender;
-        linebox.descender = extents.descender;
-      }
-
-      const font = hb.createFont(item.face);
-      const extents = getAscenderDescender(run.style, font, item.face.upem);
-      linebox.ascender = Math.max(linebox.ascender, extents.ascender);
-      linebox.descender = Math.max(linebox.descender, extents.descender);
-      font.destroy();
-
-      const marker = Math.min(run.end + 1, linebox.end(), itemEnd);
-
-      if (marker === run.end + 1) runi += 1;
-      if (marker === linebox.end()) linei += 1;
-      if (marker === itemEnd) itemi += 1;
-      isNewLine = marker === linebox.end();
-      if (isNewLine) bottom += linebox.ascender + linebox.descender;
-    }
-
-    if (linei < this.lineboxes.length) {
-      bottom += this.lineboxes[linei].ascender + this.lineboxes[linei].descender;
-    }
-
-    strutFont.destroy();
-
-    this.height = bottom;
+    createLineboxes(this, ctx);
   }
 
   containsAllCollapsibleWs() {

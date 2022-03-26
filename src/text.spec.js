@@ -825,4 +825,15 @@ describe('Line breaking', function () {
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].end()).to.equal(11);
   });
+
+  it('sets the height of an ifc box correctly', async function () {
+    await this.layout(`
+      <div style="width: 500px; font: 16px Ramabhadra">
+        <span style="font: 16px Roboto;">I could be<br>reading a book</span>
+        <span style="font: 12px Arimo;">But I like writing layout engines instead</span>
+      </div>
+    `);
+
+    expect(this.get(0).contentArea.height).to.be.approximately(60.7, 0.1);
+  });
 });

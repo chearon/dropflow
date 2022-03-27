@@ -297,6 +297,25 @@ export class BlockContainer extends Box {
     content.blockStart = style.paddingBlockStart;
   }
 
+  assignContainingBlocks(ctx: LayoutContext) {
+    // CSS2.2 10.1
+    if (this.isRelativeOrStatic) {
+      this.containingBlock = ctx.lastBlockContainerArea;
+    } else if (this.isAbsolute) {
+      this.containingBlock = ctx.lastPositionedArea;
+    } else {
+      throw new Error(`Could not assign a containing block to box ${this.id}`);
+    }
+
+    this.borderArea.setParent(this.containingBlock);
+
+    ctx.lastBlockContainerArea = this.contentArea;
+
+    if (this.isPositioned) {
+      ctx.lastPositionedArea = this.paddingArea;
+    }
+  }
+
   isBlockContainer(): this is BlockContainer {
     return true;
   }
@@ -673,6 +692,10 @@ export class IfcInline extends Inline {
     });
     this.shaped = await shapeIfc(this, ctx);
     strutFont.destroy();
+  }
+
+  assignContainingBlocks(ctx: LayoutContext) {
+    this.containingBlock = ctx.lastBlockContainerArea;
   }
 
   doTextLayout(ctx: LayoutContext) {

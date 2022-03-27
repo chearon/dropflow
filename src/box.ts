@@ -1,7 +1,7 @@
 import {id} from './util';
 import {Style} from './cascade';
 import {Run} from './text';
-import {Break, Inline, IfcInline, BlockContainer, LayoutContext} from './flow';
+import {Break, Inline, IfcInline, BlockContainer} from './flow';
 
 export type LogicalArea = {
   blockStart: number
@@ -285,27 +285,6 @@ export class Box {
 
   get sym() {
     return '◼︎';
-  }
-
-  assignContainingBlocks(ctx: LayoutContext) {
-    // CSS2.2 10.1
-    if (this.isRelativeOrStatic) {
-      this.containingBlock = ctx.lastBlockContainerArea;
-    } else if (this.isAbsolute) {
-      this.containingBlock = ctx.lastPositionedArea;
-    } else {
-      throw new Error(`Could not assign a containing block to box ${this.id}`);
-    }
-
-    this.borderArea.setParent(this.containingBlock);
-
-    if (this.isBlockContainer()) {
-      ctx.lastBlockContainerArea = this.contentArea;
-    }
-
-    if (this.isPositioned) {
-      ctx.lastPositionedArea = this.paddingArea;
-    }
   }
 
   absolutify() {

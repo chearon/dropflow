@@ -69,9 +69,10 @@ These rules are either working or will be working soon. Shorthand properties are
 
 # Third party components
 
-* PegJS for parsing CSS rules and selectors
-* John Resig's HTML parser for parsing HTML (modified)
-* sizzle.js stripped down and repurposed for selector matching
-* fontkit for reading fonts
-* harfbuzz for shaping
-* linebreak for line breaking
+* [fb55/htmlparser2](https://github.com/fb55/htmlparser2) parses HTML (inlined into source tree)
+* [pegjs/pegjs](https://github.com/pegjs/pegjs) builds the CSS parser
+* [chearon/fontconfigjs](https://github.com/chearon/fontconfigjs) selects font files with the help of [foliojs/fontkit](https://github.com/foliojs/fontkit)
+* [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices
+* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) prodides Unicode grapheme boundaries
+* [chearon/itemizer](https://github.com/chearon/itemizer) produces shaping boundaries with the help of [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) and [google/emoji-segmenter](https://github.com/google/emoji-segmenter)
+* [harfbuzz/harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs) does font shaping

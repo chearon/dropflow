@@ -679,28 +679,28 @@ export class ShapedItem implements IfcRenderItem {
   offset: number;
   text: string;
   colors: [Color, number][];
+  extents: [{ascender: number, descender: number}, number][];
   attrs: ShapingAttrs;
   needsReshape: boolean;
   inlines: Inline[];
-  extents: {ascender: number, descender: number};
 
   constructor(
     face: HbFace,
-    extents: {ascender: number, descender: number},
     match: FontConfigCssMatch,
     glyphs: HbGlyphInfo[],
     offset: number,
     text: string,
     colors: [Color, number][],
+    extents: [{ascender: number, descender: number}, number][],
     attrs: ShapingAttrs
   ) {
     this.face = face;
-    this.extents = extents;
     this.match = match;
     this.glyphs = glyphs;
     this.offset = offset;
     this.text = text;
     this.colors = colors;
+    this.extents = extents;
     this.attrs = attrs;
     this.needsReshape = false;
     this.inlines = [];
@@ -712,7 +712,8 @@ export class ShapedItem implements IfcRenderItem {
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
     const rightColors = sliceMarkedObjects(this.colors, rightOffset);
-    const right = new ShapedItem(this.face, this.extents, this.match, rightGlyphs, rightOffset, rightText, rightColors, this.attrs);
+    const rightExtents = sliceMarkedObjects(this.extents, rightOffset);
+    const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, rightColors, rightExtents, this.attrs);
     const needsReshape = Boolean(rightGlyphs[0].flags & 1);
     const inlines = this.inlines;
 
@@ -759,6 +760,17 @@ export class ShapedItem implements IfcRenderItem {
     }
 
     return w / this.face.upem * this.attrs.style.fontSize;
+  }
+
+  measureExtents(ci: number = this.text.length) {
+    const ret = {ascender: 0, descender: 0};
+    for (let i = 0; i < this.extents.length; ++i) {
+      const [extents, offset] = this.extents[i];
+      if (offset >= ci) break;
+      ret.ascender = Math.max(ret.ascender, extents.ascender);
+      ret.descender = Math.max(ret.descender, extents.descender);
+    }
+    return ret;
   }
 
   collapseWhitespace(at: 'start' | 'end') {
@@ -940,20 +952,18 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
           shapeWork.push({offset, text});
           log += `    ==> Must reshape "${text}"\n`;
         } else {
-          const extents = {ascender: 0, descender: 0};
+          const extents:[{ascender: number, descender: number}, number][] = [];
           const glyphs = part.glyphs.slice(gstart, gend);
           // Note: for reshapes, this array will have unused colors on the end
           const theseColors = sliceMarkedObjects(colors, offset);
 
           for (const [style, soffset] of sliceMarkedObjects(styles, offset)) {
             if (soffset > end) break;
-            const sextents = getAscenderDescender(style, font, face.upem);
-            extents.ascender = Math.max(extents.ascender, sextents.ascender);
-            extents.descender = Math.max(extents.descender, sextents.descender);
+            extents.push([getAscenderDescender(style, font, face.upem), soffset]);
           }
 
           for (const g of glyphs) g.cl -= cstart;
-          paragraph.push(new ShapedItem(face, extents, match, glyphs, offset, text, theseColors, {...attrs}));
+          paragraph.push(new ShapedItem(face, match, glyphs, offset, text, theseColors, extents, {...attrs}));
           if (isLastMatch) {
             log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
             break cascade;
@@ -1071,8 +1081,8 @@ export class Linebox extends LineItemLinkedList {
     super();
     this.dir = dir;
     this.startOffset = this.endOffset = start;
-    this.ascender = strut.extents.ascender;
-    this.descender = strut.extents.descender;
+    this.ascender = strut.measureExtents().ascender;
+    this.descender = strut.measureExtents().descender;
     this.width = 0;
     this.trimStartFinished = false;
     this.inlineStart = 0;
@@ -1190,8 +1200,8 @@ export class Linebox extends LineItemLinkedList {
     // I wonder if this is something browsers handle? extreme edge case though
     for (let n = this.head; n; n = n.next) {
       if (n.value instanceof ShapedItem) {
-        this.ascender = Math.max(this.ascender, n.value.extents.ascender);
-        this.descender = Math.max(this.descender, n.value.extents.descender);
+        this.ascender = Math.max(this.ascender, n.value.measureExtents().ascender);
+        this.descender = Math.max(this.descender, n.value.measureExtents().descender);
       }
     }
   }

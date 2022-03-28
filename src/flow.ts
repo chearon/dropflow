@@ -683,9 +683,11 @@ export class IfcInline extends Inline {
     const strutFontMatch = strutCascade.matches[0].toCssMatch();
     const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
     const strutFont = ctx.hb.createFont(strutFace);
-    const extents = getAscenderDescender(this.style, strutFont, strutFace.upem);
-    this.strut = new ShapedItem(strutFace, extents, strutFontMatch, [], 0, '', [], {
-      style: this.style,
+    const extents:[{ascender: number, descender: number}, number][] =
+      [[getAscenderDescender(this.style, strutFont, strutFace.upem), 0]];
+
+    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, '', [], extents, {
+     style: this.style,
       isEmoji: false,
       level: 0,
       script: 'Latn'

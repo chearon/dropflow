@@ -796,6 +796,17 @@ describe('Line breaking', function () {
     expect(inline.lineboxes[0].ascender + inline.lineboxes[0].descender).to.equal(32);
   });
 
+  it('uses the correct line height when a shaped item is broken', async function () {
+    await this.layout(`
+      <div style="width: 0; font: 16px Roboto;">
+        <span style="line-height: 32px;">lorem</span> <span style="line-height: 64px;">ipsum</span>
+      </div>
+   `);
+    /** @type import('./flow').BlockContainer */
+    const ifc = this.get(0);
+    expect(ifc.contentArea.height).to.equal(32 + 64);
+  });
+
   it('uses the correct inline side to create shaping boundaries', async function () {
     await this.layout(`
       <div style="width: 300px; direction: rtl; font: 16px Cairo;">

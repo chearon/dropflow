@@ -50,8 +50,8 @@ These rules are either working or will be working soon. Shorthand properties are
 | <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works | |
 | <code>bottom</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works | |
-| <code>display</code> | `block`, `inline`, `flow-root` | ✅&zwj;&nbsp;Works | |
-| <code>display</code> | `none`, `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  | |
+| <code>display</code> | `block`, `inline`, `flow-root`, `none` | ✅&zwj;&nbsp;Works | |
+| <code>display</code> | `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  | |
 | <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
 | <code>left</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |

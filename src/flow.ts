@@ -823,7 +823,9 @@ export function createPreorderInlineIterator(inline: IfcInline) {
 function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, InlineNotRun?] {
   let children = [], bail = false;
 
-  if (el.style.display.outer !== 'inline') throw Error('Inlines only');
+  if (el.style.display.outer !== 'inline' && el.style.display.outer !== 'none') {
+    throw Error('Inlines only');
+  }
 
   if (!stack[level]) stack[level] = 0;
 

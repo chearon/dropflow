@@ -150,6 +150,31 @@ describe('Flow', function () {
       await this.layoutAsync('<div style="display: flow-root;"></div>');
       expect(this.get(0).isBfcRoot()).to.be.true;
     });
+
+    it('doesn\'t create block block boxes with display: none', function () {
+      this.layout(`
+        <div style="display: flow-root;">
+          <div style="margin: 10px 0;"></div>
+          <div style="margin: 20px 0; display: none;"></div>
+          <div style="margin: 10px 0;"></div>
+        </div>
+      `);
+
+      expect(this.get(0).contentArea.height).to.equal(10);
+      expect(this.get(0).children).to.have.lengthOf(2);
+    });
+
+    it('doesn\'t create inline boxes with display: none', async function () {
+      await this.layoutAsync(`
+        <div>
+          <span style="line-height: 100px;">shown</span>
+          <span style="line-height: 200px; display: none;">hidden</span>
+        </div>
+      `);
+
+      expect(this.get(0).contentArea.height).to.equal(100);
+      expect(this.get(0).children).to.have.lengthOf(1);
+    });
   });
 
   describe('Collapsing', function () {

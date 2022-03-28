@@ -110,9 +110,9 @@ type Position = 'absolute' | 'relative' | 'static';
 
 export type Color = {r: number, g: number, b: number, a: number};
 
-type OuterDisplay = 'inline' | 'block';
+type OuterDisplay = 'inline' | 'block' | 'none';
 
-type InnerDisplay = 'flow' | 'flow-root';
+type InnerDisplay = 'flow' | 'flow-root' | 'none';
 
 type BorderStyle = 'none' | 'hiden' | 'dotted' | 'dashed' | 'solid'
   | 'double' | 'groove' | 'ridge' | 'inset' | 'outset'

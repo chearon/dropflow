@@ -373,6 +373,7 @@ display
   / 'inline-block' { return {outer: 'inline', inner: 'flow-root'}; }
   / 'inline' { return {outer: 'inline', inner: 'flow'}; }
   / 'flow-root' { return {outer: 'block', inner: 'flow-root'}; }
+  / 'none' { return {outer: 'none', inner: 'none'}; }
 
 writing_mode
   = 'horizontal-tb' / 'vertical-lr' / 'vertical-rl'

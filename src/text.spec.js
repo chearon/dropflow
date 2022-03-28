@@ -847,4 +847,36 @@ describe('Line breaking', function () {
 
     expect(this.get(0).contentArea.height).to.be.approximately(60.7, 0.1);
   });
+
+  it('carries over colors and line heights correctly', async function () {
+    await this.layout(`
+      <div style="width: 0; line-height: 32px;">
+        break
+        it
+        <span style="color: red; line-height: 64px;">down</span>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get(0).children;
+
+    expect(ifc.lineboxes[0].head.value.colors).to.deep.equal([
+      [{r: 0, g: 0, b: 0, a: 1}, 0],
+      [{r: 255, g: 0, b: 0, a: 1}, 10],
+      [{r: 0, g: 0, b: 0, a: 1}, 14]
+    ]);
+    expect(ifc.lineboxes[1].head.value.colors).to.deep.equal([
+      [{r: 0, g: 0, b: 0, a: 1}, 0],
+      [{r: 255, g: 0, b: 0, a: 1}, 3],
+      [{r: 0, g: 0, b: 0, a: 1}, 7]
+    ]);
+    expect(ifc.lineboxes[2].head.value.colors).to.deep.equal([
+      [{r: 255, g: 0, b: 0, a: 1}, 0],
+      [{r: 0, g: 0, b: 0, a: 1}, 4]
+    ]);
+
+    expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(32);
+    expect(ifc.lineboxes[1].ascender + ifc.lineboxes[1].descender).to.equal(32);
+    expect(ifc.lineboxes[2].ascender + ifc.lineboxes[2].descender).to.equal(64);
+  });
 });

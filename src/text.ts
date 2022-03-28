@@ -711,8 +711,8 @@ export class ShapedItem implements IfcRenderItem {
     const rightText = this.text.slice(offset);
     const rightOffset = this.offset + offset;
     const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
-    const rightColors = sliceMarkedObjects(this.colors, rightOffset);
-    const rightExtents = sliceMarkedObjects(this.extents, rightOffset);
+    const rightColors = sliceMarkedObjects(this.colors, offset);
+    const rightExtents = sliceMarkedObjects(this.extents, offset);
     const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, rightColors, rightExtents, this.attrs);
     const needsReshape = Boolean(rightGlyphs[0].flags & 1);
     const inlines = this.inlines;

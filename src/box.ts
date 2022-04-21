@@ -200,7 +200,7 @@ export class Area {
   repr(indent = 0) {
     const {w, h, x, y} = this;
     const {t, r, b, l} = this.spec;
-    const p1 = `${t ?? 'x'} ${r ?? 'x'} ${b ?? 'x'} ${l ?? 'x'}`;
+    const p1 = `${t ?? '-'} ${r ?? '-'} ${b ?? '-'} ${l ?? '-'}`;
     return '  '.repeat(indent) + `⚃ Area ${this.id}: ${p1} → ${w}⨯${h} @${x},${y}`;
   }
 }

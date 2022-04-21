@@ -1,5 +1,5 @@
 import {id} from './util';
-import {Style} from './cascade';
+import {Style, ComputedPlainStyle, WritingMode, Direction} from './cascade';
 import {Run} from './text';
 import {Break, Inline, IfcInline, BlockContainer} from './flow';
 
@@ -59,8 +59,6 @@ const verticalRl = (area: Area):LogicalArea => ({
   set inlineSize(v) { area.height = v; }
 });
 
-export type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
-
 const throwOverSpecified = (a: Area, side: string) => new Error(
   `Cannot set ${side} on area ${a.id} because this dimension is already ` +
   'locked-in (must choose two of width, left, right, for example)'
@@ -68,6 +66,8 @@ const throwOverSpecified = (a: Area, side: string) => new Error(
 
 export class Area {
   id: string;
+  writingMode: WritingMode;
+  direction: Direction;
   x = 0;
   y = 0;
   w = 0;
@@ -85,8 +85,10 @@ export class Area {
 
   private hasAbsolutified = false;
 
-  constructor(id: string, x?: number, y?: number, w?: number, h?: number) {
+  constructor(id: string, style: ComputedPlainStyle, x?: number, y?: number, w?: number, h?: number) {
     this.id = id;
+    this.writingMode = style.writingMode;
+    this.direction = style.direction;
 
     if (x != null && y != null && w != null && h != null) {
       [this.x, this.y, this.w, this.h] = [x, y, w, h];
@@ -232,9 +234,9 @@ export class Box {
     this.children = children;
     this.attrs = attrs;
 
-    this.borderArea = new Area(this.id + 'b');
-    this.paddingArea = new Area(this.id + 'p');
-    this.contentArea = new Area(this.id + 'c');
+    this.borderArea = new Area(this.id + 'b', style);
+    this.paddingArea = new Area(this.id + 'p', style);
+    this.contentArea = new Area(this.id + 'c', style);
     this.paddingArea.setParent(this.borderArea);
     this.contentArea.setParent(this.paddingArea);
   }

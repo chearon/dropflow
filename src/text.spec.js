@@ -27,24 +27,26 @@ const rootStyle = createComputedStyle(initialStyle, {
 });
 
 describe('Text Module', function () {
+  const s = rootStyle;
+
   describe('Run', function () {
     it('throws on a setRange that doesn\'t make sense', function () {
-      expect(() => new Run('').setRange(0, '')).to.throw();
-      expect(() => new Run('').setRange('', '')).to.throw();
-      expect(() => new Run('').setRange(5, 5)).to.throw();
-      expect(() => new Run('hello').setRange(-1, 4)).to.throw();
-      expect(() => new Run('test').setRange(0, 1)).to.throw();
-      expect(() => new Run('xxxxxx').setRange(1, 10)).to.throw();
+      expect(() => new Run('', s).setRange(0, '')).to.throw();
+      expect(() => new Run('', s).setRange('', '')).to.throw();
+      expect(() => new Run('', s).setRange(5, 5)).to.throw();
+      expect(() => new Run('hello', s).setRange(-1, 4)).to.throw();
+      expect(() => new Run('test', s).setRange(0, 1)).to.throw();
+      expect(() => new Run('xxxxxx', s).setRange(1, 10)).to.throw();
     });
 
     it('shifts', function () {
-      const t1 = new Run('Hello');
+      const t1 = new Run('Hello', s);
       t1.setRange(0, 4);
       t1.shift(-2);
       expect(t1.start).to.equal(2);
       expect(t1.end).to.equal(6);
 
-      const t2 = new Run('Hello');
+      const t2 = new Run('Hello', s);
       t2.setRange(0, 4);
       t2.shift(2);
       expect(t2.start).to.equal(-2);
@@ -52,7 +54,7 @@ describe('Text Module', function () {
     });
 
     it('mod() removes a character', function () {
-      const t1 = new Run('Hello');
+      const t1 = new Run('Hello', s);
       t1.setRange(0, 4);
       t1.mod(2, 2, '');
       expect(t1.text).to.equal('Helo');
@@ -61,7 +63,7 @@ describe('Text Module', function () {
     });
 
     it('mod() removes characters', function () {
-      const t1 = new Run('Hello');
+      const t1 = new Run('Hello', s);
       t1.setRange(0, 4);
       t1.mod(1, 3, '');
       expect(t1.text).to.equal('Ho');
@@ -70,7 +72,7 @@ describe('Text Module', function () {
     });
 
     it('mod() replaces characters', function () {
-      const t1 = new Run('Hello');
+      const t1 = new Run('Hello', s);
       t1.setRange(0, 4);
       t1.mod(2, 2, 'aron');
       expect(t1.text).to.equal('Hearonlo');
@@ -79,7 +81,7 @@ describe('Text Module', function () {
     });
 
     it('mod() handles start < text.i < end', function () {
-      const t1 = new Run('texty');
+      const t1 = new Run('texty', s);
       t1.setRange(5, 9);
       t1.mod(2, 6, 's');
       expect(t1.text).to.equal('sxty');
@@ -88,7 +90,7 @@ describe('Text Module', function () {
     });
 
     it('mod() handles start < text.end < j', function () {
-      const t1 = new Run('texty');
+      const t1 = new Run('texty', s);
       t1.setRange(5, 9);
       t1.mod(8, 10, 'y');
       expect(t1.text).to.equal('texy');
@@ -99,11 +101,11 @@ describe('Text Module', function () {
 
   describe('Collapser', function () {
     it('throws an error if buf doesn\'t match the texts', function () {
-      const [r1, r2] = [new Run('a'), new Run('b')];
+      const [r1, r2] = [new Run('a', s), new Run('b', s)];
       r1.setRange(0, 0);
       r2.setRange(1, 1);
 
-      const [r3, r4] = [new Run('text'), new Run('musmatch')];
+      const [r3, r4] = [new Run('text', s), new Run('musmatch', s)];
       r3.setRange(0, 3);
       r4.setRange(4, 11);
 
@@ -114,7 +116,7 @@ describe('Text Module', function () {
 
     describe('mod()', function () {
       it('replaces text', function () {
-        const t = new Run('Lorem ipsum');
+        const t = new Run('Lorem ipsum', s);
         t.setRange(0, 10);
         const c = new Collapser('Lorem ipsum', [t]);
         c.mod(6, 10, 'lorem');
@@ -125,8 +127,8 @@ describe('Text Module', function () {
       });
 
       it('replaces text when the boundaries are in the middle of 2 texts', function () {
-        const t1 = new Run('This is my');
-        const t2 = new Run(' theme song');
+        const t1 = new Run('This is my', s);
+        const t2 = new Run(' theme song', s);
         t1.setRange(0, 9);
         t2.setRange(10, 20);
         const c = new Collapser('This is my theme song', [t1, t2]);
@@ -141,7 +143,7 @@ describe('Text Module', function () {
       });
 
       it('replaces with empty text', function () {
-        const t = new Run('Lorem ipsum');
+        const t = new Run('Lorem ipsum', s);
         t.setRange(0, 10);
         const c = new Collapser('Lorem ipsum', [t]);
         c.mod(3, 4, '');
@@ -152,8 +154,8 @@ describe('Text Module', function () {
       });
 
       it('replaces with empty text when the boundaries are in the middle of 2 texts', function () {
-        const t1 = new Run('This is my');
-        const t2 = new Run(' theme song');
+        const t1 = new Run('This is my', s);
+        const t2 = new Run(' theme song', s);
         t1.setRange(0, 9);
         t2.setRange(10, 20);
         const c = new Collapser('This is my theme song', [t1, t2]);
@@ -269,10 +271,12 @@ async function setupLayoutTests() {
 
   this.layout = async function (html) {
     const logging = {text: new Set([])};
-    this.initialContainingBlock = new Area('', 0, 0, 300, 500);
+    this.initialContainingBlock = new Area('', rootStyle, 0, 0, 300, 500);
     this.rootElement = new HTMLElement('root', 'root', rootStyle);
     parseNodes(this.rootElement, html);
     this.blockContainer = generateBlockContainer(this.rootElement);
+    this.blockContainer.containingBlock = this.initialContainingBlock;
+    this.blockContainer.setBlockPosition(0);
     await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
     layoutBlockBox(this.blockContainer, {
       lastBlockContainerArea: this.initialContainingBlock,
@@ -281,7 +285,6 @@ async function setupLayoutTests() {
       hb,
       logging
     });
-    this.blockContainer.setBlockPosition(0, rootStyle.writingMode);
     this.blockContainer.absolutify();
     this.get = function (...args) {
       /** @type import('./box').Box */

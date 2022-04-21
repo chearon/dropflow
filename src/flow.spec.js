@@ -38,7 +38,7 @@ describe('Flow', function () {
      * @param {string} [html]
      */
     this.prelayout = function (html) {
-      this.initialContainingBlock = new Area('', 0, 0, 300, 500);
+      this.initialContainingBlock = new Area('', rootDeclaredStyle, 0, 0, 300, 500);
       this.rootComputed = createComputedStyle(initialStyle, rootDeclaredStyle);
       this.rootElement = new HTMLElement('root', 'root', this.rootComputed);
       parseNodes(this.rootElement, html);
@@ -53,6 +53,7 @@ describe('Flow', function () {
         hb,
         logging: {text: new Set()}
       });
+      this.blockContainer.containingBlock = this.initialContainingBlock;
       this.blockContainer.setBlockPosition(0, rootDeclaredStyle.writingMode);
       this.blockContainer.absolutify();
       this.get = function (...args) {

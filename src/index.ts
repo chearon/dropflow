@@ -91,12 +91,13 @@ Promise.all([
 
   // -------------- Step 2 --------------
   console.log('Layout');
-  const initialContainingBlock = new Area('', 0, 0, 300, 500);
-  blockContainer.setBlockPosition(0, blockContainer.style.writingMode);
+  const initialContainingBlock = new Area('', rootComputedStyle, 0, 0, 300, 500);
+  blockContainer.containingBlock = initialContainingBlock;
+  blockContainer.setBlockPosition(0);
   const logging = {text: new Set([])};
   await blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
   layoutBlockBox(blockContainer, {
-    bfc: new BlockFormattingContext("horizontal-tb"),
+    bfc: new BlockFormattingContext(),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
     logging,

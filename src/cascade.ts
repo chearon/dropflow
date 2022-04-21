@@ -100,11 +100,11 @@ type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed
 
 type BackgroundClip = 'border-box' | 'padding-box' | 'content-box';
 
-type Direction = 'ltr' | 'rtl';
+export type Direction = 'ltr' | 'rtl';
 
 type Display = {outer: OuterDisplay, inner: InnerDisplay};
 
-type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
+export type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
 
 type Position = 'absolute' | 'relative' | 'static';
 

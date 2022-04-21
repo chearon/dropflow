@@ -438,7 +438,7 @@ function paintBlockContainer(blockContainer: BlockContainer, hb: Harfbuzz, depth
 
       const x = side == 'Right' ? paddingArea.x + paddingArea.width : borderArea.x;
       const y = side === 'Bottom' ? paddingArea.y + paddingArea.height : borderArea.y;
-      const a = new Area('', x, y, width, height);
+      const a = new Area('', style, x, y, width, height);
 
       s += drawColoredBoxDiv(a, borderColor, depth);
     }

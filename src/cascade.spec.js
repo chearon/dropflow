@@ -41,7 +41,7 @@ describe('CSS Style', function () {
 
     const style = new Style('root', computed);
 
-    style.resolvePercentages(new Area('a', 0, 0, 100, 200));
+    style.resolvePercentages(new Area('a', style, 0, 0, 100, 200));
 
     expect(style.paddingTop).to.equal(50);
     expect(style.paddingRight).to.equal(50);

@@ -1,7 +1,7 @@
 import {HTMLElement, TextNode} from './node';
 import {createComputedStyle, Style, LogicalStyle} from './cascade';
 import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes, getAscenderDescender} from './text';
-import {Box, Area, WritingMode} from './box';
+import {Box, Area} from './box';
 import {Harfbuzz, HbFace} from 'harfbuzzjs';
 import {FontConfig} from 'fontconfig';
 import {Itemizer} from 'itemizer';
@@ -156,15 +156,13 @@ class MarginCollapseContext {
 }
 
 export class BlockFormattingContext {
-  public writingMode: WritingMode;
   public mctx: MarginCollapseContext;
   public stack: (BlockContainer | {post: BlockContainer})[];
   public blockOffset: number;
   private sizeStack: number[];
   private offsetStack: number[];
 
-  constructor(writingMode: WritingMode) {
-    this.writingMode = writingMode;
+  constructor() {
     this.mctx = new MarginCollapseContext();
     this.stack = [];
     this.blockOffset = 0;
@@ -173,7 +171,7 @@ export class BlockFormattingContext {
   }
 
   boxStart(box: BlockContainer) {
-    this.mctx.boxStart(box, box.style.createLogicalView(this.writingMode));
+    this.mctx.boxStart(box, box.style.createLogicalView(box.writingMode));
     this.stack.push(box);
 
     // Position everything up until now so floating is possible
@@ -187,19 +185,19 @@ export class BlockFormattingContext {
   }
 
   boxEnd(box: BlockContainer) {
-    this.mctx.boxEnd(box, box.style.createLogicalView(this.writingMode));
+    this.mctx.boxEnd(box, box.style.createLogicalView(box.writingMode));
     this.stack.push({post: box});
   }
 
   finalize(box: BlockContainer) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
 
-    const content = box.contentArea.createLogicalView(this.writingMode);
+    const content = box.contentArea.createLogicalView(box.writingMode);
 
     this.positionBlockContainers();
 
     if (content.blockSize === undefined) {
-      box.setBlockSize(this.blockOffset, this.writingMode);
+      box.setBlockSize(this.blockOffset);
     }
   }
 
@@ -210,15 +208,15 @@ export class BlockFormattingContext {
 
     for (const item of this.stack) {
       const box = 'post' in item ? item.post : item;
-      const border = box.borderArea.createLogicalView(this.writingMode);
-      const style = box.style.createLogicalView(this.writingMode);
+      const border = box.borderArea.createLogicalView(box.writingMode);
+      const style = box.style.createLogicalView(box.writingMode);
 
       if ('post' in item) {
         const childSize = sizeStack.pop()!;
         const offset = offsetStack.pop()!;
 
         if (style.blockSize === 'auto' && box.isBlockContainerOfBlockContainers() && !box.isBfcRoot()) {
-          box.setBlockSize(childSize, this.writingMode);
+          box.setBlockSize(childSize);
         }
 
         // The block size would only be indeterminate for floats, which are
@@ -235,7 +233,7 @@ export class BlockFormattingContext {
         const size = start.has(box.id) ? start.get(box.id)! : 0;
         sizeStack[sizeStack.length - 1] += size;
         this.blockOffset += size;
-        box.setBlockPosition(sizeStack[sizeStack.length - 1], this.writingMode);
+        box.setBlockPosition(sizeStack[sizeStack.length - 1]);
         sizeStack.push(0);
         offsetStack.push(this.blockOffset);
       }
@@ -269,11 +267,19 @@ export class BlockContainer extends Box {
       + reset;
   }
 
-  setBlockSize(size: number, bfcWritingMode: WritingMode) {
-    const content = this.contentArea.createLogicalView(bfcWritingMode);
-    const padding = this.paddingArea.createLogicalView(bfcWritingMode);
-    const border = this.borderArea.createLogicalView(bfcWritingMode);
-    const style = this.style.createLogicalView(bfcWritingMode);
+  get writingMode() {
+    if (!this.containingBlock) {
+      throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
+    }
+
+    return this.containingBlock.writingMode;
+  }
+
+  setBlockSize(size: number) {
+    const content = this.contentArea.createLogicalView(this.writingMode);
+    const padding = this.paddingArea.createLogicalView(this.writingMode);
+    const border = this.borderArea.createLogicalView(this.writingMode);
+    const style = this.style.createLogicalView(this.writingMode);
 
     content.blockSize = size;
 
@@ -286,11 +292,11 @@ export class BlockContainer extends Box {
       + style.borderBlockEndWidth;
   }
 
-  setBlockPosition(position: number, bfcWritingMode: WritingMode) {
-    const content = this.contentArea.createLogicalView(bfcWritingMode);
-    const padding = this.paddingArea.createLogicalView(bfcWritingMode);
-    const border = this.borderArea.createLogicalView(bfcWritingMode);
-    const style = this.style.createLogicalView(bfcWritingMode);
+  setBlockPosition(position: number) {
+    const content = this.contentArea.createLogicalView(this.writingMode);
+    const padding = this.paddingArea.createLogicalView(this.writingMode);
+    const border = this.borderArea.createLogicalView(this.writingMode);
+    const style = this.style.createLogicalView(this.writingMode);
 
     border.blockStart = position;
     padding.blockStart = style.borderBlockStartWidth;
@@ -352,11 +358,11 @@ export class BlockContainer extends Box {
     if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
     const [rootInline] = this.children;
     rootInline.doTextLayout(ctx);
-    this.setBlockSize(rootInline.height, ctx.bfc.writingMode);
+    this.setBlockSize(rootInline.height);
   }
 }
 
-function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
+function doInlineBoxModelForBlockBox(box: BlockContainer) {
   // CSS 2.2 §10.3.3
   // ---------------
 
@@ -368,8 +374,8 @@ function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
     throw new Error('doInlineBoxModelForBlockBox called with inline');
   }
 
-  const style = box.style.createLogicalView(ctx.bfc.writingMode);
-  const container = box.containingBlock.createLogicalView(ctx.bfc.writingMode);
+  const container = box.containingBlock.createLogicalView(box.writingMode);
+  const style = box.style.createLogicalView(box.writingMode);
   let marginInlineStart = style.marginInlineStart;
   let marginInlineEnd = style.marginInlineEnd;
 
@@ -415,15 +421,15 @@ function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
     }
   }
 
-  const content = box.contentArea.createLogicalView(ctx.bfc.writingMode);
+  const content = box.contentArea.createLogicalView(box.writingMode);
   // Paragraph 5: auto width
   if (style.inlineSize === 'auto') {
     if (marginInlineStart === 'auto') marginInlineStart = 0;
     if (marginInlineEnd === 'auto') marginInlineEnd = 0;
   }
 
-  const padding = box.paddingArea.createLogicalView(ctx.bfc.writingMode);
-  const border = box.borderArea.createLogicalView(ctx.bfc.writingMode);
+  const padding = box.paddingArea.createLogicalView(box.writingMode);
+  const border = box.borderArea.createLogicalView(box.writingMode);
 
   assumePx(marginInlineStart);
   assumePx(marginInlineEnd);
@@ -438,11 +444,11 @@ function doInlineBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
   content.inlineEnd = style.paddingInlineEnd;
 }
 
-function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
+function doBlockBoxModelForBlockBox(box: BlockContainer) {
   // CSS 2.2 §10.6.3
   // ---------------
 
-  const style = box.style.createLogicalView(ctx.bfc.writingMode);
+  const style = box.style.createLogicalView(box.writingMode);
 
   if (!box.isBlockLevel()) {
     throw new Error('doBlockBoxModelForBlockBox called with inline');
@@ -450,7 +456,7 @@ function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
 
   if (style.blockSize === 'auto') {
     if (box.children.length === 0) {
-      box.setBlockSize(0, ctx.bfc.writingMode); // Case 4
+      box.setBlockSize(0); // Case 4
     } else {
       // Cases 1-4 should be handled by doBoxPositioning, where margin
       // calculation happens. These bullet points seem to be re-phrasals of
@@ -458,7 +464,7 @@ function doBlockBoxModelForBlockBox(box: BlockContainer, ctx: LayoutContext) {
       // more might need to happen here.
     }
   } else {
-    box.setBlockSize(style.blockSize, ctx.bfc.writingMode);
+    box.setBlockSize(style.blockSize);
   }
 }
 
@@ -488,12 +494,12 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
     inline.assignContainingBlocks(cctx);
   }
 
-  doInlineBoxModelForBlockBox(box, ctx);
-  doBlockBoxModelForBlockBox(box, ctx);
+  doInlineBoxModelForBlockBox(box);
+  doBlockBoxModelForBlockBox(box);
   bfc.boxStart(box); // Assign block position if it's an IFC
   // Child flow is now possible
 
-  if (box.isBfcRoot()) cctx.bfc = new BlockFormattingContext(box.style.writingMode);
+  if (box.isBfcRoot()) cctx.bfc = new BlockFormattingContext();
 
   if (box.isBlockContainerOfInlines()) {
     box.doTextLayout(ctx);

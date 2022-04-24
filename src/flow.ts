@@ -275,6 +275,14 @@ export class BlockContainer extends Box {
     return this.containingBlock.writingMode;
   }
 
+  get direction() {
+    if (!this.containingBlock) {
+      throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
+    }
+
+    return this.containingBlock.direction;
+  }
+
   setBlockSize(size: number) {
     const content = this.contentArea.createLogicalView(this.writingMode);
     const padding = this.paddingArea.createLogicalView(this.writingMode);
@@ -404,8 +412,11 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
       // Paragraph 3: check over-constrained values. This expands the right
       // margin in LTR documents to fill space, or, if the above scenario was
       // hit, it makes the right margin negative.
-      // TODO support the `direction` CSS property
-      marginInlineEnd = container.inlineSize - (specifiedInlineSize - marginInlineEnd);
+      if (box.direction === 'ltr') {
+        marginInlineEnd = container.inlineSize - (specifiedInlineSize - marginInlineEnd);
+      } else {
+        marginInlineStart = container.inlineSize - (specifiedInlineSize - marginInlineEnd);
+      }
     } else { // one or both of the margins is auto, specifiedWidth < cb width
       if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
         // Paragraph 4: only auto value is margin-left

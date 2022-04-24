@@ -409,6 +409,16 @@ describe('Flow', function () {
       expect(this.get(0, 0).contentArea.width).to.equal(200);
       expect(this.get(0, 0).contentArea.x).to.equal(100);
     });
+
+    it('right-aligns over-constrained boxes', function () {
+      this.layout(`
+        <div style="direction: rtl; width: 300px;">
+          <div style="margin: 100px; width: 300px; direction: ltr;"></div>
+        </div>
+      `);
+
+      expect(this.get(0, 0).contentArea.x).to.equal(-100);
+    });
   });
 
   describe('Vertical writing modes', function () {

@@ -405,7 +405,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
       // margin in LTR documents to fill space, or, if the above scenario was
       // hit, it makes the right margin negative.
       // TODO support the `direction` CSS property
-      marginInlineEnd = container.inlineSize - specifiedInlineSize;
+      marginInlineEnd = container.inlineSize - (specifiedInlineSize - marginInlineEnd);
     } else { // one or both of the margins is auto, specifiedWidth < cb width
       if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
         // Paragraph 4: only auto value is margin-left

@@ -399,6 +399,16 @@ describe('Flow', function () {
       `);
       expect(this.get(0).contentArea.height).to.equal(100);
     });
+
+    it('handles over-constrained values correctly', async function () {
+      this.layout(`
+        <div style="width: 300px;">
+          <div style="width: 200px; margin: 100px;"></div>
+        </div>
+      `);
+      expect(this.get(0, 0).contentArea.width).to.equal(200);
+      expect(this.get(0, 0).contentArea.x).to.equal(100);
+    });
   });
 
   describe('Vertical writing modes', function () {

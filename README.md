@@ -1,6 +1,6 @@
 # overflow
 
-Overflow is CSS layout engine written in TypeScript. It has high quality text layout and is capable of displaying many of the beautiful languages of the world. It tries to be fast, but it's more concerned with exploring the reaches of the CSS standards.
+Overflow is a CSS layout engine written in TypeScript. It has high quality text layout and is capable of displaying many of the beautiful languages of the world. It tries to be fast, but it's more concerned with exploring the reaches of the foundational CSS standards.
 
 # Usage
 
@@ -65,7 +65,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works | |
 | <code>z-index</code> | | 🚧&zwj;&nbsp;Planned | |
 
-<sup>1</sup>Any document that uses `position: fixed` could be reorganized and updated to use `position: absolute` and look identical. For that reason, I don't find fixed positioning very interesting. In web development, it can also get you into difficult traps if an ancestor, which may be a different component, has a `transform` other than `none`. However it is useful on simpler webpages or codebases without strong organization.
+<sup>1</sup>Any document that uses `position: fixed` could be reorganized and updated to use `position: absolute` and look identical. For that reason, I don't find fixed positioning very interesting.
 
 # Third party components
 
@@ -73,6 +73,6 @@ These rules are either working or will be working soon. Shorthand properties are
 * [pegjs/pegjs](https://github.com/pegjs/pegjs) builds the CSS parser
 * [chearon/fontconfigjs](https://github.com/chearon/fontconfigjs) selects font files with the help of [foliojs/fontkit](https://github.com/foliojs/fontkit)
 * [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices
-* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) prodides Unicode grapheme boundaries
+* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) provides Unicode grapheme boundaries
 * [chearon/itemizer](https://github.com/chearon/itemizer) produces shaping boundaries with the help of [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) and [google/emoji-segmenter](https://github.com/google/emoji-segmenter)
 * [harfbuzz/harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs) does font shaping

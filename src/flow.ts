@@ -1,5 +1,5 @@
 import {HTMLElement, TextNode} from './node';
-import {createComputedStyle, Style, LogicalStyle} from './cascade';
+import {createComputedStyle, Style} from './cascade';
 import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes, getAscenderDescender} from './text';
 import {Box, Area} from './box';
 import {Harfbuzz, HbFace} from 'harfbuzzjs';
@@ -43,60 +43,89 @@ export type PreprocessContext = {
   logging: {text: Set<string>}
 };
 
-type MarginCollapseCollection = {
-  root: BlockContainer,
-  margins: number[],
-  position: 'start' | 'end',
-  through?: true
-};
+class MarginCollapseCollection {
+  private positive: number;
+  private negative: number;
+  public through?: true;
 
-// CSS 2 § 8.3.1
-//
-// TODO: while the method of calculating positions up until an IFC or up until
-// the end of the BFC works well, I implemented it that way because
-// MarginCollapseContext was built to run in one pass, with positioning
-// happening later. I built it that way because at the time I did not realize
-// that flow must happen in document order, in a streaming sort of way, since
-// floats are placed throughout the entire BFC and the IFC must calcluate
-// collisions with floats (thus the IFC position within the BFC position must
-// be known at time of text layout).
-//
-// All that's to say I might be able to come up with a better flow algorithm
-// that doesn't involve backing up and doing calculations every time an IFC is
-// hit. It could be possible to rewrite MarginCollapseContext to have determined
-// margins every time a margin can't adjoin (eg IFC is hit).
-class MarginCollapseContext {
-  private current: null | MarginCollapseCollection = null;
-  private last:'start' | 'end' | null = null;
-  private margins: MarginCollapseCollection[] = [];
+  constructor(initialMargin: number) {
+    this.positive = 0;
+    this.negative = 0;
+    this.add(initialMargin);
+  }
 
-  boxStart(box: BlockContainer, style: LogicalStyle) {
+  add(margin: number) {
+    if (margin < 0) {
+      this.negative = Math.max(this.negative, -margin);
+    } else {
+      this.positive = Math.max(this.positive, margin);
+    }
+  }
+
+  get() {
+    return this.positive - this.negative;
+  }
+}
+
+export class BlockFormattingContext {
+  public stack: (BlockContainer | {post: BlockContainer})[];
+  public blockOffset: number;
+  private sizeStack: number[];
+  private offsetStack: number[];
+  private last:'start' | 'end' | null;
+  private startMargins: Map<Box, MarginCollapseCollection>;
+  private endMargins: Map<Box, MarginCollapseCollection>;
+  private margin: null | {root: Box, collection: MarginCollapseCollection, position: 'start' | 'end'};
+
+  constructor() {
+    this.stack = [];
+    this.blockOffset = 0;
+    this.sizeStack = [0];
+    this.offsetStack = [];
+    this.last = null;
+    this.startMargins = new Map();
+    this.endMargins = new Map();
+    this.margin = null;
+  }
+
+  boxStart(box: BlockContainer) {
+    const style = box.style.createLogicalView(box.writingMode);
     const adjoins = style.paddingBlockStart === 0
       && style.borderBlockStartWidth === 0;
 
     assumePx(style.marginBlockStart);
+
     if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
-    if (this.current) {
-      this.current.margins.push(style.marginBlockStart);
+    this.stack.push(box);
+
+    if (this.margin) {
+      this.margin.collection.add(style.marginBlockStart);
     } else {
-      this.current = {root: box, margins: [style.marginBlockStart], position: 'start'};
-      this.margins.push(this.current);
+      const collection = new MarginCollapseCollection(style.marginBlockStart);
+      this.margin = {root: box, collection, position: 'start'};
+      this.startMargins.set(box, collection);
     }
 
-    if (!adjoins) this.current = null;
+    if (!adjoins) this.margin = null;
 
     this.last = 'start';
+
+    // Position everything up until now so floating is possible
+    if (box.isBlockContainerOfInlines()) {
+      this.positionBlockContainers();
+    }
   }
 
-  boxEnd(box: BlockContainer, style: LogicalStyle) {
+  boxEnd(box: BlockContainer) {
+    const style = box.style.createLogicalView(box.writingMode);
     let adjoins = style.paddingBlockEnd === 0
       && style.borderBlockEndWidth === 0;
 
     assumePx(style.marginBlockEnd);
     if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
-    if (this.current && adjoins) {
+    if (this.margin && adjoins) {
       if (this.last === 'start') {
         // Handle the end of a block box that had no block children
         // TODO 1 min-height (minHeightOk)
@@ -109,83 +138,33 @@ class MarginCollapseContext {
       }
     }
 
-    if (this.current && adjoins && this.last === 'start') this.current.through = true;
+    if (this.margin && adjoins && this.last === 'start') this.margin.collection.through = true;
 
-    if (this.current && adjoins) {
-      this.current.margins.push(style.marginBlockEnd);
+    // TODO CSS 2 §8.3.1 last bullet: if collapsing through, check if collapsing
+    // with parent's bottom margin or neither. If either of those, need to call
+    // positionBlockContainers before adding the end margin.
+
+    if (this.margin && adjoins) {
+      this.margin.collection.add(style.marginBlockEnd);
       // When a box's end adjoins to the previous margin, move the "root" (the
       // box which the margin will be placed adjacent to) to the highest-up box
       // in the tree, since its siblings need to be shifted. If the margin is
-      // collapsing through, don't do that because CSS 2 §8.3.1 last 2 bullets
-      if (this.last === 'end' && !this.current.through) this.current.root = box;
+      // collapsing through, don't do that since the collapsed-through boxes
+      // need to be shifted down (CSS 2 §8.3.1 2nd-to-last bullet).
+      if (this.last === 'end' && !this.margin.collection.through) {
+        const map = this.margin.position === 'start' ? this.startMargins : this.endMargins;
+        map.delete(this.margin.root);
+        this.margin.root = box;
+        map.set(box, this.margin.collection);
+      }
     } else {
-      this.current = {root: box, margins: [style.marginBlockEnd], position: 'end'};
-      this.margins.push(this.current);
+      const collection = new MarginCollapseCollection(style.marginBlockEnd);
+      this.margin = {root: box, collection, position: 'end'};
+      this.endMargins.set(box, collection);
     }
 
     this.last = 'end';
-  }
 
-  toBoxMaps() {
-    const start = new Map<string, number>();
-    const end = new Map<string, number>();
-
-    for (const {root, position, margins} of this.margins) {
-      let positive = 0;
-      let negative = 0;
-
-      for (const n of margins) {
-        if (n < 0) {
-          negative = Math.max(negative, -n);
-        } else {
-          positive = Math.max(positive, n);
-        }
-      }
-
-      const collapsedMargin = positive - negative;
-
-      if (position === 'start') {
-        start.set(root.id, collapsedMargin);
-      } else {
-        end.set(root.id, collapsedMargin);
-      }
-    }
-
-    return {start, end};
-  }
-}
-
-export class BlockFormattingContext {
-  public mctx: MarginCollapseContext;
-  public stack: (BlockContainer | {post: BlockContainer})[];
-  public blockOffset: number;
-  private sizeStack: number[];
-  private offsetStack: number[];
-
-  constructor() {
-    this.mctx = new MarginCollapseContext();
-    this.stack = [];
-    this.blockOffset = 0;
-    this.sizeStack = [0];
-    this.offsetStack = [];
-  }
-
-  boxStart(box: BlockContainer) {
-    this.mctx.boxStart(box, box.style.createLogicalView(box.writingMode));
-    this.stack.push(box);
-
-    // Position everything up until now so floating is possible
-    if (box.isBlockContainerOfInlines()) {
-      this.positionBlockContainers();
-      // Not exactly necessary, but keeps memory down and makes the next
-      // toBoxMaps() faster. Since an IFC never adjoins it's safe. See the note
-      // above MarginCollapseContext for some insight into future improvements.
-      this.mctx = new MarginCollapseContext();
-    }
-  }
-
-  boxEnd(box: BlockContainer) {
-    this.mctx.boxEnd(box, box.style.createLogicalView(box.writingMode));
     this.stack.push({post: box});
   }
 
@@ -202,7 +181,8 @@ export class BlockFormattingContext {
   }
 
   positionBlockContainers() {
-    const {start, end} = this.mctx.toBoxMaps();
+    const start = this.startMargins;
+    const end = this.endMargins;
     const sizeStack = this.sizeStack;
     const offsetStack = this.offsetStack;
 
@@ -226,11 +206,11 @@ export class BlockFormattingContext {
         // size is indeterminate that's a bug.
         assumePx(border.blockSize);
 
-        const size = border.blockSize + (end.has(box.id) ? end.get(box.id)! : 0);
+        const size = border.blockSize + (end.has(box) ? end.get(box)!.get() : 0);
         sizeStack[sizeStack.length - 1] += size;
         this.blockOffset = offset + size;
       } else {
-        const size = start.has(box.id) ? start.get(box.id)! : 0;
+        const size = start.has(box) ? start.get(box)!.get() : 0;
         sizeStack[sizeStack.length - 1] += size;
         this.blockOffset += size;
         box.setBlockPosition(sizeStack[sizeStack.length - 1]);

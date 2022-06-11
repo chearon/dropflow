@@ -1,6 +1,6 @@
 import {bsearch, loggableText} from './util';
 import {Box} from './box';
-import {Style, initialStyle, createComputedStyle, Color} from './cascade';
+import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade';
 import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
@@ -1206,7 +1206,7 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  postprocess(paragraphWidth: number, textAlign: 'left' | 'right' | 'center') {
+  postprocess(paragraphWidth: number, textAlign: TextAlign) {
     this.trimEnd();
     this.reorder();
     this.calculateExtents();

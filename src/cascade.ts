@@ -119,7 +119,7 @@ type BorderStyle = 'none' | 'hiden' | 'dotted' | 'dashed' | 'solid'
 
 type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
 
-type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center';
+export type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center';
 
 export type DeclaredPlainStyle = {
   whiteSpace?: WhiteSpace | Inherited | Initial;

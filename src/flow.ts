@@ -344,9 +344,9 @@ export class BlockContainer extends Box {
 
   doTextLayout(ctx: LayoutContext) {
     if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
-    const [rootInline] = this.children;
-    rootInline.doTextLayout(ctx);
-    this.setBlockSize(rootInline.height);
+    const [ifc] = this.children;
+    ifc.doTextLayout(ctx);
+    this.setBlockSize(ifc.height);
   }
 }
 
@@ -906,9 +906,9 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
       const anonStyleId = parentEl.id + '.' + ++subId;
       const anonComputedStyle = createComputedStyle(parentEl.style, {});
       const anonStyle = new Style(anonStyleId, anonComputedStyle);
-      const rootInline = new IfcInline(anonStyle, inlines);
-      if (!rootInline.containsAllCollapsibleWs()) {
-        blocks.push(new BlockContainer(anonStyle, [rootInline], Box.ATTRS.isAnonymous));
+      const ifc = new IfcInline(anonStyle, inlines);
+      if (!ifc.containsAllCollapsibleWs()) {
+        blocks.push(new BlockContainer(anonStyle, [ifc], Box.ATTRS.isAnonymous));
       }
     }
 

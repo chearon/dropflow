@@ -112,7 +112,7 @@ export class BlockFormattingContext {
     this.last = 'start';
 
     // Position everything up until now so floating is possible
-    if (box.isBlockContainerOfInlines()) {
+    if (box.isBlockContainerOfInlines() && !box.canCollapseThrough()) {
       this.positionBlockContainers();
     }
   }
@@ -131,7 +131,7 @@ export class BlockFormattingContext {
         // TODO 1 min-height (minHeightOk)
         // TODO 2 clearance
         const heightOk = style.blockSize === 'auto' || style.blockSize === 0;
-        adjoins = box.children.length === 0 && !box.isBfcRoot() && heightOk;
+        adjoins = box.canCollapseThrough() && !box.isBfcRoot() && heightOk;
       } else {
         // Handle the end of a block box that was at the end of its parent
         adjoins = style.blockSize === 'auto';
@@ -140,17 +140,13 @@ export class BlockFormattingContext {
 
     if (this.margin && adjoins && this.last === 'start') this.margin.collection.through = true;
 
-    // TODO CSS 2 §8.3.1 last bullet: if collapsing through, check if collapsing
-    // with parent's bottom margin or neither. If either of those, need to call
-    // positionBlockContainers before adding the end margin.
-
     if (this.margin && adjoins) {
       this.margin.collection.add(style.marginBlockEnd);
       // When a box's end adjoins to the previous margin, move the "root" (the
       // box which the margin will be placed adjacent to) to the highest-up box
       // in the tree, since its siblings need to be shifted. If the margin is
       // collapsing through, don't do that since the collapsed-through boxes
-      // need to be shifted down (CSS 2 §8.3.1 2nd-to-last bullet).
+      // need to be shifted down.
       if (this.last === 'end' && !this.margin.collection.through) {
         const map = this.margin.position === 'start' ? this.startMargins : this.endMargins;
         map.delete(this.margin.root);
@@ -328,6 +324,15 @@ export class BlockContainer extends Box {
 
   isBlockContainerOfInlines(): this is BlockContainerOfInlines {
     return Boolean(this.children.length && this.children[0].isIfcInline());
+  }
+
+  canCollapseThrough() {
+    if (this.isBlockContainerOfInlines()) {
+      const [ifc] = this.children;
+      return !ifc.hasContent();
+    } else {
+      return this.children.length === 0;
+    }
   }
 
   isBlockContainerOfBlockContainers(): this is BlockContainerOfBlockContainers {
@@ -581,6 +586,7 @@ export class IfcInline extends Inline {
   public lineboxes: Linebox[] = [];
   public height: number = 0;
   public children: InlineLevel[];
+  private _hasContent: boolean | undefined;
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
@@ -689,7 +695,9 @@ export class IfcInline extends Inline {
       level: 0,
       script: 'Latn'
     });
-    this.shaped = await shapeIfc(this, ctx);
+    if (this.hasContent()) {
+      this.shaped = await shapeIfc(this, ctx);
+    }
     strutFont.destroy();
   }
 
@@ -698,30 +706,33 @@ export class IfcInline extends Inline {
   }
 
   doTextLayout(ctx: LayoutContext) {
-    createLineboxes(this, ctx);
+    if (this.hasContent()) {
+      createLineboxes(this, ctx);
+    }
   }
 
-  containsAllCollapsibleWs() {
-    const stack: Box[] = this.children.slice();
-    let good = true;
+  hasContent() {
+    if (this._hasContent !== undefined) return this._hasContent;
 
-    while (stack.length && good) {
+    const stack: (InlineLevel | BlockContainer)[] = this.children.slice();
+    let hasContent = false;
+
+    while (stack.length && !hasContent) {
       const child = stack.shift()!;
       if (child.isRun()) {
         if (!child.wsCollapsible) {
-          good = false;
+          hasContent = true;
         } else {
-          good = child.allCollapsible();
+          hasContent = !child.allCollapsible();
         }
       } else if (child.isInline()) {
         stack.unshift(...child.children);
       } else {
-        // box should only be an InlineLevelBfcBLockContainer at this point
-        good = false;
+        hasContent = true; // BlockContainer | Break
       }
     }
 
-    return good;
+    return this._hasContent = hasContent;
   }
 }
 
@@ -907,9 +918,7 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
       const anonComputedStyle = createComputedStyle(parentEl.style, {});
       const anonStyle = new Style(anonStyleId, anonComputedStyle);
       const ifc = new IfcInline(anonStyle, inlines);
-      if (!ifc.containsAllCollapsibleWs()) {
-        blocks.push(new BlockContainer(anonStyle, [ifc], Box.ATTRS.isAnonymous));
-      }
+      blocks.push(new BlockContainer(anonStyle, [ifc], Box.ATTRS.isAnonymous));
     }
 
     if (i < boxes.length) {

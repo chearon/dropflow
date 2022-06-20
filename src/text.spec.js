@@ -468,7 +468,7 @@ describe('Line breaking', function () {
     await this.layout(`
       <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
     `);
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes.length).to.equal(1);
   });
 
@@ -476,7 +476,7 @@ describe('Line breaking', function () {
     await this.layout(`
       <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
     `);
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes.length).to.equal(2);
   });
 
@@ -487,7 +487,7 @@ describe('Line breaking', function () {
       </div>
     `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end()).to.equal(13);
     expect(inline.shaped).to.have.lengthOf(3);
@@ -500,7 +500,7 @@ describe('Line breaking', function () {
       </div>
     `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end()).to.equal(13);
     expect(inline.shaped).to.have.lengthOf(2);
@@ -514,7 +514,7 @@ describe('Line breaking', function () {
       </div>
    `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.shaped).to.have.lengthOf(2);
   });
 
@@ -537,7 +537,7 @@ describe('Line breaking', function () {
       <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
 
@@ -549,7 +549,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
 
     expect(inline.lineboxes).to.have.lengthOf(3);
     expect(inline.shaped).to.have.lengthOf(3);
@@ -570,7 +570,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
     expect(ifc.shaped).to.have.lengthOf(7);
 
     const a1 = ifc.lineboxes[0].head.next; // A
@@ -601,7 +601,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
     expect(ifc.lineboxes).to.have.lengthOf(3);
 
     let n = ifc.lineboxes[1].head.next; // 10px shiv
@@ -641,7 +641,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].inlines).to.have.lengthOf(2);
     expect(ifc.shaped[0].inlines[0].end).to.equal(19);
@@ -664,7 +664,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(3);
   });
 
@@ -676,7 +676,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(3);
     expect(inline.lineboxes[0].end()).to.equal(6);
     expect(inline.lineboxes[1].end()).to.equal(11);
@@ -690,7 +690,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
 
     let n = ifc.lineboxes[0].head; // Word
     expect(n.next).to.equal(null);
@@ -710,7 +710,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
 
@@ -722,7 +722,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
 
@@ -736,7 +736,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes).to.have.lengthOf(2);
 
     let n = inline.lineboxes[0].head; // ' Give_me_the_next_span '
@@ -759,7 +759,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
   });
 
@@ -769,7 +769,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     // Noto Sans ascender = 1069/1000 descender = 293/1000
     expect(inline.lineboxes[0].ascender).to.be.approximately(22.2, 0.1);
     expect(inline.lineboxes[0].descender).to.be.approximately(9.8, 0.1);
@@ -784,7 +784,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
     expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(100);
   });
 
@@ -795,7 +795,7 @@ describe('Line breaking', function () {
       </div>
    `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get(1).children;
     expect(inline.lineboxes[0].ascender + inline.lineboxes[0].descender).to.equal(32);
   });
 
@@ -806,7 +806,7 @@ describe('Line breaking', function () {
       </div>
    `);
     /** @type import('./flow').BlockContainer */
-    const ifc = this.get(0);
+    const ifc = this.get(1);
     expect(ifc.contentArea.height).to.equal(32 + 64);
   });
 
@@ -818,7 +818,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].end()).to.equal(5);
   });
@@ -835,7 +835,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].end()).to.equal(11);
   });
@@ -848,7 +848,7 @@ describe('Line breaking', function () {
       </div>
     `);
 
-    expect(this.get(0).contentArea.height).to.be.approximately(60.7, 0.1);
+    expect(this.get(1).contentArea.height).to.be.approximately(60.7, 0.1);
   });
 
   it('carries over colors and line heights correctly', async function () {
@@ -861,7 +861,7 @@ describe('Line breaking', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(0).children;
+    const [ifc] = this.get(1).children;
 
     expect(ifc.lineboxes[0].head.value.colors).to.deep.equal([
       [{r: 0, g: 0, b: 0, a: 1}, 0],

@@ -450,7 +450,7 @@ describe('Shaping', function () {
   });
 });
 
-describe('Line breaking', function () {
+describe('Lines', function () {
   before(setupLayoutTests);
   afterEach(logIfFailed);
 
@@ -881,5 +881,15 @@ describe('Line breaking', function () {
     expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(32);
     expect(ifc.lineboxes[1].ascender + ifc.lineboxes[1].descender).to.equal(32);
     expect(ifc.lineboxes[2].ascender + ifc.lineboxes[2].descender).to.equal(64);
+  });
+
+  it('takes strut into account', async function () {
+    await this.layout(`
+      <div style="font: 16px Arimo; line-height: 1;"><span style="font: 4px Arimo;">tiny!</span></div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get(1).children;
+    expect(ifc.height).to.equal(16);
   });
 });

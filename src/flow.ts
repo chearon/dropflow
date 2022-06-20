@@ -689,15 +689,17 @@ export class IfcInline extends Inline {
     const extents:[{ascender: number, descender: number}, number][] =
       [[getAscenderDescender(this.style, strutFont, strutFace.upem), 0]];
 
-    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, '', [], extents, {
+    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, ' ', [], extents, {
      style: this.style,
       isEmoji: false,
       level: 0,
       script: 'Latn'
     });
+
     if (this.hasContent()) {
       this.shaped = await shapeIfc(this, ctx);
     }
+
     strutFont.destroy();
   }
 

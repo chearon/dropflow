@@ -1,2 +1,0 @@
-describe('Parser', function () {
-});

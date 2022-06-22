@@ -1650,7 +1650,7 @@ export function parseNodes(rootElement: HTMLElement, str: string) {
       }
 
       const computedStyle = createComputedStyle(parent.style, cascadedStyle);
-      const element = new HTMLElement(newId, tagName, computedStyle);
+      const element = new HTMLElement(newId, tagName, computedStyle, parent, attrs);
 
       parent.children.push(element);
       stack.push(parent);

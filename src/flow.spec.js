@@ -55,10 +55,15 @@ describe('Flow', function () {
       this.blockContainer.setBlockPosition(0, rootDeclaredStyle.writingMode);
       this.blockContainer.absolutify();
       this.get = function (...args) {
-        /** @type import('./box').Box */
-        let ret = this.blockContainer;
-        while (args.length) ret = ret.children[args.shift()];
-        return ret;
+        if (typeof args[0] === 'string') {
+          const elements = this.rootElement.query(args[0]);
+          if (elements.length) return elements[0].boxes[0];
+        } else {
+          /** @type import('./box').Box */
+          let ret = this.blockContainer;
+          while (args.length) ret = ret.children[args.shift()];
+          return ret;
+        }
       };
     };
   });
@@ -162,108 +167,108 @@ describe('Flow', function () {
   describe('Collapsing', function () {
     it('collapses through, sets heights, offsets correctly', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 10px 0;"></div>
-          <div style="margin: 10px 0;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 10px 0;"></div>
+          <div id="c2" style="margin: 10px 0;"></div>
         </div>
       `);
 
       expect(this.blockContainer.contentArea.height).to.equal(500);
-      expect(this.get(1).contentArea.height).to.equal(10);
-      expect(this.get(1, 0).contentArea.height).to.equal(0);
-      expect(this.get(1, 1).contentArea.height).to.equal(0);
+      expect(this.get('#r').contentArea.height).to.equal(10);
+      expect(this.get('#c1').contentArea.height).to.equal(0);
+      expect(this.get('#c2').contentArea.height).to.equal(0);
 
       expect(this.blockContainer.contentArea.y).to.equal(0);
-      expect(this.get(1).contentArea.y).to.equal(0);
-      expect(this.get(1, 0).contentArea.y).to.equal(10);
-      expect(this.get(1, 1).contentArea.y).to.equal(10);
+      expect(this.get('#r').contentArea.y).to.equal(0);
+      expect(this.get('#c1').contentArea.y).to.equal(10);
+      expect(this.get('#c2').contentArea.y).to.equal(10);
     });
 
     it('uses smallest margin', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 20px 0;"></div>
-          <div style="margin: 10px 0;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 20px 0;"></div>
+          <div id="c2" style="margin: 10px 0;"></div>
         </div>
       `);
 
       expect(this.blockContainer.contentArea.height).to.equal(500);
-      expect(this.get(1).contentArea.height).to.equal(20);
-      expect(this.get(1, 0).contentArea.height).to.equal(0);
-      expect(this.get(1, 1).contentArea.height).to.equal(0);
+      expect(this.get('#r').contentArea.height).to.equal(20);
+      expect(this.get('#c1').contentArea.height).to.equal(0);
+      expect(this.get('#c2').contentArea.height).to.equal(0);
 
       expect(this.blockContainer.contentArea.y).to.equal(0);
-      expect(this.get(1).contentArea.y).to.equal(0);
-      expect(this.get(1, 0).contentArea.y).to.equal(20);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
+      expect(this.get('#r').contentArea.y).to.equal(0);
+      expect(this.get('#c1').contentArea.y).to.equal(20);
+      expect(this.get('#c2').contentArea.y).to.equal(20);
     });
 
     it('doesn\'t collapse through borders', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 20px 0; border-bottom: 1px solid;"></div>
-          <div style="margin: 10px 0;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 20px 0; border-bottom: 1px solid;"></div>
+          <div id="c2" style="margin: 10px 0;"></div>
         </div>
       `);
 
-      expect(this.get(1).contentArea.height).to.equal(41);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
-      expect(this.get(1, 3).contentArea.y).to.equal(41);
+      expect(this.get('#r').contentArea.height).to.equal(41);
+      expect(this.get('#c1').contentArea.y).to.equal(20);
+      expect(this.get('#c2').contentArea.y).to.equal(41);
     });
 
     it('doesn\'t collapse through padding', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 20px 0; padding-bottom: 1px;"></div>
-          <div style="margin: 10px 0;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 20px 0; padding-bottom: 1px;"></div>
+          <div id="c2" style="margin: 10px 0;"></div>
         </div>
       `);
 
-      expect(this.get(1).contentArea.height).to.equal(41);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
-      expect(this.get(1, 3).contentArea.y).to.equal(41);
+      expect(this.get('#r').contentArea.height).to.equal(41);
+      expect(this.get('#c1').contentArea.y).to.equal(20);
+      expect(this.get('#c2').contentArea.y).to.equal(41);
     });
 
     it('collapses through parents', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 20px 0;">
-            <div style="margin: 20px 0;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 20px 0;">
+            <div id="c2" style="margin: 20px 0;"></div>
           </div>
         </div>
       `);
 
-      expect(this.get(1).contentArea.height).to.equal(20);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
-      expect(this.get(1, 1, 1).contentArea.y).to.equal(20);
+      expect(this.get('#r').contentArea.height).to.equal(20);
+      expect(this.get('#c1').contentArea.y).to.equal(20);
+      expect(this.get('#c2').contentArea.y).to.equal(20);
     });
 
     it('doesn\'t collapse through if a height is set', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 20px 0;">
-            <div style="margin: 20px 0; height: 1px;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 20px 0;">
+            <div id="c2" style="margin: 20px 0; height: 1px;"></div>
           </div>
         </div>
       `);
 
-      expect(this.get(1).contentArea.height).to.equal(41);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
-      expect(this.get(1, 1, 1).contentArea.y).to.equal(20);
+      expect(this.get('#r').contentArea.height).to.equal(41);
+      expect(this.get('#c1').contentArea.y).to.equal(20);
+      expect(this.get('#c2').contentArea.y).to.equal(20);
     });
 
     it('collapses through if height is zero', async function () {
       await this.layout(`
-        <div style="display: flow-root;">
-          <div style="margin: 20px 0;">
-            <div style="margin: 20px 0; height: 0;"></div>
+        <div id="r" style="display: flow-root;">
+          <div id="c1" style="margin: 20px 0;">
+            <div id="c2" style="margin: 20px 0; height: 0;"></div>
           </div>
         </div>
       `);
 
-      expect(this.get(1).contentArea.height).to.equal(20);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
-      expect(this.get(1, 1, 1).contentArea.y).to.equal(20);
+      expect(this.get('#r').contentArea.height).to.equal(20);
+      expect(this.get('#c1').contentArea.y).to.equal(20);
+      expect(this.get('#c2').contentArea.y).to.equal(20);
     });
   });
 
@@ -271,105 +276,105 @@ describe('Flow', function () {
     describe('Border, padding, and empty div behavior', function () {
       before(async function () {
         await this.layout(`
-          <div style="padding: 10px 5px; margin: 10px 5px;">
-            <div style="border: 10px solid;"></div>
-            <div></div>
-            <div style="border: 10px solid;">
-              <div style="margin: 10px;"></div>
+          <div id="p" style="padding: 10px 5px; margin: 10px 5px;">
+            <div id="b1" style="border: 10px solid;"></div>
+            <div id="e"></div>
+            <div id="b2" style="border: 10px solid;">
+              <div id="m" style="margin: 10px;"></div>
             </div>
           </div>
         `);
       });
 
-      it('lays out box model for body > div correctly', function () {
-        expect(this.get(1).borderArea.width).to.equal(290);
-        expect(this.get(1).paddingArea.width).to.equal(290);
-        expect(this.get(1).contentArea.width).to.equal(280);
-        expect(this.get(1).borderArea.height).to.equal(70);
-        expect(this.get(1).paddingArea.height).to.equal(70);
-        expect(this.get(1).contentArea.height).to.equal(50);
-        expect(this.get(1).borderArea.y).to.equal(10);
-        expect(this.get(1).paddingArea.y).to.equal(10);
-        expect(this.get(1).contentArea.y).to.equal(20);
-        expect(this.get(1).borderArea.x).to.equal(5);
-        expect(this.get(1).paddingArea.x).to.equal(5);
-        expect(this.get(1).contentArea.x).to.equal(10);
+      it('lays out box model for #p correctly', function () {
+        expect(this.get('#p').borderArea.width).to.equal(290);
+        expect(this.get('#p').paddingArea.width).to.equal(290);
+        expect(this.get('#p').contentArea.width).to.equal(280);
+        expect(this.get('#p').borderArea.height).to.equal(70);
+        expect(this.get('#p').paddingArea.height).to.equal(70);
+        expect(this.get('#p').contentArea.height).to.equal(50);
+        expect(this.get('#p').borderArea.y).to.equal(10);
+        expect(this.get('#p').paddingArea.y).to.equal(10);
+        expect(this.get('#p').contentArea.y).to.equal(20);
+        expect(this.get('#p').borderArea.x).to.equal(5);
+        expect(this.get('#p').paddingArea.x).to.equal(5);
+        expect(this.get('#p').contentArea.x).to.equal(10);
       });
 
-      it('lays out box model for body > div > div:nth-child(1) correctly', function () {
-        expect(this.get(1, 1).borderArea.width).to.equal(280);
-        expect(this.get(1, 1).paddingArea.width).to.equal(260);
-        expect(this.get(1, 1).contentArea.width).to.equal(260);
-        expect(this.get(1, 1).borderArea.height).to.equal(20);
-        expect(this.get(1, 1).paddingArea.height).to.equal(0);
-        expect(this.get(1, 1).contentArea.height).to.equal(0);
-        expect(this.get(1, 1).borderArea.y).to.equal(20);
-        expect(this.get(1, 1).paddingArea.y).to.equal(30);
-        expect(this.get(1, 1).contentArea.y).to.equal(30);
-        expect(this.get(1, 1).borderArea.x).to.equal(10);
-        expect(this.get(1, 1).paddingArea.x).to.equal(20);
-        expect(this.get(1, 1).contentArea.x).to.equal(20);
+      it('lays out box model for #b1 correctly', function () {
+        expect(this.get('#b1').borderArea.width).to.equal(280);
+        expect(this.get('#b1').paddingArea.width).to.equal(260);
+        expect(this.get('#b1').contentArea.width).to.equal(260);
+        expect(this.get('#b1').borderArea.height).to.equal(20);
+        expect(this.get('#b1').paddingArea.height).to.equal(0);
+        expect(this.get('#b1').contentArea.height).to.equal(0);
+        expect(this.get('#b1').borderArea.y).to.equal(20);
+        expect(this.get('#b1').paddingArea.y).to.equal(30);
+        expect(this.get('#b1').contentArea.y).to.equal(30);
+        expect(this.get('#b1').borderArea.x).to.equal(10);
+        expect(this.get('#b1').paddingArea.x).to.equal(20);
+        expect(this.get('#b1').contentArea.x).to.equal(20);
       });
 
-      it('lays out box model for body > div > div:nth-child(2) correctly', function () {
-        expect(this.get(1, 3).borderArea.width).to.equal(280);
-        expect(this.get(1, 3).paddingArea.width).to.equal(280);
-        expect(this.get(1, 3).contentArea.width).to.equal(280);
-        expect(this.get(1, 3).borderArea.height).to.equal(0);
-        expect(this.get(1, 3).paddingArea.height).to.equal(0);
-        expect(this.get(1, 3).contentArea.height).to.equal(0);
-        expect(this.get(1, 3).borderArea.y).to.equal(40);
-        expect(this.get(1, 3).paddingArea.y).to.equal(40);
-        expect(this.get(1, 3).contentArea.y).to.equal(40);
-        expect(this.get(1, 3).borderArea.x).to.equal(10);
-        expect(this.get(1, 3).paddingArea.x).to.equal(10);
-        expect(this.get(1, 3).contentArea.x).to.equal(10);
+      it('lays out box model for #e correctly', function () {
+        expect(this.get('#e').borderArea.width).to.equal(280);
+        expect(this.get('#e').paddingArea.width).to.equal(280);
+        expect(this.get('#e').contentArea.width).to.equal(280);
+        expect(this.get('#e').borderArea.height).to.equal(0);
+        expect(this.get('#e').paddingArea.height).to.equal(0);
+        expect(this.get('#e').contentArea.height).to.equal(0);
+        expect(this.get('#e').borderArea.y).to.equal(40);
+        expect(this.get('#e').paddingArea.y).to.equal(40);
+        expect(this.get('#e').contentArea.y).to.equal(40);
+        expect(this.get('#e').borderArea.x).to.equal(10);
+        expect(this.get('#e').paddingArea.x).to.equal(10);
+        expect(this.get('#e').contentArea.x).to.equal(10);
       });
 
-      it('lays out box model for body > div > div:nth-child(3) correctly', function () {
-        expect(this.get(1, 5).borderArea.width).to.equal(280);
-        expect(this.get(1, 5).paddingArea.width).to.equal(260);
-        expect(this.get(1, 5).contentArea.width).to.equal(260);
-        expect(this.get(1, 5).borderArea.height).to.equal(30);
-        expect(this.get(1, 5).paddingArea.height).to.equal(10);
-        expect(this.get(1, 5).contentArea.height).to.equal(10);
-        expect(this.get(1, 5).borderArea.y).to.equal(40);
-        expect(this.get(1, 5).paddingArea.y).to.equal(50);
-        expect(this.get(1, 5).contentArea.y).to.equal(50);
-        expect(this.get(1, 5).borderArea.x).to.equal(10);
-        expect(this.get(1, 5).paddingArea.x).to.equal(20);
-        expect(this.get(1, 5).contentArea.x).to.equal(20);
+      it('lays out box model for #b2 correctly', function () {
+        expect(this.get('#b2').borderArea.width).to.equal(280);
+        expect(this.get('#b2').paddingArea.width).to.equal(260);
+        expect(this.get('#b2').contentArea.width).to.equal(260);
+        expect(this.get('#b2').borderArea.height).to.equal(30);
+        expect(this.get('#b2').paddingArea.height).to.equal(10);
+        expect(this.get('#b2').contentArea.height).to.equal(10);
+        expect(this.get('#b2').borderArea.y).to.equal(40);
+        expect(this.get('#b2').paddingArea.y).to.equal(50);
+        expect(this.get('#b2').contentArea.y).to.equal(50);
+        expect(this.get('#b2').borderArea.x).to.equal(10);
+        expect(this.get('#b2').paddingArea.x).to.equal(20);
+        expect(this.get('#b2').contentArea.x).to.equal(20);
       });
 
-      it('lays out box model for body > div > div > div', function () {
-        expect(this.get(1, 5, 1).borderArea.width).to.equal(240);
-        expect(this.get(1, 5, 1).paddingArea.width).to.equal(240);
-        expect(this.get(1, 5, 1).contentArea.width).to.equal(240);
-        expect(this.get(1, 5, 1).borderArea.height).to.equal(0);
-        expect(this.get(1, 5, 1).paddingArea.height).to.equal(0);
-        expect(this.get(1, 5, 1).contentArea.height).to.equal(0);
-        expect(this.get(1, 5, 1).borderArea.y).to.equal(60);
-        expect(this.get(1, 5, 1).paddingArea.y).to.equal(60);
-        expect(this.get(1, 5, 1).contentArea.y).to.equal(60);
-        expect(this.get(1, 5, 1).borderArea.x).to.equal(30);
-        expect(this.get(1, 5, 1).paddingArea.x).to.equal(30);
-        expect(this.get(1, 5, 1).contentArea.x).to.equal(30);
+      it('lays out box model for #m correctly', function () {
+        expect(this.get('#m').borderArea.width).to.equal(240);
+        expect(this.get('#m').paddingArea.width).to.equal(240);
+        expect(this.get('#m').contentArea.width).to.equal(240);
+        expect(this.get('#m').borderArea.height).to.equal(0);
+        expect(this.get('#m').paddingArea.height).to.equal(0);
+        expect(this.get('#m').contentArea.height).to.equal(0);
+        expect(this.get('#m').borderArea.y).to.equal(60);
+        expect(this.get('#m').paddingArea.y).to.equal(60);
+        expect(this.get('#m').contentArea.y).to.equal(60);
+        expect(this.get('#m').borderArea.x).to.equal(30);
+        expect(this.get('#m').paddingArea.x).to.equal(30);
+        expect(this.get('#m').contentArea.x).to.equal(30);
       });
     });
 
     it('centers auto margins', async function () {
       await this.layout('<div style="width: 50px; margin: 0 auto;"></div>');
-      expect(this.get(0).contentArea.x).to.equal(125);
+      expect(this.get('div').contentArea.x).to.equal(125);
     });
 
     it('expands left auto margin when the right margin is non-auto', async function () {
       await this.layout('<div style="width: 50px; margin: 0 50px 0 auto;"></div>');
-      expect(this.get(0).contentArea.x).to.equal(200);
+      expect(this.get('div').contentArea.x).to.equal(200);
     });
 
     it('expands right auto margin when the left margin is non-auto', async function () {
       await this.layout('<div style="width: 50px; margin: 0 auto 0 50px;"></div>');
-      expect(this.get(0).contentArea.x).to.equal(50);
+      expect(this.get('div').contentArea.x).to.equal(50);
     });
 
     it('sizes ifc containers and their parents correctly', async function () {
@@ -378,27 +383,27 @@ describe('Flow', function () {
           <div style="line-height: 100px;">hey dont forget to size your parent</div>
         </div>
       `);
-      expect(this.get(1).contentArea.height).to.equal(100);
+      expect(this.get('div').contentArea.height).to.equal(100);
     });
 
     it('handles over-constrained values correctly', async function () {
       await this.layout(`
         <div style="width: 300px;">
-          <div style="width: 200px; margin: 100px;"></div>
+          <div id="t" style="width: 200px; margin: 100px;"></div>
         </div>
       `);
-      expect(this.get(1, 1).contentArea.width).to.equal(200);
-      expect(this.get(1, 1).contentArea.x).to.equal(100);
+      expect(this.get('#t').contentArea.width).to.equal(200);
+      expect(this.get('#t').contentArea.x).to.equal(100);
     });
 
     it('right-aligns over-constrained boxes', async function () {
       await this.layout(`
         <div style="direction: rtl; width: 300px;">
-          <div style="margin: 100px; width: 300px; direction: ltr;"></div>
+          <div id="t" style="margin: 100px; width: 300px; direction: ltr;"></div>
         </div>
       `);
 
-      expect(this.get(1, 1).contentArea.x).to.equal(-100);
+      expect(this.get('#t').contentArea.x).to.equal(-100);
     });
   });
 
@@ -406,72 +411,72 @@ describe('Flow', function () {
     it('lays out from right to left', async function () {
       await this.layout(`
         <div style="margin-top: 20px; height: 10px; writing-mode: vertical-rl;">
-          <div style="width: 10px;"></div>
+          <div id="t" style="width: 10px;"></div>
           <div></div>
         </div>
       `);
 
-      expect(this.get(1, 1).contentArea.x).to.equal(290);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
+      expect(this.get('#t').contentArea.x).to.equal(290);
+      expect(this.get('#t').contentArea.y).to.equal(20);
     });
 
     it('lays out from left to right', async function () {
       await this.layout(`
         <div style="margin-top: 20px; height: 10px; writing-mode: vertical-lr;">
           <div style="width: 10px;"></div>
-          <div></div>
+          <div id="t"></div>
         </div>
       `);
 
-      expect(this.get(1, 3).contentArea.x).to.equal(10);
-      expect(this.get(1, 3).contentArea.y).to.equal(20);
+      expect(this.get('#t').contentArea.x).to.equal(10);
+      expect(this.get('#t').contentArea.y).to.equal(20);
     });
 
     it('collapses orthogonal margins on the outside', async function () {
       await this.layout(`
-        <div style="margin: 10px;"></div>
+        <div id="t" style="margin: 10px;"></div>
         <div style="height: 10px; writing-mode: vertical-lr; margin: 10px;"></div>
       `);
 
-      expect(this.get(1).contentArea.x).to.equal(10);
-      expect(this.get(1).contentArea.y).to.equal(10);
+      expect(this.get('#t').contentArea.x).to.equal(10);
+      expect(this.get('#t').contentArea.y).to.equal(10);
     });
 
     it('does not collapse orthogonal margins on the inside', async function () {
       await this.layout(`
         <div style="height: 100px; writing-mode: vertical-lr; margin: 10px;">
-          <div style="margin: 10px;"></div>
+          <div id="t" style="margin: 10px;"></div>
         </div>
       `);
 
-      expect(this.get(1, 1).contentArea.x).to.equal(20);
-      expect(this.get(1, 1).contentArea.y).to.equal(20);
+      expect(this.get('#t').contentArea.x).to.equal(20);
+      expect(this.get('#t').contentArea.y).to.equal(20);
     });
 
     it('collapses left/right margins', async function () {
       await this.layout(`
         <div style="height: 100px; writing-mode: vertical-lr;">
-          <div style="margin: 20px;"></div>
-          <div style="margin: 20px;"></div>
-          <div style="border: 1px solid;"></div>
-          <div style="margin: 20px;"></div>
+          <div id="c1" style="margin: 20px;"></div>
+          <div id="c2" style="margin: 20px;"></div>
+          <div id="c3" style="border: 1px solid;"></div>
+          <div id="c4" style="margin: 20px;"></div>
         </div>
       `);
 
-      expect(this.get(1, 1).contentArea.x).to.equal(20);
-      expect(this.get(1, 3).contentArea.x).to.equal(20);
-      expect(this.get(1, 5).contentArea.x).to.equal(21);
-      expect(this.get(1, 7).contentArea.x).to.equal(42);
+      expect(this.get('#c1').contentArea.x).to.equal(20);
+      expect(this.get('#c2').contentArea.x).to.equal(20);
+      expect(this.get('#c3').contentArea.x).to.equal(21);
+      expect(this.get('#c4').contentArea.x).to.equal(42);
     });
 
     it('vertically centers with auto margins', async function () {
       await this.layout(`
         <div style="height: 100px; writing-mode: vertical-lr;">
-          <div style="margin: auto 0; height: 10px;"></div>
+          <div id="t" style="margin: auto 0; height: 10px;"></div>
         </div>
       `);
 
-      expect(this.get(1, 1).contentArea.y).to.equal(45);
+      expect(this.get('#t').contentArea.y).to.equal(45);
     });
   });
 
@@ -479,61 +484,61 @@ describe('Flow', function () {
     it('resolves percentage on padding', async function () {
       await this.layout(`
         <div style="width: 100px;">
-          <div style="padding-right: 11%;"></div>
-          <div style="padding-top: 11%;"></div>
-          <div style="padding: 10%;"></div>
+          <div id="c1" style="padding-right: 11%;"></div>
+          <div id="c2" style="padding-top: 11%;"></div>
+          <div id="c3" style="padding: 10%;"></div>
         </div>
       `);
 
-      expect(this.get(1, 1).contentArea.width).to.equal(89);
-      expect(this.get(1, 3).borderArea.height).to.equal(11);
-      expect(this.get(1, 3).contentArea.y).to.equal(11);
+      expect(this.get('#c1').contentArea.width).to.equal(89);
+      expect(this.get('#c2').borderArea.height).to.equal(11);
+      expect(this.get('#c2').contentArea.y).to.equal(11);
 
-      expect(this.get(1, 5).contentArea.width).to.equal(80);
-      expect(this.get(1, 5).borderArea.height).to.equal(20);
+      expect(this.get('#c3').contentArea.width).to.equal(80);
+      expect(this.get('#c3').borderArea.height).to.equal(20);
     });
 
     it('resolves percentages on margin', async function () {
       await this.layout(`
         <div style="width: 100px;">
-          <div style="margin-left: 20%;"></div>
-          <div style="margin-top: 25%; border-bottom-width: 25px; border-bottom-style: solid;"></div>
-          <div style="margin: 50%;"></div>
+          <div id="c1" style="margin-left: 20%;"></div>
+          <div id="c2" style="margin-top: 25%; border-bottom-width: 25px; border-bottom-style: solid;"></div>
+          <div id="c3" style="margin: 50%;"></div>
         </div>
       `);
 
-      expect(this.get(1, 1).borderArea.x).to.equal(20);
-      expect(this.get(1, 3).borderArea.y).to.equal(25);
-      expect(this.get(1, 5).borderArea.x).to.equal(50);
-      expect(this.get(1, 5).borderArea.y).to.equal(100);
+      expect(this.get('#c1').borderArea.x).to.equal(20);
+      expect(this.get('#c2').borderArea.y).to.equal(25);
+      expect(this.get('#c3').borderArea.x).to.equal(50);
+      expect(this.get('#c3').borderArea.y).to.equal(100);
     });
 
     it('resolves em units on width and height', async function () {
       await this.layout(`<div style="width: 1em; height: 1em;"></div>`);
-      expect(this.get(0).contentArea.height).to.equal(16);
-      expect(this.get(0).contentArea.width).to.equal(16);
+      expect(this.get('div').contentArea.height).to.equal(16);
+      expect(this.get('div').contentArea.width).to.equal(16);
     });
 
     it('resolves em units on borders', async function () {
       await this.layout(`
         <div style="width: 100px; font-size: 16px;">
-          <div style="border: 1em solid;"></div>
+          <div id="t" style="border: 1em solid;"></div>
         </div>
       `);
-      expect(this.get(1, 1).borderArea.height).to.equal(16 * 2);
-      expect(this.get(1, 1).contentArea.x).to.equal(16);
-      expect(this.get(1, 1).contentArea.width).to.equal(100 - 16 * 2);
+      expect(this.get('#t').borderArea.height).to.equal(16 * 2);
+      expect(this.get('#t').contentArea.x).to.equal(16);
+      expect(this.get('#t').contentArea.width).to.equal(100 - 16 * 2);
     });
 
     it('resolves em units on margins', async function () {
       await this.layout(`
         <div style="width: 100px; font-size: 16px;">
-          <div style="margin: 1em;"></div>
+          <div id="t" style="margin: 1em;"></div>
         </div>
       `);
-      expect(this.get(1, 1).contentArea.width).to.equal(100 - 16 * 2);
-      expect(this.get(1, 1).contentArea.x).to.equal(16);
-      expect(this.get(1, 1).contentArea.y).to.equal(16);
+      expect(this.get('#t').contentArea.width).to.equal(100 - 16 * 2);
+      expect(this.get('#t').contentArea.x).to.equal(16);
+      expect(this.get('#t').contentArea.y).to.equal(16);
     });
   });
 });

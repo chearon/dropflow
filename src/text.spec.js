@@ -287,10 +287,15 @@ async function setupLayoutTests() {
     });
     this.blockContainer.absolutify();
     this.get = function (...args) {
-      /** @type import('./box').Box */
-      let ret = this.blockContainer;
-      while (args.length) ret = ret.children[args.shift()];
-      return ret;
+      if (typeof args[0] === 'string') {
+        const elements = this.rootElement.query(args[0]);
+        if (elements.length) return elements[0].boxes[0];
+      } else {
+        /** @type import('./box').Box */
+        let ret = this.blockContainer;
+        while (args.length) ret = ret.children[args.shift()];
+        return ret;
+      }
     };
   };
 }
@@ -381,7 +386,7 @@ describe('Shaping', function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
       await this.layout('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
       /** @type import('./flow').IfcInline[] */
-      const [inline] = this.get(0).children;
+      const [inline] = this.get('div').children;
       expect(inline.shaped).to.have.lengthOf(1);
       expect(inline.shaped[0].glyphs).to.have.lengthOf(3);
       expect(inline.shaped[0].glyphs[0].g).to.equal(2440);
@@ -456,7 +461,7 @@ describe('Lines', function () {
 
   it('always puts one word per line at minimum', async function () {
     await this.layout('<div style="width: 0;">eat lots of peaches</div>');
-    const [inline] = this.get(0).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(4);
     expect(inline.lineboxes[0].end()).to.equal(4);
     expect(inline.lineboxes[1].end()).to.equal(9);
@@ -468,7 +473,7 @@ describe('Lines', function () {
     await this.layout(`
       <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
     `);
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes.length).to.equal(1);
   });
 
@@ -476,7 +481,7 @@ describe('Lines', function () {
     await this.layout(`
       <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
     `);
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes.length).to.equal(2);
   });
 
@@ -487,7 +492,7 @@ describe('Lines', function () {
       </div>
     `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end()).to.equal(13);
     expect(inline.shaped).to.have.lengthOf(3);
@@ -500,7 +505,7 @@ describe('Lines', function () {
       </div>
     `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end()).to.equal(13);
     expect(inline.shaped).to.have.lengthOf(2);
@@ -514,7 +519,7 @@ describe('Lines', function () {
       </div>
    `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.shaped).to.have.lengthOf(2);
   });
 
@@ -523,7 +528,7 @@ describe('Lines', function () {
     // Three words, Arimo@16px in 60px the first two should fit on the first line
     await this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(0).children;
+    const [inline] = this.get('div').children;
     expect(inline.shaped).to.have.lengthOf(2);
     expect(inline.lineboxes).to.have.lengthOf(2);
     expect(inline.lineboxes[0].end()).to.equal(9);
@@ -537,7 +542,7 @@ describe('Lines', function () {
       <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
 
@@ -549,7 +554,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
 
     expect(inline.lineboxes).to.have.lengthOf(3);
     expect(inline.shaped).to.have.lengthOf(3);
@@ -570,7 +575,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.shaped).to.have.lengthOf(7);
 
     const a1 = ifc.lineboxes[0].head.next; // A
@@ -601,7 +606,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.lineboxes).to.have.lengthOf(3);
 
     let n = ifc.lineboxes[1].head.next; // 10px shiv
@@ -641,7 +646,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].inlines).to.have.lengthOf(2);
     expect(ifc.shaped[0].inlines[0].end).to.equal(19);
@@ -664,7 +669,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(3);
   });
 
@@ -676,7 +681,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(3);
     expect(inline.lineboxes[0].end()).to.equal(6);
     expect(inline.lineboxes[1].end()).to.equal(11);
@@ -690,7 +695,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
 
     let n = ifc.lineboxes[0].head; // Word
     expect(n.next).to.equal(null);
@@ -710,7 +715,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
 
@@ -722,7 +727,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(2);
   });
 
@@ -736,7 +741,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes).to.have.lengthOf(2);
 
     let n = inline.lineboxes[0].head; // ' Give_me_the_next_span '
@@ -759,7 +764,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
   });
 
@@ -769,7 +774,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     // Noto Sans ascender = 1069/1000 descender = 293/1000
     expect(inline.lineboxes[0].ascender).to.be.approximately(22.2, 0.1);
     expect(inline.lineboxes[0].descender).to.be.approximately(9.8, 0.1);
@@ -784,7 +789,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(100);
   });
 
@@ -795,7 +800,7 @@ describe('Lines', function () {
       </div>
    `);
     /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get(1).children;
+    const [inline] = this.get('div').children;
     expect(inline.lineboxes[0].ascender + inline.lineboxes[0].descender).to.equal(32);
   });
 
@@ -806,7 +811,7 @@ describe('Lines', function () {
       </div>
    `);
     /** @type import('./flow').BlockContainer */
-    const ifc = this.get(1);
+    const ifc = this.get('div');
     expect(ifc.contentArea.height).to.equal(32 + 64);
   });
 
@@ -818,7 +823,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].end()).to.equal(5);
   });
@@ -835,7 +840,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.shaped).to.have.lengthOf(2);
     expect(ifc.shaped[0].end()).to.equal(11);
   });
@@ -848,7 +853,7 @@ describe('Lines', function () {
       </div>
     `);
 
-    expect(this.get(1).contentArea.height).to.be.approximately(60.7, 0.1);
+    expect(this.get('div').contentArea.height).to.be.approximately(60.7, 0.1);
   });
 
   it('carries over colors and line heights correctly', async function () {
@@ -889,7 +894,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('./flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get('div').children;
     expect(ifc.height).to.equal(16);
   });
 });

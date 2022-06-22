@@ -869,6 +869,7 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
     if (!bail) stack.pop();
     const id = el.id + '.1';
     box = new Inline(new Style(id, el.style), children, 0);
+    el.boxes.push(box);
   } else if (el.style.display.inner == 'flow-root') {
     box = generateBlockContainer(el);
   }
@@ -977,10 +978,14 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     const anonComputedStyle = createComputedStyle(el.style, {});
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
     const inline = new IfcInline(anonStyle, boxes as InlineLevel[]);
-    return new BlockContainer(style, [inline], attrs);
+    const box = new BlockContainer(style, [inline], attrs);
+    el.boxes.push(box);
+    return box;
   }
 
   if (hasInline && hasBlock) boxes = wrapInBlockContainers(boxes, el);
 
-  return new BlockContainer(style, boxes as BlockContainer[], attrs);
+  const box = new BlockContainer(style, boxes as BlockContainer[], attrs);
+  el.boxes.push(box);
+  return box;
 }

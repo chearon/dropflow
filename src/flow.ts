@@ -329,7 +329,7 @@ export class BlockContainer extends Box {
   canCollapseThrough() {
     if (this.isBlockContainerOfInlines()) {
       const [ifc] = this.children;
-      return !ifc.hasContent();
+      return !ifc.hasText();
     } else {
       return this.children.length === 0;
     }
@@ -586,7 +586,7 @@ export class IfcInline extends Inline {
   public lineboxes: Linebox[] = [];
   public height: number = 0;
   public children: InlineLevel[];
-  private _hasContent: boolean | undefined;
+  private _hasText = false;
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
@@ -660,6 +660,9 @@ export class IfcInline extends Inline {
         i += box.text.length;
         this.allText += box.text;
         this.runs.push(box);
+        if (!box.wsCollapsible || !box.allCollapsible()) {
+          this._hasText = true;
+        }
       } else if (box.isInline()) {
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
@@ -696,7 +699,7 @@ export class IfcInline extends Inline {
       script: 'Latn'
     });
 
-    if (this.hasContent()) {
+    if (this.hasText()) {
       this.shaped = await shapeIfc(this, ctx);
     }
 
@@ -708,33 +711,13 @@ export class IfcInline extends Inline {
   }
 
   doTextLayout(ctx: LayoutContext) {
-    if (this.hasContent()) {
+    if (this.hasText()) {
       createLineboxes(this, ctx);
     }
   }
 
-  hasContent() {
-    if (this._hasContent !== undefined) return this._hasContent;
-
-    const stack: (InlineLevel | BlockContainer)[] = this.children.slice();
-    let hasContent = false;
-
-    while (stack.length && !hasContent) {
-      const child = stack.shift()!;
-      if (child.isRun()) {
-        if (!child.wsCollapsible) {
-          hasContent = true;
-        } else {
-          hasContent = !child.allCollapsible();
-        }
-      } else if (child.isInline()) {
-        stack.unshift(...child.children);
-      } else {
-        hasContent = true; // BlockContainer | Break
-      }
-    }
-
-    return this._hasContent = hasContent;
+  hasText() {
+    return this._hasText;
   }
 }
 

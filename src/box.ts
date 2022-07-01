@@ -59,7 +59,7 @@ const verticalRl = (area: Area):LogicalArea => ({
   set inlineSize(v) { area.height = v; }
 });
 
-const throwOverSpecified = (a: Area, side: string) => new Error(
+const overspecified = (a: Area, side: string) => new Error(
   `Cannot set ${side} on area ${a.id} because this dimension is already ` +
   'locked-in (must choose two of width, left, right, for example)'
 );
@@ -101,44 +101,32 @@ export class Area {
   }
 
   set top(v: number) {
-    if (this.spec.b != null && this.spec.h != null) {
-      throwOverSpecified(this, 'top');
-    }
+    if (this.spec.b != null && this.spec.h != null) throw overspecified(this, 'top');
     this.spec.t = v;
   }
 
   set right(v: number) {
-    if (this.spec.l != null && this.spec.w != null) {
-      throwOverSpecified(this, 'right');
-    }
+    if (this.spec.l != null && this.spec.w != null) throw overspecified(this, 'right');
     this.spec.r = v;
   }
 
   set bottom(v: number) {
-    if (this.spec.t != null && this.spec.h != null) {
-      throwOverSpecified(this, 'bottom');
-    }
+    if (this.spec.t != null && this.spec.h != null) throw overspecified(this, 'bottom');
     this.spec.b = v;
   }
 
   set left(v: number) {
-    if (this.spec.r != null && this.spec.w != null) {
-      throwOverSpecified(this, 'left');
-    }
+    if (this.spec.r != null && this.spec.w != null) throw overspecified(this, 'left');
     this.spec.l = v;
   }
 
   set width(v: number | undefined) {
-    if (this.spec.l != null && this.spec.r != null) {
-      throwOverSpecified(this, 'width');
-    }
+    if (this.spec.l != null && this.spec.r != null) throw overspecified(this, 'width');
     this.spec.w = v;
   }
 
   set height(v: number | undefined) {
-    if (this.spec.t != null && this.spec.b != null) {
-      throwOverSpecified(this, 'height');
-    }
+    if (this.spec.t != null && this.spec.b != null) throw overspecified(this, 'height');
     this.spec.h = v;
   }
 

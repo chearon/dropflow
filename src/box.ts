@@ -70,8 +70,6 @@ export class Area {
   direction: Direction;
   x = 0;
   y = 0;
-  w = 0;
-  h = 0;
   parent?: Area;
 
   private spec: {
@@ -83,16 +81,13 @@ export class Area {
     h?: number;
   } = {};
 
-  private hasAbsolutified = false;
-
   constructor(id: string, style: ComputedPlainStyle, x?: number, y?: number, w?: number, h?: number) {
     this.id = id;
     this.writingMode = style.writingMode;
     this.direction = style.direction;
 
     if (x != null && y != null && w != null && h != null) {
-      [this.x, this.y, this.w, this.h] = [x, y, w, h];
-      this.hasAbsolutified = true;
+      [this.x, this.y, this.width, this.height] = [x, y, w, h];
     }
   }
 
@@ -131,7 +126,6 @@ export class Area {
   }
 
   get width():number | undefined {
-    if (this.hasAbsolutified) return this.w;
     if (this.spec.w != null) return this.spec.w;
     if (this.spec.l != null && this.spec.r != null && this.parent && this.parent.width != null) {
       return this.parent.width - this.spec.l - this.spec.r;
@@ -139,7 +133,6 @@ export class Area {
   }
 
   get height():number | undefined {
-    if (this.hasAbsolutified) return this.h;
     if (this.spec.h != null) return this.spec.h;
     if (this.spec.t != null && this.spec.b != null && this.parent && this.parent.height != null) {
       return this.parent.height - this.spec.t - this.spec.b;
@@ -151,7 +144,7 @@ export class Area {
       throw new Error(`Cannot absolutify area ${this.id}, parent was never set`);
     }
 
-    if (!this.parent.hasAbsolutified) {
+    if (this.parent.width == null || this.parent.height == null) {
       throw new Error(`Cannot absolutify area ${this.id}, parent (${this.parent.id}) was not absolutified`);
     }
 
@@ -167,31 +160,26 @@ export class Area {
       throw new Error(`Cannot absolutify area ${this.id}: no vertical position`);
     }
 
-    const {w: pw, h: ph, x: px, y: py} = this.parent;
+    const {width: pwidth, height: pheight, x: px, y: py} = this.parent;
 
     if (this.spec.l != null) this.x = px + this.spec.l;
-    if (this.spec.r != null) this.x = px + pw - this.spec.r - this.width;
+    if (this.spec.r != null) this.x = px + pwidth - this.spec.r - this.width;
 
     if (this.spec.t != null) this.y = py + this.spec.t;
-    if (this.spec.b != null) this.y = py + ph - this.spec.b - this.height;
-
-    this.w = this.width;
-    this.h = this.height;
-
-    this.hasAbsolutified = true;
+    if (this.spec.b != null) this.y = py + pheight - this.spec.b - this.height;
   }
 
   createLogicalView(writingMode: WritingMode) {
     return writingMode === 'horizontal-tb' ? horizontalTb(this)
-		: writingMode === 'vertical-lr' ? verticalLr(this)
-		: verticalRl(this);
+      : writingMode === 'vertical-lr' ? verticalLr(this)
+      : verticalRl(this);
   }
 
   repr(indent = 0) {
-    const {w, h, x, y} = this;
+    const {width: w, height: h, x, y} = this;
     const {t, r, b, l} = this.spec;
     const p1 = `${t ?? '-'} ${r ?? '-'} ${b ?? '-'} ${l ?? '-'}`;
-    return '  '.repeat(indent) + `⚃ Area ${this.id}: ${p1} → ${w}⨯${h} @${x},${y}`;
+    return '  '.repeat(indent) + `⚃ Area ${this.id}: inset: ${p1} → ${w}⨯${h} @${x},${y}`;
   }
 }
 

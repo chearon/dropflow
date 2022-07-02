@@ -1,4 +1,4 @@
-import {bsearch, loggableText} from './util';
+import {binarySearchEndProp, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade';
 import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator} from './flow';
@@ -118,8 +118,8 @@ export class Collapser {
   mod(start: number, end: number, s: string) {
     if (end < start) return 0;
 
-    const rstart = bsearch(this.runs, start);
-    let rend = end <= this.runs[rstart].end ? rstart : bsearch(this.runs, end);
+    const rstart = binarySearchEndProp(this.runs, start);
+    let rend = end <= this.runs[rstart].end ? rstart : binarySearchEndProp(this.runs, end);
     let shrinkahead = 0;
 
     this.buf = this.buf.slice(0, start) + s + this.buf.slice(end + 1);

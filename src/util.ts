@@ -1,7 +1,7 @@
-// Binary search that returns the position `x` should be in
-// The same as finding the index for an item to be placed in a sorted list
-// If a match is found, returns the position before the match.
-export function binarySearchIndex(a: number[], x: number): number {
+/**
+ * Binary search that returns the position `x` should be in
+ */
+export function binarySearch(a: number[], x: number) {
   let l = 0, r = a.length - 1;
 
   while (true) {
@@ -19,7 +19,11 @@ export function binarySearchIndex(a: number[], x: number): number {
   }
 }
 
-export function bsearch(a: {end: number}[], x: number): number {
+/**
+ * Binary search that returns the position `x` should be in, using the `end`
+ * property of objects in the `a` array
+ */
+export function binarySearchEndProp(a: {end: number}[], x: number): number {
   let l = 0, r = a.length - 1;
 
   while (true) {

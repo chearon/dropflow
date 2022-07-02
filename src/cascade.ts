@@ -480,7 +480,7 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   lineHeight: 'normal',
   backgroundColor: {r: 0, g: 0, b: 0, a: 0},
   backgroundClip: 'border-box',
-  display: {outer: 'inline', inner: 'flow'},
+  display: {outer: 'inline' as const, inner: 'flow' as const},
   direction: 'ltr',
   writingMode: 'horizontal-tb',
   borderTopWidth: 0,

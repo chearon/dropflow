@@ -80,7 +80,7 @@ export class BlockFormattingContext {
     this.stack = [];
     this.blockOffset = 0;
     this.sizeStack = [0];
-    this.offsetStack = [];
+    this.offsetStack = [0];
     this.last = null;
     this.startMargins = new Map();
     this.endMargins = new Map();
@@ -90,7 +90,8 @@ export class BlockFormattingContext {
   boxStart(box: BlockContainer) {
     const style = box.style.createLogicalView(box.writingMode);
     const adjoins = style.paddingBlockStart === 0
-      && style.borderBlockStartWidth === 0;
+      && style.borderBlockStartWidth === 0
+      && (!box.isBlockContainerOfInlines() || box.canCollapseThrough());
 
     assumePx(style.marginBlockStart);
 
@@ -106,14 +107,12 @@ export class BlockFormattingContext {
       this.startMargins.set(box, collection);
     }
 
-    if (!adjoins) this.margin = null;
-
-    this.last = 'start';
-
-    // Position everything up until now so floating is possible
-    if (box.isBlockContainerOfInlines() && !box.canCollapseThrough()) {
+    if (!adjoins) {
+      this.margin = null;
       this.positionBlockContainers();
     }
+
+    this.last = 'start';
   }
 
   boxEnd(box: BlockContainer) {
@@ -126,16 +125,14 @@ export class BlockFormattingContext {
 
     if (this.margin && adjoins) {
       if (this.last === 'start') {
-        // Handle the end of a block box that had no block children
-        // TODO 1 min-height (minHeightOk)
-        // TODO 2 clearance
-        const heightOk = style.blockSize === 'auto' || style.blockSize === 0;
-        adjoins = box.canCollapseThrough() && !box.isBfcRoot() && heightOk;
+        adjoins = box.canCollapseThrough();
       } else {
         // Handle the end of a block box that was at the end of its parent
         adjoins = style.blockSize === 'auto';
       }
     }
+
+    if (!adjoins) this.positionBlockContainers();
 
     if (this.margin && adjoins) {
       this.margin.collection.add(style.marginBlockEnd);
@@ -322,6 +319,10 @@ export class BlockContainer extends Box {
   }
 
   canCollapseThrough() {
+    const style = this.style.createLogicalView(this.writingMode);
+
+    if (style.blockSize !== 'auto' && style.blockSize !== 0) return false;
+
     if (this.isBlockContainerOfInlines()) {
       const [ifc] = this.children;
       return !ifc.hasText();

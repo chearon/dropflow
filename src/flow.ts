@@ -46,7 +46,6 @@ export type PreprocessContext = {
 class MarginCollapseCollection {
   private positive: number;
   private negative: number;
-  public through?: true;
 
   constructor(initialMargin: number) {
     this.positive = 0;
@@ -138,16 +137,12 @@ export class BlockFormattingContext {
       }
     }
 
-    if (this.margin && adjoins && this.last === 'start') this.margin.collection.through = true;
-
     if (this.margin && adjoins) {
       this.margin.collection.add(style.marginBlockEnd);
       // When a box's end adjoins to the previous margin, move the "root" (the
       // box which the margin will be placed adjacent to) to the highest-up box
-      // in the tree, since its siblings need to be shifted. If the margin is
-      // collapsing through, don't do that since the collapsed-through boxes
-      // need to be shifted down.
-      if (this.last === 'end' && !this.margin.collection.through) {
+      // in the tree, since its siblings need to be shifted.
+      if (this.last === 'end') {
         const map = this.margin.position === 'start' ? this.startMargins : this.endMargins;
         map.delete(this.margin.root);
         this.margin.root = box;

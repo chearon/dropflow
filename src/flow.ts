@@ -72,9 +72,8 @@ export class BlockFormattingContext {
   private sizeStack: number[];
   private offsetStack: number[];
   private last:'start' | 'end' | null;
-  private startMargins: Map<Box, MarginCollapseCollection>;
-  private endMargins: Map<Box, MarginCollapseCollection>;
-  private margin: null | {root: Box, collection: MarginCollapseCollection, position: 'start' | 'end'};
+  private level: number;
+  private margin: null | {level: number, collection: MarginCollapseCollection};
 
   constructor() {
     this.stack = [];
@@ -82,16 +81,14 @@ export class BlockFormattingContext {
     this.sizeStack = [0];
     this.offsetStack = [0];
     this.last = null;
-    this.startMargins = new Map();
-    this.endMargins = new Map();
+    this.level = 0;
     this.margin = null;
   }
 
   boxStart(box: BlockContainer) {
     const style = box.style.createLogicalView(box.writingMode);
     const adjoins = style.paddingBlockStart === 0
-      && style.borderBlockStartWidth === 0
-      && (!box.isBlockContainerOfInlines() || box.canCollapseThrough());
+      && style.borderBlockStartWidth === 0;
 
     assumePx(style.marginBlockStart);
 
@@ -103,16 +100,16 @@ export class BlockFormattingContext {
       this.margin.collection.add(style.marginBlockStart);
     } else {
       const collection = new MarginCollapseCollection(style.marginBlockStart);
-      this.margin = {root: box, collection, position: 'start'};
-      this.startMargins.set(box, collection);
+      this.margin = {level: this.level, collection};
     }
 
     if (!adjoins) {
-      this.margin = null;
       this.positionBlockContainers();
+      this.margin = null;
     }
 
     this.last = 'start';
+    this.level += 1;
   }
 
   boxEnd(box: BlockContainer) {
@@ -123,7 +120,7 @@ export class BlockFormattingContext {
     assumePx(style.marginBlockEnd);
     if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
-    if (this.margin && adjoins) {
+    if (adjoins) {
       if (this.last === 'start') {
         adjoins = box.canCollapseThrough();
       } else {
@@ -132,28 +129,27 @@ export class BlockFormattingContext {
       }
     }
 
-    if (!adjoins) this.positionBlockContainers();
+    this.stack.push({post: box});
 
-    if (this.margin && adjoins) {
+    if (!adjoins) {
+      this.positionBlockContainers();
+      this.margin = null;
+    }
+
+    this.level -= 1;
+
+    if (this.margin) {
       this.margin.collection.add(style.marginBlockEnd);
       // When a box's end adjoins to the previous margin, move the "root" (the
       // box which the margin will be placed adjacent to) to the highest-up box
       // in the tree, since its siblings need to be shifted.
-      if (this.last === 'end') {
-        const map = this.margin.position === 'start' ? this.startMargins : this.endMargins;
-        map.delete(this.margin.root);
-        this.margin.root = box;
-        map.set(box, this.margin.collection);
-      }
+      if (this.last === 'end') this.margin.level = this.level;
     } else {
       const collection = new MarginCollapseCollection(style.marginBlockEnd);
-      this.margin = {root: box, collection, position: 'end'};
-      this.endMargins.set(box, collection);
+      this.margin = {level: this.level, collection};
     }
 
     this.last = 'end';
-
-    this.stack.push({post: box});
   }
 
   finalize(box: BlockContainer) {
@@ -169,10 +165,15 @@ export class BlockFormattingContext {
   }
 
   positionBlockContainers() {
-    const start = this.startMargins;
-    const end = this.endMargins;
     const sizeStack = this.sizeStack;
     const offsetStack = this.offsetStack;
+    const margin = this.margin ? this.margin.collection.get() : 0;
+    let level = offsetStack.length; // keep track of which offsets we pushed
+
+    if (this.margin) {
+      sizeStack[this.margin.level] += margin;
+      this.blockOffset += margin;
+    }
 
     for (const item of this.stack) {
       const box = 'post' in item ? item.post : item;
@@ -194,13 +195,17 @@ export class BlockFormattingContext {
         // size is indeterminate that's a bug.
         assumePx(border.blockSize);
 
-        const size = border.blockSize + (end.has(box) ? end.get(box)!.get() : 0);
-        sizeStack[sizeStack.length - 1] += size;
-        this.blockOffset = offset + size;
+        sizeStack[sizeStack.length - 1] += border.blockSize;
+        this.blockOffset = offset + border.blockSize;
+
+        // Each time we go beneath a level that was created by the previous
+        // positionBlockContainers(), we have to put the margin on the "after"
+        // side of the block container. ("before" sides are covered at the top)
+        if (offsetStack.length < level) {
+          --level;
+          this.blockOffset += margin;
+        }
       } else {
-        const size = start.has(box) ? start.get(box)!.get() : 0;
-        sizeStack[sizeStack.length - 1] += size;
-        this.blockOffset += size;
         box.setBlockPosition(sizeStack[sizeStack.length - 1]);
         sizeStack.push(0);
         offsetStack.push(this.blockOffset);

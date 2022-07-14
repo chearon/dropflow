@@ -47,7 +47,7 @@ class MarginCollapseCollection {
   private positive: number;
   private negative: number;
 
-  constructor(initialMargin: number) {
+  constructor(initialMargin: number = 0) {
     this.positive = 0;
     this.negative = 0;
     this.add(initialMargin);
@@ -73,7 +73,7 @@ export class BlockFormattingContext {
   private offsetStack: number[];
   private last:'start' | 'end' | null;
   private level: number;
-  private margin: null | {level: number, collection: MarginCollapseCollection};
+  private margin: {level: number, collection: MarginCollapseCollection};
   private hypotheticals: Map<Box, number>;
 
   constructor() {
@@ -83,7 +83,7 @@ export class BlockFormattingContext {
     this.offsetStack = [0];
     this.last = null;
     this.level = 0;
-    this.margin = null;
+    this.margin = {level: 0, collection: new MarginCollapseCollection()};
     this.hypotheticals = new Map();
   }
 
@@ -97,21 +97,15 @@ export class BlockFormattingContext {
     if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
     this.stack.push(box);
-
-    if (this.margin) {
-      this.margin.collection.add(style.marginBlockStart);
-    } else {
-      const collection = new MarginCollapseCollection(style.marginBlockStart);
-      this.margin = {level: this.level, collection};
-    }
-
-    if (!adjoins) {
-      this.positionBlockContainers();
-      this.margin = null;
-    }
+    this.margin.collection.add(style.marginBlockStart);
 
     this.last = 'start';
     this.level += 1;
+
+    if (!adjoins) {
+      this.positionBlockContainers();
+      this.margin = {level: this.level, collection: new MarginCollapseCollection()};
+    }
   }
 
   boxEnd(box: BlockContainer) {
@@ -133,28 +127,23 @@ export class BlockFormattingContext {
 
     this.stack.push({post: box});
 
+    this.level -= 1;
+
     if (!adjoins) {
       this.positionBlockContainers();
-      this.margin = null;
+      this.margin = {level: this.level, collection: new MarginCollapseCollection()};
     }
 
     // Collapsing through - need to find the hypothetical position
-    if (this.margin && this.last === 'start') {
+    if (this.last === 'start') {
       this.hypotheticals.set(box, this.margin.collection.get());
     }
 
-    this.level -= 1;
-
-    if (this.margin) {
-      this.margin.collection.add(style.marginBlockEnd);
-      // When a box's end adjoins to the previous margin, move the "root" (the
-      // box which the margin will be placed adjacent to) to the highest-up box
-      // in the tree, since its siblings need to be shifted.
-      if (this.level < this.margin.level) this.margin.level = this.level;
-    } else {
-      const collection = new MarginCollapseCollection(style.marginBlockEnd);
-      this.margin = {level: this.level, collection};
-    }
+    this.margin.collection.add(style.marginBlockEnd);
+    // When a box's end adjoins to the previous margin, move the "root" (the
+    // box which the margin will be placed adjacent to) to the highest-up box
+    // in the tree, since its siblings need to be shifted.
+    if (this.level < this.margin.level) this.margin.level = this.level;
 
     this.last = 'end';
   }
@@ -174,14 +163,12 @@ export class BlockFormattingContext {
   positionBlockContainers() {
     const sizeStack = this.sizeStack;
     const offsetStack = this.offsetStack;
-    const margin = this.margin ? this.margin.collection.get() : 0;
-    let passedMarginLevel = this.margin?.level === offsetStack.length - 1;
+    const margin = this.margin.collection.get();
+    let passedMarginLevel = this.margin.level === offsetStack.length - 1;
     let levelNeedsPostOffset = offsetStack.length - 1;
 
-    if (this.margin) {
-      sizeStack[this.margin.level] += margin;
-      this.blockOffset += margin;
-    }
+    sizeStack[this.margin.level] += margin;
+    this.blockOffset += margin;
 
     for (const item of this.stack) {
       const box = 'post' in item ? item.post : item;
@@ -221,7 +208,7 @@ export class BlockFormattingContext {
         let blockOffset = sizeStack[level];
 
         if (!passedMarginLevel) {
-          passedMarginLevel = this.margin?.level === level;
+          passedMarginLevel = this.margin.level === level;
         }
 
         if (!passedMarginLevel) {

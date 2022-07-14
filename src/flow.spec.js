@@ -284,6 +284,52 @@ describe('Flow', function () {
       expect(this.get('#t1').contentArea.height).to.equal(40);
       expect(this.get('#t2').contentArea.height).to.equal(20);
     });
+
+    it('uses right hypothetical margin for divs before the last margin', async function () {
+      await this.layout(`
+        <div style="display: flow-root; line-height: 20px;">
+          <div id="t1" style="margin: 10px 0;">
+            <div>
+              text
+              <div id="t2"></div>
+            </div>
+          </div>
+        </div>
+      `);
+
+      expect(this.get('#t1').contentArea.y).to.equal(10);
+      expect(this.get('#t2').contentArea.y).to.equal(30);
+    });
+
+    it('uses right hypothetical margin for divs deeper than the start margin', async function () {
+      await this.layout(`
+        <div style="display: flow-root;">
+          <div style="margin: 10px 0;">
+            <div id="t1"></div>
+            <div id="t2" style="margin: 20px 0;"></div>
+          </div>
+        </div>
+      `);
+
+      expect(this.get('#t1').contentArea.y).to.equal(10);
+      expect(this.get('#t2').contentArea.y).to.equal(20);
+    });
+
+    it('uses right hypothetical margin for a div on a different peak than start margin', async function () {
+      await this.layout(`
+        <div style="display: flow-root; line-height: 20px;">
+          <div style="margin: 10px 0;">
+            text
+            <div></div>
+          </div>
+          <div>
+            <div id="t" style="margin: 20px 0;"></div>
+          </div>
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.y).to.equal(50);
+    });
   });
 
   describe('Automatic width and offsets', function () {
@@ -524,9 +570,7 @@ describe('Flow', function () {
       expect(this.get('#c1').borderArea.x).to.equal(20);
       expect(this.get('#c2').borderArea.y).to.equal(25);
       expect(this.get('#c3').borderArea.x).to.equal(50);
-      // TODO: collapsed-through elements don't have the right block coordinates
-      // yet. this is not an issue until I add position: `absolute` support
-      // expect(this.get('#c3').borderArea.y).to.equal(100);
+      expect(this.get('#c3').borderArea.y).to.equal(100);
     });
 
     it('resolves em units on width and height', async function () {

@@ -74,6 +74,7 @@ export class BlockFormattingContext {
   private last:'start' | 'end' | null;
   private level: number;
   private margin: null | {level: number, collection: MarginCollapseCollection};
+  private hypotheticals: Map<Box, number>;
 
   constructor() {
     this.stack = [];
@@ -83,6 +84,7 @@ export class BlockFormattingContext {
     this.last = null;
     this.level = 0;
     this.margin = null;
+    this.hypotheticals = new Map();
   }
 
   boxStart(box: BlockContainer) {
@@ -136,6 +138,11 @@ export class BlockFormattingContext {
       this.margin = null;
     }
 
+    // Collapsing through - need to find the hypothetical position
+    if (this.margin && this.last === 'start') {
+      this.hypotheticals.set(box, this.margin.collection.get());
+    }
+
     this.level -= 1;
 
     if (this.margin) {
@@ -143,7 +150,7 @@ export class BlockFormattingContext {
       // When a box's end adjoins to the previous margin, move the "root" (the
       // box which the margin will be placed adjacent to) to the highest-up box
       // in the tree, since its siblings need to be shifted.
-      if (this.last === 'end') this.margin.level = this.level;
+      if (this.level < this.margin.level) this.margin.level = this.level;
     } else {
       const collection = new MarginCollapseCollection(style.marginBlockEnd);
       this.margin = {level: this.level, collection};
@@ -168,7 +175,8 @@ export class BlockFormattingContext {
     const sizeStack = this.sizeStack;
     const offsetStack = this.offsetStack;
     const margin = this.margin ? this.margin.collection.get() : 0;
-    let level = offsetStack.length; // keep track of which offsets we pushed
+    let passedMarginLevel = this.margin?.level === offsetStack.length - 1;
+    let levelNeedsPostOffset = offsetStack.length - 1;
 
     if (this.margin) {
       sizeStack[this.margin.level] += margin;
@@ -183,6 +191,7 @@ export class BlockFormattingContext {
       if ('post' in item) {
         const childSize = sizeStack.pop()!;
         const offset = offsetStack.pop()!;
+        const level = sizeStack.length - 1;
 
         if (style.blockSize === 'auto' && box.isBlockContainerOfBlockContainers() && !box.isBfcRoot()) {
           box.setBlockSize(childSize);
@@ -195,18 +204,35 @@ export class BlockFormattingContext {
         // size is indeterminate that's a bug.
         assumePx(border.blockSize);
 
-        sizeStack[sizeStack.length - 1] += border.blockSize;
+        sizeStack[level] += border.blockSize;
         this.blockOffset = offset + border.blockSize;
 
         // Each time we go beneath a level that was created by the previous
         // positionBlockContainers(), we have to put the margin on the "after"
         // side of the block container. ("before" sides are covered at the top)
-        if (offsetStack.length < level) {
-          --level;
+        // ][[]]
+        if (level < levelNeedsPostOffset) {
+          --levelNeedsPostOffset;
           this.blockOffset += margin;
         }
       } else {
-        box.setBlockPosition(sizeStack[sizeStack.length - 1]);
+        const hypothetical = this.hypotheticals.get(box);
+        const level = sizeStack.length - 1;
+        let blockOffset = sizeStack[level];
+
+        if (!passedMarginLevel) {
+          passedMarginLevel = this.margin?.level === level;
+        }
+
+        if (!passedMarginLevel) {
+          blockOffset += margin;
+        }
+
+        if (hypothetical !== undefined) {
+          blockOffset -= margin - hypothetical;
+        }
+
+        box.setBlockPosition(blockOffset);
         sizeStack.push(0);
         offsetStack.push(this.blockOffset);
       }

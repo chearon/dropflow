@@ -6,8 +6,8 @@ import {Break, Inline, IfcInline, BlockContainer} from './flow';
 export type LogicalArea = {
   blockStart: number | undefined
   blockEnd: number | undefined
-  inlineStart: number | undefined
-  inlineEnd: number | undefined
+  lineLeft: number | undefined
+  lineRight: number | undefined
   blockSize: number | undefined
   inlineSize: number | undefined
 };
@@ -17,10 +17,10 @@ const horizontalTb = (area: Area):LogicalArea => ({
 	set blockStart(v) { area.top = v; },
   get blockEnd() { return area.bottom; },
   set blockEnd(v) { area.bottom = v; },
-  get inlineStart() { return area.left; },
-  set inlineStart(v) { area.left = v; },
-  get inlineEnd() { return area.right; },
-  set inlineEnd(v) { area.right = v; },
+  get lineLeft() { return area.left; },
+  set lineLeft(v) { area.left = v; },
+  get lineRight() { return area.right; },
+  set lineRight(v) { area.right = v; },
   get blockSize() { return area.height; },
   set blockSize(v) { area.height = v; },
   get inlineSize() { return area.width; },
@@ -32,10 +32,10 @@ const verticalLr = (area: Area):LogicalArea => ({
   set blockStart(v) { area.left = v; },
   get blockEnd() { return area.right; },
   set blockEnd(v) { area.right = v; },
-  get inlineStart() { return area.top; },
-  set inlineStart(v) { area.top = v; },
-  get inlineEnd() { return area.bottom; },
-  set inlineEnd(v) { area.bottom = v; },
+  get lineLeft() { return area.top; },
+  set lineLeft(v) { area.top = v; },
+  get lineRight() { return area.bottom; },
+  set lineRight(v) { area.bottom = v; },
   get blockSize() { return area.width; },
   set blockSize(v) { area.width = v; },
   get inlineSize() { return area.height; },
@@ -47,10 +47,10 @@ const verticalRl = (area: Area):LogicalArea => ({
   set blockStart(v) { area.right = v; },
   get blockEnd() { return area.left; },
   set blockEnd(v) { area.left = v; },
-  get inlineStart() { return area.top; },
-  set inlineStart(v) { area.top = v; },
-  get inlineEnd() { return area.bottom; },
-  set inlineEnd(v) { area.bottom = v; },
+  get lineLeft() { return area.top; },
+  set lineLeft(v) { area.top = v; },
+  get lineRight() { return area.bottom; },
+  set lineRight(v) { area.bottom = v; },
   get blockSize() { return area.width; },
   set blockSize(v) { area.width = v; },
   get inlineSize() { return area.height; },

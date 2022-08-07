@@ -141,6 +141,8 @@ declaration
   / background_color_dec
   / background_clip_dec
   / text_align_dec
+  / float_dec
+  / clear_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -718,6 +720,16 @@ background_clip_dec
 text_align_dec
   = 'text-align'i S* ':' S* textAlign:('start' / 'end' / 'left' / 'right' / 'center' / default) {
     return {textAlign};
+  }
+
+float_dec
+  = 'float'i S* ':' S* float:('left' / 'right' / 'none' / default) {
+    return {float};
+  }
+
+clear_dec
+  = 'clear'i S* ':' S* clear:('left' / 'right' / 'none' / 'both' / default) {
+    return {clear};
   }
 
 width_dec

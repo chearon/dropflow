@@ -97,7 +97,7 @@ Promise.all([
   const logging = {text: new Set([])};
   await blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
   layoutBlockBox(blockContainer, {
-    bfc: new BlockFormattingContext(),
+    bfc: new BlockFormattingContext(300),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
     logging,
@@ -113,6 +113,12 @@ Promise.all([
   const blocks = new Set([blockContainer.borderArea]);
   for (const [order, child] of blockContainer.descendents(b => b.isBlockContainer() && b.isBlockLevel())) {
     if (order === 'pre') blocks.add(child.borderArea);
+    if (child.isBlockContainer() && child.isBlockContainerOfInlines()) {
+      const [ifc] = child.children;
+      for (const float of ifc.floats) {
+        blocks.add(float.borderArea);
+      }
+    }
   }
   for (const area of blocks) console.log(area.repr());
   console.log();

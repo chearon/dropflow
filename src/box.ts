@@ -4,16 +4,14 @@ import {Run} from './text';
 import {Break, Inline, IfcInline, BlockContainer} from './flow';
 
 export type LogicalArea = {
-  blockStart: number
-  blockEnd: number
-  inlineStart: number
-  inlineEnd: number
+  blockStart: number | undefined
+  blockEnd: number | undefined
+  inlineStart: number | undefined
+  inlineEnd: number | undefined
   blockSize: number | undefined
   inlineSize: number | undefined
 };
 
-// TODO uh, the getters are never invoked, and if they did they would return
-// undefined!? not sure how TS allows setters but no getters on Area
 const horizontalTb = (area: Area):LogicalArea => ({
   get blockStart() { return area.top; },
 	set blockStart(v) { area.top = v; },
@@ -95,24 +93,52 @@ export class Area {
     this.parent = p;
   }
 
-  set top(v: number) {
+  set top(v: number | undefined) {
     if (this.spec.b != null && this.spec.h != null) throw overspecified(this, 'top');
     this.spec.t = v;
   }
 
-  set right(v: number) {
+  get top() {
+    if (this.spec.t != null) return this.spec.t;
+    if (this.spec.b != null && this.spec.h != null && this.parent && this.parent.height != null) {
+      return this.parent.height - this.spec.b - this.spec.h;
+    }
+  }
+
+  set right(v: number | undefined) {
     if (this.spec.l != null && this.spec.w != null) throw overspecified(this, 'right');
     this.spec.r = v;
   }
 
-  set bottom(v: number) {
+  get right() {
+    if (this.spec.r != null) return this.spec.r;
+    if (this.spec.l != null && this.spec.w != null && this.parent && this.parent.width != null) {
+      return this.parent.width - this.spec.l - this.spec.w;
+    }
+  }
+
+  set bottom(v: number | undefined) {
     if (this.spec.t != null && this.spec.h != null) throw overspecified(this, 'bottom');
     this.spec.b = v;
   }
 
-  set left(v: number) {
+  get bottom() {
+    if (this.spec.b != null) return this.spec.b;
+    if (this.spec.t != null && this.spec.h != null && this.parent && this.parent.height != null) {
+      return this.parent.height - this.spec.t - this.spec.h;
+    }
+  }
+
+  set left(v: number | undefined) {
     if (this.spec.r != null && this.spec.w != null) throw overspecified(this, 'left');
     this.spec.l = v;
+  }
+
+  get left() {
+    if (this.spec.l != null) return this.spec.l;
+    if (this.spec.r != null && this.spec.w != null && this.parent && this.parent.width != null) {
+      return this.parent.width - this.spec.r - this.spec.w;
+    }
   }
 
   set width(v: number | undefined) {
@@ -201,7 +227,8 @@ export class Box {
   public static ATTRS = {
     isAnonymous: 1,
     isInline: 1 << 1,
-    isBfcRoot: 1 << 2
+    isBfcRoot: 1 << 2,
+    isFloat: 1 << 3,
   };
 
   constructor(style: Style, children: Box[], attrs: number) {
@@ -270,7 +297,6 @@ export class Box {
     this.paddingArea.absolutify();
     this.contentArea.absolutify();
     for (const c of this.children) {
-      if (c.isInline()) continue; // TODO set inline offsets in doTextLayout?
       c.absolutify();
     }
   }

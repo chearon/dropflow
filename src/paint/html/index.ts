@@ -253,8 +253,13 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
   const [ifc] = blockContainer.children;
   const direction = ifc.style.direction;
   const counts:Map<Inline, number> = new Map();
-  const state:IfcPaintState = {ifc, left: 0, top: blockContainer.contentArea.y, bgcursor: 0, depth};
+  const state:IfcPaintState = {ifc, left: 0, top: 0, bgcursor: 0, depth};
+  const contentBlockOffset = blockContainer.contentArea.y;
   let ret = '';
+
+  for (const float of ifc.floats) {
+    ret += paintBlockContainer(float, hb, depth);
+  }
 
   for (const linebox of ifc.lineboxes) {
     const boxBuilder = new ContiguousBoxBuilder();
@@ -262,12 +267,12 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
     let renderedText = '';
 
     if (direction === 'ltr') {
-      state.left = blockContainer.contentArea.x + linebox.inlineStart;
+      state.left = blockContainer.contentArea.x + linebox.inlineOffset;
     } else {
-      state.left = blockContainer.contentArea.x + blockContainer.contentArea.width - linebox.inlineStart;
+      state.left = blockContainer.contentArea.x + blockContainer.contentArea.width - linebox.inlineOffset;
     }
 
-    state.top += linebox.ascender;
+    state.top = contentBlockOffset + linebox.blockOffset + linebox.ascender;
 
     for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
       const item = n.value;

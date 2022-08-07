@@ -33,9 +33,9 @@ These rules are either working or will be working soon. Shorthand properties are
 
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
-| <code>clear</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>clear</code> |  `left`, `right`, `both`, `none` |  ✅&zwj;&nbsp;Works | |
 | <code>direction</code> | `ltr`, `rtl` | ✅&zwj;&nbsp;Works | |
-| <code>float</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>float</code> | `left`, `right`, `none` | 🏗 Partially done | Width must be specified |
 | <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |  |
 | <code>writing-&zwj;mode</code> | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for BFCs but not IFCs yet |
 

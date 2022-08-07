@@ -121,6 +121,10 @@ type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
 
 export type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center';
 
+type Float = 'left' | 'right' | 'none';
+
+type Clear = 'left' | 'right' | 'both' | 'none';
+
 export type DeclaredPlainStyle = {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
@@ -162,6 +166,8 @@ export type DeclaredPlainStyle = {
   height?: ValuePctPx | 'auto' | Inherited | Initial;
   boxSizing?: BoxSizing | Inherited | Initial;
   textAlign?: TextAlign | Inherited | Initial;
+  float?: Float | Inherited | Initial;
+  clear?: Clear | Inherited | Initial;
 };
 
 export type CascadedPlainStyle = DeclaredPlainStyle;
@@ -246,6 +252,8 @@ export class Style implements ComputedPlainStyle {
   tabSize: ComputedPlainStyle['tabSize'];
   position: ComputedPlainStyle['position'];
   boxSizing: ComputedPlainStyle['boxSizing'];
+  float: ComputedPlainStyle['float'];
+  clear: ComputedPlainStyle['clear'];
 
   private s: Used;
 
@@ -280,6 +288,8 @@ export class Style implements ComputedPlainStyle {
     this.tabSize = style.tabSize;
     this.position = style.position;
     this.boxSizing = style.boxSizing;
+    this.float = style.float;
+    this.clear = style.clear;
 
     // 
     this.s = {
@@ -508,7 +518,9 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   width: 'auto',
   height: 'auto',
   boxSizing: 'content-box',
-  textAlign: 'start'
+  textAlign: 'start',
+  float: 'none',
+  clear: 'none'
 });
 
 type InheritedStyleDefinitions = {[K in keyof ComputedPlainStyle]: boolean};
@@ -554,7 +566,9 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   width: false,
   height: false,
   boxSizing: false,
-  textAlign: true
+  textAlign: true,
+  float: false,
+  clear: false
 });
 
 type UaDeclaredStyles = {[tagName: string]: DeclaredPlainStyle};

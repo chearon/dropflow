@@ -330,6 +330,46 @@ describe('Flow', function () {
 
       expect(this.get('#t').contentArea.y).to.equal(50);
     });
+
+    it('won\'t collapse margins with clearance with the parent', async function () {
+      await this.layout(`
+        <div style="display: flow-root;">
+          <div id="t1">
+            <div style="width: 20px; height: 20px; float: left;"></div>
+            <div style="clear: left; margin: 10px 0;"></div>
+          </div>
+          <div id="t2" style="border-top: 1px solid;"></div>
+        </div>
+      `)
+
+      const t1 = this.get('#t1');
+      expect(t1.contentArea.height).to.equal(20);
+      const t2 = this.get('#t2');
+      expect(t2.borderArea.y).to.equal(20);
+    });
+
+    it('collapses margins with clearance with following siblings', async function () {
+      await this.layout(`
+        <div style="display: flow-root; line-height: 20px;">
+          Some text! <div style="width: 100px; height: 100px; float: left;"></div>
+          <div style="margin: 20px 0; clear: left;"></div>
+          <div id="t" style="margin: 10px 0;"></div>
+        </div>
+      `);
+
+      const t = this.get('#t');
+      expect(t.contentArea.y).to.equal(100);
+    });
+
+    it('collapses margins with clearance with the parent if clearance has no effect', async function () {
+      await this.layout(`
+        <div style="display: flow-root;">
+          <div style="margin: 20px 0;">
+            <div style="clear: left; margin: 20px 0;"></div>
+          </div>
+        </div>
+      `);
+    });
   });
 
   describe('Automatic width and offsets', function () {
@@ -599,6 +639,325 @@ describe('Flow', function () {
       expect(this.get('#t').contentArea.width).to.equal(100 - 16 * 2);
       expect(this.get('#t').contentArea.x).to.equal(16);
       expect(this.get('#t').contentArea.y).to.equal(16);
+    });
+  });
+
+  describe('Floats', function () {
+    it('can be the exclusive content', async function () {
+      await this.layout(`
+        <div style="width: 100px;"><div style="width: 25px; height: 25px; float: right;"></div></div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [box] = ifc.children;
+      expect(box.borderArea.x).to.equal(75);
+    });
+
+    it('positions negative-margin text around floats', async function () {
+      await this.layout(`
+        <div id="t1" style="line-height: 20px; width: 100px;">
+          <div id="t2" style="border-top: 1px solid;">
+            <div style="width: 51px; height: 25px; float: left;"></div>
+            <div style="width: 50px; height: 25px; float: right;"></div>
+          </div>
+          <div id="t3" style="margin-top: -15px;">The text</div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const t1 = this.get('#t1');
+      expect(t1.borderArea.height).to.equal(26);
+      /** @type import('./flow').BlockContainer */
+      const t2 = this.get('#t2');
+      expect(t2.contentArea.height).to.equal(0);
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t3').children;
+      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      expect(ifc.lineboxes[0].inlineOffset).to.equal(51);
+      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
+      expect(ifc.lineboxes[1].inlineOffset).to.equal(51);
+    });
+
+    it('sets bfc height for hanging floats', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          So many rules, so little time.
+          <div style="width: 300px; height: 50px; float: left;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const bfc = this.get('div');
+      expect(bfc.contentArea.height).to.equal(70);
+    });
+
+    it('sets non-bfc containing block height to zero if it has only floats', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          So many rules, so little time.
+          <div>
+            <div style="width: 300px; height: 50px; float: left;"></div>
+          </div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const bfc = this.get('div');
+      expect(bfc.contentArea.height).to.equal(70);
+      const [, cb] = bfc.children;
+      expect(cb.contentArea.height).to.equal(0);
+    });
+
+    it('places floats beneath negative margin under text above them', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 500px;">
+          This here float below me better go beneath me!
+          <div style="margin-top: -20px;">
+            <div id="f" style="float: left; width: 10px; height: 10px;"></div>
+          </div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const f = this.get('#f');
+      expect(f.contentArea.y).to.equal(0);
+    });
+
+    it('uses the margin around floats', async function () {
+      await this.layout(`
+        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 500px;">
+          <div id="t2" style="float: left; width: 10px; height: 10px; margin: 10px;"></div>
+          I'm floating!
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t1').children;
+      expect(ifc.lineboxes[0].inlineOffset).to.equal(30);
+      /** @type import('./flow').BlockContainer */
+      const t2 = this.get('#t2');
+      expect(t2.contentArea.x).to.equal(10);
+      expect(t2.contentArea.y).to.equal(10);
+    });
+
+    it('clears a float with another float', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 500px;">
+          <div id="t1" style="float: left; clear: left; width: 10px; height: 10px;"></div>
+          <div id="t2" style="float: left; clear: left; width: 10px; height: 10px;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const t1 = this.get('#t1');
+      /** @type import('./flow').BlockContainer */
+      const t2 = this.get('#t2');
+      expect(t1.borderArea.x).to.equal(0);
+      expect(t1.borderArea.y).to.equal(0);
+      expect(t2.borderArea.x).to.equal(0);
+      expect(t2.borderArea.y).to.equal(10);
+    });
+
+    it('floats floats with text', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 100px;">
+          <div id="t" style="float: left; width: 50px;">wow such text</div>
+          wow more text that wraps
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.lineboxes.length).to.equal(3);
+    });
+
+    // §9.5.1
+    // some of the rules don't really make sense to test alone - they all work
+    // together to create a single concept - but most of them do, and it's a way
+    // to be organized.
+
+    it('obeys rule 1', async function () {
+      await this.layout(`
+        <div style="width: 100px;">
+          <div style="width: 25px; height: 25px; float: left;"></div>
+          <div style="width: 25px; height: 25px; float: right;"></div>
+          hey!
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, left, right] = ifc.children;
+      expect(left.borderArea.x).to.equal(0);
+      expect(right.borderArea.x).to.equal(75);
+      expect(ifc.lineboxes[0].inlineOffset).to.equal(25);
+    });
+
+    it('obeys rule 2', async function () {
+      await this.layout(`
+        <div style="width: 100px;">
+          <div style="width: 25px; height: 25px; float: left;"></div>
+          <div style="width: 25px; height: 25px; float: left;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, left1, left2] = ifc.children;
+      expect(left1.borderArea.x).to.equal(0);
+      expect(left2.borderArea.x).to.equal(25);
+    });
+
+    it('obeys rule 3', async function () {
+      await this.layout(`
+        <div style="width: 100px;">
+          xx
+          <div style="width: 51px; height: 50px; float: left;"></div>
+          <div style="width: 50px; height: 50px; float: right;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, left1, left2] = ifc.children;
+      expect(left1.borderArea.x).to.equal(0);
+      expect(left1.borderArea.y).to.equal(0);
+      expect(left2.borderArea.x).to.equal(50);
+      expect(left2.borderArea.y).to.equal(50);
+    });
+
+    it('obeys rule 4', async function () {
+      await this.layout(`
+        <div style="width: 100px; line-height: 20px;">
+          has space
+          <div id="t"><div style="width: 10px; height: 10px; float: left; background-color: orange;"></div></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      const [float] = ifc.children;
+      expect(float.borderArea.y).to.equal(20);
+    });
+
+    it('obeys rule 5', async function () {
+      await this.layout(`
+        <div style="width: 100px; font-size: 0;">
+          <div id="f1" style="float: left; width: 10px; height: 10px;"></div>
+          <div id="f2" style="float: left; width: 91px; height: 91px;"></div>
+          <div id="f3" style="float: left; width: 5px; height: 5px;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline */
+      const float1 = this.get('#f1');
+      /** @type import('./flow').IfcInline */
+      const float2 = this.get('#f2');
+      /** @type import('./flow').IfcInline */
+      const float3 = this.get('#f3');
+
+      expect(float1.borderArea.x).to.equal(0);
+      expect(float1.borderArea.y).to.equal(0);
+      expect(float2.borderArea.x).to.equal(0);
+      expect(float2.borderArea.y).to.equal(10);
+      expect(float3.borderArea.x).to.equal(91);
+      expect(float3.borderArea.y).to.equal(10);
+    });
+
+    it('obeys rule 6', async function () {
+      await this.layout(`
+        <div style="width: 200px; font: 16px/20px Arimo;">
+          <div style="width: 20px; height: 20px; float: left;"></div>
+          As the text flows down, potential float positions flow down too.
+          <div style="width: 20px; height: 20px; float: right;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, float1,, float2] = ifc.children;
+      expect(float1.borderArea.x).to.equal(0);
+      expect(float1.borderArea.y).to.equal(0);
+      expect(float2.borderArea.x).to.equal(180);
+      expect(float2.borderArea.y).to.equal(40);
+    });
+
+    it('obeys rule 7', async function () {
+      await this.layout(`
+        <div style="width: 200px; font: 16px/20px Arimo;">
+          Floats have a bad reputation
+          <div style="float: left; width: 300px; height: 5px;"></div>
+          because they used to be used for higher-level layout!
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, float] = ifc.children;
+      const [lb1, lb2, lb3, lb4] = ifc.lineboxes;
+      expect(lb1.blockOffset).to.equal(0);
+      expect(lb2.blockOffset).to.equal(20);
+      expect(float.borderArea.y).to.equal(40);
+      expect(lb3.blockOffset).to.equal(45);
+      expect(lb4.blockOffset).to.equal(65);
+    });
+
+    it('obeys rule 8', async function () {
+      await this.layout(`
+        <div style="width: 200px; font: 16px/20px Arimo;">
+          Hello there <div style="float: left; width: 5px; height: 5px;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, float] = ifc.children;
+      expect(float.borderArea.y).to.equal(0);
+    });
+
+    it('obeys rule 9', async function () {
+      await this.layout(`
+        <div style="width: 200px; font: 16px/20px Arimo;">
+          Hello there
+          <div style="float: left; width: 5px; height: 5px;"></div>
+          <div style="float: left; width: 5px; height: 5px;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [, float1, float2] = ifc.children;
+      expect(float1.borderArea.x).to.equal(0);
+      expect(float1.borderArea.y).to.equal(0);
+      expect(float2.borderArea.x).to.equal(5);
+      expect(float2.borderArea.y).to.equal(0);
+    });
+
+    // §9.5.2
+    it('obeys rule 10', async function () {
+      await this.layout(`
+        <div style="width: 200px; font: 16px/20px Arimo;">
+          <div style="width: 40px; height: 40px; float: left;"></div>
+          Lorem
+          <div style="width: 20px; height: 20px; float: left; clear: left;"></div>
+          ipsum text is one way to generate filler text,
+          <div style="width: 20px; height: 20px; float: right;"></div>
+          but
+          <div style="width: 20px; height: 20px; float: left; clear: right;"></div>
+          another way is stream of consciousness.
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const [,,, float2,, float3,, float4] = ifc.children;
+      expect(float2.borderArea.x).to.equal(0);
+      expect(float2.borderArea.y).to.equal(40);
+      expect(float3.borderArea.x).to.equal(180);
+      expect(float3.borderArea.y).to.equal(40);
+      expect(float4.borderArea.x).to.equal(0);
+      expect(float4.borderArea.y).to.equal(60);
     });
   });
 });

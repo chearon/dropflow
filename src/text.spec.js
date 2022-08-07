@@ -281,7 +281,7 @@ async function setupLayoutTests() {
     layoutBlockBox(this.blockContainer, {
       lastBlockContainerArea: this.initialContainingBlock,
       lastPositionedArea: this.initialContainingBlock,
-      bfc: new BlockFormattingContext("horizontal-tb"),
+      bfc: new BlockFormattingContext(this.initialContainingBlock.width),
       hb,
       logging
     });

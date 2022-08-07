@@ -1,7 +1,7 @@
 import {binarySearchEndProp, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade';
-import {IfcInline, Inline, InlineLevel, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator} from './flow';
+import {IfcInline, Inline, InlineLevel, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow';
 import {getBuffer} from '../io';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
@@ -12,6 +12,8 @@ import type {FontConfigCssMatch} from 'fontconfig';
 
 let debug = true;
 
+// TODO runs aren't really boxes per the spec. You can't position them, etc.
+// I wonder if I should create a class like RenderItem (Box extends RenderItem)
 export class Run extends Box {
   public start: number = 0;
   public end: number = 0;
@@ -281,6 +283,7 @@ export class Collapser {
   }
 }
 
+// TODO this has become more of a "box" or "inline" itemizer
 function* styleItemizer(ifc: IfcInline) {
   const END_CHILDREN = Symbol('end of children');
   const stack:(InlineLevel | typeof END_CHILDREN)[] = ifc.children.slice().reverse();
@@ -340,6 +343,8 @@ function* styleItemizer(ifc: IfcInline) {
         yield {i: ci, style: currentStyle};
         lastYielded = ci;
       }
+    } else if (item.isFloat()) {
+      // OK
     } else {
       throw new Error('Inline block not supported yet');
     }
@@ -356,6 +361,8 @@ type ShapingAttrs = {
 };
 
 function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
+  if (inline.allText.length === 0) return;
+
   const iEmoji = itemizer.emoji(inline.allText);
   const iBidi = itemizer.bidi(inline.allText, inline.style.direction === 'ltr' ? 0 : 1);
   const iScript = itemizer.script(inline.allText);
@@ -1075,7 +1082,8 @@ export class Linebox extends LineItemLinkedList {
   width: number;
   dir: 'ltr' | 'rtl';
   trimStartFinished: boolean;
-  inlineStart: number;
+  blockOffset: number;
+  inlineOffset: number;
 
   constructor(dir: Linebox['dir'], start: number, strut: ShapedItem) {
     super();
@@ -1085,7 +1093,12 @@ export class Linebox extends LineItemLinkedList {
     this.descender = strut.measureExtents().descender;
     this.width = 0;
     this.trimStartFinished = false;
-    this.inlineStart = 0;
+    this.blockOffset = 0;
+    this.inlineOffset = 0;
+  }
+
+  height() {
+    return this.ascender + this.descender;
   }
 
   addLogical(candidates: LineCandidates, width: number, endOffset: number) {
@@ -1206,15 +1219,17 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  postprocess(paragraphWidth: number, textAlign: TextAlign) {
+  postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
+    this.blockOffset = vacancy.blockOffset;
     this.trimEnd();
     this.reorder();
     this.calculateExtents();
-    if (this.width < paragraphWidth) {
+    this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
+    if (this.width < vacancy.inlineSize) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
-        this.inlineStart = paragraphWidth - this.width;
+        this.inlineOffset += vacancy.inlineSize - this.width;
       } else if (textAlign === 'center') {
-        this.inlineStart = (paragraphWidth - this.width) / 2;
+        this.inlineOffset += (vacancy.inlineSize - this.width) / 2;
       }
     }
   }
@@ -1229,13 +1244,14 @@ type IfcMark = {
   isItemEnd: boolean,
   inlinePre: Inline | null,
   inlinePost: Inline | null,
+  float: BlockContainer | null,
   advance: number,
   itemIndex: number,
   split: (this: IfcMark, mark: IfcMark) => void
 };
 
 function isink(c: string) {
-  return c !== ' ' && c !== '\t';
+  return c !== undefined && c !== ' ' && c !== '\t';
 }
 
 function createIfcMarkIterator(ifc: IfcInline) {
@@ -1269,6 +1285,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
       isItemEnd: false,
       inlinePre: null,
       inlinePost: null,
+      float: null,
       advance: 0,
       itemIndex,
       split
@@ -1299,6 +1316,13 @@ function createIfcMarkIterator(ifc: IfcInline) {
     // Consume the inline break opportunity if we're not on a break
     if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
       inline = inlineIterator.next();
+    }
+
+    // Consume floats
+    if (!inline.done && inline.value.state === 'float' && inlineMark === mark.position) {
+      mark.float = inline.value.item;
+      inline = inlineIterator.next();
+      return {done: false, value: mark};
     }
 
     // Consume pre[-text|-break], post[-text|-break], or pre-post[-text|-break] before a breakop
@@ -1389,24 +1413,33 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
   }
 
-  if (!ifc.strut) throw new Error('Preprocess first');
+  if (!ifc.containingBlock.parent) {
+    throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
+  }
 
-  const paragraphWidth = ifc.containingBlock.width === undefined ? Infinity : ifc.containingBlock.width;
+  if (!ifc.strut) throw new Error(`Preprocess ${ifc.id} first`);
+
+  const bfc = ctx.bfc;
+  const fctx = bfc.fctx;
   const candidates = new LineCandidates();
   const basedir = ifc.style.direction;
   const parents:Inline[] = [];
   let line = new Linebox(basedir, 0, ifc.strut);
   let lastBreakMark:IfcMark | undefined;
   const lines = [line];
+  let breakExtents = {ascender: 0, descender: 0};
   let breakWidth = 0;
   let width = 0;
   let ws = 0;
-  let bottom = 0;
+  let blockOffset = bfc.cbBlockStart;
 
   for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
     const item = ifc.shaped[mark.itemIndex];
 
     if (mark.isInk) {
+      const extents = item.measureExtents(mark.position - item.offset); // TODO is this slow?
+      breakExtents.ascender = Math.max(extents.ascender, breakExtents.ascender);
+      breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
       breakWidth += ws + mark.advance;
       ws = 0;
     } else {
@@ -1416,6 +1449,13 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     width += mark.advance;
 
     if (mark.inlinePre) parents.push(mark.inlinePre);
+
+    if (mark.float) {
+      const lineWidth = line.width + width;
+      const lineIsEmpty = !candidates.head && !line.head;
+      layoutFloatBox(mark.float, ctx);
+      fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
+    }
 
     if (mark.inlinePre || mark.inlinePost) {
       const p = basedir === 'ltr' ? 'leftMarginBorderPadding' : 'rightMarginBorderPadding';
@@ -1442,7 +1482,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       // are diferent, but there is no embedding level for the empty span since
       // it isn't a character. Taking the min should fit most scenarios.
       if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
-      if (!left && !right) throw new Error('Assertion failed');
+      // If there are no left or right, there is no text, so level=0 is OK
       const attrs = {level, isEmoji: false, script: 'Latn', style: mark.inlinePre.style};
       const shiv = new ShapedShim(mark.position, parents.slice(), attrs);
       candidates.push(shiv);
@@ -1450,31 +1490,56 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     }
 
     if (mark.isBreak) {
-      if (line.hasText() && line.width + breakWidth > paragraphWidth) {
+      // Note the following `if` only hits one time per IFC
+      if (!line.hasText()) fctx.preTextContent();
+
+      const blockSize = breakExtents.ascender + breakExtents.descender;
+      const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+
+      if (line.hasText() && line.width + breakWidth > vacancy.inlineSize) {
         const lastLine = line;
         if (!lastBreakMark) throw new Error('Assertion failed');
         lines.push(line = new Linebox(basedir, lastBreakMark.position, ifc.strut));
         const lastBreakMarkItem = ifc.shaped[lastBreakMark.itemIndex];
-        if (lastBreakMarkItem && lastBreakMark.position > lastBreakMarkItem.offset && lastBreakMark.position < lastBreakMarkItem.end()) {
+        if (
+          lastBreakMarkItem &&
+          lastBreakMark.position > lastBreakMarkItem.offset &&
+          lastBreakMark.position < lastBreakMarkItem.end()
+        ) {
           ifc.split(lastBreakMark.itemIndex, lastBreakMark.position);
           lastBreakMark.split(mark);
           candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
         }
-        lastLine.postprocess(paragraphWidth, ifc.style.textAlign);
-        bottom += lastLine.ascender + lastLine.descender;
+        lastLine.postprocess(vacancy, ifc.style.textAlign);
+        fctx.postLine(lastLine, true);
+        blockOffset += lastLine.height();
       }
+
+      if (!line.hasText() /* line was just added */) {
+        const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+        if (breakWidth > vacancy.inlineSize) {
+          const newVacancy = fctx.findLinePosition(blockOffset, blockSize, line.width);
+          blockOffset = newVacancy.blockOffset;
+        }
+      }
+
+      // TODO: if these candidates grow the line height, we have to check and
+      // make sure it won't cause the line to start hitting floats
 
       line.addLogical(candidates, width, mark.position);
 
       candidates.clear();
       breakWidth = 0;
+      breakExtents.ascender = 0;
+      breakExtents.descender = 0;
       ws = 0;
       width = 0;
       lastBreakMark = mark;
 
       if (mark.isBreakForced) {
-        line.postprocess(paragraphWidth, ifc.style.textAlign);
-        bottom += line.ascender + line.descender;
+        line.postprocess(vacancy, ifc.style.textAlign);
+        fctx.postLine(line, true);
+        blockOffset += line.height();
         lines.push(line = new Linebox(basedir, mark.position, ifc.strut));
       }
     }
@@ -1494,8 +1559,12 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     if (mark.inlinePost) parents.pop();
   }
 
-  line.postprocess(paragraphWidth, ifc.style.textAlign);
-  bottom += line.ascender + line.descender;
+  const blockSize = breakExtents.ascender + breakExtents.descender;
+  const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+
+  line.postprocess(vacancy, ifc.style.textAlign);
+  blockOffset += line.height();
+  fctx.postLine(line, false);
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);
@@ -1507,9 +1576,12 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       }
       console.log(log);
     }
-    console.log();
+    console.log('Left floats');
+    console.log(fctx.leftFloats.repr());
+    console.log('Right floats');
+    console.log(fctx.rightFloats.repr());
   }
 
   ifc.lineboxes = lines;
-  ifc.height = bottom;
+  ifc.height = ifc.hasText() ? blockOffset - bfc.cbBlockStart : 0;
 }

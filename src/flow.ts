@@ -364,8 +364,9 @@ export class BlockContainer extends Box {
   doTextLayout(ctx: LayoutContext) {
     if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
     const [ifc] = this.children;
+    const style = this.style.createLogicalView(this.writingMode);
     ifc.doTextLayout(ctx);
-    this.setBlockSize(ifc.height);
+    if (style.blockSize === 'auto') this.setBlockSize(ifc.height);
   }
 }
 

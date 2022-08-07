@@ -856,6 +856,16 @@ describe('Lines', function () {
     expect(this.get('div').contentArea.height).to.be.approximately(60.7, 0.1);
   });
 
+  it('doesn\'t set the height if it\'s explicitly set', async function () {
+    await this.layout(`
+      <div style="height: 50px; width: 100px; font: 16px Arimo;">
+        I could be reading a book but I like writing layout engines instead
+      </div>
+    `);
+
+    expect(this.get('div').contentArea.height).to.equal(50);
+  });
+
   it('carries over colors and line heights correctly', async function () {
     await this.layout(`
       <div style="width: 0; line-height: 32px;">

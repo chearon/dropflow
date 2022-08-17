@@ -1172,7 +1172,7 @@ export class Inline extends Box {
 export class IfcInline extends Inline {
   public allText: string = '';
   public runs: Run[] = [];
-  public shaped: ShapedItem[] = [];
+  public brokenItems: ShapedItem[] = [];
   public strut: ShapedItem | undefined;
   public lineboxes: Linebox[] = [];
   public height: number = 0;
@@ -1231,9 +1231,9 @@ export class IfcInline extends Inline {
   }
 
   split(itemIndex: number, offset: number) {
-    const left = this.shaped[itemIndex];
+    const left = this.brokenItems[itemIndex];
     const right = left.split(offset - left.offset);
-    this.shaped.splice(itemIndex + 1, 0, right);
+    this.brokenItems.splice(itemIndex + 1, 0, right);
   }
 
   // Collect text runs, collapse whitespace, create shaping boundaries, and
@@ -1296,7 +1296,7 @@ export class IfcInline extends Inline {
     });
 
     if (this.hasText() || this.hasFloats()) {
-      this.shaped = await shapeIfc(this, ctx);
+      this.brokenItems = await shapeIfc(this, ctx);
     }
 
     for (const float of this.floats) float.preprocess(ctx);

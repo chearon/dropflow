@@ -1291,12 +1291,12 @@ function createIfcMarkIterator(ifc: IfcInline) {
       split
     };
 
-    if (inline.done && breakPosition > end && itemIndex >= ifc.shaped.length) {
+    if (inline.done && breakPosition > end && itemIndex >= ifc.brokenItems.length) {
       return {done: true};
     }
 
-    if (itemIndex < ifc.shaped.length && itemIndex > -1) {
-      const item = ifc.shaped[itemIndex];
+    if (itemIndex < ifc.brokenItems.length && itemIndex > -1) {
+      const item = ifc.brokenItems[itemIndex];
       const position = mark.position - item.offset;
       const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, position);
       mark.advance = advance;
@@ -1308,7 +1308,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
       while (inkMark < ifc.allText.length && isInk === isink(ifc.allText[inkMark])) inkMark++;
     }
 
-    if (itemIndex < ifc.shaped.length && itemMark === mark.position && !emittedItemEnd) {
+    if (itemIndex < ifc.brokenItems.length && itemMark === mark.position && !emittedItemEnd) {
       mark.isItemEnd = itemIndex > -1;
       emittedItemEnd = true;
     }
@@ -1352,11 +1352,11 @@ function createIfcMarkIterator(ifc: IfcInline) {
       if (mark.inlinePre || mark.inlinePost) return {done: false, value: mark};
     }
 
-    if (itemIndex < ifc.shaped.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
+    if (itemIndex < ifc.brokenItems.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
       itemIndex += 1;
 
-      if (itemIndex < ifc.shaped.length) {
-        const item = ifc.shaped[itemIndex];
+      if (itemIndex < ifc.brokenItems.length) {
+        const item = ifc.brokenItems[itemIndex];
         itemMark += item.text.length;
         glyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
         glyph = glyphIterator.next();
@@ -1393,7 +1393,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
     this.itemIndex += 1;
     mark.itemIndex += 1;
 
-    const item = ifc.shaped[this.itemIndex];
+    const item = ifc.brokenItems[this.itemIndex];
     const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
     const rightGlyph = rightGlyphIterator.next();
     const position = mark.position - item.offset;
@@ -1434,7 +1434,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   let blockOffset = bfc.cbBlockStart;
 
   for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
-    const item = ifc.shaped[mark.itemIndex];
+    const item = ifc.brokenItems[mark.itemIndex];
 
     if (mark.isInk) {
       const extents = item.measureExtents(mark.position - item.offset); // TODO is this slow?
@@ -1472,7 +1472,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     }
 
     if (mark.inlinePre && mark.inlinePost) {
-      const [left, right] = [item, ifc.shaped[mark.itemIndex + 1]];
+      const [left, right] = [item, ifc.brokenItems[mark.itemIndex + 1]];
       let level: number = 0;
       // Treat the empty span as an Other Neutral (ON) according to UAX29. I
       // think that's what browsers are doing.
@@ -1500,7 +1500,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
         const lastLine = line;
         if (!lastBreakMark) throw new Error('Assertion failed');
         lines.push(line = new Linebox(basedir, lastBreakMark.position, ifc.strut));
-        const lastBreakMarkItem = ifc.shaped[lastBreakMark.itemIndex];
+        const lastBreakMarkItem = ifc.brokenItems[lastBreakMark.itemIndex];
         if (
           lastBreakMarkItem &&
           lastBreakMark.position > lastBreakMarkItem.offset &&
@@ -1508,7 +1508,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
         ) {
           ifc.split(lastBreakMark.itemIndex, lastBreakMark.position);
           lastBreakMark.split(mark);
-          candidates.unshift(ifc.shaped[lastBreakMark.itemIndex]);
+          candidates.unshift(ifc.brokenItems[lastBreakMark.itemIndex]);
         }
         lastLine.postprocess(vacancy, ifc.style.textAlign);
         fctx.postLine(lastLine, true);
@@ -1568,7 +1568,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);
-    logParagraph(ifc.shaped);
+    logParagraph(ifc.brokenItems);
     for (const [i, line] of lines.entries()) {
       let log = `Line ${i} (${line.width} width): `;
       for (let n = line.head; n; n = n.next) {

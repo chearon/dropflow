@@ -109,7 +109,7 @@ export class BlockFormattingContext {
   }
 
   boxStart(box: BlockContainer, ctx: LayoutContext) {
-    const {lineLeft, lineRight, blockStart} = box.getBorderToContent();
+    const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent();
     const style = box.style.createLogicalView(box.writingMode);
     let floatBottom = 0;
     let clearance = 0;
@@ -169,7 +169,7 @@ export class BlockFormattingContext {
   }
 
   boxEnd(box: BlockContainer) {
-    const {lineLeft, lineRight} = box.getBorderToContent();
+    const {lineLeft, lineRight} = box.getContainingBlockToContent();
     const style = box.style.createLogicalView(box.writingMode);
     let adjoins = style.paddingBlockEnd === 0
       && style.borderBlockEndWidth === 0
@@ -747,7 +747,7 @@ export class BlockContainer extends Box {
       + style.borderBlockEndWidth;
   }
 
-  getBorderToContent() {
+  getContainingBlockToContent() {
     const style = this.style.createLogicalView(this.writingMode);
     const border = this.borderArea.createLogicalView(this.writingMode);
     const blockStart = style.borderBlockStartWidth + style.paddingBlockStart;

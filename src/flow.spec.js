@@ -772,6 +772,19 @@ describe('Flow', function () {
       expect(ifc.lineboxes.length).to.equal(3);
     });
 
+    it('moves the first words of the paragraph below floats that crowd them', async function () {
+      await this.layout(`
+        <div id="t" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          <div style="float: left; width: 300px; height: 300px;"></div>
+          beneath, not against!
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.lineboxes[0].blockOffset).to.equal(300);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

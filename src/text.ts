@@ -1518,7 +1518,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       if (!line.hasText() /* line was just added */) {
         const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
         if (breakWidth > vacancy.inlineSize) {
-          const newVacancy = fctx.findLinePosition(blockOffset, blockSize, line.width);
+          const newVacancy = fctx.findLinePosition(blockOffset, blockSize, width);
           blockOffset = newVacancy.blockOffset;
         }
       }

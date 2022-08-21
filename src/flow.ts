@@ -216,18 +216,11 @@ export class BlockFormattingContext {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
 
     const style = box.style.createLogicalView(box.writingMode);
-    const content = box.contentArea.createLogicalView(box.writingMode);
 
     this.positionBlockContainers();
 
-    if (content.blockSize === undefined) {
-      const size = Math.max(this.cbBlockStart, this.fctx.getBothBottom());
-      box.setBlockSize(size);
-    } else if (style.blockSize === 'auto' && box.isBlockContainerOfInlines()) {
-      // The box is both BFC root and IFC root. IFCs set the height, so the
-      // above condition failed. Need to adjust height for floats.
-      const size = Math.max(content.blockSize, this.fctx.getBothBottom());
-      box.setBlockSize(size);
+    if (style.blockSize === 'auto') {
+      box.setBlockSize(Math.max(this.cbBlockStart, this.fctx.getBothBottom()));
     }
   }
 

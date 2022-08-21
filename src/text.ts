@@ -1520,6 +1520,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
         if (breakWidth > vacancy.inlineSize) {
           const newVacancy = fctx.findLinePosition(blockOffset, blockSize, width);
           blockOffset = newVacancy.blockOffset;
+          fctx.dropShelf(blockOffset);
         }
       }
 

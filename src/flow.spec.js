@@ -785,6 +785,19 @@ describe('Flow', function () {
       expect(ifc.lineboxes[0].blockOffset).to.equal(300);
     });
 
+    it('uses correct shelf position with 2 starting floats', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          <div style="float: left; width: 300px; height: 300px;"></div>
+          float don't go
+          <div id="t" style="float: left; width: 30px; height: 30px;"></div>
+          beneath me
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.y).to.equal(300);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

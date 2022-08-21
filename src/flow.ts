@@ -671,16 +671,21 @@ export class FloatContext {
     }
   }
 
+  dropShelf(blockOffset: number) {
+    this.leftFloats.dropShelf(blockOffset);
+    this.rightFloats.dropShelf(blockOffset);
+  }
+
   postLine(line: Linebox, didBreak: boolean) {
     if (didBreak || this.misfits.length) {
-      const blockOffset = this.bfc.cbBlockStart + line.blockOffset + line.height();
-      this.leftFloats.dropShelf(blockOffset);
-      this.rightFloats.dropShelf(blockOffset);
+      this.dropShelf(this.bfc.cbBlockStart + line.blockOffset + line.height());
     }
 
     this.consumeMisfits();
   }
 
+  // Float processing happens after every line, but some floats may be before
+  // all lines
   preTextContent() {
     this.consumeMisfits();
   }

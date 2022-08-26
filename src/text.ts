@@ -1373,7 +1373,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
     if (breakPosition <= end && breakMark === mark.position) {
       const bk = breakIterator.nextBreak();
       if (breakPosition > -1) mark.isBreak = true;
-      if (bk) {
+      if (bk && ifc.hasText()) {
         breakPosition = breakMark = bk.position;
       } else {
         breakPosition = end + 1;
@@ -1424,9 +1424,9 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   const candidates = new LineCandidates();
   const basedir = ifc.style.direction;
   const parents:Inline[] = [];
-  let line = new Linebox(basedir, 0, ifc.strut);
+  let line:Linebox | null = null;
   let lastBreakMark:IfcMark | undefined;
-  const lines = [line];
+  const lines = [];
   let breakExtents = {ascender: 0, descender: 0};
   let breakWidth = 0;
   let width = 0;
@@ -1451,8 +1451,8 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     if (mark.inlinePre) parents.push(mark.inlinePre);
 
     if (mark.float) {
-      const lineWidth = line.width + width;
-      const lineIsEmpty = !candidates.head && !line.head;
+      const lineWidth = line ? line.width + width : 0;
+      const lineIsEmpty = line ? !candidates.head && !line.head : true;
       layoutFloatBox(mark.float, ctx);
       fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
     }
@@ -1490,8 +1490,10 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     }
 
     if (mark.isBreak) {
-      // Note the following `if` only hits one time per IFC
-      if (!line.hasText()) fctx.preTextContent();
+      if (!line) {
+        lines.push(line = new Linebox(basedir, 0, ifc.strut));
+        fctx.preTextContent();
+      }
 
       const blockSize = breakExtents.ascender + breakExtents.descender;
       const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
@@ -1560,12 +1562,15 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     if (mark.inlinePost) parents.pop();
   }
 
-  const blockSize = breakExtents.ascender + breakExtents.descender;
-  const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
-
-  line.postprocess(vacancy, ifc.style.textAlign);
-  blockOffset += line.height();
-  fctx.postLine(line, false);
+  if (line) {
+    const blockSize = breakExtents.ascender + breakExtents.descender;
+    const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+    line.postprocess(vacancy, ifc.style.textAlign);
+    blockOffset += line.height();
+    fctx.postLine(line, false);
+  } else {
+    fctx.consumeMisfits();
+  }
 
   if (ctx.logging.text.has(ifc.id)) {
     console.log(`Paragraph ${ifc.id}:`);
@@ -1584,5 +1589,5 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   }
 
   ifc.lineboxes = lines;
-  ifc.height = ifc.hasText() ? blockOffset - bfc.cbBlockStart : 0;
+  ifc.height = blockOffset - bfc.cbBlockStart;
 }

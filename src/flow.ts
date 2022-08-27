@@ -1343,13 +1343,10 @@ export function createInlineIterator(inline: IfcInline) {
   let minlevel = 0;
   let level = 0;
   let bk = 0;
-  let flushedBreak = false;
+  let shouldFlushBreakop = false;
 
   function next():{done: true} | {done: false, value: InlineIteratorValue} {
-
     if (!buffered.length) {
-      flushedBreak = false;
-
       while (stack.length) {
         const item = stack.pop()!;
         if ('post' in item) {
@@ -1364,16 +1361,18 @@ export function createInlineIterator(inline: IfcInline) {
           buffered.push({state: 'pre', item});
           stack.push({post: item});
           for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
-        } else if (item.isRun() || item.isBreak()) {
+        } else if (item.isRun() || item.isBreak() || item.isFloat()) {
+          shouldFlushBreakop = minlevel !== level;
           minlevel = level;
           if (item.isRun()) {
             buffered.push({state: 'text', item});
-          } else {
+          } else if (item.isBreak()) {
             buffered.push({state: 'break'});
+          } else {
+            shouldFlushBreakop = true;
+            buffered.push({state: 'float', item});
           }
           break;
-        } else if (item.isFloat()) {
-          buffered.push({state: 'float', item});
         } else {
           throw new Error('Inline block not supported yet');
         }
@@ -1383,8 +1382,8 @@ export function createInlineIterator(inline: IfcInline) {
     if (buffered.length) {
       if (bk > 0) {
         bk -= 1;
-      } else if (!flushedBreak && /* pre|posts follow the op */ buffered.length > 1) {
-        flushedBreak = true;
+      } else if (shouldFlushBreakop) {
+        shouldFlushBreakop = false;
         return {value: {state: 'breakop'}, done: false};
       }
 

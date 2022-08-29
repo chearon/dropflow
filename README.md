@@ -15,6 +15,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
 | <code>color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works | |
+| <code>direction</code> | `ltr`, `rtl` | ✅&zwj;&nbsp;Works | |
 | <code>font-&zwj;family</code> |  | ✅&zwj;&nbsp;Works | |
 | <code>font-&zwj;size</code> | `em`, `px`, `smaller` etc, `small` etc, `cm` etc | ✅&zwj;&nbsp;Works | |
 | <code>font-&zwj;stretch</code> | `condensed` etc | ✅&zwj;&nbsp;Works | |
@@ -23,6 +24,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | <code>font-&zwj;weight</code> | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅&zwj;&nbsp;Works | |
 | <code>line-&zwj;height</code> | `normal`, `px`, `em`, `%`, `number` | ✅&zwj;&nbsp;Works | |
 | <code>tab-&zwj;size</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |  |
 | <code>text-&zwj;decoration</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>unicode-&zwj;bidi</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>vertical-&zwj;align</code> | | 🚧&zwj;&nbsp;Planned | |
@@ -34,9 +36,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
 | <code>clear</code> |  `left`, `right`, `both`, `none` |  ✅&zwj;&nbsp;Works | |
-| <code>direction</code> | `ltr`, `rtl` | ✅&zwj;&nbsp;Works | |
 | <code>float</code> | `left`, `right`, `none` | 🏗 Partially done | Width must be specified |
-| <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |  |
 | <code>writing-&zwj;mode</code> | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for BFCs but not IFCs yet |
 
 ## Boxes and positioning

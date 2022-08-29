@@ -813,6 +813,48 @@ describe('Flow', function () {
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
+    it('places floats at word end correctly', async function () {
+      await this.layout(`
+        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          mefirst!<div id="t2" style="float: left; width: 300px; height: 300px;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t1').children;
+      expect(ifc.lineboxes.length).to.equal(1);
+      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      expect(this.get('#t2').contentArea.y).to.equal(20);
+    });
+
+    it('places floats after start-of-line collapsible whitespace correctly', async function () {
+      await this.layout(`
+        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          <br> <div id="t2" style="float: left; width: 300px; height: 300px;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t1').children;
+      expect(ifc.lineboxes.length).to.equal(2);
+      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
+      expect(this.get('#t2').contentArea.y).to.equal(20);
+    });
+
+    it('places mid-word floats correctly', async function () {
+      await this.layout(`
+        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          rightin<div id="t2" style="float: left; width: 300px; height: 300px;"></div>themiddle
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t1').children;
+      expect(ifc.lineboxes.length).to.equal(1);
+      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      expect(this.get('#t2').contentArea.y).to.equal(20);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

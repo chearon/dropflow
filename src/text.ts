@@ -1427,10 +1427,12 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   let line:Linebox | null = null;
   let lastBreakMark:IfcMark | undefined;
   const lines = [];
+  const floats = [];
   let breakExtents = {ascender: 0, descender: 0};
   let breakWidth = 0;
   let width = 0;
   let ws = 0;
+  let inkMark = 0;
   let blockOffset = bfc.cbBlockStart;
 
   for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
@@ -1442,6 +1444,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
       breakWidth += ws + mark.advance;
       ws = 0;
+      inkMark = mark.position;
     } else {
       ws += mark.advance;
     }
@@ -1451,10 +1454,15 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     if (mark.inlinePre) parents.push(mark.inlinePre);
 
     if (mark.float) {
-      const lineWidth = line ? line.width + width : 0;
-      const lineIsEmpty = line ? !candidates.head && !line.head : true;
-      layoutFloatBox(mark.float, ctx);
-      fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
+      const lineHasInk = (line ? line.startOffset : 0) < inkMark;
+      if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
+        const lineWidth = line ? line.width + width : 0;
+        const lineIsEmpty = line ? !candidates.head && !line.head : true;
+        layoutFloatBox(mark.float, ctx);
+        fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
+      } else {
+        floats.push(mark.float);
+      }
     }
 
     if (mark.inlinePre || mark.inlinePost) {
@@ -1539,6 +1547,12 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       width = 0;
       lastBreakMark = mark;
 
+      for (const float of floats) {
+        layoutFloatBox(float, ctx);
+        fctx.placeFloat(line.width, false, float);
+      }
+      floats.length = 0;
+
       if (mark.isBreakForced) {
         line.postprocess(vacancy, ifc.style.textAlign);
         fctx.postLine(line, true);
@@ -1560,6 +1574,11 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
     }
 
     if (mark.inlinePost) parents.pop();
+  }
+
+  for (const float of floats) {
+    layoutFloatBox(float, ctx);
+    fctx.placeFloat(line ? line.width : 0, line ? !!line.head : true, float);
   }
 
   if (line) {

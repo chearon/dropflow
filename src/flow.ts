@@ -641,15 +641,17 @@ export class FloatContext {
         box.setBlockPosition(side.shelfBlockOffset + margins.blockStart - this.bfc.cbBlockStart);
         side.placeFloat(box, vacancy, this.bfc.cbLineLeft, this.bfc.cbLineRight);
       } else {
-        const count = box.style.float === 'left' ? vacancy.leftFloatCount : vacancy.rightFloatCount;
-        const oppositeCount = box.style.float === 'left' ? vacancy.rightFloatCount : vacancy.leftFloatCount;
-        if (count > 0) {
-          side.dropShelf(side.getNextTrackOffset());
-        } else if (oppositeCount > 0) {
-          const [, trackIndex] = oppositeSide.getTrackRange(side.shelfBlockOffset);
-          if (trackIndex === oppositeSide.blockOffsets.length) throw new Error('assertion failed');
-          side.dropShelf(oppositeSide.blockOffsets[trackIndex]);
-        } // else both counts are 0 so it will fit next time the line is empty
+        if (box.borderArea.width + inlineMargin > vacancy.inlineSize) {
+          const count = box.style.float === 'left' ? vacancy.leftFloatCount : vacancy.rightFloatCount;
+          const oppositeCount = box.style.float === 'left' ? vacancy.rightFloatCount : vacancy.leftFloatCount;
+          if (count > 0) {
+            side.dropShelf(side.getNextTrackOffset());
+          } else if (oppositeCount > 0) {
+            const [, trackIndex] = oppositeSide.getTrackRange(side.shelfBlockOffset);
+            if (trackIndex === oppositeSide.blockOffsets.length) throw new Error('assertion failed');
+            side.dropShelf(oppositeSide.blockOffsets[trackIndex]);
+          } // else both counts are 0 so it will fit next time the line is empty
+        }
 
         this.misfits.push(box);
       }

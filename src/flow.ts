@@ -635,7 +635,7 @@ export class FloatContext {
       const inlineMargin = margins.lineLeft + margins.lineRight;
 
       if (
-        box.borderArea.width + inlineMargin < vacancy.inlineSize - lineWidth ||
+        box.borderArea.width + inlineMargin <= vacancy.inlineSize - lineWidth ||
         lineIsEmpty && vacancy.leftFloatCount === 0 && vacancy.rightFloatCount === 0
       ) {
         box.setBlockPosition(side.shelfBlockOffset + margins.blockStart - this.bfc.cbBlockStart);

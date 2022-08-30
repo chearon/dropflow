@@ -855,6 +855,17 @@ describe('Flow', function () {
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
+    it('perfectly fits floats that sum to container width', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; width: 100px;">
+          <div style="width: 50px; height: 20px; float: left;"></div>
+          <div id="t" style="width: 50px; height: 20px; float: left;"></div>
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.y).to.equal(0);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

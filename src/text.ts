@@ -1280,7 +1280,7 @@ function createIfcMarkIterator(ifc: IfcInline) {
       position: Math.min(inlineMark, itemMark, breakMark, inkMark),
       isBreak: false,
       isBreakForced: false,
-      isInk,
+      isInk: false,
       isItemStart: false,
       isItemEnd: false,
       inlinePre: null,
@@ -1302,6 +1302,8 @@ function createIfcMarkIterator(ifc: IfcInline) {
       mark.advance = advance;
       glyph = nextGlyph;
     }
+
+    mark.isInk = isink(ifc.allText[mark.position - 1]);
 
     if (inkMark === mark.position) {
       isInk = isink(ifc.allText[inkMark]);

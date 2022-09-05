@@ -893,6 +893,15 @@ describe('Flow', function () {
       expect(this.get('#t').contentArea.y).to.equal(0);
     });
 
+    it('a float that follows uncollapsible ws at start-of-line should go after', async function () {
+      await this.layout(`
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px; white-space: pre;"> <div id="t" style="width: 300px; height: 300px; float: left;"></div>xyz</div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      expect(this.get('#t').contentArea.y).to.equal(20);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

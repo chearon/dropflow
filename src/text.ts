@@ -1434,7 +1434,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
   let breakWidth = 0;
   let width = 0;
   let ws = 0;
-  let inkMark = 0;
+  let unbreakableMark = 0;
   let blockOffset = bfc.cbBlockStart;
 
   for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
@@ -1446,7 +1446,6 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
       breakWidth += ws + mark.advance;
       ws = 0;
-      inkMark = mark.position;
     } else {
       ws += mark.advance;
     }
@@ -1455,8 +1454,12 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
     if (mark.inlinePre) parents.push(mark.inlinePre);
 
+    const wsCollapsible = (parents[parents.length - 1] || ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
+
+    if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
+
     if (mark.float) {
-      const lineHasInk = (line ? line.startOffset : 0) < inkMark;
+      const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
       if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
         const lineWidth = line ? line.width + width : 0;
         const lineIsEmpty = line ? !candidates.head && !line.head : true;

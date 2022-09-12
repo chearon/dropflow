@@ -674,8 +674,8 @@ growl@1.10.5:
   integrity sha512-qBr4OuELkhPenW6goKVXiv47US3clb3/IbuWF9KNKEijAy9oeHxU9IgzjvJhHkUzhaj7rOUD7+YGWqUjLp5oSA==
 
 harfbuzzjs@chearon/harfbuzzjs.git#chearon-patches:
-  version "0.2.1"
-  resolved "https://codeload.github.com/chearon/harfbuzzjs/tar.gz/f843136cc79cf967c2f8ec703c84a628bc480c3b"
+  version "0.3.0"
+  resolved "https://codeload.github.com/chearon/harfbuzzjs/tar.gz/f0e303f6fd1f311d071805980f6cfdc7d8e2d5b0"
 
 has-bigints@^1.0.1:
   version "1.0.1"

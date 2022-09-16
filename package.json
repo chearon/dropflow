@@ -29,7 +29,7 @@
   "dependencies": {
     "boolbase": "^1.0.0",
     "css-what": "^6.1.0",
-    "entities": "^3.0.1",
+    "entities": "^4.4.0",
     "fontconfig": "^0.3.1",
     "grapheme-breaker": "^0.3.2",
     "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",

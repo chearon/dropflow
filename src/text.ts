@@ -2,7 +2,7 @@ import {binarySearchEndProp, loggableText} from './util';
 import {Box} from './box';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade';
 import {IfcInline, Inline, InlineLevel, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow';
-import {getBuffer} from '../io';
+import {getBuffer} from './io.js';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
 import {Itemizer} from 'itemizer';
@@ -415,7 +415,7 @@ function createFontKey(style: Style, script: string) {
   return `${style.fontWeight} ${style.fontVariant} ${style.fontFamily} ${script}`;
 }
 
-const fontBufferCache = new Map<string, Promise<Buffer>>();
+const fontBufferCache = new Map<string, Promise<ArrayBuffer>>();
 const hbFaceCache = new Map<string, Promise<HbFace>>();
 const cascadeCache = new Map<string, Cascade>();
 

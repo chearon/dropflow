@@ -1,5 +1,5 @@
 {
-  "include": ["io/*", "src/**/*", "*.d.ts"],
+  "include": ["*.ts", "src/**/*", "*.d.ts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
     "lib": ["esnext"],

@@ -1,59 +1,21 @@
 //@ts-check
 
-const {HTMLElement} = require('./node');
-const {parseNodes} = require('./parser');
-const {createComputedStyle, initialStyle} = require('./cascade');
-const {generateBlockContainer, layoutBlockBox, BlockFormattingContext} = require('./flow');
-const {Area} = require('./box');
 const {expect} = require('chai');
-
-const HarfbuzzInit = require('harfbuzzjs');
-const FontConfigInit = require('fontconfig');
-const ItemizerInit = require('itemizer');
-
-const rootDeclaredStyle = createComputedStyle(initialStyle, {
-  fontSize: 16,
-  fontFamily: ['Helvetica'],
-  fontWeight: 300,
-  whiteSpace: 'normal',
-  tabSize: {value: 8, unit: null},
-  lineHeight: {value: 1.6, unit: null},
-  position: 'static',
-  height: {value: 100, unit: '%'},
-  writingMode: 'horizontal-tb',
-  display: {
-    outer: 'block',
-    inner: 'flow-root'
-  }
-});
+const oflo = require('../node');
 
 describe('Flow', function () {
   before(async function () {
-    const [hb, itemizer, FontConfig] = await Promise.all([HarfbuzzInit, ItemizerInit, FontConfigInit]);
-    const cfg = new FontConfig();
-
-    await cfg.addFont('assets/Arimo/Arimo-Regular.ttf');
+    await oflo.registerFont('assets/Arimo/Arimo-Regular.ttf');
 
     /**
      * @param {string} [html]
      */
     this.layout = async function (html) {
-      this.initialContainingBlock = new Area('', rootDeclaredStyle, 0, 0, 300, 500);
-      this.rootComputed = createComputedStyle(initialStyle, rootDeclaredStyle);
-      this.rootElement = new HTMLElement('root', 'root', this.rootComputed);
-      parseNodes(this.rootElement, html);
-      this.blockContainer = generateBlockContainer(this.rootElement);
-      await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging: {text: new Set(['17'])}});
-      layoutBlockBox(this.blockContainer, {
-        bfc: new BlockFormattingContext("horizontal-tb"),
-        lastBlockContainerArea: this.initialContainingBlock,
-        lastPositionedArea: this.initialContainingBlock,
-        hb,
-        logging: {text: new Set(['17'])}
+      this.rootElement = oflo.parse(html, {
+        height: {unit: '%', value: 100}
       });
-      this.blockContainer.containingBlock = this.initialContainingBlock;
-      this.blockContainer.setBlockPosition(0, rootDeclaredStyle.writingMode);
-      this.blockContainer.absolutify();
+      this.blockContainer = oflo.generate(this.rootElement);
+      await oflo.layout(this.blockContainer, 300, 500);
       this.get = function (...args) {
         if (typeof args[0] === 'string') {
           const elements = this.rootElement.query(args[0]);

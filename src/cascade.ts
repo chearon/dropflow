@@ -513,7 +513,7 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   marginRight: 0,
   marginBottom: 0,
   marginLeft: 0,
-  tabSize: 8,
+  tabSize: {value: 8, unit: null},
   position: 'static',
   width: 'auto',
   height: 'auto',

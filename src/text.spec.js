@@ -1,33 +1,11 @@
 //@ts-check
 const {expect} = require('chai');
-const {Area} = require('./box');
-const {generateBlockContainer, layoutBlockBox, BlockFormattingContext} = require('./flow');
-const {initialStyle, createComputedStyle} = require('./cascade');
-const {HTMLElement} = require('./node');
-const {parseNodes} = require('./parser');
+const oflo = require('../node');
 const {Run, Collapser} = require('./text');
-const HarfBuzzInit = require('harfbuzzjs');
-const FontConfigInit = require('fontconfig');
-const ItemizerInit = require('itemizer');
-
-const rootStyle = createComputedStyle(initialStyle, {
-  fontSize: 16,
-  fontFamily: ['Helvetica'],
-  fontWeight: 300,
-  whiteSpace: 'normal',
-  tabSize: {value: 8, unit: null},
-  lineHeight: {value: 1.6, unit: null},
-  position: 'static',
-  height: {value: 100, unit: '%'},
-  writingMode: 'horizontal-tb',
-  display: {
-    outer: 'block',
-    inner: 'flow-root'
-  }
-});
+const {initialStyle, createComputedStyle} = require('./cascade');
 
 describe('Text Module', function () {
-  const s = rootStyle;
+  const s = createComputedStyle(initialStyle, {});
 
   describe('Run', function () {
     it('throws on a setRange that doesn\'t make sense', function () {
@@ -253,39 +231,23 @@ describe('Text Module', function () {
 });
 
 async function setupLayoutTests() {
-  const [hb, itemizer, FontConfig] = await Promise.all([HarfBuzzInit, ItemizerInit, FontConfigInit]);
-  const cfg = new FontConfig();
-
   await Promise.all([
-    cfg.addFont('assets/Arimo/Arimo-Regular.ttf'),
-    cfg.addFont('assets/Noto/NotoSansSC-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansJP-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansTC-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansKR-Regular.otf'),
-    cfg.addFont('assets/Noto/NotoSansHebrew-Regular.ttf'),
-    cfg.addFont('assets/Noto/NotoSansCherokee-Regular.ttf'),
-    cfg.addFont('assets/Ramabhadra/Ramabhadra-Regular.ttf'),
-    cfg.addFont('assets/Cairo/Cairo-Regular.ttf'),
-    cfg.addFont('assets/Roboto/Roboto-Regular.ttf')
+    oflo.registerFont('assets/Arimo/Arimo-Regular.ttf'),
+    oflo.registerFont('assets/Noto/NotoSansSC-Regular.otf'),
+    oflo.registerFont('assets/Noto/NotoSansJP-Regular.otf'),
+    oflo.registerFont('assets/Noto/NotoSansTC-Regular.otf'),
+    oflo.registerFont('assets/Noto/NotoSansKR-Regular.otf'),
+    oflo.registerFont('assets/Noto/NotoSansHebrew-Regular.ttf'),
+    oflo.registerFont('assets/Noto/NotoSansCherokee-Regular.ttf'),
+    oflo.registerFont('assets/Ramabhadra/Ramabhadra-Regular.ttf'),
+    oflo.registerFont('assets/Cairo/Cairo-Regular.ttf'),
+    oflo.registerFont('assets/Roboto/Roboto-Regular.ttf')
   ]);
 
   this.layout = async function (html) {
-    const logging = {text: new Set([])};
-    this.initialContainingBlock = new Area('', rootStyle, 0, 0, 300, 500);
-    this.rootElement = new HTMLElement('root', 'root', rootStyle);
-    parseNodes(this.rootElement, html);
-    this.blockContainer = generateBlockContainer(this.rootElement);
-    this.blockContainer.containingBlock = this.initialContainingBlock;
-    this.blockContainer.setBlockPosition(0);
-    await this.blockContainer.preprocess({fcfg: cfg, itemizer, hb, logging});
-    layoutBlockBox(this.blockContainer, {
-      lastBlockContainerArea: this.initialContainingBlock,
-      lastPositionedArea: this.initialContainingBlock,
-      bfc: new BlockFormattingContext(this.initialContainingBlock.width),
-      hb,
-      logging
-    });
-    this.blockContainer.absolutify();
+    this.rootElement = oflo.parse(html);
+    this.blockContainer = oflo.generate(this.rootElement);
+    await oflo.layout(this.blockContainer);
     this.get = function (...args) {
       if (typeof args[0] === 'string') {
         const elements = this.rootElement.query(args[0]);

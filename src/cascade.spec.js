@@ -1,8 +1,8 @@
 //@ts-check
 
-const {createComputedStyle, initialStyle, Style, inherited, initial} = require('./cascade');
-const {Area} = require('./box');
-const {expect} = require('chai');
+import {createComputedStyle, initialStyle, Style, inherited, initial} from './cascade.js';
+import {Area} from './box.js';
+import {expect} from 'chai';
 
 describe('CSS Style', function () {
   it('calculates used value for border width', function () {

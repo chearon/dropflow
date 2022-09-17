@@ -1,4 +1,4 @@
-import {Area} from './box';
+import {Area} from './box.js';
 
 export const inherited = Symbol('inherited');
 

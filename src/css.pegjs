@@ -7,8 +7,8 @@
 // separated by ';'. It can be used to parse the style tag's contents on an 
 // element
 
-{
-  const {initial, inherited} = require('./cascade');
+{{
+  import {initial, inherited} from './cascade.js';
 
   function extractList(list, index) {
     return list.map(function(element) { return element[index]; });
@@ -87,7 +87,7 @@
   ]);
 
   let $font = {}, $fontNormals = 0;
-}
+}}
 
 start
   = S* declarationsHead:declaration?

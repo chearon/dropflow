@@ -1,8 +1,8 @@
-import {binarySearch} from './util';
-import {HTMLElement, TextNode} from './node';
-import {createComputedStyle, Style} from './cascade';
-import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes, getAscenderDescender} from './text';
-import {Box, Area} from './box';
+import {binarySearch} from './util.js';
+import {HTMLElement, TextNode} from './node.js';
+import {createComputedStyle, Style} from './cascade.js';
+import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes, getAscenderDescender} from './text.js';
+import {Box, Area} from './box.js';
 import {Harfbuzz, HbFace} from 'harfbuzzjs';
 import {FontConfig} from 'fontconfig';
 import {Itemizer} from 'itemizer';

@@ -1,12 +1,12 @@
-import {HTMLElement} from './src/node';
-import {parseNodes} from './src/parser';
-import {createComputedStyle, initialStyle, DeclaredPlainStyle} from './src/cascade';
-import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './src/flow';
-import {paint as paintHtml} from './src/paint/html/index';
-import {Area} from './src/box';
-import FontConfigInit = require('fontconfig');
-import ItemizerInit = require('itemizer');
-import HarfbuzzInit = require('harfbuzzjs');
+import {HTMLElement} from './src/node.js';
+import {parseNodes} from './src/parser.js';
+import {createComputedStyle, initialStyle, DeclaredPlainStyle} from './src/cascade.js';
+import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './src/flow.js';
+import {paint as paintHtml} from './src/paint/html/index.js';
+import {Area} from './src/box.js';
+import FontConfigInit from 'fontconfig';
+import ItemizerInit from 'itemizer';
+import HarfbuzzInit from 'harfbuzzjs';
 
 function getRootComputedStyle(style?: DeclaredPlainStyle) {
   return createComputedStyle(initialStyle, {

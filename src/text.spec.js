@@ -1,8 +1,8 @@
 //@ts-check
-const {expect} = require('chai');
-const oflo = require('../node');
-const {Run, Collapser} = require('./text');
-const {initialStyle, createComputedStyle} = require('./cascade');
+import {expect} from 'chai';
+import * as oflo from '../node.js';
+import {Run, Collapser} from './text.js';
+import {initialStyle, createComputedStyle} from './cascade.js';
 
 describe('Text Module', function () {
   const s = createComputedStyle(initialStyle, {});

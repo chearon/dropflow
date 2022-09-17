@@ -1,5 +1,5 @@
-const {parse} = require('./css');
-const {expect} = require('chai');
+import {parse} from './css.js';
+import {expect} from 'chai';
 
 describe('CSS Parser', function () {
   it('parses font shorthand with weight', function () {

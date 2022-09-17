@@ -1,4 +1,4 @@
-import * as oflo from './node';
+import * as oflo from './node.js';
 
 (async () => {
   console.time('Add fonts');

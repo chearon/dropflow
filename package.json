@@ -11,10 +11,11 @@
   "name": "overflow",
   "version": "0.0.0",
   "description": "A small CSS2 document renderer built from specifications for learning purposes",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "mocha src/*.spec.js",
-    "buildcssparser": "peggy src/css.pegjs",
+    "buildcssparser": "peggy --format es src/css.pegjs",
     "build": "tsc"
   },
   "keywords": [

@@ -1,7 +1,7 @@
-import {Color} from '../../cascade';
-import {BlockContainer, IfcInline, Inline} from '../../flow';
-import {ShapedItem, getAscenderDescender} from '../../text';
-import {Area} from '../../box';
+import {Color} from '../../cascade.js';
+import {BlockContainer, IfcInline, Inline} from '../../flow.js';
+import {ShapedItem, getAscenderDescender} from '../../text.js';
+import {Area} from '../../box.js';
 import {Harfbuzz} from 'harfbuzzjs';
 import {encode} from 'entities';
 

@@ -4,8 +4,9 @@
   "compilerOptions": {
     "lib": ["esnext"],
     "target": "esnext",
-    "module": "commonjs",
+    "module": "node16",
     "strict": true,
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "moduleResolution": "node16"
   }
 }

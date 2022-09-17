@@ -1,4 +1,4 @@
-import {setGetBufferImpl} from './src/io';
+import {setGetBufferImpl} from './src/io.js';
 import {readFile} from 'fs/promises';
 setGetBufferImpl(readFile);
-export * from './api';
+export * from './api.js';

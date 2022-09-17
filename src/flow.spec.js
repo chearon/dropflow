@@ -1,7 +1,7 @@
 //@ts-check
 
-const {expect} = require('chai');
-const oflo = require('../node');
+import {expect} from 'chai';
+import * as oflo from '../node.js';
 
 describe('Flow', function () {
   before(async function () {

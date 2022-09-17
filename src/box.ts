@@ -1,7 +1,7 @@
-import {id} from './util';
-import {Style, ComputedPlainStyle, WritingMode, Direction} from './cascade';
-import {Run} from './text';
-import {Break, Inline, IfcInline, BlockContainer} from './flow';
+import {id} from './util.js';
+import {Style, ComputedPlainStyle, WritingMode, Direction} from './cascade.js';
+import {Run} from './text.js';
+import {Break, Inline, IfcInline, BlockContainer} from './flow.js';
 
 export type LogicalArea = {
   blockStart: number | undefined

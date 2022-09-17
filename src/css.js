@@ -2,7 +2,86 @@
 //
 // https://peggyjs.org/
 
-"use strict";
+
+  import {initial, inherited} from './cascade.js';
+
+  function extractList(list, index) {
+    return list.map(function(element) { return element[index]; });
+  }
+
+  function buildList(head, tail, index) {
+    return [head].concat(extractList(tail, index))
+      .filter(function(element) { return element !== null; });
+  }
+
+  function buildExpression(head, tail) {
+    return tail.reduce(function(result, element) {
+      return {
+        type: 'Expression',
+        operator: element[0],
+        left: result,
+        right: element[1]
+      };
+    }, head);
+  }
+
+  function extend(a, b) {
+    for (var prop in b) {
+      a[prop] = b[prop];
+    }
+
+    return a;
+  }
+
+  function combine(a) {
+    return a.reduce(function(obj, next) {
+      return extend(obj, next);
+    }, {});
+  }
+
+  function setTopRightBottomLeft(obj, before, after, t, r, b, l) {
+    obj[before + 'Top' + (after || '')] = t;
+    obj[before + 'Right' + (after || '')] = r;
+    obj[before + 'Bottom' + (after || '')] = b;
+    obj[before + 'Left' + (after || '')] = l;
+    return obj;
+  }
+
+  function setTopRightBottomLeftOr(x, obj, before, after, t, r, b, l) {
+    if (!x) return setTopRightBottomLeft(obj, before, after, t, r, b, l);
+
+    x = x.toLowerCase();
+
+    if (x === '-top') obj[before + 'Top' + (after || '')] = t;
+    if (x === '-right') obj[before + 'Right' + (after || '')] = r;
+    if (x === '-bottom') obj[before + 'Bottom' + (after || '')] = b;
+    if (x === '-left') obj[before + 'Left' + (after || '')] = l;
+
+    return obj;
+  }
+
+  const colorMap = new Map([
+    ['maroon', {r: 128, g: 0, b: 0, a: 1}],
+    ['red', {r: 255, g: 0, b: 0, a: 1}],
+    ['orange', {r: 255, g: 165, b: 0, a: 1}],
+    ['yellow', {r: 255, g: 255, b: 0, a: 1}],
+    ['olive', {r: 128, g: 128, b: 0, a: 1}],
+    ['purple', {r: 128, g: 0, b: 128, a: 1}],
+    ['fuchsia', {r: 255, g: 0, b: 255, a: 1}],
+    ['white', {r: 255, g: 255, b: 255, a: 1}],
+    ['lime', {r: 0, g: 255, b: 0, a: 1}],
+    ['green', {r: 0, g: 128, b: 0, a: 1}],
+    ['navy', {r: 0, g: 0, b: 128, a: 1}],
+    ['blue', {r: 0, g: 0, b: 255, a: 1}],
+    ['aqua', {r: 0, g: 255, b: 255, a: 1}],
+    ['teal', {r: 0, g: 128, b: 128, a: 1}],
+    ['black', {r: 0, g: 0, b: 0, a: 1}],
+    ['silver', {r: 192, g: 192, b: 192, a: 1}],
+    ['gray', {r: 128, g: 128, b: 128, a: 1}],
+    ['transparent', {r: 255, g: 255, b: 255, a: 0}]
+  ]);
+
+  let $font = {}, $fontNormals = 0;
 
 function peg$subclass(child, parent) {
   function C() { this.constructor = child; }
@@ -12623,87 +12702,6 @@ function peg$parse(input, options) {
     return s0;
   }
 
-
-  const {initial, inherited} = require('./cascade');
-
-  function extractList(list, index) {
-    return list.map(function(element) { return element[index]; });
-  }
-
-  function buildList(head, tail, index) {
-    return [head].concat(extractList(tail, index))
-      .filter(function(element) { return element !== null; });
-  }
-
-  function buildExpression(head, tail) {
-    return tail.reduce(function(result, element) {
-      return {
-        type: 'Expression',
-        operator: element[0],
-        left: result,
-        right: element[1]
-      };
-    }, head);
-  }
-
-  function extend(a, b) {
-    for (var prop in b) {
-      a[prop] = b[prop];
-    }
-
-    return a;
-  }
-
-  function combine(a) {
-    return a.reduce(function(obj, next) {
-      return extend(obj, next);
-    }, {});
-  }
-
-  function setTopRightBottomLeft(obj, before, after, t, r, b, l) {
-    obj[before + 'Top' + (after || '')] = t;
-    obj[before + 'Right' + (after || '')] = r;
-    obj[before + 'Bottom' + (after || '')] = b;
-    obj[before + 'Left' + (after || '')] = l;
-    return obj;
-  }
-
-  function setTopRightBottomLeftOr(x, obj, before, after, t, r, b, l) {
-    if (!x) return setTopRightBottomLeft(obj, before, after, t, r, b, l);
-
-    x = x.toLowerCase();
-
-    if (x === '-top') obj[before + 'Top' + (after || '')] = t;
-    if (x === '-right') obj[before + 'Right' + (after || '')] = r;
-    if (x === '-bottom') obj[before + 'Bottom' + (after || '')] = b;
-    if (x === '-left') obj[before + 'Left' + (after || '')] = l;
-
-    return obj;
-  }
-
-  const colorMap = new Map([
-    ['maroon', {r: 128, g: 0, b: 0, a: 1}],
-    ['red', {r: 255, g: 0, b: 0, a: 1}],
-    ['orange', {r: 255, g: 165, b: 0, a: 1}],
-    ['yellow', {r: 255, g: 255, b: 0, a: 1}],
-    ['olive', {r: 128, g: 128, b: 0, a: 1}],
-    ['purple', {r: 128, g: 0, b: 128, a: 1}],
-    ['fuchsia', {r: 255, g: 0, b: 255, a: 1}],
-    ['white', {r: 255, g: 255, b: 255, a: 1}],
-    ['lime', {r: 0, g: 255, b: 0, a: 1}],
-    ['green', {r: 0, g: 128, b: 0, a: 1}],
-    ['navy', {r: 0, g: 0, b: 128, a: 1}],
-    ['blue', {r: 0, g: 0, b: 255, a: 1}],
-    ['aqua', {r: 0, g: 255, b: 255, a: 1}],
-    ['teal', {r: 0, g: 128, b: 128, a: 1}],
-    ['black', {r: 0, g: 0, b: 0, a: 1}],
-    ['silver', {r: 192, g: 192, b: 192, a: 1}],
-    ['gray', {r: 128, g: 128, b: 128, a: 1}],
-    ['transparent', {r: 255, g: 255, b: 255, a: 0}]
-  ]);
-
-  let $font = {}, $fontNormals = 0;
-
   peg$result = peg$startRuleFunction();
 
   if (peg$result !== peg$FAILED && peg$currPos === input.length) {
@@ -12723,7 +12721,8 @@ function peg$parse(input, options) {
   }
 }
 
-module.exports = {
-  SyntaxError: peg$SyntaxError,
-  parse: peg$parse
+export {
+  peg$SyntaxError as SyntaxError,
+
+  peg$parse as parse
 };

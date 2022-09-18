@@ -6,8 +6,8 @@ import {getBuffer} from './io.js';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
 import {Itemizer} from 'itemizer';
-import GraphemeBreaker = require('grapheme-breaker');
-import LineBreak = require('linebreak');
+import LineBreak from './unicode/lineBreak.js';
+import nextGraphemeBreak from './unicode/graphemeBreak.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 
 let debug = true;
@@ -916,7 +916,7 @@ export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
 
           if (ucClusterEnd < text.length && mark === ucClusterEnd) {
             ucClusterStart = ucClusterEnd;
-            ucClusterEnd = GraphemeBreaker.nextBreak(text, ucClusterEnd);
+            ucClusterEnd = nextGraphemeBreak(text, ucClusterEnd);
           }
 
           if (hbClusterEnd < text.length && mark === hbClusterEnd) {

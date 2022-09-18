@@ -3,9 +3,12 @@
     "@types/boolbase": "^1.0.1",
     "@types/mocha": "^8.0.3",
     "@types/node": "^14.14.21",
+    "@types/unicode-trie": "^2.0.0",
     "chai": "^4.2.0",
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
+    "punycode": "^2.1.1",
+    "request": "^2.88.2",
     "typescript": "^4.7.4"
   },
   "name": "overflow",
@@ -32,10 +35,9 @@
     "css-what": "^6.1.0",
     "entities": "^4.4.0",
     "fontconfig": "^0.3.1",
-    "grapheme-breaker": "^0.3.2",
     "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",
     "itemizer": "^1.0.1",
-    "linebreak": "^1.1.0",
-    "nth-check": "^2.1.1"
+    "nth-check": "^2.1.1",
+    "unicode-trie": "^2.0.0"
   }
 }

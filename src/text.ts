@@ -1458,8 +1458,9 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
 
     if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
 
+    const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
+
     if (mark.float) {
-      const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
       if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
         const lineWidth = line ? line.width + width : 0;
         const lineIsEmpty = line ? !candidates.head && !line.head : true;
@@ -1502,7 +1503,7 @@ export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
       for (const p of parents) p.nshaped += 1;
     }
 
-    if (mark.isBreak) {
+    if (mark.isBreak && (lineHasInk || mark.isBreakForced || mark.position === ifc.allText.length)) {
       if (!line) {
         lines.push(line = new Linebox(basedir, 0, ifc.strut));
         fctx.preTextContent();

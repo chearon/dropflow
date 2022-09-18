@@ -34,7 +34,7 @@
     "fontconfig": "^0.3.1",
     "grapheme-breaker": "^0.3.2",
     "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",
-    "itemizer": "^1.0.0",
+    "itemizer": "^1.0.1",
     "linebreak": "^1.1.0",
     "nth-check": "^2.1.1"
   }

@@ -1,7 +1,7 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './node.js';
 import {createComputedStyle, Style} from './cascade.js';
-import {Run, Collapser, ShapedItem, Linebox, getCascade, getFace, shapeIfc, createLineboxes, getAscenderDescender} from './text.js';
+import {Run, Collapser, Paragraph, createParagraph, Linebox} from './text.js';
 import {Box, Area} from './box.js';
 import {Harfbuzz, HbFace} from 'harfbuzzjs';
 import {FontConfig} from 'fontconfig';
@@ -863,7 +863,7 @@ export class BlockContainer extends Box {
     const [ifc] = this.children;
     const style = this.style.createLogicalView(this.writingMode);
     ifc.doTextLayout(ctx);
-    if (style.blockSize === 'auto') this.setBlockSize(ifc.height);
+    if (style.blockSize === 'auto') this.setBlockSize(ifc.paragraph.height);
   }
 }
 
@@ -1170,20 +1170,23 @@ export class Inline extends Box {
 }
 
 export class IfcInline extends Inline {
-  public allText: string = '';
-  public runs: Run[] = [];
-  public brokenItems: ShapedItem[] = [];
-  public strut: ShapedItem | undefined;
-  public lineboxes: Linebox[] = [];
-  public height: number = 0;
+  public paragraph: Paragraph;
+  public runs: Run[];
   public children: InlineLevel[];
   public floats: BlockContainer[];
-  private _hasText = false;
+  public text: string;
+  private _hasText: boolean;
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
+
+    this.paragraph = new Paragraph(this, {ascender: 0, descender: 0});
+    this.runs = [];
     this.children = children;
     this.floats = [];
+    this.text = '';
+    this._hasText = false;
+
     this.prepare();
   }
 
@@ -1230,12 +1233,6 @@ export class IfcInline extends Inline {
     }
   }
 
-  split(itemIndex: number, offset: number) {
-    const left = this.brokenItems[itemIndex];
-    const right = left.split(offset - left.offset);
-    this.brokenItems.splice(itemIndex + 1, 0, right);
-  }
-
   // Collect text runs, collapse whitespace, create shaping boundaries, and
   // assign fonts
   private prepare() {
@@ -1251,7 +1248,7 @@ export class IfcInline extends Inline {
       if (box.isRun()) {
         box.setRange(i, i + box.text.length - 1);
         i += box.text.length;
-        this.allText += box.text;
+        this.text += box.text;
         this.runs.push(box);
         if (!box.wsCollapsible || !box.allCollapsible()) {
           this._hasText = true;
@@ -1270,9 +1267,9 @@ export class IfcInline extends Inline {
       }
     }
 
-    const collapser = new Collapser(this.allText, this.runs);
+    const collapser = new Collapser(this.text, this.runs);
     collapser.collapse();
-    this.allText = collapser.buf;
+    this.text = collapser.buf;
     this.postprepare();
 
     // TODO step 2
@@ -1280,28 +1277,82 @@ export class IfcInline extends Inline {
     // TODO step 4
   }
 
+  *itemizeInlines() {
+    const END_CHILDREN = Symbol('end of children');
+    const stack:(InlineLevel | typeof END_CHILDREN)[] = this.children.slice().reverse();
+    const parents:Inline[] = [this];
+    const direction = this.style.direction;
+    let currentStyle = this.style;
+    let ci = 0;
+    // Shaping boundaries can overlap when they happen because of padding. We can
+    // pretend 0 has been emitted since runs at 0 which appear to have different
+    // style than `currentStyle` are just differing from the IFC's style, which
+    // is the initial `currentStyle` so that yields always have a concrete style.
+    let lastYielded = 0;
+
+    while (stack.length) {
+      const item = stack.pop()!;
+      const parent = parents[parents.length - 1];
+
+      if (item === END_CHILDREN) {
+        if (direction === 'ltr' ? parent.rightMarginBorderPadding > 0 : parent.leftMarginBorderPadding > 0) {
+          if (ci !== lastYielded) {
+            yield {i: ci, style: currentStyle};
+            lastYielded = ci;
+          }
+        }
+        parents.pop();
+      } else if (item.isRun()) {
+        if (
+          currentStyle.fontSize !== item.style.fontSize ||
+          currentStyle.fontVariant !== item.style.fontVariant ||
+          currentStyle.fontWeight !== item.style.fontWeight ||
+          currentStyle.fontStyle !== item.style.fontStyle ||
+          currentStyle.fontFamily.join(',') !== item.style.fontFamily.join(',')
+        ) {
+          if (ci !== lastYielded) yield {i: ci, style: currentStyle};
+          currentStyle = item.style;
+          lastYielded = ci;
+        }
+
+        ci += item.text.length;
+      } else if (item.isInline()) {
+        parents.push(item);
+
+        if (direction === 'ltr' ? item.leftMarginBorderPadding > 0 : item.rightMarginBorderPadding > 0) {
+          if (ci !== lastYielded) {
+            yield {i: ci, style: currentStyle};
+            lastYielded = ci;
+          }
+        }
+
+        stack.push(END_CHILDREN);
+
+        for (let i = item.children.length - 1; i >= 0; --i) {
+          stack.push(item.children[i]);
+        }
+      } else if (item.isBreak()) {
+        if (ci !== lastYielded) {
+          yield {i: ci, style: currentStyle};
+          lastYielded = ci;
+        }
+      } else if (item.isFloat()) {
+        // OK
+      } else {
+        throw new Error('Inline block not supported yet');
+      }
+    }
+
+    yield {i: ci, style: currentStyle};
+  }
+
   async preprocess(ctx: PreprocessContext) {
-    const strutCascade = getCascade(ctx.fcfg, this.style, 'Latn');
-    const strutFontMatch = strutCascade.matches[0].toCssMatch();
-    const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
-    const strutFont = ctx.hb.createFont(strutFace);
-    const extents:[{ascender: number, descender: number}, number][] =
-      [[getAscenderDescender(this.style, strutFont, strutFace.upem), 0]];
-
-    this.strut = new ShapedItem(strutFace, strutFontMatch, [], 0, ' ', [], extents, {
-     style: this.style,
-      isEmoji: false,
-      level: 0,
-      script: 'Latn'
-    });
-
     if (this.hasText() || this.hasFloats()) {
-      this.brokenItems = await shapeIfc(this, ctx);
+      this.paragraph = await createParagraph(this, ctx);
+      await this.paragraph.shape(ctx);
     }
 
     for (const float of this.floats) float.preprocess(ctx);
-
-    strutFont.destroy();
   }
 
   assignContainingBlocks(ctx: LayoutContext) {
@@ -1310,7 +1361,7 @@ export class IfcInline extends Inline {
 
   doTextLayout(ctx: LayoutContext) {
     if (this.hasText() || this.hasFloats()) {
-      createLineboxes(this, ctx);
+      this.paragraph.createLineboxes(ctx);
     }
   }
 

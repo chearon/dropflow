@@ -283,7 +283,7 @@ describe('Shaping', function () {
       `);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(5);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
     });
 
     it('splits shaping boundaries on font-size', async function () {
@@ -293,14 +293,14 @@ describe('Shaping', function () {
       `);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(5);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
     });
 
     it('splits shaping boundaries on font-style', async function () {
       await this.layout(`a<span style="font-style: italic;">b</span>`);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(2);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
     });
 
     it('does not split shaping boundaries on line-height', async function () {
@@ -310,38 +310,38 @@ describe('Shaping', function () {
       `);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(1);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
     });
 
     it('splits shaping boundaries based on script', async function () {
       await this.layout('Lorem Ipusm העמוד');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(2);
-      expect(inline.brokenItems[0].face).to.equal(inline.brokenItems[1].face);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
+      expect(inline.paragraph.brokenItems[0].face).to.equal(inline.paragraph.brokenItems[1].face);
     });
 
     it('splits shaping boundaries based on emoji', async function () {
       await this.layout('Hey 😃 emoji are kinda hard 🦷');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(4);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(4);
     });
 
     it('splits shaping boundaries on inline padding', async function () {
       await this.layout(`It's me, <span style="padding: 1em;">padding boi</span>`);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(2);
-      expect(inline.brokenItems[1].offset).to.equal(9);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
+      expect(inline.paragraph.brokenItems[1].offset).to.equal(9);
     });
 
     it('doesn\'t create empty shaped items if shaping boundaries overlap', async function () {
       await this.layout(`L<span style="padding: 1em; font: 8px Arimo;">R</span>`);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(2);
-      expect(inline.brokenItems[1].offset).to.equal(1);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
+      expect(inline.paragraph.brokenItems[1].offset).to.equal(1);
     });
 
     it('has correct glyph order for Hebrew text', async function () {
@@ -349,11 +349,11 @@ describe('Shaping', function () {
       await this.layout('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get('div').children;
-      expect(inline.brokenItems).to.have.lengthOf(1);
-      expect(inline.brokenItems[0].glyphs).to.have.lengthOf(3);
-      expect(inline.brokenItems[0].glyphs[0].g).to.equal(2440);
-      expect(inline.brokenItems[0].glyphs[1].g).to.equal(2447);
-      expect(inline.brokenItems[0].glyphs[2].g).to.equal(2439);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
+      expect(inline.paragraph.brokenItems[0].glyphs).to.have.lengthOf(3);
+      expect(inline.paragraph.brokenItems[0].glyphs[0].g).to.equal(2440);
+      expect(inline.paragraph.brokenItems[0].glyphs[1].g).to.equal(2447);
+      expect(inline.paragraph.brokenItems[0].glyphs[2].g).to.equal(2439);
     });
 
     it('doesn\'t create empty shaped items if style and script overlap', async function () {
@@ -361,19 +361,19 @@ describe('Shaping', function () {
       await this.layout('Hello <span style="font: 16px Arimo;">הלו</span>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(2);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
     });
 
     it('assigns levels, inlcuding to LRE..PDF', async function () {
       await this.layout('Saying HNY: \u202Bحلول السنة intruding english! الجديدة\u202C');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(5);
-      expect(inline.brokenItems[0].attrs.level).to.equal(0); // Saying HNY:_
-      expect(inline.brokenItems[1].attrs.level).to.equal(1); // حلول السنة
-      expect(inline.brokenItems[2].attrs.level).to.equal(2); // intruding english
-      expect(inline.brokenItems[3].attrs.level).to.equal(1); // !
-      expect(inline.brokenItems[4].attrs.level).to.equal(1); // الجديدة
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
+      expect(inline.paragraph.brokenItems[0].attrs.level).to.equal(0); // Saying HNY:_
+      expect(inline.paragraph.brokenItems[1].attrs.level).to.equal(1); // حلول السنة
+      expect(inline.paragraph.brokenItems[2].attrs.level).to.equal(2); // intruding english
+      expect(inline.paragraph.brokenItems[3].attrs.level).to.equal(1); // !
+      expect(inline.paragraph.brokenItems[4].attrs.level).to.equal(1); // الجديدة
     });
   });
 
@@ -382,11 +382,11 @@ describe('Shaping', function () {
       await this.layout('<span style="font: 12px/1 Ramabhadra;">xe\u0301</span>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(2);
-      expect(inline.brokenItems[0].glyphs.length).to.satisfy(l => l > 0);
-      expect(inline.brokenItems[1].glyphs.length).to.satisfy(l => l > 0);
-      expect(inline.brokenItems[1].glyphs.map(g => g.g)).not.to.have.members([0]);
-      expect(inline.brokenItems[0].face).not.to.equal(inline.brokenItems[1].face);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
+      expect(inline.paragraph.brokenItems[0].glyphs.length).to.satisfy(l => l > 0);
+      expect(inline.paragraph.brokenItems[1].glyphs.length).to.satisfy(l => l > 0);
+      expect(inline.paragraph.brokenItems[1].glyphs.map(g => g.g)).not.to.have.members([0]);
+      expect(inline.paragraph.brokenItems[0].face).not.to.equal(inline.paragraph.brokenItems[1].face);
     });
 
     it('sums to the same string with many reshapes', async function () {
@@ -394,7 +394,7 @@ describe('Shaping', function () {
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       let s = '';
-      for (const item of inline.brokenItems) s += item.text;
+      for (const item of inline.paragraph.brokenItems) s += item.text;
       expect(s).to.equal('Lorem大併外بينᏣᎳᎩ');
     });
 
@@ -402,9 +402,9 @@ describe('Shaping', function () {
       await this.layout('\uffff');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems).to.have.lengthOf(1);
-      expect(inline.brokenItems[0].glyphs).to.have.lengthOf(1);
-      expect(inline.brokenItems[0].glyphs[0].g).to.equal(0);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
+      expect(inline.paragraph.brokenItems[0].glyphs).to.have.lengthOf(1);
+      expect(inline.paragraph.brokenItems[0].glyphs[0].g).to.equal(0);
     });
 
     it('reshapes the correct segments', async function () {
@@ -413,7 +413,7 @@ describe('Shaping', function () {
       `);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.brokenItems[1].text.length).to.equal(2);
+      expect(inline.paragraph.brokenItems[1].text.length).to.equal(2);
     });
   });
 });
@@ -425,11 +425,11 @@ describe('Lines', function () {
   it('always puts one word per line at minimum', async function () {
     await this.layout('<div style="width: 0;">eat lots of peaches</div>');
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(4);
-    expect(inline.lineboxes[0].end()).to.equal(4);
-    expect(inline.lineboxes[1].end()).to.equal(9);
-    expect(inline.lineboxes[2].end()).to.equal(12);
-    expect(inline.lineboxes[3].end()).to.equal(19);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(4);
+    expect(inline.paragraph.lineboxes[0].end()).to.equal(4);
+    expect(inline.paragraph.lineboxes[1].end()).to.equal(9);
+    expect(inline.paragraph.lineboxes[2].end()).to.equal(12);
+    expect(inline.paragraph.lineboxes[3].end()).to.equal(19);
   });
 
   it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
@@ -437,7 +437,7 @@ describe('Lines', function () {
       <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
     `);
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes.length).to.equal(1);
+    expect(inline.paragraph.lineboxes.length).to.equal(1);
   });
 
   it('keeps whitespace at the beginning of the line when it\'s not collapsible', async function () {
@@ -445,7 +445,7 @@ describe('Lines', function () {
       <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
     `);
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes.length).to.equal(2);
+    expect(inline.paragraph.lineboxes.length).to.equal(2);
   });
 
   it('breaks between shaping boundaries', async function () {
@@ -456,9 +456,9 @@ describe('Lines', function () {
     `);
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].end()).to.equal(13);
-    expect(inline.brokenItems).to.have.lengthOf(3);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes[0].end()).to.equal(13);
+    expect(inline.paragraph.brokenItems).to.have.lengthOf(3);
   });
 
   it('breaks inside shaping boundaries', async function () {
@@ -469,9 +469,9 @@ describe('Lines', function () {
     `);
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].end()).to.equal(13);
-    expect(inline.brokenItems).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes[0].end()).to.equal(13);
+    expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
   });
 
   it('leaves shaping boundaries whole if they can be', async function () {
@@ -483,7 +483,7 @@ describe('Lines', function () {
    `);
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.brokenItems).to.have.lengthOf(2);
+    expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
   });
 
   it('splits accurately on hebrew text', async function () {
@@ -492,10 +492,10 @@ describe('Lines', function () {
     await this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.brokenItems).to.have.lengthOf(2);
-    expect(inline.lineboxes).to.have.lengthOf(2);
-    expect(inline.lineboxes[0].end()).to.equal(9);
-    expect(inline.lineboxes[1].end()).to.equal(13);
+    expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes[0].end()).to.equal(9);
+    expect(inline.paragraph.lineboxes[1].end()).to.equal(13);
   });
 
   it('measures break width correctly', async function () {
@@ -506,7 +506,7 @@ describe('Lines', function () {
     `);
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
   });
 
   it('correctly breaks items when a 1-word line follows 2+ 1-word lines', async function () {
@@ -519,11 +519,11 @@ describe('Lines', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
 
-    expect(inline.lineboxes).to.have.lengthOf(3);
-    expect(inline.brokenItems).to.have.lengthOf(3);
-    expect(inline.brokenItems[0].offset).to.equal(0);
-    expect(inline.brokenItems[1].offset).to.equal(7);
-    expect(inline.brokenItems[2].offset).to.equal(13);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
+    expect(inline.paragraph.brokenItems).to.have.lengthOf(3);
+    expect(inline.paragraph.brokenItems[0].offset).to.equal(0);
+    expect(inline.paragraph.brokenItems[1].offset).to.equal(7);
+    expect(inline.paragraph.brokenItems[2].offset).to.equal(13);
   });
 
   it('distributes border, margin, and padding to line items', async function () {
@@ -539,9 +539,9 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.brokenItems).to.have.lengthOf(7);
+    expect(ifc.paragraph.brokenItems).to.have.lengthOf(7);
 
-    const a1 = ifc.lineboxes[0].head.next; // A
+    const a1 = ifc.paragraph.lineboxes[0].head.next; // A
     expect(a1.value.inlines).to.have.lengthOf(1);
     expect(a1.value.inlines[0].leftMarginBorderPadding).to.equal(5);
     expect(a1.value.inlines[0].rightMarginBorderPadding).to.equal(5);
@@ -570,9 +570,9 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.lineboxes).to.have.lengthOf(3);
+    expect(ifc.paragraph.lineboxes).to.have.lengthOf(3);
 
-    let n = ifc.lineboxes[1].head.next; // 10px shiv
+    let n = ifc.paragraph.lineboxes[1].head.next; // 10px shiv
     expect(n.value.inlines).to.have.lengthOf(1);
     expect(n.value.inlines[0].nshaped).to.equal(1);
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(10);
@@ -584,7 +584,7 @@ describe('Lines', function () {
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(11);
     expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(0);
 
-    n = ifc.lineboxes[2].head; // 10px "wrap"
+    n = ifc.paragraph.lineboxes[2].head; // 10px "wrap"
     expect(n.value.inlines).to.have.lengthOf(1);
     expect(n.value.inlines[0].nshaped).to.equal(1);
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(10);
@@ -610,13 +610,13 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.brokenItems).to.have.lengthOf(2);
-    expect(ifc.brokenItems[0].inlines).to.have.lengthOf(2);
-    expect(ifc.brokenItems[0].inlines[0].end).to.equal(19);
-    expect(ifc.brokenItems[0].inlines[1].end).to.equal(10);
-    expect(ifc.brokenItems[1].inlines).to.have.lengthOf(2);
-    expect(ifc.brokenItems[1].inlines[0].end).to.equal(19);
-    expect(ifc.brokenItems[1].inlines[1].end).to.equal(19);
+    expect(ifc.paragraph.brokenItems).to.have.lengthOf(2);
+    expect(ifc.paragraph.brokenItems[0].inlines).to.have.lengthOf(2);
+    expect(ifc.paragraph.brokenItems[0].inlines[0].end).to.equal(19);
+    expect(ifc.paragraph.brokenItems[0].inlines[1].end).to.equal(10);
+    expect(ifc.paragraph.brokenItems[1].inlines).to.have.lengthOf(2);
+    expect(ifc.paragraph.brokenItems[1].inlines[0].end).to.equal(19);
+    expect(ifc.paragraph.brokenItems[1].inlines[1].end).to.equal(19);
   });
 
   it('measures whitespace before a break if the break has padding on it', async function () {
@@ -633,7 +633,7 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(3);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
   });
 
   it('considers padding-right on a break as belonging to the left word', async function () {
@@ -645,9 +645,9 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(3);
-    expect(inline.lineboxes[0].end()).to.equal(6);
-    expect(inline.lineboxes[1].end()).to.equal(11);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
+    expect(inline.paragraph.lineboxes[0].end()).to.equal(6);
+    expect(inline.paragraph.lineboxes[1].end()).to.equal(11);
   });
 
   it('ignores empty spans when assigning padding to words', async function () {
@@ -660,9 +660,9 @@ describe('Lines', function () {
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
 
-    let n = ifc.lineboxes[0].head; // Word
+    let n = ifc.paragraph.lineboxes[0].head; // Word
     expect(n.next).to.equal(null);
-    n = ifc.lineboxes[1].head; // Shiv ""
+    n = ifc.paragraph.lineboxes[1].head; // Shiv ""
     expect(n.value.inlines).to.have.lengthOf(2);
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(70);
     expect(n.value.inlines[1].leftMarginBorderPadding).to.equal(0);
@@ -679,7 +679,7 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
   });
 
   it('adds buffered padding to line width', async function () {
@@ -691,7 +691,7 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
   });
 
 
@@ -705,16 +705,16 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
 
-    let n = inline.lineboxes[0].head; // ' Give_me_the_next_span '
+    let n = inline.paragraph.lineboxes[0].head; // ' Give_me_the_next_span '
     expect(n.value.text).to.equal(' Give_me_the_next_span ');
     n = n.next; // Shiv ''
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(300);
     expect(n.value.inlines[0].rightMarginBorderPadding).to.equal(0);
     expect(n.next).to.be.null;
 
-    n = inline.lineboxes[1].head; // 'not me'
+    n = inline.paragraph.lineboxes[1].head; // 'not me'
     expect(n.value.text).to.equal('not me ');
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(150);
   });
@@ -728,7 +728,7 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
+    expect(inline.paragraph.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
   });
 
   it('calculates line height with the correct shaped item/inline pairings', async function () {
@@ -739,11 +739,11 @@ describe('Lines', function () {
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
     // Noto Sans ascender = 1069/1000 descender = 293/1000
-    expect(inline.lineboxes[0].ascender).to.be.approximately(22.2, 0.1);
-    expect(inline.lineboxes[0].descender).to.be.approximately(9.8, 0.1);
+    expect(inline.paragraph.lineboxes[0].ascender).to.be.approximately(22.2, 0.1);
+    expect(inline.paragraph.lineboxes[0].descender).to.be.approximately(9.8, 0.1);
     // Cairo ascender = 1303/1000 descender = 571/1000
-    expect(inline.lineboxes[1].ascender).to.be.approximately(29.9, 0.1);
-    expect(inline.lineboxes[1].descender).to.be.approximately(18.1, 0.1);
+    expect(inline.paragraph.lineboxes[1].ascender).to.be.approximately(29.9, 0.1);
+    expect(inline.paragraph.lineboxes[1].descender).to.be.approximately(18.1, 0.1);
   });
 
   it('supports line-height: px', async function () {
@@ -753,7 +753,7 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(100);
+    expect(ifc.paragraph.lineboxes[0].ascender + ifc.paragraph.lineboxes[0].descender).to.equal(100);
   });
 
   it('uses the correct line height when multiple spans cross a shaped item', async function () {
@@ -764,7 +764,7 @@ describe('Lines', function () {
    `);
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.lineboxes[0].ascender + inline.lineboxes[0].descender).to.equal(32);
+    expect(inline.paragraph.lineboxes[0].ascender + inline.paragraph.lineboxes[0].descender).to.equal(32);
   });
 
   it('uses the correct line height when a shaped item is broken', async function () {
@@ -787,8 +787,8 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.brokenItems).to.have.lengthOf(2);
-    expect(ifc.brokenItems[0].end()).to.equal(5);
+    expect(ifc.paragraph.brokenItems).to.have.lengthOf(2);
+    expect(ifc.paragraph.brokenItems[0].end()).to.equal(5);
   });
 
   it('adds new lines at <br>', async function () {
@@ -804,8 +804,8 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.brokenItems).to.have.lengthOf(2);
-    expect(ifc.brokenItems[0].end()).to.equal(11);
+    expect(ifc.paragraph.brokenItems).to.have.lengthOf(2);
+    expect(ifc.paragraph.brokenItems[0].end()).to.equal(11);
   });
 
   it('sets the height of an ifc box correctly', async function () {
@@ -841,24 +841,24 @@ describe('Lines', function () {
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get(1).children;
 
-    expect(ifc.lineboxes[0].head.value.colors).to.deep.equal([
+    expect(ifc.paragraph.lineboxes[0].head.value.colors).to.deep.equal([
       [{r: 0, g: 0, b: 0, a: 1}, 0],
       [{r: 255, g: 0, b: 0, a: 1}, 10],
       [{r: 0, g: 0, b: 0, a: 1}, 14]
     ]);
-    expect(ifc.lineboxes[1].head.value.colors).to.deep.equal([
+    expect(ifc.paragraph.lineboxes[1].head.value.colors).to.deep.equal([
       [{r: 0, g: 0, b: 0, a: 1}, 0],
       [{r: 255, g: 0, b: 0, a: 1}, 3],
       [{r: 0, g: 0, b: 0, a: 1}, 7]
     ]);
-    expect(ifc.lineboxes[2].head.value.colors).to.deep.equal([
+    expect(ifc.paragraph.lineboxes[2].head.value.colors).to.deep.equal([
       [{r: 255, g: 0, b: 0, a: 1}, 0],
       [{r: 0, g: 0, b: 0, a: 1}, 4]
     ]);
 
-    expect(ifc.lineboxes[0].ascender + ifc.lineboxes[0].descender).to.equal(32);
-    expect(ifc.lineboxes[1].ascender + ifc.lineboxes[1].descender).to.equal(32);
-    expect(ifc.lineboxes[2].ascender + ifc.lineboxes[2].descender).to.equal(64);
+    expect(ifc.paragraph.lineboxes[0].ascender + ifc.paragraph.lineboxes[0].descender).to.equal(32);
+    expect(ifc.paragraph.lineboxes[1].ascender + ifc.paragraph.lineboxes[1].descender).to.equal(32);
+    expect(ifc.paragraph.lineboxes[2].ascender + ifc.paragraph.lineboxes[2].descender).to.equal(64);
   });
 
   it('takes strut into account', async function () {
@@ -868,6 +868,6 @@ describe('Lines', function () {
 
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.height).to.equal(16);
+    expect(ifc.paragraph.height).to.equal(16);
   });
 });

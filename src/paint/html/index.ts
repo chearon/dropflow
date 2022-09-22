@@ -261,7 +261,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
     ret += paintBlockContainer(float, hb, depth);
   }
 
-  for (const linebox of ifc.lineboxes) {
+  for (const linebox of ifc.paragraph.lineboxes) {
     const boxBuilder = new ContiguousBoxBuilder();
     const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
     let renderedText = '';

@@ -1,11 +1,10 @@
 import {binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade.js';
-import {IfcInline, Inline, InlineLevel, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
+import {IfcInline, Inline, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import {getBuffer} from './io.js';
 import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {FontConfig, Cascade} from 'fontconfig';
-import {Itemizer} from 'itemizer';
 import LineBreak from './unicode/lineBreak.js';
 import nextGraphemeBreak from './unicode/graphemeBreak.js';
 import type {FontConfigCssMatch} from 'fontconfig';
@@ -283,129 +282,12 @@ export class Collapser {
   }
 }
 
-// TODO this has become more of a "box" or "inline" itemizer
-function* styleItemizer(ifc: IfcInline) {
-  const END_CHILDREN = Symbol('end of children');
-  const stack:(InlineLevel | typeof END_CHILDREN)[] = ifc.children.slice().reverse();
-  const parents:Inline[] = [ifc];
-  const direction = ifc.style.direction;
-  let currentStyle = ifc.style;
-  let ci = 0;
-  // Shaping boundaries can overlap when they happen because of padding. We can
-  // pretend 0 has been emitted since runs at 0 which appear to have different
-  // style than `currentStyle` are just differing from the IFC's style, which
-  // is the initial `currentStyle` so that yields always have a concrete style.
-  let lastYielded = 0;
-
-  while (stack.length) {
-    const item = stack.pop()!;
-    const parent = parents[parents.length - 1];
-
-    if (item === END_CHILDREN) {
-      if (direction === 'ltr' ? parent.rightMarginBorderPadding > 0 : parent.leftMarginBorderPadding > 0) {
-        if (ci !== lastYielded) {
-          yield {i: ci, style: currentStyle};
-          lastYielded = ci;
-        }
-      }
-      parents.pop();
-    } else if (item.isRun()) {
-      if (
-        currentStyle.fontSize !== item.style.fontSize ||
-        currentStyle.fontVariant !== item.style.fontVariant ||
-        currentStyle.fontWeight !== item.style.fontWeight ||
-        currentStyle.fontStyle !== item.style.fontStyle ||
-        currentStyle.fontFamily.join(',') !== item.style.fontFamily.join(',')
-      ) {
-        if (ci !== lastYielded) yield {i: ci, style: currentStyle};
-        currentStyle = item.style;
-        lastYielded = ci;
-      }
-
-      ci += item.text.length;
-    } else if (item.isInline()) {
-      parents.push(item);
-
-      if (direction === 'ltr' ? item.leftMarginBorderPadding > 0 : item.rightMarginBorderPadding > 0) {
-        if (ci !== lastYielded) {
-          yield {i: ci, style: currentStyle};
-          lastYielded = ci;
-        }
-      }
-
-      stack.push(END_CHILDREN);
-
-      for (let i = item.children.length - 1; i >= 0; --i) {
-        stack.push(item.children[i]);
-      }
-    } else if (item.isBreak()) {
-      if (ci !== lastYielded) {
-        yield {i: ci, style: currentStyle};
-        lastYielded = ci;
-      }
-    } else if (item.isFloat()) {
-      // OK
-    } else {
-      throw new Error('Inline block not supported yet');
-    }
-  }
-
-  yield {i: ci, style: currentStyle};
-}
-
-type ShapingAttrs = {
+export type ShapingAttrs = {
   isEmoji: boolean,
   level: number,
   script: string,
   style: Style
 };
-
-function* shapingItemizer(inline: IfcInline, itemizer: Itemizer) {
-  if (inline.allText.length === 0) return;
-
-  const iEmoji = itemizer.emoji(inline.allText);
-  const iBidi = itemizer.bidi(inline.allText, inline.style.direction === 'ltr' ? 0 : 1);
-  const iScript = itemizer.script(inline.allText);
-  const iStyle = styleItemizer(inline);
-
-  let emoji = iEmoji.next();
-  let bidi = iBidi.next();
-  let script = iScript.next();
-  let style = iStyle.next();
-
-  if (emoji.done || bidi.done || script.done || style.done) {
-    throw new Error('Iterator ended too early');
-  }
-
-  let ctx:ShapingAttrs = {
-    isEmoji: emoji.value.isEmoji,
-    level: bidi.value.level,
-    script: script.value.script,
-    style: style.value.style
-  };
-
-  while (!emoji.done && !bidi.done && !script.done && !style.done) {
-    // Find smallest text index
-    let smallest:number = emoji.value.i;
-    if (!bidi.done && bidi.value.i < smallest) smallest = bidi.value.i;
-    if (!script.done && script.value.i < smallest) smallest = script.value.i;
-    if (!style.done && style.value.i < smallest) smallest = style.value.i;
-
-    // Map the current iterators to context
-    if (!emoji.done) ctx.isEmoji = emoji.value.isEmoji;
-    if (!bidi.done) ctx.level = bidi.value.level;
-    if (!script.done) ctx.script = script.value.script;
-    if (!style.done) ctx.style = style.value.style;
-
-    // Advance
-    if (!emoji.done && smallest === emoji.value.i) emoji = iEmoji.next();
-    if (!bidi.done && smallest === bidi.value.i) bidi = iBidi.next();
-    if (!script.done && smallest === script.value.i) script = iScript.next();
-    if (!style.done && smallest === style.value.i) style = iStyle.next();
-
-    yield {i: smallest, attrs: ctx};
-  }
-}
 
 function basename(p: string) {
   return p.match(/([^.\/]+)\.[A-z]+$/)?.[1] || p;
@@ -436,7 +318,7 @@ async function createFace(hb: Harfbuzz, filename: string, index: number) {
   return face;
 }
 
-export function getFace(hb: Harfbuzz, filename: string, index: number) {
+function getFace(hb: Harfbuzz, filename: string, index: number) {
   let fontp = hbFaceCache.get(filename + index);
   if (!fontp) {
     fontp = createFace(hb, filename, index);
@@ -445,7 +327,7 @@ export function getFace(hb: Harfbuzz, filename: string, index: number) {
   return fontp;
 }
 
-export function getCascade(fcfg: FontConfig, style: Style, script: string) {
+function getCascade(fcfg: FontConfig, style: Style, script: string) {
   const fontKey = createFontKey(style, script);
   let cascade = cascadeCache.get(fontKey);
   if (!cascade) {
@@ -830,171 +712,6 @@ export function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, a
   return buf;
 }
 
-export async function shapeIfc(ifc: IfcInline, ctx: PreprocessContext) {
-  const inlineIterator = createPreorderInlineIterator(ifc);
-  const {hb, itemizer, fcfg} = ctx;
-  const paragraph:ShapedItem[] = [];
-  const colors:[Color, number][] = [[ifc.style.color, 0]];
-  const styles:[Style, number][] = [[ifc.style, 0]];
-  let inline = inlineIterator.next();
-  let inlineEnd = 0;
-
-  let log = '';
-  log += `Preprocess ${ifc.id}\n`;
-  log += '='.repeat(`Preprocess ${ifc.id}`.length) + '\n';
-  log += `Full text: "${ifc.allText}"\n`;
-  let lastItemIndex = 0;
-
-  for (const {i: itemIndex, attrs} of shapingItemizer(ifc, itemizer)) {
-    const start = lastItemIndex;
-    const end = itemIndex;
-    const cascade = getCascade(fcfg, attrs.style, attrs.script);
-    const text = ifc.allText.slice(start, end);
-    const shapeWork = [{offset: start, text}];
-
-    log += `  Item ${lastItemIndex}..${itemIndex}:\n`;
-    log += `  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `;
-    log += `size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`;
-    log += `  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`;
-
-    cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
-      const match = cascade.matches[i].toCssMatch();
-      const isLastMatch = i === cascade.matches.length - 1;
-      const face = await getFace(hb, match.file, match.index);
-      // TODO set size and such for hinting?
-      const font = hb.createFont(face);
-      // Allows to tack successive (re)shaping parts onto one larger item
-      const parts:ShapingPart[] = [];
-
-      // note this won't budge for matches i=1, 2, ...
-      while (!inline.done && inlineEnd < itemIndex) {
-        if (inline.value.isInline()) {
-          inline.value.face = face;
-        }
-
-        if (inline.value.isRun()) {
-          const [, lastColorOffset] = colors[colors.length - 1];
-          if (lastColorOffset === inline.value.start) {
-            colors[colors.length - 1][0] = inline.value.style.color;
-          } else {
-            colors.push([inline.value.style.color, inline.value.start]);
-          }
-
-          const [, lastStyleOffset] = styles[styles.length - 1];
-          if (lastStyleOffset === inline.value.start) {
-            styles[styles.length - 1][0] = inline.value.style;
-          } else {
-            styles.push([inline.value.style, inline.value.start]);
-          }
-
-          inlineEnd += inline.value.text.length;
-        }
-
-        inline = inlineIterator.next();
-      }
-
-      while (shapeWork.length) {
-        const {text, offset} = shapeWork.pop()!;
-        const buf = createAndShapeBuffer(hb, font, text, attrs);
-        const shapedPart = buf.json();
-        let didPushPart = false;
-
-        log += `    Shaping "${text}" with font ${match.file}\n`;
-        log += '    Shaper returned: ' + logGlyphs(shapedPart) + '\n';
-
-        // Grapheme cluster iterator
-        let ucClusterStart = 0;
-        let ucClusterEnd = 0;
-        // HB cluster iterator
-        const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level % 2 ? 'rtl' : 'ltr');
-        let hbIt = hbGlyphIterator.next();
-        let hbClusterEnd = 0;
-        let clusterNeedsReshape = false;
-
-        do {
-          const mark = Math.min(ucClusterEnd, hbClusterEnd);
-
-          if (ucClusterEnd < text.length && mark === ucClusterEnd) {
-            ucClusterStart = ucClusterEnd;
-            ucClusterEnd = nextGraphemeBreak(text, ucClusterEnd);
-          }
-
-          if (hbClusterEnd < text.length && mark === hbClusterEnd) {
-            clusterNeedsReshape = hbIt.done ? /* impossible */ false : hbIt.value.needsReshape;
-            hbIt = hbGlyphIterator.next();
-            hbClusterEnd = hbIt.done ? text.length : shapedPart[hbIt.value.start].cl;
-          }
-
-          const nextMark = Math.min(ucClusterEnd, hbClusterEnd);
-
-          if (nextMark === ucClusterEnd) {
-            const [glyphStart, glyphEnd] = hbGlyphIterator.pull();
-            if (!didPushPart || clusterNeedsReshape !== parts[parts.length - 1].reshape) {
-              parts.push({
-                offset,
-                cstart: ucClusterStart,
-                cend: ucClusterEnd,
-                gstart: glyphStart,
-                gend: glyphEnd,
-                reshape: clusterNeedsReshape,
-                text,
-                glyphs: shapedPart
-              });
-              didPushPart = true;
-            } else {
-              parts[parts.length - 1].cend = ucClusterEnd;
-              parts[parts.length - 1].gstart = Math.min(parts[parts.length - 1].gstart, glyphStart);
-              parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
-            }
-          }
-        } while (ucClusterEnd < text.length || hbClusterEnd < text.length);
-      }
-
-      for (const part of parts) {
-        const {gstart, gend, cstart, cend, reshape} = part;
-        const offset = part.offset + cstart;
-        const text = part.text.slice(cstart, cend);
-
-        if (reshape && !isLastMatch) {
-          shapeWork.push({offset, text});
-          log += `    ==> Must reshape "${text}"\n`;
-        } else {
-          const extents:[{ascender: number, descender: number}, number][] = [];
-          const glyphs = part.glyphs.slice(gstart, gend);
-          // Note: for reshapes, this array will have unused colors on the end
-          const theseColors = sliceMarkedObjects(colors, offset);
-
-          for (const [style, soffset] of sliceMarkedObjects(styles, offset)) {
-            if (soffset > end) break;
-            extents.push([getAscenderDescender(style, font, face.upem), soffset]);
-          }
-
-          for (const g of glyphs) g.cl -= cstart;
-          paragraph.push(new ShapedItem(face, match, glyphs, offset, text, theseColors, extents, {...attrs}));
-          if (isLastMatch) {
-            log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
-            break cascade;
-          } else {
-            log += '    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n';
-          }
-        }
-      }
-
-      font.destroy();
-    }
-
-    lastItemIndex = itemIndex;
-  }
-
-  paragraph.sort((a, b) => a.offset - b.offset);
-  if (ctx.logging.text.has(ifc.id)) {
-    console.log(log.slice(0, -1));
-    console.log();
-  }
-
-  return paragraph;
-}
-
 type LineItem = {
   value: ShapedItem | ShapedShim;
   next: LineItem | null;
@@ -1074,6 +791,8 @@ class LineItemLinkedList {
 
 class LineCandidates extends LineItemLinkedList {};
 
+type AscenderDescender = {ascender: number, descender: number};
+
 export class Linebox extends LineItemLinkedList {
   ascender: number;
   descender: number;
@@ -1085,12 +804,12 @@ export class Linebox extends LineItemLinkedList {
   blockOffset: number;
   inlineOffset: number;
 
-  constructor(dir: Linebox['dir'], start: number, strut: ShapedItem) {
+  constructor(dir: Linebox['dir'], start: number, strut: AscenderDescender) {
     super();
     this.dir = dir;
     this.startOffset = this.endOffset = start;
-    this.ascender = strut.measureExtents().ascender;
-    this.descender = strut.measureExtents().descender;
+    this.ascender = strut.ascender;
+    this.descender = strut.descender;
     this.width = 0;
     this.trimStartFinished = false;
     this.blockOffset = 0;
@@ -1254,365 +973,610 @@ function isink(c: string) {
   return c !== undefined && c !== ' ' && c !== '\t';
 }
 
-function createIfcMarkIterator(ifc: IfcInline) {
-  // Inline iterator
-  const inlineIterator = createInlineIterator(ifc);
-  let inline = inlineIterator.next();
-  let inlineMark = 0;
-  // Break iterator
-  const breakIterator = new LineBreak(ifc.allText);
-  let breakPosition = -1;
-  let breakMark = 0;
-  // Item iterator
-  let itemIndex = -1;
-  let emittedItemEnd = false;
-  let glyphIterator = createGlyphIterator([], 'ltr');
-  let glyph = glyphIterator.next();
-  let itemMark = 0;
-  // Ink iterator
-  let isInk = false;
-  let inkMark = 0;
-  // Other
-  const end = ifc.allText.length;
+export class Paragraph {
+  ifc: IfcInline;
+  string: string;
+  brokenItems: ShapedItem[];
+  lineboxes: Linebox[];
+  height: number;
+  strut: AscenderDescender;
 
-  function next():{done: true} | {done: false, value: IfcMark} {
-    const mark:IfcMark = {
-      position: Math.min(inlineMark, itemMark, breakMark, inkMark),
-      isBreak: false,
-      isBreakForced: false,
-      isInk: false,
-      isItemStart: false,
-      isItemEnd: false,
-      inlinePre: null,
-      inlinePost: null,
-      float: null,
-      advance: 0,
-      itemIndex,
-      split
+  constructor(ifc: IfcInline, strut: AscenderDescender) {
+    this.ifc = ifc;
+    this.string = ifc.text;
+    this.brokenItems = [];
+    this.lineboxes = [];
+    this.height = 0;
+    this.strut = strut;
+  }
+
+  slice(start: number, end: number) {
+    return this.string.slice(start, end);
+  }
+
+  split(itemIndex: number, offset: number) {
+    const left = this.brokenItems[itemIndex];
+    const right = left.split(offset - left.offset);
+    this.brokenItems.splice(itemIndex + 1, 0, right);
+  }
+
+  length() {
+    return this.string.length;
+  }
+
+  *itemize({itemizer}: PreprocessContext) {
+    if (this.string.length === 0) return;
+
+    const iEmoji = itemizer.emoji(this.string);
+    const iBidi = itemizer.bidi(this.string, this.ifc.style.direction === 'ltr' ? 0 : 1);
+    const iScript = itemizer.script(this.string);
+    const iStyle = this.ifc.itemizeInlines();
+
+    let emoji = iEmoji.next();
+    let bidi = iBidi.next();
+    let script = iScript.next();
+    let style = iStyle.next();
+
+    if (emoji.done || bidi.done || script.done || style.done) {
+      throw new Error('Iterator ended too early');
+    }
+
+    let ctx:ShapingAttrs = {
+      isEmoji: emoji.value.isEmoji,
+      level: bidi.value.level,
+      script: script.value.script,
+      style: style.value.style
     };
 
-    if (inline.done && breakPosition > end && itemIndex >= ifc.brokenItems.length) {
-      return {done: true};
+    while (!emoji.done && !bidi.done && !script.done && !style.done) {
+      // Find smallest text index
+      let smallest:number = emoji.value.i;
+      if (!bidi.done && bidi.value.i < smallest) smallest = bidi.value.i;
+      if (!script.done && script.value.i < smallest) smallest = script.value.i;
+      if (!style.done && style.value.i < smallest) smallest = style.value.i;
+
+      // Map the current iterators to context
+      if (!emoji.done) ctx.isEmoji = emoji.value.isEmoji;
+      if (!bidi.done) ctx.level = bidi.value.level;
+      if (!script.done) ctx.script = script.value.script;
+      if (!style.done) ctx.style = style.value.style;
+
+      // Advance
+      if (!emoji.done && smallest === emoji.value.i) emoji = iEmoji.next();
+      if (!bidi.done && smallest === bidi.value.i) bidi = iBidi.next();
+      if (!script.done && smallest === script.value.i) script = iScript.next();
+      if (!style.done && smallest === style.value.i) style = iStyle.next();
+
+      yield {i: smallest, attrs: ctx};
+    }
+  }
+
+  async shape(ctx: PreprocessContext) {
+    const inlineIterator = createPreorderInlineIterator(this.ifc);
+    const {hb, fcfg} = ctx;
+    const brokenItems:ShapedItem[] = [];
+    const colors:[Color, number][] = [[this.ifc.style.color, 0]];
+    const styles:[Style, number][] = [[this.ifc.style, 0]];
+    let inline = inlineIterator.next();
+    let inlineEnd = 0;
+
+    let log = '';
+    log += `Preprocess ${this.ifc.id}\n`;
+    log += '='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n';
+    log += `Full text: "${this.string}"\n`;
+    let lastItemIndex = 0;
+
+    for (const {i: itemIndex, attrs} of this.itemize(ctx)) {
+      const start = lastItemIndex;
+      const end = itemIndex;
+      const cascade = getCascade(fcfg, attrs.style, attrs.script);
+      const text = this.slice(start, end);
+      const shapeWork = [{offset: start, text}];
+
+      log += `  Item ${lastItemIndex}..${itemIndex}:\n`;
+      log += `  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `;
+      log += `size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`;
+      log += `  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`;
+
+      cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
+        const match = cascade.matches[i].toCssMatch();
+        const isLastMatch = i === cascade.matches.length - 1;
+        const face = await getFace(hb, match.file, match.index);
+        // TODO set size and such for hinting?
+        const font = hb.createFont(face);
+        // Allows to tack successive (re)shaping parts onto one larger item
+        const parts:ShapingPart[] = [];
+
+        // note this won't budge for matches i=1, 2, ...
+        while (!inline.done && inlineEnd < itemIndex) {
+          if (inline.value.isInline()) {
+            inline.value.face = face;
+          }
+
+          if (inline.value.isRun()) {
+            const [, lastColorOffset] = colors[colors.length - 1];
+            if (lastColorOffset === inline.value.start) {
+              colors[colors.length - 1][0] = inline.value.style.color;
+            } else {
+              colors.push([inline.value.style.color, inline.value.start]);
+            }
+
+            const [, lastStyleOffset] = styles[styles.length - 1];
+            if (lastStyleOffset === inline.value.start) {
+              styles[styles.length - 1][0] = inline.value.style;
+            } else {
+              styles.push([inline.value.style, inline.value.start]);
+            }
+
+            inlineEnd += inline.value.text.length;
+          }
+
+          inline = inlineIterator.next();
+        }
+
+        while (shapeWork.length) {
+          const {text, offset} = shapeWork.pop()!;
+          const buf = createAndShapeBuffer(hb, font, text, attrs);
+          const shapedPart = buf.json();
+          let didPushPart = false;
+
+          log += `    Shaping "${text}" with font ${match.file}\n`;
+          log += '    Shaper returned: ' + logGlyphs(shapedPart) + '\n';
+
+          // Grapheme cluster iterator
+          let ucClusterStart = 0;
+          let ucClusterEnd = 0;
+          // HB cluster iterator
+          const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level % 2 ? 'rtl' : 'ltr');
+          let hbIt = hbGlyphIterator.next();
+          let hbClusterEnd = 0;
+          let clusterNeedsReshape = false;
+
+          do {
+            const mark = Math.min(ucClusterEnd, hbClusterEnd);
+
+            if (ucClusterEnd < text.length && mark === ucClusterEnd) {
+              ucClusterStart = ucClusterEnd;
+              ucClusterEnd = nextGraphemeBreak(text, ucClusterEnd);
+            }
+
+            if (hbClusterEnd < text.length && mark === hbClusterEnd) {
+              clusterNeedsReshape = hbIt.done ? /* impossible */ false : hbIt.value.needsReshape;
+              hbIt = hbGlyphIterator.next();
+              hbClusterEnd = hbIt.done ? text.length : shapedPart[hbIt.value.start].cl;
+            }
+
+            const nextMark = Math.min(ucClusterEnd, hbClusterEnd);
+
+            if (nextMark === ucClusterEnd) {
+              const [glyphStart, glyphEnd] = hbGlyphIterator.pull();
+              if (!didPushPart || clusterNeedsReshape !== parts[parts.length - 1].reshape) {
+                parts.push({
+                  offset,
+                  cstart: ucClusterStart,
+                  cend: ucClusterEnd,
+                  gstart: glyphStart,
+                  gend: glyphEnd,
+                  reshape: clusterNeedsReshape,
+                  text,
+                  glyphs: shapedPart
+                });
+                didPushPart = true;
+              } else {
+                parts[parts.length - 1].cend = ucClusterEnd;
+                parts[parts.length - 1].gstart = Math.min(parts[parts.length - 1].gstart, glyphStart);
+                parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
+              }
+            }
+          } while (ucClusterEnd < text.length || hbClusterEnd < text.length);
+        }
+
+        for (const part of parts) {
+          const {gstart, gend, cstart, cend, reshape} = part;
+          const offset = part.offset + cstart;
+          const text = part.text.slice(cstart, cend);
+
+          if (reshape && !isLastMatch) {
+            shapeWork.push({offset, text});
+            log += `    ==> Must reshape "${text}"\n`;
+          } else {
+            const extents:[{ascender: number, descender: number}, number][] = [];
+            const glyphs = part.glyphs.slice(gstart, gend);
+            // Note: for reshapes, this array will have unused colors on the end
+            const theseColors = sliceMarkedObjects(colors, offset);
+
+            for (const [style, soffset] of sliceMarkedObjects(styles, offset)) {
+              if (soffset > end) break;
+              extents.push([getAscenderDescender(style, font, face.upem), soffset]);
+            }
+
+            for (const g of glyphs) g.cl -= cstart;
+            brokenItems.push(new ShapedItem(face, match, glyphs, offset, text, theseColors, extents, {...attrs}));
+            if (isLastMatch) {
+              log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
+              break cascade;
+            } else {
+              log += '    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n';
+            }
+          }
+        }
+
+        font.destroy();
+      }
+
+      lastItemIndex = itemIndex;
     }
 
-    if (itemIndex < ifc.brokenItems.length && itemIndex > -1) {
-      const item = ifc.brokenItems[itemIndex];
-      const position = mark.position - item.offset;
-      const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, position);
-      mark.advance = advance;
-      glyph = nextGlyph;
+    if (ctx.logging.text.has(this.ifc.id)) {
+      console.log(log.slice(0, -1));
+      console.log();
     }
 
-    mark.isInk = isink(ifc.allText[mark.position - 1]);
+    this.brokenItems = brokenItems.sort((a, b) => a.offset - b.offset);
+  }
 
-    if (inkMark === mark.position) {
-      isInk = isink(ifc.allText[inkMark]);
-      while (inkMark < ifc.allText.length && isInk === isink(ifc.allText[inkMark])) inkMark++;
-    }
+  createMarkIterator() {
+    // Inline iterator
+    const inlineIterator = createInlineIterator(this.ifc);
+    let inline = inlineIterator.next();
+    let inlineMark = 0;
+    // Break iterator
+    const breakIterator = new LineBreak(this.string);
+    let breakPosition = -1;
+    let breakMark = 0;
+    // Item iterator
+    let itemIndex = -1;
+    let emittedItemEnd = false;
+    let glyphIterator = createGlyphIterator([], 'ltr');
+    let glyph = glyphIterator.next();
+    let itemMark = 0;
+    // Ink iterator
+    let isInk = false;
+    let inkMark = 0;
+    // Other
+    const end = this.length();
 
-    if (itemIndex < ifc.brokenItems.length && itemMark === mark.position && !emittedItemEnd) {
-      mark.isItemEnd = itemIndex > -1;
-      emittedItemEnd = true;
-    }
+    const next = ():{done: true} | {done: false, value: IfcMark} => {
+      const mark:IfcMark = {
+        position: Math.min(inlineMark, itemMark, breakMark, inkMark),
+        isBreak: false,
+        isBreakForced: false,
+        isInk: false,
+        isItemStart: false,
+        isItemEnd: false,
+        inlinePre: null,
+        inlinePost: null,
+        float: null,
+        advance: 0,
+        itemIndex,
+        split
+      };
 
-    // Consume the inline break opportunity if we're not on a break
-    if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
-      inline = inlineIterator.next();
-    }
+      if (inline.done && breakPosition > end && itemIndex >= this.brokenItems.length) {
+        return {done: true};
+      }
 
-    // Consume floats
-    if (!inline.done && inline.value.state === 'float' && inlineMark === mark.position) {
-      mark.float = inline.value.item;
-      inline = inlineIterator.next();
+      if (itemIndex < this.brokenItems.length && itemIndex > -1) {
+        const item = this.brokenItems[itemIndex];
+        const position = mark.position - item.offset;
+        const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, position);
+        mark.advance = advance;
+        glyph = nextGlyph;
+      }
+
+      mark.isInk = isink(this.string[mark.position - 1]);
+
+      if (inkMark === mark.position) {
+        isInk = isink(this.string[inkMark]);
+        while (inkMark < this.length() && isInk === isink(this.string[inkMark])) inkMark++;
+      }
+
+      if (itemIndex < this.brokenItems.length && itemMark === mark.position && !emittedItemEnd) {
+        mark.isItemEnd = itemIndex > -1;
+        emittedItemEnd = true;
+      }
+
+      // Consume the inline break opportunity if we're not on a break
+      if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
+        inline = inlineIterator.next();
+      }
+
+      // Consume floats
+      if (!inline.done && inline.value.state === 'float' && inlineMark === mark.position) {
+        mark.float = inline.value.item;
+        inline = inlineIterator.next();
+        return {done: false, value: mark};
+      }
+
+      // Consume pre[-text|-break], post[-text|-break], or pre-post[-text|-break] before a breakop
+      if (!inline.done && inline.value.state !== 'breakop' && inlineMark === mark.position) {
+        if (inline.value.state === 'pre' || inline.value.state === 'post') {
+          if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
+          if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
+          inline = inlineIterator.next();
+        }
+
+        // Consume post if we consumed pre above
+        if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
+          mark.inlinePost = inline.value.item;
+          inline = inlineIterator.next();
+        }
+
+        // Consume text or hard break
+        if (!inline.done && inline.value.state === 'text') {
+          inlineMark += inline.value.item.text.length;
+          inline = inlineIterator.next();
+        } else if (!inline.done && inline.value.state === 'break') {
+          mark.isBreak = true;
+          mark.isBreakForced = true;
+          inline = inlineIterator.next();
+        }
+
+        if (mark.inlinePre || mark.inlinePost) return {done: false, value: mark};
+      }
+
+      if (itemIndex < this.brokenItems.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
+        itemIndex += 1;
+
+        if (itemIndex < this.brokenItems.length) {
+          const item = this.brokenItems[itemIndex];
+          itemMark += item.text.length;
+          glyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
+          glyph = glyphIterator.next();
+          mark.isItemStart = true;
+          mark.itemIndex += 1;
+          emittedItemEnd = false;
+        }
+      }
+
+      if (breakPosition > -1 && inkMark === mark.position) {
+        inkMark = end + 1;
+      }
+
+      if (breakPosition <= end && breakMark === mark.position) {
+        const bk = breakIterator.nextBreak();
+        if (breakPosition > -1) mark.isBreak = true;
+        if (bk && this.ifc.hasText()) {
+          breakPosition = breakMark = bk.position;
+        } else {
+          breakPosition = end + 1;
+          breakMark = end;
+        }
+      }
+
+      if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakop') {
+        inline = inlineIterator.next();
+      }
+
       return {done: false, value: mark};
-    }
+    };
 
-    // Consume pre[-text|-break], post[-text|-break], or pre-post[-text|-break] before a breakop
-    if (!inline.done && inline.value.state !== 'breakop' && inlineMark === mark.position) {
-      if (inline.value.state === 'pre' || inline.value.state === 'post') {
-        if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
-        if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
-        inline = inlineIterator.next();
-      }
+    const paragraph = this;
 
-      // Consume post if we consumed pre above
-      if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
-        mark.inlinePost = inline.value.item;
-        inline = inlineIterator.next();
-      }
-
-      // Consume text or hard break
-      if (!inline.done && inline.value.state === 'text') {
-        inlineMark += inline.value.item.text.length;
-        inline = inlineIterator.next();
-      } else if (!inline.done && inline.value.state === 'break') {
-        mark.isBreak = true;
-        mark.isBreakForced = true;
-        inline = inlineIterator.next();
-      }
-
-      if (mark.inlinePre || mark.inlinePost) return {done: false, value: mark};
-    }
-
-    if (itemIndex < ifc.brokenItems.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
+    function split(this: IfcMark, mark: IfcMark) {
       itemIndex += 1;
+      this.itemIndex += 1;
+      mark.itemIndex += 1;
 
-      if (itemIndex < ifc.brokenItems.length) {
-        const item = ifc.brokenItems[itemIndex];
-        itemMark += item.text.length;
-        glyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
-        glyph = glyphIterator.next();
-        mark.isItemStart = true;
-        mark.itemIndex += 1;
-        emittedItemEnd = false;
+      const item = paragraph.brokenItems[this.itemIndex];
+      const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
+      const rightGlyph = rightGlyphIterator.next();
+      const position = mark.position - item.offset;
+      const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);
+
+      if (itemIndex === this.itemIndex) {
+        glyphIterator = rightGlyphIterator;
+        glyph = nextGlyph;
       }
     }
 
-    if (breakPosition > -1 && inkMark === mark.position) {
-      inkMark = end + 1;
-    }
-
-    if (breakPosition <= end && breakMark === mark.position) {
-      const bk = breakIterator.nextBreak();
-      if (breakPosition > -1) mark.isBreak = true;
-      if (bk && ifc.hasText()) {
-        breakPosition = breakMark = bk.position;
-      } else {
-        breakPosition = end + 1;
-        breakMark = end;
-      }
-    }
-
-    if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakop') {
-      inline = inlineIterator.next();
-    }
-
-    return {done: false, value: mark};
+    return {next};
   }
 
-  function split(this: IfcMark, mark: IfcMark) {
-    itemIndex += 1;
-    this.itemIndex += 1;
-    mark.itemIndex += 1;
+  createLineboxes(ctx: LayoutContext) {
+    const bfc = ctx.bfc;
+    const fctx = bfc.fctx;
+    const candidates = new LineCandidates();
+    const basedir = this.ifc.style.direction;
+    const parents:Inline[] = [];
+    let line:Linebox | null = null;
+    let lastBreakMark:IfcMark | undefined;
+    const lines = [];
+    const floats = [];
+    let breakExtents = {ascender: 0, descender: 0};
+    let breakWidth = 0;
+    let width = 0;
+    let ws = 0;
+    let unbreakableMark = 0;
+    let blockOffset = bfc.cbBlockStart;
 
-    const item = ifc.brokenItems[this.itemIndex];
-    const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
-    const rightGlyph = rightGlyphIterator.next();
-    const position = mark.position - item.offset;
-    const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);
+    for (const mark of {[Symbol.iterator]: () => this.createMarkIterator()}) {
+      const item = this.brokenItems[mark.itemIndex];
 
-    if (itemIndex === this.itemIndex) {
-      glyphIterator = rightGlyphIterator;
-      glyph = nextGlyph;
-    }
-  }
-
-  return {next};
-}
-
-export function createLineboxes(ifc: IfcInline, ctx: LayoutContext) {
-  if (!ifc.containingBlock) {
-    throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
-  }
-
-  if (!ifc.containingBlock.parent) {
-    throw new Error(`Cannot do text layout: ${ifc.id} has no containing block`);
-  }
-
-  if (!ifc.strut) throw new Error(`Preprocess ${ifc.id} first`);
-
-  const bfc = ctx.bfc;
-  const fctx = bfc.fctx;
-  const candidates = new LineCandidates();
-  const basedir = ifc.style.direction;
-  const parents:Inline[] = [];
-  let line:Linebox | null = null;
-  let lastBreakMark:IfcMark | undefined;
-  const lines = [];
-  const floats = [];
-  let breakExtents = {ascender: 0, descender: 0};
-  let breakWidth = 0;
-  let width = 0;
-  let ws = 0;
-  let unbreakableMark = 0;
-  let blockOffset = bfc.cbBlockStart;
-
-  for (const mark of {[Symbol.iterator]: () => createIfcMarkIterator(ifc)}) {
-    const item = ifc.brokenItems[mark.itemIndex];
-
-    if (mark.isInk) {
-      const extents = item.measureExtents(mark.position - item.offset); // TODO is this slow?
-      breakExtents.ascender = Math.max(extents.ascender, breakExtents.ascender);
-      breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
-      breakWidth += ws + mark.advance;
-      ws = 0;
-    } else {
-      ws += mark.advance;
-    }
-
-    width += mark.advance;
-
-    if (mark.inlinePre) parents.push(mark.inlinePre);
-
-    const wsCollapsible = (parents[parents.length - 1] || ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
-
-    if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
-
-    const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
-
-    if (mark.float) {
-      if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
-        const lineWidth = line ? line.width + width : 0;
-        const lineIsEmpty = line ? !candidates.head && !line.head : true;
-        layoutFloatBox(mark.float, ctx);
-        fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
-      } else {
-        floats.push(mark.float);
-      }
-    }
-
-    if (mark.inlinePre || mark.inlinePost) {
-      const p = basedir === 'ltr' ? 'leftMarginBorderPadding' : 'rightMarginBorderPadding';
-      const op = basedir === 'ltr' ? 'rightMarginBorderPadding' : 'leftMarginBorderPadding';
-      const w = mark.inlinePre?.[p] ?? 0 + (mark.inlinePost?.[op] ?? 0);
-
-      if (!mark.isInk) {
-        breakWidth += ws;
+      if (mark.isInk) {
+        const extents = item.measureExtents(mark.position - item.offset); // TODO is this slow?
+        breakExtents.ascender = Math.max(extents.ascender, breakExtents.ascender);
+        breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
+        breakWidth += ws + mark.advance;
         ws = 0;
+      } else {
+        ws += mark.advance;
       }
 
-      breakWidth += w;
-      width += w;
-    }
+      width += mark.advance;
 
-    if (mark.inlinePre && mark.inlinePost) {
-      const [left, right] = [item, ifc.brokenItems[mark.itemIndex + 1]];
-      let level: number = 0;
-      // Treat the empty span as an Other Neutral (ON) according to UAX29. I
-      // think that's what browsers are doing.
-      if (left && !right /* beyond last item */) level = left.attrs.level;
-      if (!left && right /* before first item */) level = right.attrs.level;
-      // An ON should take on the embedding level if the left and right levels
-      // are diferent, but there is no embedding level for the empty span since
-      // it isn't a character. Taking the min should fit most scenarios.
-      if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
-      // If there are no left or right, there is no text, so level=0 is OK
-      const attrs = {level, isEmoji: false, script: 'Latn', style: mark.inlinePre.style};
-      const shiv = new ShapedShim(mark.position, parents.slice(), attrs);
-      candidates.push(shiv);
-      for (const p of parents) p.nshaped += 1;
-    }
+      if (mark.inlinePre) parents.push(mark.inlinePre);
 
-    if (mark.isBreak && (lineHasInk || mark.isBreakForced || mark.position === ifc.allText.length)) {
-      if (!line) {
-        lines.push(line = new Linebox(basedir, 0, ifc.strut));
-        fctx.preTextContent();
+      const wsCollapsible = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
+
+      if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
+
+      const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
+
+      if (mark.float) {
+        if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
+          const lineWidth = line ? line.width + width : 0;
+          const lineIsEmpty = line ? !candidates.head && !line.head : true;
+          layoutFloatBox(mark.float, ctx);
+          fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
+        } else {
+          floats.push(mark.float);
+        }
       }
 
+      if (mark.inlinePre || mark.inlinePost) {
+        const p = basedir === 'ltr' ? 'leftMarginBorderPadding' : 'rightMarginBorderPadding';
+        const op = basedir === 'ltr' ? 'rightMarginBorderPadding' : 'leftMarginBorderPadding';
+        const w = mark.inlinePre?.[p] ?? 0 + (mark.inlinePost?.[op] ?? 0);
+
+        if (!mark.isInk) {
+          breakWidth += ws;
+          ws = 0;
+        }
+
+        breakWidth += w;
+        width += w;
+      }
+
+      if (mark.inlinePre && mark.inlinePost) {
+        const [left, right] = [item, this.brokenItems[mark.itemIndex + 1]];
+        let level: number = 0;
+        // Treat the empty span as an Other Neutral (ON) according to UAX29. I
+        // think that's what browsers are doing.
+        if (left && !right /* beyond last item */) level = left.attrs.level;
+        if (!left && right /* before first item */) level = right.attrs.level;
+        // An ON should take on the embedding level if the left and right levels
+        // are diferent, but there is no embedding level for the empty span since
+        // it isn't a character. Taking the min should fit most scenarios.
+        if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
+        // If there are no left or right, there is no text, so level=0 is OK
+        const attrs = {level, isEmoji: false, script: 'Latn', style: mark.inlinePre.style};
+        const shiv = new ShapedShim(mark.position, parents.slice(), attrs);
+        candidates.push(shiv);
+        for (const p of parents) p.nshaped += 1;
+      }
+
+      if (mark.isBreak && (lineHasInk || mark.isBreakForced || mark.position === this.length())) {
+        if (!line) {
+          lines.push(line = new Linebox(basedir, 0, this.strut));
+          fctx.preTextContent();
+        }
+
+        const blockSize = breakExtents.ascender + breakExtents.descender;
+        const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+
+        if (line.hasText() && line.width + breakWidth > vacancy.inlineSize) {
+          const lastLine = line;
+          if (!lastBreakMark) throw new Error('Assertion failed');
+          lines.push(line = new Linebox(basedir, lastBreakMark.position, this.strut));
+          const lastBreakMarkItem = this.brokenItems[lastBreakMark.itemIndex];
+          if (
+            lastBreakMarkItem &&
+            lastBreakMark.position > lastBreakMarkItem.offset &&
+            lastBreakMark.position < lastBreakMarkItem.end()
+          ) {
+            this.split(lastBreakMark.itemIndex, lastBreakMark.position);
+            lastBreakMark.split(mark);
+            candidates.unshift(this.brokenItems[lastBreakMark.itemIndex]);
+          }
+          lastLine.postprocess(vacancy, this.ifc.style.textAlign);
+          fctx.postLine(lastLine, true);
+          blockOffset += lastLine.height();
+        }
+
+        if (!line.hasText() /* line was just added */) {
+          const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+          if (breakWidth > vacancy.inlineSize) {
+            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, width);
+            blockOffset = newVacancy.blockOffset;
+            fctx.dropShelf(blockOffset);
+          }
+        }
+
+        // TODO: if these candidates grow the line height, we have to check and
+        // make sure it won't cause the line to start hitting floats
+
+        line.addLogical(candidates, width, mark.position);
+
+        candidates.clear();
+        breakWidth = 0;
+        breakExtents.ascender = 0;
+        breakExtents.descender = 0;
+        ws = 0;
+        width = 0;
+        lastBreakMark = mark;
+
+        for (const float of floats) {
+          layoutFloatBox(float, ctx);
+          fctx.placeFloat(line.width, false, float);
+        }
+        floats.length = 0;
+
+        if (mark.isBreakForced) {
+          line.postprocess(vacancy, this.ifc.style.textAlign);
+          fctx.postLine(line, true);
+          blockOffset += line.height();
+          lines.push(line = new Linebox(basedir, mark.position, this.strut));
+        }
+      }
+
+      if (mark.isItemStart) {
+        item.inlines = parents.slice();
+        for (const p of parents) p.nshaped += 1;
+        candidates.push(item);
+      }
+
+      // Handle a span that starts inside a shaped item
+      if (mark.inlinePre && item && mark.position < item.end()) {
+        item.inlines.push(mark.inlinePre);
+        mark.inlinePre.nshaped += 1;
+      }
+
+      if (mark.inlinePost) parents.pop();
+    }
+
+    for (const float of floats) {
+      layoutFloatBox(float, ctx);
+      fctx.placeFloat(line ? line.width : 0, line ? !!line.head : true, float);
+    }
+
+    if (line) {
       const blockSize = breakExtents.ascender + breakExtents.descender;
       const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+      line.postprocess(vacancy, this.ifc.style.textAlign);
+      blockOffset += line.height();
+      fctx.postLine(line, false);
+    } else {
+      fctx.consumeMisfits();
+    }
 
-      if (line.hasText() && line.width + breakWidth > vacancy.inlineSize) {
-        const lastLine = line;
-        if (!lastBreakMark) throw new Error('Assertion failed');
-        lines.push(line = new Linebox(basedir, lastBreakMark.position, ifc.strut));
-        const lastBreakMarkItem = ifc.brokenItems[lastBreakMark.itemIndex];
-        if (
-          lastBreakMarkItem &&
-          lastBreakMark.position > lastBreakMarkItem.offset &&
-          lastBreakMark.position < lastBreakMarkItem.end()
-        ) {
-          ifc.split(lastBreakMark.itemIndex, lastBreakMark.position);
-          lastBreakMark.split(mark);
-          candidates.unshift(ifc.brokenItems[lastBreakMark.itemIndex]);
+    if (ctx.logging.text.has(this.ifc.id)) {
+      console.log(`Paragraph ${this.ifc.id}:`);
+      logParagraph(this.brokenItems);
+      for (const [i, line] of lines.entries()) {
+        let log = `Line ${i} (${line.width} width): `;
+        for (let n = line.head; n; n = n.next) {
+          log += n.value instanceof ShapedItem ? `“${n.value.text}” ` : '“”';
         }
-        lastLine.postprocess(vacancy, ifc.style.textAlign);
-        fctx.postLine(lastLine, true);
-        blockOffset += lastLine.height();
+        console.log(log);
       }
-
-      if (!line.hasText() /* line was just added */) {
-        const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
-        if (breakWidth > vacancy.inlineSize) {
-          const newVacancy = fctx.findLinePosition(blockOffset, blockSize, width);
-          blockOffset = newVacancy.blockOffset;
-          fctx.dropShelf(blockOffset);
-        }
-      }
-
-      // TODO: if these candidates grow the line height, we have to check and
-      // make sure it won't cause the line to start hitting floats
-
-      line.addLogical(candidates, width, mark.position);
-
-      candidates.clear();
-      breakWidth = 0;
-      breakExtents.ascender = 0;
-      breakExtents.descender = 0;
-      ws = 0;
-      width = 0;
-      lastBreakMark = mark;
-
-      for (const float of floats) {
-        layoutFloatBox(float, ctx);
-        fctx.placeFloat(line.width, false, float);
-      }
-      floats.length = 0;
-
-      if (mark.isBreakForced) {
-        line.postprocess(vacancy, ifc.style.textAlign);
-        fctx.postLine(line, true);
-        blockOffset += line.height();
-        lines.push(line = new Linebox(basedir, mark.position, ifc.strut));
-      }
+      console.log('Left floats');
+      console.log(fctx.leftFloats.repr());
+      console.log('Right floats');
+      console.log(fctx.rightFloats.repr());
     }
 
-    if (mark.isItemStart) {
-      item.inlines = parents.slice();
-      for (const p of parents) p.nshaped += 1;
-      candidates.push(item);
-    }
-
-    // Handle a span that starts inside a shaped item
-    if (mark.inlinePre && item && mark.position < item.end()) {
-      item.inlines.push(mark.inlinePre);
-      mark.inlinePre.nshaped += 1;
-    }
-
-    if (mark.inlinePost) parents.pop();
+    this.lineboxes = lines;
+    this.height = blockOffset - bfc.cbBlockStart;
   }
+}
 
-  for (const float of floats) {
-    layoutFloatBox(float, ctx);
-    fctx.placeFloat(line ? line.width : 0, line ? !!line.head : true, float);
-  }
-
-  if (line) {
-    const blockSize = breakExtents.ascender + breakExtents.descender;
-    const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
-    line.postprocess(vacancy, ifc.style.textAlign);
-    blockOffset += line.height();
-    fctx.postLine(line, false);
-  } else {
-    fctx.consumeMisfits();
-  }
-
-  if (ctx.logging.text.has(ifc.id)) {
-    console.log(`Paragraph ${ifc.id}:`);
-    logParagraph(ifc.brokenItems);
-    for (const [i, line] of lines.entries()) {
-      let log = `Line ${i} (${line.width} width): `;
-      for (let n = line.head; n; n = n.next) {
-        log += n.value instanceof ShapedItem ? `“${n.value.text}” ` : '“”';
-      }
-      console.log(log);
-    }
-    console.log('Left floats');
-    console.log(fctx.leftFloats.repr());
-    console.log('Right floats');
-    console.log(fctx.rightFloats.repr());
-  }
-
-  ifc.lineboxes = lines;
-  ifc.height = blockOffset - bfc.cbBlockStart;
+export async function createParagraph(ifc: IfcInline, ctx: PreprocessContext) {
+  const strutCascade = getCascade(ctx.fcfg, ifc.style, 'Latn');
+  const strutFontMatch = strutCascade.matches[0].toCssMatch();
+  const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
+  const strutFont = ctx.hb.createFont(strutFace);
+  const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
+  strutFont.destroy();
+  return new Paragraph(ifc, strut);
 }

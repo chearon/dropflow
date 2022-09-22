@@ -635,10 +635,10 @@ describe('Flow', function () {
       expect(t2.contentArea.height).to.equal(0);
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t3').children;
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(51);
-      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
-      expect(ifc.lineboxes[1].inlineOffset).to.equal(51);
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(51);
+      expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
+      expect(ifc.paragraph.lineboxes[1].inlineOffset).to.equal(51);
     });
 
     it('sets bfc height for hanging floats', async function () {
@@ -696,7 +696,7 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t1').children;
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(30);
+      expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(30);
       /** @type import('./flow').BlockContainer */
       const t2 = this.get('#t2');
       expect(t2.contentArea.x).to.equal(10);
@@ -731,7 +731,7 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t').children;
-      expect(ifc.lineboxes.length).to.equal(3);
+      expect(ifc.paragraph.lineboxes.length).to.equal(3);
     });
 
     it('moves the first words of the paragraph below floats that crowd them', async function () {
@@ -744,7 +744,7 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t').children;
-      expect(ifc.lineboxes[0].blockOffset).to.equal(300);
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(300);
     });
 
     it('uses correct shelf position with 2 starting floats', async function () {
@@ -770,8 +770,8 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t1').children;
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes.length).to.equal(1);
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
@@ -784,8 +784,8 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t1').children;
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes.length).to.equal(1);
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
@@ -798,8 +798,8 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t1').children;
-      expect(ifc.lineboxes.length).to.equal(2);
-      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
+      expect(ifc.paragraph.lineboxes.length).to.equal(2);
+      expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
@@ -812,8 +812,8 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t1').children;
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes.length).to.equal(1);
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
@@ -883,7 +883,7 @@ describe('Flow', function () {
       const [, left, right] = ifc.children;
       expect(left.borderArea.x).to.equal(0);
       expect(right.borderArea.x).to.equal(75);
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(25);
+      expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(25);
     });
 
     it('obeys rule 2', async function () {
@@ -987,7 +987,7 @@ describe('Flow', function () {
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, float] = ifc.children;
-      const [lb1, lb2, lb3, lb4] = ifc.lineboxes;
+      const [lb1, lb2, lb3, lb4] = ifc.paragraph.lineboxes;
       expect(lb1.blockOffset).to.equal(0);
       expect(lb2.blockOffset).to.equal(20);
       expect(float.borderArea.y).to.equal(40);

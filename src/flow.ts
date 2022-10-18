@@ -1180,7 +1180,7 @@ export class IfcInline extends Inline {
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
 
-    this.paragraph = new Paragraph(this, {ascender: 0, descender: 0});
+    this.paragraph = new Paragraph(this, {ascender: 0, descender: 0}, new Uint16Array());
     this.runs = [];
     this.children = children;
     this.floats = [];

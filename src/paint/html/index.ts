@@ -53,7 +53,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: H
     if (colorEnd > textStart && colorStart < textEnd) {
       const start = Math.max(colorStart, textStart);
       const end = Math.min(colorEnd, textEnd);
-      const text = encode(item.text.slice(start, end));
+      const text = encode(item.paragraph.string.slice(start, end));
 
       spans += `<span style="color: rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})">${text}</span>`;
     }
@@ -159,13 +159,13 @@ function inlineBackgroundAdvance(state: IfcPaintState, item: ShapedItem, mark: n
 
   if (mark > item.offset && mark < item.end()) {
     if (direction === 'ltr' && side === 'start' || direction === 'rtl' && side === 'end') {
-      const mmark = item.attrs.level % 2 ? mark - item.end() : mark - item.offset;
-      state.bgcursor += item instanceof ShapedItem ? item.measure(mmark) : 0;
+      const direction = item.attrs.level % 2 ? -1 : 1;
+      state.bgcursor += item instanceof ShapedItem ? item.measure(mark, direction) : 0;
     }
 
     if (direction === 'rtl' && side === 'start' || direction == 'ltr' && side === 'end') {
-      const mmark = item.attrs.level % 2 ? mark - item.offset : mark - item.end();
-      state.bgcursor -= item instanceof ShapedItem ? item.measure(mmark) : 0;
+      const direction = item.attrs.level % 2 ? 1 : -1;
+      state.bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction) : 0;
     }
   }
 }

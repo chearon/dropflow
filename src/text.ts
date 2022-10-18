@@ -11,6 +11,20 @@ import type {FontConfigCssMatch} from 'fontconfig';
 
 let debug = true;
 
+const zeroWidthNonJoinerCharacter = 0x200C;
+const zeroWidthJoinerCharacter = 0x200D;
+const lineFeedCharacter = 0x000A;
+const formFeedCharacter = 0x000C;
+const carriageReturnCharacter = 0x000D;
+const softHyphenCharacter = 0x00AD;
+const zeroWidthSpaceCharacter = 0x200B;
+const leftToRightMarkCharacter = 0x200E;
+const rightToLeftMarkCharacter = 0x200F;
+const leftToRightEmbedCharacter = 0x202A;
+const rightToLeftOverrideCharacter = 0x202E;
+const zeroWidthNoBreakSpaceCharacter = 0xFEFF;
+const objectReplacementCharacter = 0xFFFC;
+
 // TODO runs aren't really boxes per the spec. You can't position them, etc.
 // I wonder if I should create a class like RenderItem (Box extends RenderItem)
 export class Run extends Box {
@@ -513,14 +527,12 @@ function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') 
   const rmRange = dir === 'ltr' ? [glyphs.length, glyphs.length] : [0, 0];
 
   for (let i = 0; i < glyphs.length; ++i) {
-    const cl = glyphs[i].cl - offset;
-    if (cl >= 0) {
+    if (glyphs[i].cl >= offset) {
       if (dir === 'ltr') {
         if (i < rmRange[0]) rmRange[0] = i;
       } else {
         rmRange[1] = i + 1;
       }
-      glyphs[i].cl = cl;
     }
   }
 
@@ -533,7 +545,7 @@ function sliceMarkedObjects<T>(colors: [T, number][], newOffset: number) {
 
   do {
     const [color, offset] = colors[--i];
-    ret.unshift([color, Math.max(0, offset - newOffset)]);
+    ret.unshift([color, offset]);
   } while (i > 0 && colors[i][1] > newOffset);
 
   return ret;
@@ -562,6 +574,7 @@ class ShapedShim implements IfcRenderItem {
 }
 
 export class ShapedItem implements IfcRenderItem {
+  paragraph: Paragraph;
   face: HbFace;
   match: FontConfigCssMatch;
   glyphs: HbGlyphInfo[];
@@ -574,6 +587,7 @@ export class ShapedItem implements IfcRenderItem {
   inlines: Inline[];
 
   constructor(
+    paragraph: Paragraph,
     face: HbFace,
     match: FontConfigCssMatch,
     glyphs: HbGlyphInfo[],
@@ -583,6 +597,7 @@ export class ShapedItem implements IfcRenderItem {
     extents: [{ascender: number, descender: number}, number][],
     attrs: ShapingAttrs
   ) {
+    this.paragraph = paragraph;
     this.face = face;
     this.match = match;
     this.glyphs = glyphs;
@@ -597,14 +612,20 @@ export class ShapedItem implements IfcRenderItem {
 
   split(offset: number) {
     const dir = this.attrs.level % 2 ? 'rtl' : 'ltr';
-    const rightText = this.text.slice(offset);
-    const rightOffset = this.offset + offset;
-    const rightGlyphs = shiftGlyphs(this.glyphs, offset, dir);
-    const rightColors = sliceMarkedObjects(this.colors, offset);
-    const rightExtents = sliceMarkedObjects(this.extents, offset);
-    const right = new ShapedItem(this.face, this.match, rightGlyphs, rightOffset, rightText, rightColors, rightExtents, this.attrs);
-    const needsReshape = Boolean(rightGlyphs[0].flags & 1);
+    const glyphs = shiftGlyphs(this.glyphs, this.offset + offset, dir);
+    const needsReshape = Boolean(glyphs[0].flags & 1);
     const inlines = this.inlines;
+    const right = new ShapedItem(
+      this.paragraph,
+      this.face,
+      this.match,
+      glyphs,
+      this.offset + offset,
+      this.text.slice(offset),
+      sliceMarkedObjects(this.colors, this.offset + offset),
+      sliceMarkedObjects(this.extents, this.offset + offset),
+      this.attrs
+    );
 
     this.text = this.text.slice(0, offset);
 
@@ -625,33 +646,34 @@ export class ShapedItem implements IfcRenderItem {
 
   reshape(ctx: LayoutContext) {
     const font = ctx.hb.createFont(this.face);
-    this.glyphs = createAndShapeBuffer(ctx.hb, font, this.text, this.attrs).json();
+    const buf = this.paragraph.createAndShapeBuffer(ctx.hb, this.offset, this.text.length, font, this.attrs);
+    this.glyphs = buf.json();
+    buf.destroy();
+    font.destroy();
   }
 
-  measure(ci: number = this.text.length) {
+  measure(ci = this.end(), direction: 1 | -1 = 1) {
     const g = this.glyphs;
     let w = 0;
 
     if (this.attrs.level % 2) {
-      if (ci < 0) {
-        ci += this.text.length;
-        for (let i = 0; i < g.length && g[i].cl >= ci; i++) w += g[i].ax;
-      } else {
+      if (direction === 1) {
         for (let i = g.length - 1; i >= 0 && g[i].cl < ci; i--) w += g[i].ax;
+      } else {
+        for (let i = 0; i < g.length && g[i].cl >= ci; i++) w += g[i].ax;
       }
     } else {
-      if (ci < 0) {
-        ci += this.text.length;
-        for (let i = g.length - 1; i >= 0 && g[i].cl >= ci; i--) w += g[i].ax;
-      } else {
+      if (direction === 1) {
         for (let i = 0; i < g.length && g[i].cl < ci; i++) w += g[i].ax;
+      } else {
+        for (let i = g.length - 1; i >= 0 && g[i].cl >= ci; i--) w += g[i].ax;
       }
     }
 
     return w / this.face.upem * this.attrs.style.fontSize;
   }
 
-  measureExtents(ci: number = this.text.length) {
+  measureExtents(ci = this.end()) {
     const ret = {ascender: 0, descender: 0};
     for (let i = 0; i < this.extents.length; ++i) {
       const [extents, offset] = this.extents[i];
@@ -674,7 +696,7 @@ export class ShapedItem implements IfcRenderItem {
 
     for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {
       const cl = this.glyphs[glyph.value.start].cl;
-      if (!isink(this.text[cl])) {
+      if (!isink(this.paragraph.string[cl])) {
         const px = this.glyphs[glyph.value.start].ax / this.face.upem * this.attrs.style.fontSize;
         this.glyphs[glyph.value.start].ax = 0;
         collapsed += px;
@@ -699,17 +721,6 @@ function logParagraph(paragraph: ShapedItem[]) {
     console.log(`${leadsp}T:"${item.text}"`);
     console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
   }
-}
-
-export function createAndShapeBuffer(hb: Harfbuzz, font: HbFont, text: string, attrs: ShapingAttrs) {
-  const buf = hb.createBuffer();
-  buf.setClusterLevel(1);
-  buf.addText(text);
-  buf.setDirection(attrs.level % 2 ? 'rtl' : 'ltr');
-  buf.setScript(attrs.script);
-  buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
-  hb.shape(font, buf);
-  return buf;
 }
 
 type LineItem = {
@@ -976,14 +987,16 @@ function isink(c: string) {
 export class Paragraph {
   ifc: IfcInline;
   string: string;
+  array: Uint16Array;
   brokenItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
   strut: AscenderDescender;
 
-  constructor(ifc: IfcInline, strut: AscenderDescender) {
+  constructor(ifc: IfcInline, strut: AscenderDescender, array: Uint16Array) {
     this.ifc = ifc;
     this.string = ifc.text;
+    this.array = array;
     this.brokenItems = [];
     this.lineboxes = [];
     this.height = 0;
@@ -1051,6 +1064,17 @@ export class Paragraph {
     }
   }
 
+  createAndShapeBuffer(hb: Harfbuzz, offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+    const buf = hb.createBuffer();
+    buf.setClusterLevel(1);
+    buf.addUtf16(this.array.byteOffset, this.array.length, offset, length);
+    buf.setDirection(attrs.level % 2 ? 'rtl' : 'ltr');
+    buf.setScript(attrs.script);
+    buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
+    hb.shape(font, buf);
+    return buf;
+  }
+
   async shape(ctx: PreprocessContext) {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const {hb, fcfg} = ctx;
@@ -1116,7 +1140,7 @@ export class Paragraph {
 
         while (shapeWork.length) {
           const {text, offset} = shapeWork.pop()!;
-          const buf = createAndShapeBuffer(hb, font, text, attrs);
+          const buf = this.createAndShapeBuffer(ctx.hb, offset, text.length, font, attrs);
           const shapedPart = buf.json();
           let didPushPart = false;
 
@@ -1143,7 +1167,7 @@ export class Paragraph {
             if (hbClusterEnd < text.length && mark === hbClusterEnd) {
               clusterNeedsReshape = hbIt.done ? /* impossible */ false : hbIt.value.needsReshape;
               hbIt = hbGlyphIterator.next();
-              hbClusterEnd = hbIt.done ? text.length : shapedPart[hbIt.value.start].cl;
+              hbClusterEnd = hbIt.done ? text.length : shapedPart[hbIt.value.start].cl - offset;
             }
 
             const nextMark = Math.min(ucClusterEnd, hbClusterEnd);
@@ -1190,8 +1214,7 @@ export class Paragraph {
               extents.push([getAscenderDescender(style, font, face.upem), soffset]);
             }
 
-            for (const g of glyphs) g.cl -= cstart;
-            brokenItems.push(new ShapedItem(face, match, glyphs, offset, text, theseColors, extents, {...attrs}));
+            brokenItems.push(new ShapedItem(this, face, match, glyphs, offset, text, theseColors, extents, {...attrs}));
             if (isLastMatch) {
               log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
               break cascade;
@@ -1258,8 +1281,7 @@ export class Paragraph {
 
       if (itemIndex < this.brokenItems.length && itemIndex > -1) {
         const item = this.brokenItems[itemIndex];
-        const position = mark.position - item.offset;
-        const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, position);
+        const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, mark.position);
         mark.advance = advance;
         glyph = nextGlyph;
       }
@@ -1361,8 +1383,7 @@ export class Paragraph {
       const item = paragraph.brokenItems[this.itemIndex];
       const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
       const rightGlyph = rightGlyphIterator.next();
-      const position = mark.position - item.offset;
-      const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, position);
+      const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, mark.position);
 
       if (itemIndex === this.itemIndex) {
         glyphIterator = rightGlyphIterator;
@@ -1394,7 +1415,7 @@ export class Paragraph {
       const item = this.brokenItems[mark.itemIndex];
 
       if (mark.isInk) {
-        const extents = item.measureExtents(mark.position - item.offset); // TODO is this slow?
+        const extents = item.measureExtents(mark.position); // TODO is this slow?
         breakExtents.ascender = Math.max(extents.ascender, breakExtents.ascender);
         breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
         breakWidth += ws + mark.advance;
@@ -1571,12 +1592,48 @@ export class Paragraph {
   }
 }
 
+function createIfcBuffer(hb: Harfbuzz, text: string) {
+  const allocation = hb.allocateUint16Array(text.length);
+  const a = allocation.array;
+
+  // Inspired by this diff in Chromium, which reveals the code that normalizes
+  // the buffer passed to HarfBuzz before shaping:
+  // https://chromium.googlesource.com/chromium/src.git/+/275c35fe82bd295a75c0d555db0e0b26fcdf980b%5E%21/#F18
+  // I haven't verified that HarfBuzz actually does anything unreasonable with
+  // these yet. I also added \n to this list since, possibly unlike Chrome,
+  // I'm including those as part of the whole shaped IFC
+  for (let i = 0; i < text.length; ++i) {
+    const c = text.charCodeAt(i);
+    if (
+      c == zeroWidthNonJoinerCharacter
+      || c == zeroWidthJoinerCharacter
+      || c == formFeedCharacter
+      || c == carriageReturnCharacter
+      || c == softHyphenCharacter
+      || c === lineFeedCharacter
+      || (c >= leftToRightMarkCharacter && c <= rightToLeftMarkCharacter)
+      || (c >= leftToRightEmbedCharacter && c <= rightToLeftOverrideCharacter)
+      || c == zeroWidthNoBreakSpaceCharacter
+      || c == objectReplacementCharacter
+    ) {
+      a[i] = zeroWidthSpaceCharacter;
+    } else {
+      a[i] = c;
+    }
+  }
+
+  return allocation;
+}
+
 export async function createParagraph(ifc: IfcInline, ctx: PreprocessContext) {
   const strutCascade = getCascade(ctx.fcfg, ifc.style, 'Latn');
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
   const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
   const strutFont = ctx.hb.createFont(strutFace);
   const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
+  // TODO: if this lib ever gets used more seriously, need to expose a way to
+  // teardown memory retained here
+  const buffer = createIfcBuffer(ctx.hb, ifc.text);
   strutFont.destroy();
-  return new Paragraph(ifc, strut);
+  return new Paragraph(ifc, strut, buffer.array);
 }

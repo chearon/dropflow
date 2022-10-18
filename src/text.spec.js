@@ -848,12 +848,12 @@ describe('Lines', function () {
     ]);
     expect(ifc.paragraph.lineboxes[1].head.value.colors).to.deep.equal([
       [{r: 0, g: 0, b: 0, a: 1}, 0],
-      [{r: 255, g: 0, b: 0, a: 1}, 3],
-      [{r: 0, g: 0, b: 0, a: 1}, 7]
+      [{r: 255, g: 0, b: 0, a: 1}, 10],
+      [{r: 0, g: 0, b: 0, a: 1}, 14]
     ]);
     expect(ifc.paragraph.lineboxes[2].head.value.colors).to.deep.equal([
-      [{r: 255, g: 0, b: 0, a: 1}, 0],
-      [{r: 0, g: 0, b: 0, a: 1}, 4]
+      [{r: 255, g: 0, b: 0, a: 1}, 10],
+      [{r: 0, g: 0, b: 0, a: 1}, 14]
     ]);
 
     expect(ifc.paragraph.lineboxes[0].ascender + ifc.paragraph.lineboxes[0].descender).to.equal(32);

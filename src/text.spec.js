@@ -841,24 +841,15 @@ describe('Lines', function () {
     /** @type import('./flow').IfcInline[] */
     const [ifc] = this.get(1).children;
 
-    expect(ifc.paragraph.lineboxes[0].head.value.colors).to.deep.equal([
+    expect(ifc.paragraph.colors).to.deep.equal([
       [{r: 0, g: 0, b: 0, a: 1}, 0],
-      [{r: 255, g: 0, b: 0, a: 1}, 10],
-      [{r: 0, g: 0, b: 0, a: 1}, 14]
-    ]);
-    expect(ifc.paragraph.lineboxes[1].head.value.colors).to.deep.equal([
-      [{r: 0, g: 0, b: 0, a: 1}, 0],
-      [{r: 255, g: 0, b: 0, a: 1}, 10],
-      [{r: 0, g: 0, b: 0, a: 1}, 14]
-    ]);
-    expect(ifc.paragraph.lineboxes[2].head.value.colors).to.deep.equal([
       [{r: 255, g: 0, b: 0, a: 1}, 10],
       [{r: 0, g: 0, b: 0, a: 1}, 14]
     ]);
 
-    expect(ifc.paragraph.lineboxes[0].ascender + ifc.paragraph.lineboxes[0].descender).to.equal(32);
-    expect(ifc.paragraph.lineboxes[1].ascender + ifc.paragraph.lineboxes[1].descender).to.equal(32);
-    expect(ifc.paragraph.lineboxes[2].ascender + ifc.paragraph.lineboxes[2].descender).to.equal(64);
+    expect(ifc.paragraph.lineboxes[0].head.value.colorsStart()).to.deep.equal(0);
+    expect(ifc.paragraph.lineboxes[1].head.value.colorsStart()).to.deep.equal(0);
+    expect(ifc.paragraph.lineboxes[2].head.value.colorsStart()).to.deep.equal(1);
   });
 
   it('takes strut into account', async function () {

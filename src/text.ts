@@ -1,4 +1,4 @@
-import {binarySearchEndProp, loggableText} from './util.js';
+import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
@@ -580,7 +580,6 @@ export class ShapedItem implements IfcRenderItem {
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
-  colors: [Color, number][];
   extents: [{ascender: number, descender: number}, number][];
   attrs: ShapingAttrs;
   needsReshape: boolean;
@@ -593,7 +592,6 @@ export class ShapedItem implements IfcRenderItem {
     glyphs: HbGlyphInfo[],
     offset: number,
     text: string,
-    colors: [Color, number][],
     extents: [{ascender: number, descender: number}, number][],
     attrs: ShapingAttrs
   ) {
@@ -603,7 +601,6 @@ export class ShapedItem implements IfcRenderItem {
     this.glyphs = glyphs;
     this.offset = offset;
     this.text = text;
-    this.colors = colors;
     this.extents = extents;
     this.attrs = attrs;
     this.needsReshape = false;
@@ -622,7 +619,6 @@ export class ShapedItem implements IfcRenderItem {
       glyphs,
       this.offset + offset,
       this.text.slice(offset),
-      sliceMarkedObjects(this.colors, this.offset + offset),
       sliceMarkedObjects(this.extents, this.offset + offset),
       this.attrs
     );
@@ -706,6 +702,13 @@ export class ShapedItem implements IfcRenderItem {
     }
 
     return {collapsed, stopped: false};
+  }
+
+  // used in shaping
+  colorsStart() {
+    let s = binarySearchTuple(this.paragraph.colors, this.offset);
+    if (this.paragraph.colors[s][1] !== this.offset) s -= 1;
+    return s;
   }
 
   end() {
@@ -988,6 +991,7 @@ export class Paragraph {
   ifc: IfcInline;
   string: string;
   array: Uint16Array;
+  colors: [Color, number][];
   brokenItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
@@ -997,6 +1001,7 @@ export class Paragraph {
     this.ifc = ifc;
     this.string = ifc.text;
     this.array = array;
+    this.colors = [];
     this.brokenItems = [];
     this.lineboxes = [];
     this.height = 0;
@@ -1206,15 +1211,13 @@ export class Paragraph {
           } else {
             const extents:[{ascender: number, descender: number}, number][] = [];
             const glyphs = part.glyphs.slice(gstart, gend);
-            // Note: for reshapes, this array will have unused colors on the end
-            const theseColors = sliceMarkedObjects(colors, offset);
 
             for (const [style, soffset] of sliceMarkedObjects(styles, offset)) {
               if (soffset > end) break;
               extents.push([getAscenderDescender(style, font, face.upem), soffset]);
             }
 
-            brokenItems.push(new ShapedItem(this, face, match, glyphs, offset, text, theseColors, extents, {...attrs}));
+            brokenItems.push(new ShapedItem(this, face, match, glyphs, offset, text, extents, {...attrs}));
             if (isLastMatch) {
               log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
               break cascade;
@@ -1235,6 +1238,7 @@ export class Paragraph {
       console.log();
     }
 
+    this.colors = colors;
     this.brokenItems = brokenItems.sort((a, b) => a.offset - b.offset);
   }
 

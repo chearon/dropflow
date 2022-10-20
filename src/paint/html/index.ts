@@ -24,6 +24,7 @@ function drawDiv(style: StringMap, attrs: StringMap, text: string = '') {
 }
 
 function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: Harfbuzz) {
+  const colors = item.paragraph.colors;
   const match = item.match;
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
@@ -45,18 +46,16 @@ function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: H
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  for (let i = 0; i < item.colors.length; ++i) {
-    const [color, offset] = item.colors[i];
+  const colorsStart = item.colorsStart();
+  for (let i = colorsStart; i < colors.length && colors[i][1] < item.end(); ++i) {
+    const [color, offset] = colors[i];
     const colorStart = offset;
-    const colorEnd = i + 1 < item.colors.length ? item.colors[i + 1][1] : textEnd;
+    const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
+    const start = Math.max(colorStart, textStart);
+    const end = Math.min(colorEnd, textEnd);
+    const text = encode(item.paragraph.string.slice(start, end));
 
-    if (colorEnd > textStart && colorStart < textEnd) {
-      const start = Math.max(colorStart, textStart);
-      const end = Math.min(colorEnd, textEnd);
-      const text = encode(item.paragraph.string.slice(start, end));
-
-      spans += `<span style="color: rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})">${text}</span>`;
-    }
+    spans += `<span style="color: rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})">${text}</span>`;
   }
 
   return drawDiv({

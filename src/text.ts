@@ -539,18 +539,6 @@ function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') 
   return glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
 }
 
-function sliceMarkedObjects<T>(colors: [T, number][], newOffset: number) {
-  const ret:[T, number][] = [];
-  let i = colors.length;
-
-  do {
-    const [color, offset] = colors[--i];
-    ret.unshift([color, offset]);
-  } while (i > 0 && colors[i][1] > newOffset);
-
-  return ret;
-}
-
 interface IfcRenderItem {
   end(): number;
   inlines: Inline[];
@@ -580,7 +568,6 @@ export class ShapedItem implements IfcRenderItem {
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
-  extents: [{ascender: number, descender: number}, number][];
   attrs: ShapingAttrs;
   needsReshape: boolean;
   inlines: Inline[];
@@ -592,7 +579,6 @@ export class ShapedItem implements IfcRenderItem {
     glyphs: HbGlyphInfo[],
     offset: number,
     text: string,
-    extents: [{ascender: number, descender: number}, number][],
     attrs: ShapingAttrs
   ) {
     this.paragraph = paragraph;
@@ -601,7 +587,6 @@ export class ShapedItem implements IfcRenderItem {
     this.glyphs = glyphs;
     this.offset = offset;
     this.text = text;
-    this.extents = extents;
     this.attrs = attrs;
     this.needsReshape = false;
     this.inlines = [];
@@ -619,7 +604,6 @@ export class ShapedItem implements IfcRenderItem {
       glyphs,
       this.offset + offset,
       this.text.slice(offset),
-      sliceMarkedObjects(this.extents, this.offset + offset),
       this.attrs
     );
 
@@ -671,12 +655,17 @@ export class ShapedItem implements IfcRenderItem {
 
   measureExtents(ci = this.end()) {
     const ret = {ascender: 0, descender: 0};
-    for (let i = 0; i < this.extents.length; ++i) {
-      const [extents, offset] = this.extents[i];
-      if (offset >= ci) break;
+    let i = binarySearchTuple(this.paragraph.extents, this.offset);
+
+    if (!this.paragraph.extents[i]) return ret;
+    if (this.paragraph.extents[i][1] !== this.offset) i -= 1;
+
+    while (i < this.paragraph.extents.length && this.paragraph.extents[i][1] < ci) {
+      const [extents] = this.paragraph.extents[i++];
       ret.ascender = Math.max(ret.ascender, extents.ascender);
       ret.descender = Math.max(ret.descender, extents.descender);
     }
+
     return ret;
   }
 
@@ -992,6 +981,7 @@ export class Paragraph {
   string: string;
   array: Uint16Array;
   colors: [Color, number][];
+  extents: [AscenderDescender, number][];
   brokenItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
@@ -1002,6 +992,7 @@ export class Paragraph {
     this.string = ifc.text;
     this.array = array;
     this.colors = [];
+    this.extents = [];
     this.brokenItems = [];
     this.lineboxes = [];
     this.height = 0;
@@ -1080,12 +1071,45 @@ export class Paragraph {
     return buf;
   }
 
+  createExtentsArray(hb: Harfbuzz, styles: [Style, number][], faces: [HbFace, number][]) {
+    const extents:[{ascender: number, descender: number}, number][] = [];
+    const facemap:Map<HbFace, HbFont> = new Map();
+    let lastFace = null;
+    let lastStyle = null;
+    let si = 0;
+    let fi = 0;
+
+    while (si < styles.length && fi < faces.length) {
+      const [style, so] = styles[si];
+      const [face, fo] = faces[fi];
+      const sn = si + 1 < styles.length ? styles[si + 1][1] : this.length();
+      const fn = fi + 1 < faces.length ? faces[fi + 1][1] : this.length();
+
+      let font = facemap.get(face);
+      if (!font) facemap.set(face, font = hb.createFont(face));
+
+      if (face !== lastFace || !lastStyle || lastStyle.fontSize !== style.fontSize || lastStyle.lineHeight != style.lineHeight) {
+        extents.push([getAscenderDescender(style, font, face.upem), Math.max(so, fo)]);
+        lastFace = face;
+        lastStyle = style;
+      }
+
+      if (sn <= fn) si += 1;
+      if (fn <= sn) fi += 1;
+    }
+
+    for (const font of facemap.values()) font.destroy();
+
+    return extents;
+  }
+
   async shape(ctx: PreprocessContext) {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const {hb, fcfg} = ctx;
     const brokenItems:ShapedItem[] = [];
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
+    const faces:[HbFace, number][] = [];
     let inline = inlineIterator.next();
     let inlineEnd = 0;
 
@@ -1209,15 +1233,11 @@ export class Paragraph {
             shapeWork.push({offset, text});
             log += `    ==> Must reshape "${text}"\n`;
           } else {
-            const extents:[{ascender: number, descender: number}, number][] = [];
             const glyphs = part.glyphs.slice(gstart, gend);
 
-            for (const [style, soffset] of sliceMarkedObjects(styles, offset)) {
-              if (soffset > end) break;
-              extents.push([getAscenderDescender(style, font, face.upem), soffset]);
-            }
+            faces.push([face, offset]);
+            brokenItems.push(new ShapedItem(this, face, match, glyphs, offset, text, {...attrs}));
 
-            brokenItems.push(new ShapedItem(this, face, match, glyphs, offset, text, extents, {...attrs}));
             if (isLastMatch) {
               log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
               break cascade;
@@ -1239,6 +1259,7 @@ export class Paragraph {
     }
 
     this.colors = colors;
+    this.extents = this.createExtentsArray(ctx.hb, styles, faces.sort((a, b) => a[1] - b[1]));
     this.brokenItems = brokenItems.sort((a, b) => a.offset - b.offset);
   }
 

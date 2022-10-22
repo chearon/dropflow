@@ -26,6 +26,8 @@ export function binarySearch(a: number[], x: number) {
 export function binarySearchEndProp(a: {end: number}[], x: number): number {
   let l = 0, r = a.length - 1;
 
+  if (r < 0) return -1;
+
   while (true) {
     let i = Math.floor((l+r)/2);
 
@@ -47,6 +49,8 @@ export function binarySearchEndProp(a: {end: number}[], x: number): number {
  */
 export function binarySearchTuple<T>(a: [T, number][], x: number): number {
   let l = 0, r = a.length - 1;
+
+  if (r < 0) return -1;
 
   while (true) {
     let i = Math.floor((l+r)/2);

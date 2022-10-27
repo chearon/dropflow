@@ -1352,7 +1352,7 @@ export class IfcInline extends Inline {
       await this.paragraph.shape(ctx);
     }
 
-    for (const float of this.floats) float.preprocess(ctx);
+    await Promise.all(this.floats.map(float => float.preprocess(ctx)));
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

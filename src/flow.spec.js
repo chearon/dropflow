@@ -864,6 +864,18 @@ describe('Flow', function () {
       expect(this.get('#t').contentArea.y).to.equal(20);
     });
 
+    it('lays out text for nested floats', async function () {
+      await this.layout(`
+        <div style="float: left; width: 100px;">
+          <div id="t" style="float: left; width: 50px;">Yo</div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.paragraph.lineboxes.length).to.equal(1);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

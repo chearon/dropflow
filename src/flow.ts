@@ -1170,24 +1170,23 @@ export class Inline extends Box {
 }
 
 export class IfcInline extends Inline {
-  public paragraph: Paragraph;
   public runs: Run[];
   public children: InlineLevel[];
   public floats: BlockContainer[];
   public text: string;
+  public paragraph: Paragraph;
   private _hasText: boolean;
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
 
-    this.paragraph = new Paragraph(this, {ascender: 0, descender: 0}, new Uint16Array());
     this.runs = [];
     this.children = children;
     this.floats = [];
     this.text = '';
     this._hasText = false;
-
     this.prepare();
+    this.paragraph = new Paragraph(this, {ascender: 0, descender: 0}, new Uint16Array());
   }
 
   isIfcInline(): this is IfcInline {

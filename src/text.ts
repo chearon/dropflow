@@ -690,8 +690,9 @@ export class ShapedItem implements IfcRenderItem {
 
   // used in shaping
   colorsStart() {
-    let s = binarySearchTuple(this.paragraph.colors, this.offset);
-    if (this.paragraph.colors[s][1] !== this.offset) s -= 1;
+    const s = binarySearchTuple(this.paragraph.colors, this.offset);
+    if (s === this.paragraph.colors.length) return s - 1;
+    if (this.paragraph.colors[s][1] !== this.offset) return s - 1;
     return s;
   }
 

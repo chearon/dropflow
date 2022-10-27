@@ -1583,7 +1583,7 @@ export class Paragraph {
 
     for (const float of floats) {
       layoutFloatBox(float, ctx);
-      fctx.placeFloat(line ? line.width : 0, line ? !!line.head : true, float);
+      fctx.placeFloat(line ? line.width : 0, line ? !line.head : true, float);
     }
 
     if (line) {

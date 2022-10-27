@@ -672,25 +672,20 @@ export class ShapedItem implements IfcRenderItem {
   collapseWhitespace(at: 'start' | 'end') {
     // TODO: this is copied in Inline
     if (!this.attrs.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/)) {
-      return {collapsed: 0, stopped: true};
+      return true;
     }
 
     const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
     const glyphIterator = createGlyphIterator(this.glyphs, level % 2 ? 'rtl' : 'ltr');
-    let collapsed = 0;
 
     for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {
       const cl = this.glyphs[glyph.value.start].cl;
       if (!isink(this.paragraph.string[cl])) {
-        const px = this.glyphs[glyph.value.start].ax / this.face.upem * this.attrs.style.fontSize;
         this.glyphs[glyph.value.start].ax = 0;
-        collapsed += px;
       } else {
-        return {collapsed, stopped: true};
+        return true;
       }
     }
-
-    return {collapsed, stopped: false};
   }
 
   // used in shaping
@@ -794,6 +789,69 @@ class LineItemLinkedList {
 
 class LineCandidates extends LineItemLinkedList {};
 
+class LineWidthTracker {
+  private inkSeen: boolean;
+  private wsBefore: number;
+  private ink: number;
+  private wsAfter: number;
+
+  constructor() {
+    this.inkSeen = false;
+    this.wsBefore = 0;
+    this.ink = 0;
+    this.wsAfter = 0;
+  }
+
+  add(width: number, isInk: boolean) {
+    if (isInk) {
+      this.ink += this.wsAfter + width;
+      this.wsAfter = 0;
+      this.inkSeen = true;
+    } else {
+      if (this.inkSeen) {
+        this.wsAfter += width;
+      } else {
+        this.wsBefore += width;
+      }
+    }
+  }
+
+  concat(width: LineWidthTracker) {
+    if (this.inkSeen) {
+      if (width.inkSeen) {
+        this.ink += this.wsAfter + width.wsBefore + width.ink;
+        this.wsAfter = width.wsAfter;
+      } else {
+        this.wsAfter += width.wsBefore;
+      }
+    } else {
+      this.wsBefore += width.wsBefore;
+      this.ink = width.ink;
+      this.wsAfter = width.wsAfter;
+      this.inkSeen = width.inkSeen;
+    }
+  }
+
+  trimmed() {
+    return this.ink;
+  }
+
+  trimmedStart() {
+    return this.ink + this.wsAfter
+  }
+
+  trimmedEnd() {
+    return this.wsBefore + this.ink;
+  }
+
+  reset() {
+    this.inkSeen = false;
+    this.wsBefore = 0;
+    this.ink = 0;
+    this.wsAfter = 0;
+  }
+}
+
 type AscenderDescender = {ascender: number, descender: number};
 
 export class Linebox extends LineItemLinkedList {
@@ -801,7 +859,7 @@ export class Linebox extends LineItemLinkedList {
   descender: number;
   startOffset: number;
   endOffset: number;
-  width: number;
+  width: LineWidthTracker;
   dir: 'ltr' | 'rtl';
   trimStartFinished: boolean;
   blockOffset: number;
@@ -813,7 +871,7 @@ export class Linebox extends LineItemLinkedList {
     this.startOffset = this.endOffset = start;
     this.ascender = strut.ascender;
     this.descender = strut.descender;
-    this.width = 0;
+    this.width = new LineWidthTracker();
     this.trimStartFinished = false;
     this.blockOffset = 0;
     this.inlineOffset = 0;
@@ -823,9 +881,9 @@ export class Linebox extends LineItemLinkedList {
     return this.ascender + this.descender;
   }
 
-  addLogical(candidates: LineCandidates, width: number, endOffset: number) {
+  addLogical(candidates: LineCandidates, width: LineWidthTracker, endOffset: number) {
     this.concat(candidates);
-    this.width += width;
+    this.width.concat(width);
     this.endOffset = endOffset;
     if (!this.trimStartFinished) this.trimStart();
   }
@@ -845,9 +903,7 @@ export class Linebox extends LineItemLinkedList {
   trimStart() {
     for (let n = this.head; n; n = n.next) {
       if (n.value instanceof ShapedShim) continue;
-      const {collapsed, stopped} = n.value.collapseWhitespace('start');
-      this.width -= collapsed;
-      if (stopped) {
+      if (n.value.collapseWhitespace('start')) {
         this.trimStartFinished = true;
         return;
       }
@@ -857,9 +913,7 @@ export class Linebox extends LineItemLinkedList {
   trimEnd() {
     for (let n = this.tail; n; n = n.previous) {
       if (n.value instanceof ShapedShim) continue;
-      const {collapsed, stopped} = n.value.collapseWhitespace('end');
-      this.width -= collapsed;
-      if (stopped) return;
+      if (n.value.collapseWhitespace('end')) return;
     }
   }
 
@@ -942,16 +996,17 @@ export class Linebox extends LineItemLinkedList {
   }
 
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
+    const width = this.width.trimmed();
     this.blockOffset = vacancy.blockOffset;
     this.trimEnd();
     this.reorder();
     this.calculateExtents();
     this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
-    if (this.width < vacancy.inlineSize) {
+    if (width < vacancy.inlineSize) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
-        this.inlineOffset += vacancy.inlineSize - this.width;
+        this.inlineOffset += vacancy.inlineSize - width;
       } else if (textAlign === 'center') {
-        this.inlineOffset += (vacancy.inlineSize - this.width) / 2;
+        this.inlineOffset += (vacancy.inlineSize - width) / 2;
       }
     }
   }
@@ -1423,6 +1478,7 @@ export class Paragraph {
     const bfc = ctx.bfc;
     const fctx = bfc.fctx;
     const candidates = new LineCandidates();
+    const candidatesWidth = new LineWidthTracker();
     const basedir = this.ifc.style.direction;
     const parents:Inline[] = [];
     let line:Linebox | null = null;
@@ -1430,9 +1486,6 @@ export class Paragraph {
     const lines = [];
     const floats = [];
     let breakExtents = {ascender: 0, descender: 0};
-    let breakWidth = 0;
-    let width = 0;
-    let ws = 0;
     let unbreakableMark = 0;
     let blockOffset = bfc.cbBlockStart;
 
@@ -1443,17 +1496,13 @@ export class Paragraph {
         const extents = item.measureExtents(mark.position); // TODO is this slow?
         breakExtents.ascender = Math.max(extents.ascender, breakExtents.ascender);
         breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
-        breakWidth += ws + mark.advance;
-        ws = 0;
-      } else {
-        ws += mark.advance;
       }
-
-      width += mark.advance;
 
       if (mark.inlinePre) parents.push(mark.inlinePre);
 
       const wsCollapsible = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
+
+      candidatesWidth.add(mark.advance, mark.isInk || !wsCollapsible);
 
       if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
 
@@ -1461,7 +1510,7 @@ export class Paragraph {
 
       if (mark.float) {
         if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
-          const lineWidth = line ? line.width + width : 0;
+          const lineWidth = line ? line.width.trimmed() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
           layoutFloatBox(mark.float, ctx);
           fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
@@ -1474,14 +1523,7 @@ export class Paragraph {
         const p = basedir === 'ltr' ? 'leftMarginBorderPadding' : 'rightMarginBorderPadding';
         const op = basedir === 'ltr' ? 'rightMarginBorderPadding' : 'leftMarginBorderPadding';
         const w = mark.inlinePre?.[p] ?? 0 + (mark.inlinePost?.[op] ?? 0);
-
-        if (!mark.isInk) {
-          breakWidth += ws;
-          ws = 0;
-        }
-
-        breakWidth += w;
-        width += w;
+        candidatesWidth.add(w, true);
       }
 
       if (mark.inlinePre && mark.inlinePost) {
@@ -1511,7 +1553,7 @@ export class Paragraph {
         const blockSize = breakExtents.ascender + breakExtents.descender;
         const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
 
-        if (line.hasText() && line.width + breakWidth > vacancy.inlineSize) {
+        if (line.hasText() && line.width.trimmedStart() + candidatesWidth.trimmedEnd() > vacancy.inlineSize) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(basedir, lastBreakMark.position, this.strut));
@@ -1532,8 +1574,8 @@ export class Paragraph {
 
         if (!line.hasText() /* line was just added */) {
           const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
-          if (breakWidth > vacancy.inlineSize) {
-            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, width);
+          if (candidatesWidth.trimmedEnd() > vacancy.inlineSize) {
+            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidatesWidth.trimmedEnd());
             blockOffset = newVacancy.blockOffset;
             fctx.dropShelf(blockOffset);
           }
@@ -1542,19 +1584,17 @@ export class Paragraph {
         // TODO: if these candidates grow the line height, we have to check and
         // make sure it won't cause the line to start hitting floats
 
-        line.addLogical(candidates, width, mark.position);
+        line.addLogical(candidates, candidatesWidth, mark.position);
 
         candidates.clear();
-        breakWidth = 0;
+        candidatesWidth.reset();
         breakExtents.ascender = 0;
         breakExtents.descender = 0;
-        ws = 0;
-        width = 0;
         lastBreakMark = mark;
 
         for (const float of floats) {
           layoutFloatBox(float, ctx);
-          fctx.placeFloat(line.width, false, float);
+          fctx.placeFloat(line.width.trimmed(), false, float);
         }
         floats.length = 0;
 
@@ -1583,7 +1623,7 @@ export class Paragraph {
 
     for (const float of floats) {
       layoutFloatBox(float, ctx);
-      fctx.placeFloat(line ? line.width : 0, line ? !line.head : true, float);
+      fctx.placeFloat(line ? line.width.trimmed() : 0, line ? !line.head : true, float);
     }
 
     if (line) {
@@ -1600,7 +1640,7 @@ export class Paragraph {
       console.log(`Paragraph ${this.ifc.id}:`);
       logParagraph(this.brokenItems);
       for (const [i, line] of lines.entries()) {
-        let log = `Line ${i} (${line.width} width): `;
+        let log = `Line ${i} (${line.width.trimmed()} width): `;
         for (let n = line.head; n; n = n.next) {
           log += n.value instanceof ShapedItem ? `“${n.value.text}” ` : '“”';
         }

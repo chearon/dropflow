@@ -873,6 +873,20 @@ describe('Flow', function () {
 
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('#t').children;
+    });
+
+    it('doesn\'t measure trailing spaces when trying to fit a float', async function () {
+      await this.layout(`
+        <div id="t" style="display: flow-root; font: 16px Cousine; color: white; width: 144.203125px;">
+          xx
+          <div style="width: 125px; height: 25px; background-color: yellow; float: left;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const block = this.get('#t');
+      const [ifc] = block.children;
+      expect(block.contentArea.height).to.equal(25);
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
     });
 

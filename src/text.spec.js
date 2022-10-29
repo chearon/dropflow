@@ -861,4 +861,39 @@ describe('Lines', function () {
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.height).to.equal(16);
   });
+
+  it('sets box to linebox height when it\'s a bfc and ifc', async function () {
+    await this.layout(`
+      <div id="t" style="display: flow-root; line-height: 20px;">woeisme</div>
+    `);
+
+    /** @type import('./flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.height).to.equal(20);
+  });
+
+  it('sets box to float height when it\'s a bfc and ifc', async function () {
+    await this.layout(`
+      <div id="t" style="display: flow-root;">
+        <div style="width: 20px; height: 20px; float: left;"></div>
+      </div>
+    `);
+
+    /** @type import('./flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.height).to.equal(20);
+  });
+
+  it('sets box to max(float, lineboxes) when it\'s a bfc and ifc', async function () {
+    await this.layout(`
+      <div id="t" style="display: flow-root; line-height: 20px; width: 0;">
+        <div style="width: 20px; height: 20px; float: left;"></div>
+        chillin
+      </div>
+    `);
+
+    /** @type import('./flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.height).to.equal(40);
+  });
 });

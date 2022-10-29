@@ -212,7 +212,7 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
-  finalize(box: BlockContainer) {
+  finalize(box: BlockContainer, ctx: LayoutContext) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
 
     const style = box.style.createLogicalView(box.writingMode);
@@ -220,7 +220,13 @@ export class BlockFormattingContext {
     this.positionBlockContainers();
 
     if (style.blockSize === 'auto') {
-      box.setBlockSize(Math.max(this.cbBlockStart, this.fctx.getBothBottom()));
+      let lineboxHeight = 0;
+      if (box.isBlockContainerOfInlines()) {
+        const content = box.contentArea.createLogicalView(box.writingMode);
+        if (content.blockSize === undefined) throw new Error('Assertion failed');
+        lineboxHeight = content.blockSize;
+      }
+      box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx.getBothBottom()));
     }
   }
 
@@ -1025,7 +1031,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   }
 
   if (box.isBfcRoot()) {
-    cctx.bfc.finalize(box);
+    cctx.bfc.finalize(box, cctx);
     if (ctx.logging.text.has(box.id)) {
       console.log('Left floats');
       console.log(cctx.bfc.fctx.leftFloats.repr());
@@ -1093,7 +1099,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  cctx.bfc.finalize(box);
+  cctx.bfc.finalize(box, cctx);
 }
 
 // TODO breaks aren't really boxes. If a <br> was positioned or floated, it'd

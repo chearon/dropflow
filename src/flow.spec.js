@@ -1077,5 +1077,211 @@ describe('Flow', function () {
       expect(float4.borderArea.x).to.equal(0);
       expect(float4.borderArea.y).to.equal(60);
     });
+
+    describe('Intrinsics', function () {
+      it('lays out text under max-content constraint', async function () {
+        await this.layout(`
+          <div style="width: 300px; font: 16px Arimo;">
+            <div id="t" style="float: left;">hey kid ima computer</div>
+          </div>
+        `);
+        /** @type import('./flow').BlockContainer */
+        const block = this.get('#t');
+        expect(block.contentArea.width).to.equal(152.0625);
+      });
+
+      it('lays out text under min-content constraint', async function () {
+        await this.layout(`
+          <div style="width: 0; font: 16px Arimo;">
+            <div id="t" style="float: left;">hey kid ima computer</div>
+          </div>
+        `);
+        /** @type import('./flow').BlockContainer */
+        const block = this.get('#t');
+        expect(block.contentArea.width).to.equal(66.6953125);
+      });
+
+      it('lays out text no bigger than containing block', async function () {
+        await this.layout(`
+          <div style="width: 100px; font: 16px Arimo;">
+            <div id="t" style="float: left;">hey kid ima computer</div>
+          </div>
+        `);
+        /** @type import('./flow').BlockContainer */
+        const block = this.get('#t');
+        expect(block.contentArea.width).to.equal(100);
+      });
+
+      it('lays out nested floats under max-content constraint', async function () {
+        await this.layout(`
+          <div style="width: 300px; font: 16px Arimo;">
+            <div id="t1" style="float: left;">
+              <div id="t2" style="float: left;">hey kid ima computer</div>
+            </div>
+          </div>
+        `);
+        /** @type import('./flow').BlockContainer */
+        const t1 = this.get('#t1');
+        /** @type import('./flow').BlockContainer */
+        const t2 = this.get('#t2');
+        expect(t1.contentArea.width).to.equal(152.0625);
+        expect(t2.contentArea.width).to.equal(152.0625);
+      });
+
+      it('lays out nested floats under min-content constraint', async function () {
+        await this.layout(`
+          <div style="width: 0; font: 16px Arimo;">
+            <div id="t1" style="float: left;">
+              <div id="t2" style="float: left;">hey kid ima computer</div>
+            </div>
+          </div>
+        `);
+        /** @type import('./flow').BlockContainer */
+        const t1 = this.get('#t1');
+        /** @type import('./flow').BlockContainer */
+        const t2 = this.get('#t2');
+        expect(t1.contentArea.width).to.equal(66.6953125);
+        expect(t2.contentArea.width).to.equal(66.6953125);
+      });
+
+      it('lays out nested floats no bigger than containing block', async function () {
+        await this.layout(`
+          <div style="width: 100px; font: 16px Arimo;">
+            <div id="t1" style="float: left;">
+              <div id="t2" style="float: left;">hey kid ima computer</div>
+            </div>
+          </div>
+        `);
+        /** @type import('./flow').BlockContainer */
+        const t1 = this.get('#t1');
+        /** @type import('./flow').BlockContainer */
+        const t2 = this.get('#t2');
+        expect(t1.contentArea.width).to.equal(100);
+        expect(t2.contentArea.width).to.equal(100);
+      });
+
+      it('chooses the largest word from the float if larger than floats', async function () {
+        await this.layout(`
+          <div style="width: 0; font: 16px Arimo;">
+            <div id="t" style="float: left;">
+              <div style="float: left;">hey</div>
+              stop all the downloadin!
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(85.3984375);
+      });
+
+      it('chooses the largest nested float if larger than largest word', async function () {
+        await this.layout(`
+          <div style="width: 0; font: 16px Arimo;">
+            <div id="t" style="float: left;">
+              hey stop all
+              <div style="float: left;">the</div>
+              <div style="float: left;">downloadin!</div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(85.3984375);
+      });
+
+      it('sets nested float heights correctly under min-content', async function () {
+        await this.layout(`
+          <div style="width: 0; font: 16px/20px Arimo;">
+            <div style="float: left;">
+              <div id="t" style="float: left;">stop downloadin!</div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.height).to.equal(40);
+      });
+
+      it('sets nested float heights correctly under max-content', async function () {
+        await this.layout(`
+          <div style="width: 300px; font: 16px/20px Arimo;">
+            <div style="float: left;">
+              <div id="t" style="float: left;">stop downloadin!</div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.height).to.equal(20);
+      });
+
+      it('chooses specified width of nested floats', async function () {
+        await this.layout(`
+          <div style="width: 300px; font: 16px/20px Arimo;">
+            <div id="t" style="float: left;">
+              some text
+              <div>
+                <div style="float: left; width: 500px;">stop downloadin!</div>
+              </div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(500);
+      });
+
+      it('chooses specified width of nested block box', async function () {
+        await this.layout(`
+          <div style="width: 300px; font: 16px/20px Arimo;">
+            <div id="t" style="float: left;">
+              some text
+              <div>
+                <div style="width: 500px;">stop downloadin!</div>
+              </div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(500);
+      });
+
+      it('considers margin, border, padding part of the intrinsic size', async function () {
+        await this.layout(`
+          <div style="width: 200px; font: 16px Arimo;">
+            <div id="t" style="float: left; margin: 10px; padding: 20px; border: 20px solid blue;">
+              stop all the downloadin!
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(100);
+      });
+
+      it('considers nested nested margin, border, padding part of intrinsic size', async function () {
+        await this.layout(`
+          <div style="width: 300px; font: 16px Arimo;">
+            <div id="t" style="float: left;">
+              <div style="margin: 10px; padding: 20px; border: 20px solid blue;">
+                downloadin!
+              </div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('./flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(185.3984375);
+      });
+    });
   });
 });

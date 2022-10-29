@@ -568,7 +568,7 @@ export class ShapedItem implements IfcRenderItem {
   glyphs: HbGlyphInfo[];
   offset: number;
   text: string;
-  attrs: ShapingAttrs;
+  attrs: Readonly<ShapingAttrs>;
   needsReshape: boolean;
   inlines: Inline[];
 
@@ -579,7 +579,7 @@ export class ShapedItem implements IfcRenderItem {
     glyphs: HbGlyphInfo[],
     offset: number,
     text: string,
-    attrs: ShapingAttrs
+    attrs: Readonly<ShapingAttrs>
   ) {
     this.paragraph = paragraph;
     this.face = face;
@@ -590,6 +590,18 @@ export class ShapedItem implements IfcRenderItem {
     this.attrs = attrs;
     this.needsReshape = false;
     this.inlines = [];
+  }
+
+  clone() {
+    return new ShapedItem(
+      this.paragraph,
+      this.face,
+      this.match,
+      this.glyphs.map(glyph => ({...glyph})),
+      this.offset,
+      this.text,
+      this.attrs
+    );
   }
 
   split(offset: number) {
@@ -1039,6 +1051,7 @@ export class Paragraph {
   colors: [Color, number][];
   extents: [AscenderDescender, number][];
   brokenItems: ShapedItem[];
+  wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
   strut: AscenderDescender;
@@ -1050,6 +1063,7 @@ export class Paragraph {
     this.colors = [];
     this.extents = [];
     this.brokenItems = [];
+    this.wholeItems = [];
     this.lineboxes = [];
     this.height = 0;
     this.strut = strut;
@@ -1162,7 +1176,7 @@ export class Paragraph {
   async shape(ctx: PreprocessContext) {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const {hb, fcfg} = ctx;
-    const brokenItems:ShapedItem[] = [];
+    const items:ShapedItem[] = [];
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
@@ -1292,7 +1306,7 @@ export class Paragraph {
             const glyphs = part.glyphs.slice(gstart, gend);
 
             faces.push([face, offset]);
-            brokenItems.push(new ShapedItem(this, face, match, glyphs, offset, text, {...attrs}));
+            items.push(new ShapedItem(this, face, match, glyphs, offset, text, {...attrs}));
 
             if (isLastMatch) {
               log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
@@ -1316,7 +1330,7 @@ export class Paragraph {
 
     this.colors = colors;
     this.extents = this.createExtentsArray(ctx.hb, styles, faces.sort((a, b) => a[1] - b[1]));
-    this.brokenItems = brokenItems.sort((a, b) => a.offset - b.offset);
+    this.wholeItems = items.sort((a, b) => a.offset - b.offset);
   }
 
   createMarkIterator() {
@@ -1489,6 +1503,15 @@ export class Paragraph {
     let breakExtents = {ascender: 0, descender: 0};
     let unbreakableMark = 0;
     let blockOffset = bfc.cbBlockStart;
+
+    // Optimization: here we assume that (1) doTextLayout will never be called
+    // on the same ifc with a 'normal' mode twice and (2) that when the mode is
+    // 'normal', that is the final doTextLayout call for this instance
+    if (ctx.mode === 'min-content') {
+      this.brokenItems = this.wholeItems.map(item => item.clone());
+    } else {
+      this.brokenItems = this.wholeItems;
+    }
 
     for (const mark of {[Symbol.iterator]: () => this.createMarkIterator()}) {
       const item = this.brokenItems[mark.itemIndex];

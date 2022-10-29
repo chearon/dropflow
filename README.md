@@ -36,7 +36,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | Property | Values | Status | Notes |
 | -- | -- | -- | -- |
 | <code>clear</code> |  `left`, `right`, `both`, `none` |  ✅&zwj;&nbsp;Works | |
-| <code>float</code> | `left`, `right`, `none` | 🏗 Partially done | Width must be specified |
+| <code>float</code> | `left`, `right`, `none` | ✅&zwj;&nbsp;Works | |
 | <code>writing-&zwj;mode</code> | `horizontal-tb`, `vertical-lr`, `vertical-rl` | 🏗 Partially done | Implemented for BFCs but not IFCs yet |
 
 ## Boxes and positioning

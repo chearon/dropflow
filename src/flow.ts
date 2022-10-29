@@ -32,6 +32,7 @@ const underline = '\x1b[4m';
 export type LayoutContext = {
   lastBlockContainerArea: Area,
   lastPositionedArea: Area,
+  mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext,
   hb: Harfbuzz,
   logging: {text: Set<string>}
@@ -353,6 +354,10 @@ class FloatSide {
       }
     }
     return max;
+  }
+
+  getOverflow() {
+    return this.getSizeOfTracks(0, this.inlineSizes.length, 0);
   }
 
   getFloatCountOfTracks(start: number, end: number) {
@@ -768,6 +773,20 @@ export class BlockContainer extends Box {
     return {blockStart, lineLeft, lineRight};
   }
 
+  getDefiniteInlineSize() {
+    const style = this.style.createLogicalView(this.writingMode);
+
+    if (style.inlineSize !== 'auto') {
+      return (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft)
+        + style.borderLineLeftWidth
+        + style.paddingLineLeft
+        + style.inlineSize
+        + style.paddingLineRight
+        + style.borderLineRightWidth
+        + (style.marginLineRight === 'auto' ? 0 : style.marginLineRight);
+    }
+  }
+
   getMarginsAutoIsZero() {
     const style = this.style.createLogicalView(this.writingMode);
     let {marginBlockStart, marginBlockEnd, marginLineLeft, marginLineRight} = style;
@@ -1044,26 +1063,70 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   bfc.boxEnd(box);
 }
 
-function doInlineBoxModelForFloatBox(box: BlockContainer) {
+function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
   const style = box.style.createLogicalView(box.writingMode);
   const border = box.borderArea.createLogicalView(box.writingMode);
   const padding = box.paddingArea.createLogicalView(box.writingMode);
   const content = box.contentArea.createLogicalView(box.writingMode);
 
-  if (style.inlineSize === 'auto') {
-    throw new Error('Shrink to fit not implemented yet');
-  }
-
-  border.inlineSize =
-    style.borderLineLeftWidth + style.borderLineRightWidth +
-    style.paddingLineLeft + style.paddingLineRight +
-    style.inlineSize;
+  border.inlineSize = inlineSize -
+    (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft) -
+    (style.marginLineRight === 'auto' ? 0 : style.marginLineRight);
 
   padding.lineLeft = style.borderLineLeftWidth;
   padding.lineRight = style.borderLineRightWidth;
 
   content.lineLeft = style.paddingLineLeft;
   content.lineRight = style.paddingLineRight;
+}
+
+function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-content' | 'max-content') {
+  const cctx = {...ctx};
+  let intrinsicSize = 0;
+
+  cctx.mode = mode;
+  preBlockContainer(box, cctx);
+
+  const definiteSize = box.getDefiniteInlineSize();
+  if (definiteSize !== undefined) return definiteSize;
+
+  if (box.isBfcRoot()) cctx.bfc = new BlockFormattingContext(mode === 'min-content' ? 0 : Infinity);
+
+  if (box.isBlockContainerOfInlines()) {
+    const [ifc] = box.children;
+    box.doTextLayout(cctx);
+    for (const line of ifc.paragraph.lineboxes) {
+      intrinsicSize = Math.max(intrinsicSize, line.width.trimmed());
+    }
+  } else if (box.isBlockContainerOfBlockContainers()) {
+    for (const child of box.children) {
+      intrinsicSize = Math.max(intrinsicSize, layoutContribution(child, cctx, mode));
+    }
+  } else {
+    throw new Error(`Unknown box type: ${box.id}`);
+  }
+
+  if (box.isBfcRoot()) {
+    cctx.bfc.finalize(box, cctx);
+    if (mode === 'max-content') {
+      intrinsicSize += cctx.bfc.fctx.leftFloats.getOverflow();
+      intrinsicSize += cctx.bfc.fctx.rightFloats.getOverflow();
+    } else {
+      intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.leftFloats.getOverflow());
+      intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.rightFloats.getOverflow());
+    }
+  }
+
+  const style = box.style.createLogicalView(box.writingMode);
+
+  intrinsicSize += (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft)
+    + style.borderLineLeftWidth
+    + style.paddingLineLeft
+    + style.paddingLineRight
+    + style.borderLineRightWidth
+    + (style.marginLineRight === 'auto' ? 0 : style.marginLineRight);
+
+  return intrinsicSize;
 }
 
 export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
@@ -1079,15 +1142,32 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
 
   preBlockContainer(box, cctx);
 
-  doInlineBoxModelForFloatBox(box);
+  if (!box.containingBlock) {
+    throw new Error(`Inline layout called too early on ${box.id}: no containing block`);
+  }
+
+  let inlineSize = box.getDefiniteInlineSize();
+
+  if (inlineSize === undefined) {
+    if (ctx.mode === 'min-content') {
+      inlineSize = layoutContribution(box, ctx, 'min-content');
+    } else if (ctx.mode === 'max-content') {
+      inlineSize = layoutContribution(box, ctx, 'max-content');
+    } else {
+      const minContent = layoutContribution(box, ctx, 'min-content');
+      const maxContent = layoutContribution(box, ctx, 'max-content');
+      const availableSpace = box.containingBlock.createLogicalView(box.writingMode).inlineSize;
+      if (availableSpace === undefined) throw new Error('Assertion failed');
+      inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
+    }
+  }
+
+  doInlineBoxModelForFloatBox(box, inlineSize);
   doBlockBoxModelForBlockBox(box);
-  // Child flow is now possible
 
-  const inlineSize = box.contentArea.width;
-
-  if (inlineSize === undefined) throw new Error('Cannot create BFC: layout parent');
-
-  cctx.bfc = new BlockFormattingContext(inlineSize)
+  const content = box.contentArea.createLogicalView(box.writingMode);
+  if (content.inlineSize === undefined) throw new Error('Assertion failed');
+  cctx.bfc = new BlockFormattingContext(content.inlineSize);
 
   if (box.isBlockContainerOfInlines()) {
     box.doTextLayout(cctx);

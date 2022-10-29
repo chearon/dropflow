@@ -63,6 +63,7 @@ export async function layout(root: BlockContainer, width = 640, height = 480) {
     bfc: new BlockFormattingContext(300),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
+    mode: 'normal',
     logging,
     hb
   });

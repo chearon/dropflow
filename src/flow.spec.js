@@ -236,7 +236,7 @@ describe('Flow', function () {
     it('collapse throughs affect the right bc height', async function () {
       await this.layout(`
         <div id="t1" style="display: flow-root; line-height: 20px;">
-          <div id="t2" style="margin: 0 0 20px 0; background-color: red;">
+          <div id="t2" style="margin: 0 0 20px 0;">
             pre
             <div></div>
           </div>
@@ -877,9 +877,9 @@ describe('Flow', function () {
 
     it('doesn\'t measure trailing spaces when trying to fit a float', async function () {
       await this.layout(`
-        <div id="t" style="display: flow-root; font: 16px Cousine; color: white; width: 144.203125px;">
+        <div id="t" style="display: flow-root; font: 16px Cousine; width: 144.203125px;">
           xx
-          <div style="width: 125px; height: 25px; background-color: yellow; float: left;"></div>
+          <div style="width: 125px; height: 25px; float: left;"></div>
         </div>
       `);
 
@@ -997,7 +997,7 @@ describe('Flow', function () {
       await this.layout(`
         <div style="width: 100px; line-height: 20px;">
           has space
-          <div id="t"><div style="width: 10px; height: 10px; float: left; background-color: orange;"></div></div>
+          <div id="t"><div style="width: 10px; height: 10px; float: left;"></div></div>
         </div>
       `);
 

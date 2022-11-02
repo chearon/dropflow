@@ -446,17 +446,23 @@ class FloatSide {
     const margins = box.getMarginsAutoIsZero();
     const blockSize = box.borderArea.height + margins.blockStart + margins.blockEnd;
     const blockEndOffset = this.shelfBlockOffset + blockSize;
-    const endTrack = this.getEndTrack(startTrack, this.shelfBlockOffset, blockSize);
+    let endTrack;
 
-    if (this.blockOffsets[endTrack] !== blockEndOffset) {
-      this.splitTrack(endTrack - 1, blockEndOffset);
+    if (blockSize > 0) {
+      endTrack = this.getEndTrack(startTrack, this.shelfBlockOffset, blockSize);
+
+      if (this.blockOffsets[endTrack] !== blockEndOffset) {
+        this.splitTrack(endTrack - 1, blockEndOffset);
+      }
+    } else {
+      endTrack = startTrack;
     }
 
     const cbOffset = box.style.float === 'left' ? vacancy.leftOffset : vacancy.rightOffset;
     const cbLineSide = box.style.float === 'left' ? cbLineLeft : cbLineRight;
     const marginOffset = box.style.float === 'left' ? margins.lineLeft : margins.lineRight;
     const marginEnd = box.style.float === 'left' ? margins.lineRight : margins.lineLeft;
-    const borderArea = box.borderArea.createLogicalView(box.writingMode)
+    const borderArea = box.borderArea.createLogicalView(box.writingMode);
 
     if (box.style.float === 'left') {
       borderArea.lineLeft = cbOffset - cbLineSide + marginOffset;

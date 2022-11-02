@@ -890,6 +890,54 @@ describe('Flow', function () {
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
     });
 
+    it('doesn\'t shorten lineboxes if float is zero height', async function () {
+      await this.layout(`
+        <div id="t" style="display: flow-root; width: 300px;">
+          <div style="width: 100px; float: left;"></div>
+          Where am I?
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.paragraph.lineboxes.length).to.equal(1);
+      expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(0);
+    });
+
+    it('doesn\'t infinite loop when multiple zero height floats don\'t fit', async function () {
+      await this.layout(`
+        <div id="t" style="display: flow-root; width: 300px;">
+          Don't break me bro
+          <div style="width: 1000px; float: left;"></div>
+          <div style="width: 1000px; float: left;"></div>
+        </div>
+      `);
+    });
+
+    it('places zero height floats after normal floats', async function () {
+      await this.layout(`
+        <div id="t" style="display: flow-root; width: 300px;">
+          <div style="width: 10px; float: left;"></div>
+          <div style="width: 10px; border-top: 1px solid; float: left;"></div>
+          <div style="width: 10px; float: left;"></div>
+          <div style="width: 10px; margin-top: 1px; float: left;"></div>
+          <div style="width: 10px; float: left;"></div>
+          <div style="width: 10px; padding-top: 1px; float: left;"></div>
+          <div style="width: 10px; float: left;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.children[1].borderArea.x).to.equal(0);
+      expect(ifc.children[2].borderArea.x).to.equal(0);
+      expect(ifc.children[3].borderArea.x).to.equal(10);
+      expect(ifc.children[4].borderArea.x).to.equal(10);
+      expect(ifc.children[5].borderArea.x).to.equal(20);
+      expect(ifc.children[6].borderArea.x).to.equal(20);
+      expect(ifc.children[7].borderArea.x).to.equal(30);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

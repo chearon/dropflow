@@ -124,6 +124,15 @@ describe('Flow', function () {
       expect(this.get(1).contentArea.height).to.equal(100);
       expect(this.get(1).children).to.have.lengthOf(1);
     });
+
+    it('considers floating inlines block-level', async function () {
+      await this.layout(`
+        <span id="t" style="float: left; margin-right: 1em;">👻</span>
+        Spooky floating ghost!
+      `);
+
+      expect(this.get('#t').isInlineLevel()).to.be.false;
+    });
   });
 
   describe('Collapsing', function () {

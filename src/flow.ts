@@ -1712,8 +1712,11 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     }
   }
 
-  if (el.style.display.outer === 'inline') attrs |= Box.ATTRS.isInline;
-  if (el.style.float !== 'none') attrs |= Box.ATTRS.isFloat;
+  if (el.style.float !== 'none') {
+    attrs |= Box.ATTRS.isFloat;
+  } else if (el.style.display.outer === 'inline') {
+    attrs |= Box.ATTRS.isInline;
+  }
 
   const style = new Style(el.id, el.style);
 

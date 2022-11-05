@@ -947,6 +947,31 @@ describe('Flow', function () {
       expect(ifc.children[7].borderArea.x).to.equal(30);
     });
 
+    it('sets box to float height when it\'s a bfc and ifc', async function () {
+      await this.layout(`
+        <div id="t" style="display: flow-root;">
+          <div style="width: 20px; height: 20px; float: left;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const t = this.get('#t');
+      expect(t.contentArea.height).to.equal(20);
+    });
+
+    it('sets box to max(float, lineboxes) when it\'s a bfc and ifc', async function () {
+      await this.layout(`
+        <div id="t" style="display: flow-root; line-height: 20px; width: 0;">
+          <div style="width: 20px; height: 20px; float: left;"></div>
+          chillin
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const t = this.get('#t');
+      expect(t.contentArea.height).to.equal(40);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

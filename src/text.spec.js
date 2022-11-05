@@ -432,22 +432,6 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[3].end()).to.equal(19);
   });
 
-  it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
-    await this.layout(`
-      <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
-    `);
-    const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes.length).to.equal(1);
-  });
-
-  it('keeps whitespace at the beginning of the line when it\'s not collapsible', async function () {
-    await this.layout(`
-      <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
-    `);
-    const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes.length).to.equal(2);
-  });
-
   it('breaks between shaping boundaries', async function () {
     await this.layout(`
       <div style="width: 100px; font: 16px Roboto;">
@@ -619,23 +603,6 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[1].inlines[1].end).to.equal(19);
   });
 
-  it('measures whitespace before a break if the break has padding on it', async function () {
-    // "Word_fits<5>" does fit on a line, but "Word_fits_<5>" does not
-    //
-    // Interestingly, Firefox fails this one - it puts the padding-right on the
-    // first line right up next to the end of the word "fits", even though that
-    // appears incorrect since we put a space before the padding in the source below.
-    await this.layout(`
-      <div style="width: 70px; font: 16px Arimo;">
-        Word <span style="padding-right: 5px;">fits </span>padding
-      </div>
-    `);
-
-    /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
-  });
-
   it('considers padding-right on a break as belonging to the left word', async function () {
     await this.layout(`
       <div style="width: 70px; font: 16px Arimo;">
@@ -717,18 +684,6 @@ describe('Lines', function () {
     n = inline.paragraph.lineboxes[1].head; // 'not me'
     expect(n.value.text).to.equal('not me ');
     expect(n.value.inlines[0].leftMarginBorderPadding).to.equal(150);
-  });
-
-  it('collapses whitespace at the start of the line', async function () {
-    await this.layout(`
-      <div style="width: 100px; font: 16px Arimo;">
-        Oh give me a home where the buffalo roam
-      </div>
-    `);
-
-    /** @type import('./flow').IfcInline[] */
-    const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
   });
 
   it('calculates line height with the correct shaped item/inline pairings', async function () {
@@ -872,28 +827,50 @@ describe('Lines', function () {
     expect(t.contentArea.height).to.equal(20);
   });
 
-  it('sets box to float height when it\'s a bfc and ifc', async function () {
-    await this.layout(`
-      <div id="t" style="display: flow-root;">
-        <div style="width: 20px; height: 20px; float: left;"></div>
-      </div>
-    `);
+  describe('Whitespace', function () {
+    it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
+      await this.layout(`
+        <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
+      `);
+      const [inline] = this.get('div').children;
+      expect(inline.paragraph.lineboxes.length).to.equal(1);
+    });
 
-    /** @type import('./flow').BlockContainer */
-    const t = this.get('#t');
-    expect(t.contentArea.height).to.equal(20);
-  });
+    it('keeps whitespace at the beginning of the line when it\'s not collapsible', async function () {
+      await this.layout(`
+        <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
+      `);
+      const [inline] = this.get('div').children;
+      expect(inline.paragraph.lineboxes.length).to.equal(2);
+    });
 
-  it('sets box to max(float, lineboxes) when it\'s a bfc and ifc', async function () {
-    await this.layout(`
-      <div id="t" style="display: flow-root; line-height: 20px; width: 0;">
-        <div style="width: 20px; height: 20px; float: left;"></div>
-        chillin
-      </div>
-    `);
+    it('measures whitespace before a break if the break has padding on it', async function () {
+      // "Word_fits<5>" does fit on a line, but "Word_fits_<5>" does not
+      //
+      // Interestingly, Firefox fails this one - it puts the padding-right on the
+      // first line right up next to the end of the word "fits", even though that
+      // appears incorrect since we put a space before the padding in the source below.
+      await this.layout(`
+        <div style="width: 70px; font: 16px Arimo;">
+          Word <span style="padding-right: 5px;">fits </span>padding
+        </div>
+      `);
 
-    /** @type import('./flow').BlockContainer */
-    const t = this.get('#t');
-    expect(t.contentArea.height).to.equal(40);
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get('div').children;
+      expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
+    });
+
+    it('collapses whitespace at the start of the line', async function () {
+      await this.layout(`
+        <div style="width: 100px; font: 16px Arimo;">
+          Oh give me a home where the buffalo roam
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [inline] = this.get('div').children;
+      expect(inline.paragraph.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
+    });
   });
 });

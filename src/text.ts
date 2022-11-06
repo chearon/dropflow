@@ -805,27 +805,34 @@ class LineCandidates extends LineItemLinkedList {};
 class LineWidthTracker {
   private inkSeen: boolean;
   private wsBefore: number;
+  private wsBeforeCollapsible: number;
   private ink: number;
   private wsAfter: number;
+  private wsAfterCollapsible: number;
 
   constructor() {
     this.inkSeen = false;
     this.wsBefore = 0;
+    this.wsBeforeCollapsible = 0;
     this.ink = 0;
     this.wsAfter = 0;
+    this.wsAfterCollapsible = 0;
   }
 
-  add(width: number, isInk: boolean) {
-    if (isInk) {
-      this.ink += this.wsAfter + width;
-      this.wsAfter = 0;
-      this.inkSeen = true;
+  addInk(width: number) {
+    this.ink += this.wsAfter + width;
+    this.wsAfter = 0;
+    this.wsAfterCollapsible = 0;
+    this.inkSeen = true;
+  }
+
+  addWs(width: number, isCollapsible: boolean) {
+    if (this.inkSeen) {
+      this.wsAfter += width;
+      this.wsAfterCollapsible = isCollapsible ? width : 0;
     } else {
-      if (this.inkSeen) {
-        this.wsAfter += width;
-      } else {
-        this.wsBefore += width;
-      }
+      this.wsBefore += width;
+      this.wsBeforeCollapsible = isCollapsible ? width : 0;
     }
   }
 
@@ -834,27 +841,35 @@ class LineWidthTracker {
       if (width.inkSeen) {
         this.ink += this.wsAfter + width.wsBefore + width.ink;
         this.wsAfter = width.wsAfter;
+        this.wsAfterCollapsible = width.wsAfterCollapsible;
       } else {
         this.wsAfter += width.wsBefore;
+        this.wsAfterCollapsible = width.wsBeforeCollapsible + width.wsAfterCollapsible;
       }
     } else {
       this.wsBefore += width.wsBefore;
+      this.wsBeforeCollapsible += width.wsBeforeCollapsible;
       this.ink = width.ink;
       this.wsAfter = width.wsAfter;
+      this.wsAfterCollapsible = width.wsAfterCollapsible;
       this.inkSeen = width.inkSeen;
     }
   }
 
-  trimmed() {
-    return this.ink;
+  forFloat() {
+    return this.wsBefore - this.wsBeforeCollapsible + this.ink;
   }
 
-  trimmedStart() {
-    return this.ink + this.wsAfter
+  forWord() {
+    return this.wsBefore - this.wsBeforeCollapsible + this.ink + this.wsAfter;
   }
 
-  trimmedEnd() {
+  asWord() {
     return this.wsBefore + this.ink;
+  }
+
+  trimmed() {
+    return this.wsBefore - this.wsBeforeCollapsible + this.ink + this.wsAfter - this.wsAfterCollapsible;
   }
 
   reset() {
@@ -1526,7 +1541,11 @@ export class Paragraph {
 
       const wsCollapsible = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
 
-      candidatesWidth.add(mark.advance, mark.isInk || !wsCollapsible);
+      if (mark.isInk) {
+        candidatesWidth.addInk(mark.advance);
+      } else {
+        candidatesWidth.addWs(mark.advance, !!wsCollapsible);
+      }
 
       if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
 
@@ -1534,7 +1553,7 @@ export class Paragraph {
 
       if (mark.float) {
         if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
-          const lineWidth = line ? line.width.trimmed() : 0;
+          const lineWidth = line ? line.width.forFloat() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
           layoutFloatBox(mark.float, ctx);
           fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
@@ -1547,7 +1566,7 @@ export class Paragraph {
         const p = basedir === 'ltr' ? 'leftMarginBorderPadding' : 'rightMarginBorderPadding';
         const op = basedir === 'ltr' ? 'rightMarginBorderPadding' : 'leftMarginBorderPadding';
         const w = mark.inlinePre?.[p] ?? 0 + (mark.inlinePost?.[op] ?? 0);
-        candidatesWidth.add(w, true);
+        candidatesWidth.addInk(w);
       }
 
       if (mark.inlinePre && mark.inlinePost) {
@@ -1577,7 +1596,7 @@ export class Paragraph {
         const blockSize = breakExtents.ascender + breakExtents.descender;
         const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
 
-        if (line.hasText() && line.width.trimmedStart() + candidatesWidth.trimmedEnd() > vacancy.inlineSize) {
+        if (line.hasText() && line.width.forWord() + candidatesWidth.asWord() > vacancy.inlineSize) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(basedir, lastBreakMark.position, this.strut));
@@ -1598,8 +1617,8 @@ export class Paragraph {
 
         if (!line.hasText() /* line was just added */) {
           const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
-          if (candidatesWidth.trimmedEnd() > vacancy.inlineSize) {
-            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidatesWidth.trimmedEnd());
+          if (candidatesWidth.forFloat() > vacancy.inlineSize) {
+            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidatesWidth.forFloat());
             blockOffset = newVacancy.blockOffset;
             fctx.dropShelf(blockOffset);
           }
@@ -1618,7 +1637,7 @@ export class Paragraph {
 
         for (const float of floats) {
           layoutFloatBox(float, ctx);
-          fctx.placeFloat(line.width.trimmed(), false, float);
+          fctx.placeFloat(line.width.forFloat(), false, float);
         }
         floats.length = 0;
 
@@ -1647,7 +1666,7 @@ export class Paragraph {
 
     for (const float of floats) {
       layoutFloatBox(float, ctx);
-      fctx.placeFloat(line ? line.width.trimmed() : 0, line ? !line.head : true, float);
+      fctx.placeFloat(line ? line.width.forFloat() : 0, line ? !line.head : true, float);
     }
 
     if (line) {

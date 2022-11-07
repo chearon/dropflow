@@ -872,5 +872,87 @@ describe('Lines', function () {
       const [inline] = this.get('div').children;
       expect(inline.paragraph.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
     });
+
+    it('starts a new linebox after \\n when newlines are preserved', async function () {
+      await this.layout(`
+        <div style="width: 300px; font: 16px/20px Arimo; white-space: pre-line;">
+          Funny it is
+          The things that I spout
+          When I have to make words
+          To test the code out
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes).to.have.lengthOf(6);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(1);
+      expect(ifc.paragraph.lineboxes[5].startOffset).to.equal(84);
+      expect(ifc.paragraph.height).to.equal(120);
+    });
+
+    it('can make empty lineboxes when newlines are preserved', async function () {
+      await this.layout(`
+        <div style="width: 300px; font: 16px Arimo; white-space: pre-line;">
+          I have to make words
+
+
+          To test the code out
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes).to.have.lengthOf(6);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(1);
+      expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(22);
+      expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(23);
+      expect(ifc.paragraph.lineboxes[4].startOffset).to.equal(24);
+    });
+
+    it('makes two lineboxes for <br>\\n or \\n<br> when newlines are preserved', async function () {
+      await this.layout('<div style="white-space: pre-line;">a\n<br>b<br>\nc');
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes).to.have.lengthOf(5);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(2);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(2);
+      expect(ifc.paragraph.lineboxes[1].endOffset).to.equal(2);
+      expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(2);
+      expect(ifc.paragraph.lineboxes[2].endOffset).to.equal(3);
+      expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(3);
+      expect(ifc.paragraph.lineboxes[3].endOffset).to.equal(4);
+      expect(ifc.paragraph.lineboxes[4].startOffset).to.equal(4);
+      expect(ifc.paragraph.lineboxes[4].endOffset).to.equal(5);
+    });
+
+    it('measures uncollapsible whitespace for fit', async function () {
+      await this.layout(
+        '<div style="width: 100px; font: 16px Arimo; white-space: pre-wrap;">' +
+          '            im not gonna fit' +
+        '</div>'
+      );
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes).to.have.lengthOf(2);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(19);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(19);
+      expect(ifc.paragraph.lineboxes[1].endOffset).to.equal(28);
+    });
+
+    it('doesn\'t measure uncollapsible whitespace at the end of the line for fit', async function () {
+      await this.layout(
+        '<div style="width: 100px; font: 16px Arimo; white-space: pre-wrap;">' +
+          'im gonna fit            ' +
+        '</div>'
+      );
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes).to.have.lengthOf(1);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(24);
+    });
   });
 });

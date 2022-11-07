@@ -38,7 +38,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: H
 
   const glyphs = item.glyphs.slice(glyphStart, glyphEnd + 1);
   const textStart = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
-  const textEnd = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) + 1 : 1;
+  const textEnd = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) + 1 : 0;
 
   hbFont.destroy();
 

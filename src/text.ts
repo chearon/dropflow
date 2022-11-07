@@ -1098,6 +1098,20 @@ export class Paragraph {
     return this.string.length;
   }
 
+  nlIterator() {
+    const s = this.string;
+    const l = s.length;
+    let i = 0;
+
+    return {
+      next():{done: true} | {done: false, value: {i: number}} {
+        if (i > l) return {done: true};
+        while (i <= l && s[i - 1] !== '\n') i++;
+        return {value: {i: i++}, done: false};
+      }
+    };
+  }
+
   *itemize({itemizer}: PreprocessContext) {
     if (this.string.length === 0) return;
 
@@ -1105,13 +1119,15 @@ export class Paragraph {
     const iBidi = itemizer.bidi(this.string, this.ifc.style.direction === 'ltr' ? 0 : 1);
     const iScript = itemizer.script(this.string);
     const iStyle = this.ifc.itemizeInlines();
+    const iNewline = this.nlIterator();
 
     let emoji = iEmoji.next();
     let bidi = iBidi.next();
     let script = iScript.next();
     let style = iStyle.next();
+    let newline = iNewline.next();
 
-    if (emoji.done || bidi.done || script.done || style.done) {
+    if (emoji.done || bidi.done || script.done || style.done || newline.done) {
       throw new Error('Iterator ended too early');
     }
 
@@ -1122,12 +1138,13 @@ export class Paragraph {
       style: style.value.style
     };
 
-    while (!emoji.done && !bidi.done && !script.done && !style.done) {
+    while (!emoji.done && !bidi.done && !script.done && !style.done && !newline.done) {
       // Find smallest text index
       let smallest:number = emoji.value.i;
       if (!bidi.done && bidi.value.i < smallest) smallest = bidi.value.i;
       if (!script.done && script.value.i < smallest) smallest = script.value.i;
       if (!style.done && style.value.i < smallest) smallest = style.value.i;
+      if (!newline.done && newline.value.i < smallest) smallest = newline.value.i;
 
       // Map the current iterators to context
       if (!emoji.done) ctx.isEmoji = emoji.value.isEmoji;
@@ -1140,6 +1157,7 @@ export class Paragraph {
       if (!bidi.done && smallest === bidi.value.i) bidi = iBidi.next();
       if (!script.done && smallest === script.value.i) script = iScript.next();
       if (!style.done && smallest === style.value.i) style = iStyle.next();
+      if (!newline.done && smallest === newline.value.i) newline = iNewline.next();
 
       yield {i: smallest, attrs: ctx};
     }
@@ -1355,7 +1373,7 @@ export class Paragraph {
     let inlineMark = 0;
     // Break iterator
     const breakIterator = new LineBreak(this.string);
-    let breakPosition = -1;
+    let linebreak:{position: number, required: boolean} | null = {position: -1, required: false};
     let breakMark = 0;
     // Item iterator
     let itemIndex = -1;
@@ -1385,7 +1403,7 @@ export class Paragraph {
         split
       };
 
-      if (inline.done && breakPosition > end && itemIndex >= this.brokenItems.length) {
+      if (inline.done && !linebreak && itemIndex >= this.brokenItems.length) {
         return {done: true};
       }
 
@@ -1444,7 +1462,7 @@ export class Paragraph {
           inline = inlineIterator.next();
         }
 
-        if (mark.inlinePre || mark.inlinePost) return {done: false, value: mark};
+        if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
       }
 
       if (itemIndex < this.brokenItems.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
@@ -1461,17 +1479,21 @@ export class Paragraph {
         }
       }
 
-      if (breakPosition > -1 && inkMark === mark.position) {
+      if (!linebreak || linebreak.position > -1 && inkMark === mark.position) {
         inkMark = end + 1;
       }
 
-      if (breakPosition <= end && breakMark === mark.position) {
+      if (linebreak && breakMark === mark.position) {
         const bk = breakIterator.nextBreak();
-        if (breakPosition > -1) mark.isBreak = true;
+        if (linebreak.position > -1) {
+          mark.isBreakForced = linebreak.required;
+          mark.isBreak = true;
+        }
         if (bk && this.ifc.hasText()) {
-          breakPosition = breakMark = bk.position;
+          breakMark = bk.position;
+          linebreak = bk;
         } else {
-          breakPosition = end + 1;
+          linebreak = null;
           breakMark = end;
         }
       }

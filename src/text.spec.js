@@ -809,7 +809,7 @@ describe('Lines', function () {
 
   it('takes strut into account', async function () {
     await this.layout(`
-      <div style="font: 16px Arimo; line-height: 1;"><span style="font: 4px Arimo;">tiny!</span></div>
+      <div style="font: 16px/1 Arimo;"><span style="font: 4px Arimo;">tiny!</span></div>
     `);
 
     /** @type import('./flow').IfcInline[] */
@@ -829,7 +829,7 @@ describe('Lines', function () {
 
   it('uses the right block position for a wrapped word with a hard break at the end', async function () {
     await this.layout(`
-      <div id="t" style="font-family: Arimo; font-size: 16px; line-height: 20px; width: 80px;">
+      <div id="t" style="font: 16px/20px Arimo; width: 80px;">
         A simple test<br>
       </div>
     `);

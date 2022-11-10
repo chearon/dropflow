@@ -826,6 +826,22 @@ describe('Flow', function () {
       expect(this.get('#t2').contentArea.y).to.equal(20);
     });
 
+    it('places mid-nowrap floats correctly', async function () {
+      await this.layout(`
+        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          right <span style="white-space: nowrap;">in the <div id="t2" style="float: left; width: 300px; height: 300px;"></div> middle
+        </div>
+      `);
+
+      /** @type import('./flow').IfcInline[] */
+      const [ifc] = this.get('#t1').children;
+      expect(ifc.paragraph.lineboxes.length).to.equal(1);
+      expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
+      expect(this.get('#t2').contentArea.x).to.equal(0);
+      expect(this.get('#t2').contentArea.y).to.equal(20);
+    });
+
     it('perfectly fits floats that sum to container width', async function () {
       await this.layout(`
         <div style="font: 16px/20px Arimo; width: 100px;">

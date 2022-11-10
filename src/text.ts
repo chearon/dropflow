@@ -1562,6 +1562,7 @@ export class Paragraph {
       if (mark.inlinePre) parents.push(mark.inlinePre);
 
       const wsCollapsible = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
+      const nowrap = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(nowrap|pre)$/);
 
       if (mark.isInk) {
         candidatesWidth.addInk(mark.advance);
@@ -1609,7 +1610,7 @@ export class Paragraph {
         for (const p of parents) p.nshaped += 1;
       }
 
-      if (mark.isBreak && (lineHasInk || mark.isBreakForced || mark.position === this.length())) {
+      if (mark.isBreak && (lineHasInk && !nowrap || mark.isBreakForced || mark.position === this.length())) {
         if (!line) {
           lines.push(line = new Linebox(basedir, 0, this.strut));
           fctx.preTextContent();

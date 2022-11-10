@@ -28,8 +28,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | <code>text-&zwj;decoration</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>unicode-&zwj;bidi</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>vertical-&zwj;align</code> | | 🚧&zwj;&nbsp;Planned | |
-| <code>white-&zwj;space</code> | `normal`, `pre-wrap`, `pre-line` | ✅&zwj;&nbsp;Works | |
-| <code>white-&zwj;space</code> | `nowrap`, `pre` | 🏗 Partially done | Removing soft breaks not implemented |
+| <code>white-&zwj;space</code> | `normal`, `nowrap`, `pre`, `pre-wrap`, `pre-line` | ✅&zwj;&nbsp;Works | |
 
 ## Block formatting
 

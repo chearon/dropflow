@@ -840,6 +840,64 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
   });
 
+  it('doesn\'t wrap in spans with soft wraps turned off', async function () {
+    await this.layout(`
+      <div id="t" style="font: 16px Arimo; width: 100px;">
+        I like
+        <span style="white-space: nowrap;">tests that aren't hard to think about</span>
+        because easy
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(3);
+    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(46);
+  });
+
+  it('does wrap on a <br> inside a nowrap span', async function () {
+    await this.layout(`
+      <div id="t" style="font: 16px Arimo; width: 100px;">
+        I like
+        <span style="white-space: nowrap;">tests that aren't<br>hard to think about</span>
+        because easy
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(4);
+    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(25);
+  });
+
+  it('wraps on soft wraps inside a nowrap span', async function () {
+    await this.layout(`
+      <div id="t" style="font: 16px Arimo; width: 100px;">
+        I like
+        <span style="white-space: nowrap;">tests that <span style="white-space: normal;">aren't hard</span> to think about</span>
+        because easy
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(4);
+    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(26);
+  });
+
+  it('lays out entirely nowrap text', async function () {
+    await this.layout(`
+      <div id="t" style="font: 16px Arimo; width: 100px; white-space: nowrap;">
+        I like tests that aren't hard to think about because easy
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(1);
+    expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(59);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
       await this.layout(`

@@ -827,6 +827,19 @@ describe('Lines', function () {
     expect(t.contentArea.height).to.equal(20);
   });
 
+  it('uses the right block position for a wrapped word with a hard break at the end', async function () {
+    await this.layout(`
+      <div id="t" style="font-family: Arimo; font-size: 16px; line-height: 20px; width: 80px;">
+        A simple test<br>
+      </div>
+    `);
+
+    /** @type import('./flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(3);
+    expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
       await this.layout(`

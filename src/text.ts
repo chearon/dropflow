@@ -1664,6 +1664,7 @@ export class Paragraph {
         floats.length = 0;
 
         if (mark.isBreakForced) {
+          const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
           line.postprocess(vacancy, this.ifc.style.textAlign);
           fctx.postLine(line, true);
           blockOffset += line.height();

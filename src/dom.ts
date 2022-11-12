@@ -1,6 +1,6 @@
 import {Box} from './box.js';
 import {loggableText} from './util.js';
-import {ComputedPlainStyle} from './cascade.js';
+import {ComputedPlainStyle, DeclaredPlainStyle} from './cascade.js';
 import selectAll, {Adapter} from './select.js';
 
 export class TextNode {
@@ -25,6 +25,7 @@ export class HTMLElement {
   public style: ComputedPlainStyle;
   public parent: HTMLElement | null;
   public attrs: {[k: string]: string};
+  public declaredStyle: DeclaredPlainStyle | null;
   public children: (TextNode | HTMLElement)[];
   public boxes: Box[];
 
@@ -33,13 +34,15 @@ export class HTMLElement {
     tagName: string,
     style: ComputedPlainStyle,
     parent: HTMLElement | null = null,
-    attrs: {[k: string]: string} = {}
+    attrs: {[k: string]: string} = {},
+    declaredStyle?: DeclaredPlainStyle
   ) {
     this.id = id;
     this.tagName = tagName;
     this.style = style;
     this.parent = parent;
     this.attrs = attrs;
+    this.declaredStyle = declaredStyle || null; // only used by hyperscript API
     this.children = [];
     this.boxes = [];
   }

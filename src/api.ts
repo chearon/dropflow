@@ -1,4 +1,4 @@
-import {HTMLElement} from './node.js';
+import {HTMLElement} from './dom.js';
 import {parseNodes} from './parser.js';
 import {createComputedStyle, initialStyle, DeclaredPlainStyle} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';

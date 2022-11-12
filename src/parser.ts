@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-import {TextNode, HTMLElement} from './node.js';
+import {TextNode, HTMLElement} from './dom.js';
 import {parse as StyleParser} from './css.js';
 import {createComputedStyle, uaDeclaredStyles} from './cascade.js';
 import {id} from './util.js';

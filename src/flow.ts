@@ -1,5 +1,5 @@
 import {binarySearch} from './util.js';
-import {HTMLElement, TextNode} from './node.js';
+import {HTMLElement, TextNode} from './dom.js';
 import {createComputedStyle, Style} from './cascade.js';
 import {Run, Collapser, Paragraph, createParagraph, Linebox} from './text.js';
 import {Box, Area} from './box.js';

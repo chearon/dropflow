@@ -1,9 +1,9 @@
-import {HTMLElement} from './src/node.js';
-import {parseNodes} from './src/parser.js';
-import {createComputedStyle, initialStyle, DeclaredPlainStyle} from './src/cascade.js';
-import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './src/flow.js';
-import {paint as paintHtml} from './src/paint/html/index.js';
-import {Area} from './src/box.js';
+import {HTMLElement} from './node.js';
+import {parseNodes} from './parser.js';
+import {createComputedStyle, initialStyle, DeclaredPlainStyle} from './cascade.js';
+import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
+import {paint as paintHtml} from './paint/html/index.js';
+import {Area} from './box.js';
 import FontConfigInit from 'fontconfig';
 import ItemizerInit from 'itemizer';
 import HarfbuzzInit from 'harfbuzzjs';

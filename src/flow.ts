@@ -747,23 +747,6 @@ export class BlockContainer extends Box {
     return this.containingBlock.direction;
   }
 
-  setBlockSize(size: number) {
-    const content = this.contentArea.createLogicalView(this.writingMode);
-    const padding = this.paddingArea.createLogicalView(this.writingMode);
-    const border = this.borderArea.createLogicalView(this.writingMode);
-    const style = this.style.createLogicalView(this.writingMode);
-
-    content.blockSize = size;
-
-    padding.blockSize = content.blockSize
-      + style.paddingBlockStart
-      + style.paddingBlockEnd;
-
-    border.blockSize = padding.blockSize
-      + style.borderBlockStartWidth
-      + style.borderBlockEndWidth;
-  }
-
   getContainingBlockToContent() {
     const style = this.style.createLogicalView(this.writingMode);
     const border = this.borderArea.createLogicalView(this.writingMode);
@@ -808,17 +791,6 @@ export class BlockContainer extends Box {
       blockEnd: marginBlockEnd,
       lineLeft: marginLineLeft
     };
-  }
-
-  setBlockPosition(position: number) {
-    const content = this.contentArea.createLogicalView(this.writingMode);
-    const padding = this.paddingArea.createLogicalView(this.writingMode);
-    const border = this.borderArea.createLogicalView(this.writingMode);
-    const style = this.style.createLogicalView(this.writingMode);
-
-    border.blockStart = position;
-    padding.blockStart = style.borderBlockStartWidth;
-    content.blockStart = style.paddingBlockStart;
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

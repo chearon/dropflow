@@ -301,6 +301,44 @@ export class Box {
     }
   }
 
+  setBlockPosition(position: number) {
+    if (!this.containingBlock) {
+      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
+    }
+
+    const writingMode = this.containingBlock.writingMode;
+    const content = this.contentArea.createLogicalView(writingMode);
+    const padding = this.paddingArea.createLogicalView(writingMode);
+    const border = this.borderArea.createLogicalView(writingMode);
+    const style = this.style.createLogicalView(writingMode);
+
+    border.blockStart = position;
+    padding.blockStart = style.borderBlockStartWidth;
+    content.blockStart = style.paddingBlockStart;
+  }
+
+  setBlockSize(size: number) {
+    if (!this.containingBlock) {
+      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
+    }
+
+    const writingMode = this.containingBlock.writingMode;
+    const content = this.contentArea.createLogicalView(writingMode);
+    const padding = this.paddingArea.createLogicalView(writingMode);
+    const border = this.borderArea.createLogicalView(writingMode);
+    const style = this.style.createLogicalView(writingMode);
+
+    content.blockSize = size;
+
+    padding.blockSize = content.blockSize
+      + style.paddingBlockStart
+      + style.paddingBlockEnd;
+
+    border.blockSize = padding.blockSize
+      + style.borderBlockStartWidth
+      + style.borderBlockEndWidth;
+  }
+
   *descendents(boxIf?: DescendIf, subtreeIf?: DescendIf): DescendState {
     if (this.children) {
       for (const child of this.children) {

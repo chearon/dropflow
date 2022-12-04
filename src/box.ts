@@ -177,10 +177,6 @@ export class Area {
   }
 }
 
-type DescendIf = (box: Box) => boolean;
-
-type DescendState = Iterable<['pre' | 'post', Box]>;
-
 export class Box {
   public id: string;
   public style: Style;
@@ -335,36 +331,6 @@ export class Box {
 
     const contentSize = paddingSize - paddingLineLeft - paddingLineRight;
     this.contentArea.setInlineSize(writingMode, contentSize);
-  }
-
-  *descendents(boxIf?: DescendIf, subtreeIf?: DescendIf): DescendState {
-    if (this.children) {
-      for (const child of this.children) {
-        let skipChild = false;
-
-        if (boxIf && !boxIf(child)) {
-          skipChild = true;
-          break;
-        }
-
-        if (skipChild) continue;
-
-        yield ['pre', child];
-
-        let skipSubtree = false;
-
-        if (subtreeIf && !subtreeIf(child)) {
-          skipSubtree = true;
-          break;
-        }
-
-        if (!skipSubtree) {
-          yield* child.descendents(boxIf, subtreeIf);
-        }
-
-        yield ['post', child];
-      }
-    }
   }
 
   repr(indent = 0, options?: {containingBlocks?: boolean, css?: keyof Style}) {

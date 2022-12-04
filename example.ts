@@ -1,6 +1,7 @@
 import * as oflo from './node.js';
 
 (async () => {
+  // -------------- Step 0 --------------
   console.time('Add fonts');
   await Promise.all([
     oflo.registerFont('assets/Arimo/Arimo-Bold.ttf'),
@@ -29,7 +30,7 @@ import * as oflo from './node.js';
   console.timeEnd('Add fonts');
   console.log();
 
-  // -------------- Step 0 --------------
+  // -------------- Step 1 --------------
   console.time('Element Tree');
   const rootElement = oflo.parse(`
     <div style="font-family: Arimo; font-size: 16px; line-height: 1.4;">
@@ -50,14 +51,14 @@ import * as oflo from './node.js';
   console.log(rootElement.repr(0, 'backgroundColor'));
   console.log();
 
-  // -------------- Step 1 --------------
+  // -------------- Step 2 --------------
   console.time('Box Tree');
   const blockContainer = oflo.generate(rootElement);
   console.timeEnd('Box Tree');
   console.log(blockContainer.repr());
   console.log();
 
-  // -------------- Step 2 --------------
+  // -------------- Step 3 --------------
   console.time('Layout');
   await oflo.layout(blockContainer, 300, 500);
   console.timeEnd('Layout');
@@ -65,20 +66,6 @@ import * as oflo from './node.js';
   console.log();
 
   // -------------- Step 4 --------------
-  const blocks = new Set([blockContainer.borderArea]);
-  for (const [order, child] of blockContainer.descendents(b => b.isBlockContainer() && b.isBlockLevel())) {
-    if (order === 'pre') blocks.add(child.borderArea);
-    if (child.isBlockContainer() && child.isBlockContainerOfInlines()) {
-      const [ifc] = child.children;
-      for (const float of ifc.floats) {
-        blocks.add(float.borderArea);
-      }
-    }
-  }
-  for (const area of blocks) console.log(area.repr());
-  console.log();
-
-  // -------------- Step 5 --------------
   console.log('Paint');
   console.log(await oflo.paint(blockContainer));
 })();

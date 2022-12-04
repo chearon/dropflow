@@ -223,9 +223,9 @@ export class BlockFormattingContext {
     if (style.blockSize === 'auto') {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
-        const content = box.contentArea.createLogicalView(box.writingMode);
-        if (content.blockSize === undefined) throw new Error('Assertion failed');
-        lineboxHeight = content.blockSize;
+        const blockSize = box.contentArea.getBlockSize(box.writingMode);
+        if (blockSize === undefined) throw new Error('Assertion failed');
+        lineboxHeight = blockSize;
       }
       box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx.getBothBottom()));
     }
@@ -243,7 +243,6 @@ export class BlockFormattingContext {
 
     for (const item of this.stack) {
       const box = 'post' in item ? item.post : item;
-      const border = box.borderArea.createLogicalView(box.writingMode);
       const style = box.style.createLogicalView(box.writingMode);
 
       if ('post' in item) {
@@ -255,15 +254,17 @@ export class BlockFormattingContext {
           box.setBlockSize(childSize);
         }
 
+        const blockSize = box.borderArea.getBlockSize(box.writingMode);
+
         // The block size would only be indeterminate for floats, which are
         // not a part of the descendants() return value, or for orthogonal
         // writing modes, which are also not in descendants() due to their
         // establishing a new BFC. If neither of those are true and the block
         // size is indeterminate that's a bug.
-        assumePx(border.blockSize);
+        assumePx(blockSize);
 
-        sizeStack[level] += border.blockSize;
-        this.cbBlockStart = offset + border.blockSize;
+        sizeStack[level] += blockSize;
+        this.cbBlockStart = offset + blockSize;
 
         // Each time we go beneath a level that was created by the previous
         // positionBlockContainers(), we have to put the margin on the "after"
@@ -467,11 +468,11 @@ class FloatSide {
       box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
     } else {
       if (!box.containingBlock) throw new Error(`${box.id} has no containing block`);
-      const area = box.containingBlock.createLogicalView(box.containingBlock.writingMode);
-      if (area.inlineSize === undefined) throw new Error(`${box.id} containing block has no inline size`);
-      const size = box.borderArea.createLogicalView(box.containingBlock.writingMode).inlineSize;
+      const inlineSize = box.containingBlock.getInlineSize(box.containingBlock.writingMode);
+      if (inlineSize === undefined) throw new Error(`${box.id} containing block has no inline size`);
+      const size = box.borderArea.getInlineSize(box.containingBlock.writingMode);
       if (size === undefined) throw new Error(`${box.id} has no inline size`);
-      box.setInlinePosition(cbOffset - cbLineSide + area.inlineSize - marginOffset - size - marginEnd);
+      box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size - marginEnd);
     }
 
     for (let track = startTrack; track < endTrack; track += 1) {
@@ -756,22 +757,22 @@ export class BlockContainer extends Box {
       throw new Error(`Box ${this.id} has no containing block`);
     }
 
-    const container = this.containingBlock.createLogicalView(this.writingMode);
+    const inlineSize = this.containingBlock.getInlineSize(this.writingMode);
     const style = this.style.createLogicalView(this.writingMode);
-    const border = this.borderArea.createLogicalView(this.writingMode);
+    const bLineLeft = this.borderArea.getLineLeft(this.writingMode);
     const blockStart = style.borderBlockStartWidth + style.paddingBlockStart;
-    const content = this.contentArea.createLogicalView(this.writingMode);
+    const cInlineSize = this.contentArea.getInlineSize(this.writingMode);
 
-    if (border.lineLeft == null || content.inlineSize == null) {
+    if (bLineLeft == null || cInlineSize == null) {
       throw new Error(`Box ${this.id} wasn't inline-laid-out`);
     }
 
-    if (container.inlineSize == null) {
+    if (inlineSize == null) {
       throw new Error(`Containing block ${this.id} wasn't laid out`);
     }
 
-    const lineLeft = border.lineLeft + style.borderLineLeftWidth + style.paddingLineLeft;
-    const lineRight = container.inlineSize - lineLeft - content.inlineSize;
+    const lineLeft = bLineLeft + style.borderLineLeftWidth + style.paddingLineLeft;
+    const lineRight = inlineSize - lineLeft - cInlineSize;
 
     return {blockStart, lineLeft, lineRight};
   }
@@ -914,12 +915,12 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
     throw new Error('doInlineBoxModelForBlockBox called with inline or float');
   }
 
-  const container = box.containingBlock.createLogicalView(box.writingMode);
+  const cInlineSize = box.containingBlock.getInlineSize(box.writingMode);
   const style = box.style.createLogicalView(box.writingMode);
   let marginInlineStart = style.marginLineLeft;
   let marginInlineEnd = style.marginLineRight;
 
-  if (container.inlineSize === undefined) {
+  if (cInlineSize === undefined) {
     throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
   }
 
@@ -935,7 +936,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
 
     // Paragraph 2: zero out auto margins if specified values sum to a length
     // greater than the containing block's width.
-    if (specifiedInlineSize > container.inlineSize) {
+    if (specifiedInlineSize > cInlineSize) {
       if (marginInlineStart === 'auto') marginInlineStart = 0;
       if (marginInlineEnd === 'auto') marginInlineEnd = 0;
     }
@@ -945,20 +946,20 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
       // margin in LTR documents to fill space, or, if the above scenario was
       // hit, it makes the right margin negative.
       if (box.direction === 'ltr') {
-        marginInlineEnd = container.inlineSize - (specifiedInlineSize - marginInlineEnd);
+        marginInlineEnd = cInlineSize - (specifiedInlineSize - marginInlineEnd);
       } else {
-        marginInlineStart = container.inlineSize - (specifiedInlineSize - marginInlineEnd);
+        marginInlineStart = cInlineSize - (specifiedInlineSize - marginInlineEnd);
       }
     } else { // one or both of the margins is auto, specifiedWidth < cb width
       if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
         // Paragraph 4: only auto value is margin-left
-        marginInlineStart = container.inlineSize - specifiedInlineSize;
+        marginInlineStart = cInlineSize - specifiedInlineSize;
       } else if (marginInlineEnd === 'auto' && marginInlineStart !== 'auto') {
         // Paragraph 4: only auto value is margin-right
-        marginInlineEnd = container.inlineSize - specifiedInlineSize;
+        marginInlineEnd = cInlineSize - specifiedInlineSize;
       } else {
         // Paragraph 6: two auto values, center the content
-        const margin = (container.inlineSize - specifiedInlineSize) / 2;
+        const margin = (cInlineSize - specifiedInlineSize) / 2;
         marginInlineStart = marginInlineEnd = margin;
       }
     }
@@ -974,7 +975,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
   assumePx(marginInlineEnd);
 
   box.setInlinePosition(marginInlineStart);
-  box.setInlineOuterSize(container.inlineSize - marginInlineStart - marginInlineEnd);
+  box.setInlineOuterSize(cInlineSize - marginInlineStart - marginInlineEnd);
 }
 
 // §10.6.3
@@ -1130,7 +1131,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
     } else {
       const minContent = layoutContribution(box, ctx, 'min-content');
       const maxContent = layoutContribution(box, ctx, 'max-content');
-      const availableSpace = box.containingBlock.createLogicalView(box.writingMode).inlineSize;
+      const availableSpace = box.containingBlock.getInlineSize(box.writingMode);
       if (availableSpace === undefined) throw new Error('Assertion failed');
       inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
     }
@@ -1139,9 +1140,9 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   doInlineBoxModelForFloatBox(box, inlineSize);
   doBlockBoxModelForBlockBox(box);
 
-  const content = box.contentArea.createLogicalView(box.writingMode);
-  if (content.inlineSize === undefined) throw new Error('Assertion failed');
-  cctx.bfc = new BlockFormattingContext(content.inlineSize);
+  const cInlineSize = box.contentArea.getInlineSize(box.writingMode);
+  if (cInlineSize === undefined) throw new Error('Assertion failed');
+  cctx.bfc = new BlockFormattingContext(cInlineSize);
 
   if (box.isBlockContainerOfInlines()) {
     box.doTextLayout(cctx);

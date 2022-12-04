@@ -10,37 +10,25 @@ export type LogicalArea = {
   inlineSize: number | undefined
 };
 
-const horizontalTb = (area: Area):LogicalArea => ({
-  get blockStart() { return area.top; },
-	set blockStart(v) { area.top = v; },
-  get lineLeft() { return area.left; },
-  set lineLeft(v) { area.left = v; },
-  get blockSize() { return area.height; },
-  set blockSize(v) { area.height = v; },
-  get inlineSize() { return area.width; },
-  set inlineSize(v) { area.width = v; }
-});
-
-const verticalLr = (area: Area):LogicalArea => ({
-  get blockStart() { return area.left; },
-  set blockStart(v) { area.left = v; },
-  get lineLeft() { return area.top; },
-  set lineLeft(v) { area.top = v; },
-  get blockSize() { return area.width; },
-  set blockSize(v) { area.width = v; },
-  get inlineSize() { return area.height; },
-  set inlineSize(v) { area.height = v; }
-});
-
-const verticalRl = (area: Area):LogicalArea => ({
-  get blockStart() { return area.right; },
-  set blockStart(v) { area.right = v; },
-  get lineLeft() { return area.top; },
-  set lineLeft(v) { area.top = v; },
-  get blockSize() { return area.width; },
-  set blockSize(v) { area.width = v; },
-  get inlineSize() { return area.height; },
-  set inlineSize(v) { area.height = v; }
+const LogicalMaps = Object.freeze({
+  'horizontal-tb': Object.freeze({
+    blockStart: 'top',
+    lineLeft: 'left',
+    blockSize: 'height',
+    inlineSize: 'width'
+  }),
+  'vertical-lr': Object.freeze({
+    blockStart: 'left',
+    lineLeft: 'top',
+    blockSize: 'width',
+    inlineSize: 'height'
+  }),
+  'vertical-rl': Object.freeze({
+    blockStart: 'right',
+    lineLeft: 'top',
+    blockSize: 'width',
+    inlineSize: 'height'
+  })
 });
 
 const overspecified = (a: Area, side: string) => new Error(
@@ -120,6 +108,38 @@ export class Area {
     return this.spec.h;
   }
 
+  setBlockStart(writingMode: WritingMode, v: number) {
+    this[LogicalMaps[writingMode].blockStart] = v;
+  }
+
+  getBlockStart(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].blockStart];
+  }
+
+  setLineLeft(writingMode: WritingMode, v: number) {
+    this[LogicalMaps[writingMode].lineLeft] = v;
+  }
+
+  getLineLeft(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].lineLeft];
+  }
+
+  setBlockSize(writingMode: WritingMode, v: number) {
+    this[LogicalMaps[writingMode].blockSize] = v;
+  }
+
+  getBlockSize(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].blockSize];
+  }
+
+  setInlineSize(writingMode: WritingMode, v: number) {
+    this[LogicalMaps[writingMode].inlineSize] = v;
+  }
+
+  getInlineSize(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].inlineSize];
+  }
+
   absolutify() {
     if (!this.parent) {
       throw new Error(`Cannot absolutify area ${this.id}, parent was never set`);
@@ -147,12 +167,6 @@ export class Area {
     if (this.spec.r != null) this.x = px + pwidth - this.spec.r - this.width;
 
     if (this.spec.t != null) this.y = py + this.spec.t;
-  }
-
-  createLogicalView(writingMode: WritingMode) {
-    return writingMode === 'horizontal-tb' ? horizontalTb(this)
-      : writingMode === 'vertical-lr' ? verticalLr(this)
-      : verticalRl(this);
   }
 
   repr(indent = 0) {
@@ -261,14 +275,11 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const content = this.contentArea.createLogicalView(writingMode);
-    const padding = this.paddingArea.createLogicalView(writingMode);
-    const border = this.borderArea.createLogicalView(writingMode);
     const style = this.style.createLogicalView(writingMode);
 
-    border.blockStart = position;
-    padding.blockStart = style.borderBlockStartWidth;
-    content.blockStart = style.paddingBlockStart;
+    this.borderArea.setBlockStart(writingMode, position);
+    this.paddingArea.setBlockStart(writingMode, style.borderBlockStartWidth);
+    this.contentArea.setBlockStart(writingMode, style.paddingBlockStart);
   }
 
   setBlockSize(size: number) {
@@ -277,20 +288,15 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const content = this.contentArea.createLogicalView(writingMode);
-    const padding = this.paddingArea.createLogicalView(writingMode);
-    const border = this.borderArea.createLogicalView(writingMode);
     const style = this.style.createLogicalView(writingMode);
 
-    content.blockSize = size;
+    this.contentArea.setBlockSize(writingMode, size);
 
-    padding.blockSize = content.blockSize
-      + style.paddingBlockStart
-      + style.paddingBlockEnd;
+    const paddingSize = size + style.paddingBlockStart + style.paddingBlockEnd
+    this.paddingArea.setBlockSize(writingMode, paddingSize);
 
-    border.blockSize = padding.blockSize
-      + style.borderBlockStartWidth
-      + style.borderBlockEndWidth;
+    const borderSize = paddingSize + style.borderBlockStartWidth + style.borderBlockEndWidth;
+    this.borderArea.setBlockSize(writingMode, borderSize);
   }
 
   setInlinePosition(lineLeft: number) {
@@ -299,14 +305,11 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const content = this.contentArea.createLogicalView(writingMode);
-    const padding = this.paddingArea.createLogicalView(writingMode);
-    const border = this.borderArea.createLogicalView(writingMode);
     const style = this.style.createLogicalView(writingMode);
 
-    border.lineLeft = lineLeft;
-    padding.lineLeft = style.borderLineLeftWidth;
-    content.lineLeft = style.paddingLineLeft;
+    this.borderArea.setLineLeft(writingMode, lineLeft);
+    this.paddingArea.setLineLeft(writingMode, style.borderLineLeftWidth);
+    this.contentArea.setLineLeft(writingMode, style.paddingLineLeft);
   }
 
   setInlineOuterSize(size: number) {
@@ -315,20 +318,15 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const content = this.contentArea.createLogicalView(writingMode);
-    const padding = this.paddingArea.createLogicalView(writingMode);
-    const border = this.borderArea.createLogicalView(writingMode);
     const style = this.style.createLogicalView(writingMode);
 
-    border.inlineSize = size;
+    this.borderArea.setInlineSize(writingMode, size);
 
-    padding.inlineSize = border.inlineSize
-      - style.borderLineLeftWidth
-      - style.borderLineRightWidth;
+    const paddingSize = size - style.borderLineLeftWidth - style.borderLineRightWidth;
+    this.paddingArea.setInlineSize(writingMode, paddingSize);
 
-    content.inlineSize = padding.inlineSize
-      - style.paddingLineLeft
-      - style.paddingLineRight;
+    const contentSize = paddingSize - style.paddingLineLeft - style.paddingLineRight;
+    this.contentArea.setInlineSize(writingMode, contentSize);
   }
 
   *descendents(boxIf?: DescendIf, subtreeIf?: DescendIf): DescendState {

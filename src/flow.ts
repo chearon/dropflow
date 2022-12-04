@@ -111,11 +111,13 @@ export class BlockFormattingContext {
 
   boxStart(box: BlockContainer, ctx: LayoutContext) {
     const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent();
-    const style = box.style.createLogicalView(box.writingMode);
+    const paddingBlockStart = box.style.getPaddingBlockStart(box.writingMode);
+    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(box.writingMode);
+    const marginBlockStart = box.style.getMarginBlockStart(box.writingMode);
     let floatBottom = 0;
     let clearance = 0;
 
-    assumePx(style.marginBlockStart);
+    assumePx(marginBlockStart);
 
     if (box.style.clear === 'left' || box.style.clear === 'both') {
       floatBottom = Math.max(floatBottom, this.fctx.getLeftBottom());
@@ -126,18 +128,17 @@ export class BlockFormattingContext {
     }
 
     if (box.style.clear !== 'none') {
-      const hypo = this.margin.collection.clone().add(style.marginBlockStart).get();
+      const hypo = this.margin.collection.clone().add(marginBlockStart).get();
       clearance = Math.max(clearance, floatBottom - (this.cbBlockStart + hypo));
     }
 
     const adjoinsPrevious = clearance === 0;
-    const adjoinsNext = style.paddingBlockStart === 0
-      && style.borderBlockStartWidth === 0;
+    const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
 
     if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
     if (adjoinsPrevious) {
-      this.margin.collection.add(style.marginBlockStart);
+      this.margin.collection.add(marginBlockStart);
     } else {
       this.positionBlockContainers();
       const c = floatBottom - this.cbBlockStart;
@@ -171,20 +172,23 @@ export class BlockFormattingContext {
 
   boxEnd(box: BlockContainer) {
     const {lineLeft, lineRight} = box.getContainingBlockToContent();
-    const style = box.style.createLogicalView(box.writingMode);
-    let adjoins = style.paddingBlockEnd === 0
-      && style.borderBlockEndWidth === 0
+    const paddingBlockEnd = box.style.getPaddingBlockEnd(box.writingMode);
+    const borderBlockEndWidth = box.style.getBorderBlockEndWidth(box.writingMode);
+    const marginBlockEnd = box.style.getMarginBlockEnd(box.writingMode);
+    let adjoins = paddingBlockEnd === 0
+      && borderBlockEndWidth === 0
       && (this.margin.clearanceAtLevel == null || this.level > this.margin.clearanceAtLevel);
 
-    assumePx(style.marginBlockEnd);
+    assumePx(marginBlockEnd);
     if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
     if (adjoins) {
       if (this.last === 'start') {
         adjoins = box.canCollapseThrough();
       } else {
+        const blockSize = box.style.getBlockSize(box.writingMode);
         // Handle the end of a block box that was at the end of its parent
-        adjoins = style.blockSize === 'auto';
+        adjoins = blockSize === 'auto';
       }
     }
 
@@ -204,7 +208,7 @@ export class BlockFormattingContext {
       this.hypotheticals.set(box, this.margin.collection.get());
     }
 
-    this.margin.collection.add(style.marginBlockEnd);
+    this.margin.collection.add(marginBlockEnd);
     // When a box's end adjoins to the previous margin, move the "root" (the
     // box which the margin will be placed adjacent to) to the highest-up box
     // in the tree, since its siblings need to be shifted.
@@ -216,11 +220,11 @@ export class BlockFormattingContext {
   finalize(box: BlockContainer, ctx: LayoutContext) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
 
-    const style = box.style.createLogicalView(box.writingMode);
+    const blockSize = box.style.getBlockSize(box.writingMode);
 
     this.positionBlockContainers();
 
-    if (style.blockSize === 'auto') {
+    if (blockSize === 'auto') {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
         const blockSize = box.contentArea.getBlockSize(box.writingMode);
@@ -243,14 +247,14 @@ export class BlockFormattingContext {
 
     for (const item of this.stack) {
       const box = 'post' in item ? item.post : item;
-      const style = box.style.createLogicalView(box.writingMode);
 
       if ('post' in item) {
         const childSize = sizeStack.pop()!;
         const offset = offsetStack.pop()!;
         const level = sizeStack.length - 1;
+        const sBlockSize = box.style.getBlockSize(box.writingMode);
 
-        if (style.blockSize === 'auto' && box.isBlockContainerOfBlockContainers() && !box.isBfcRoot()) {
+        if (sBlockSize === 'auto' && box.isBlockContainerOfBlockContainers() && !box.isBfcRoot()) {
           box.setBlockSize(childSize);
         }
 
@@ -758,9 +762,10 @@ export class BlockContainer extends Box {
     }
 
     const inlineSize = this.containingBlock.getInlineSize(this.writingMode);
-    const style = this.style.createLogicalView(this.writingMode);
+    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this.writingMode);
+    const paddingBlockStart = this.style.getPaddingBlockStart(this.writingMode);
     const bLineLeft = this.borderArea.getLineLeft(this.writingMode);
-    const blockStart = style.borderBlockStartWidth + style.paddingBlockStart;
+    const blockStart = borderBlockStartWidth + paddingBlockStart;
     const cInlineSize = this.contentArea.getInlineSize(this.writingMode);
 
     if (bLineLeft == null || cInlineSize == null) {
@@ -771,29 +776,41 @@ export class BlockContainer extends Box {
       throw new Error(`Containing block ${this.id} wasn't laid out`);
     }
 
-    const lineLeft = bLineLeft + style.borderLineLeftWidth + style.paddingLineLeft;
+    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this.writingMode);
+    const paddingLineLeft = this.style.getPaddingLineLeft(this.writingMode);
+    const lineLeft = bLineLeft + borderLineLeftWidth + paddingLineLeft;
     const lineRight = inlineSize - lineLeft - cInlineSize;
 
     return {blockStart, lineLeft, lineRight};
   }
 
   getDefiniteInlineSize() {
-    const style = this.style.createLogicalView(this.writingMode);
+    const inlineSize = this.style.getInlineSize(this.writingMode);
 
-    if (style.inlineSize !== 'auto') {
-      return (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft)
-        + style.borderLineLeftWidth
-        + style.paddingLineLeft
-        + style.inlineSize
-        + style.paddingLineRight
-        + style.borderLineRightWidth
-        + (style.marginLineRight === 'auto' ? 0 : style.marginLineRight);
+    if (inlineSize !== 'auto') {
+      const marginLineLeft = this.style.getMarginLineLeft(this.writingMode);
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this.writingMode);
+      const paddingLineLeft = this.style.getPaddingLineLeft(this.writingMode);
+
+      const paddingLineRight = this.style.getPaddingLineRight(this.writingMode);
+      const borderLineRightWidth = this.style.getBorderLineRightWidth(this.writingMode);
+      const marginLineRight = this.style.getMarginLineRight(this.writingMode);
+
+      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+        + borderLineLeftWidth
+        + paddingLineLeft
+        + inlineSize
+        + paddingLineRight
+        + borderLineRightWidth
+        + (marginLineRight === 'auto' ? 0 : marginLineRight);
     }
   }
 
   getMarginsAutoIsZero() {
-    const style = this.style.createLogicalView(this.writingMode);
-    let {marginBlockStart, marginBlockEnd, marginLineLeft, marginLineRight} = style;
+    let marginLineLeft = this.style.getMarginLineLeft(this.writingMode);
+    let marginLineRight = this.style.getMarginLineRight(this.writingMode);
+    let marginBlockStart = this.style.getMarginBlockStart(this.writingMode);
+    let marginBlockEnd = this.style.getMarginBlockEnd(this.writingMode);
 
     if (marginBlockStart === 'auto') marginBlockStart = 0;
     if (marginLineRight === 'auto') marginLineRight = 0;
@@ -852,9 +869,9 @@ export class BlockContainer extends Box {
   }
 
   canCollapseThrough() {
-    const style = this.style.createLogicalView(this.writingMode);
+    const blockSize = this.style.getBlockSize(this.writingMode);
 
-    if (style.blockSize !== 'auto' && style.blockSize !== 0) return false;
+    if (blockSize !== 'auto' && blockSize !== 0) return false;
 
     if (this.isBlockContainerOfInlines()) {
       const [ifc] = this.children;
@@ -879,9 +896,9 @@ export class BlockContainer extends Box {
   doTextLayout(ctx: LayoutContext) {
     if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
     const [ifc] = this.children;
-    const style = this.style.createLogicalView(this.writingMode);
+    const blockSize = this.style.getBlockSize(this.writingMode);
     ifc.doTextLayout(ctx);
-    if (style.blockSize === 'auto') this.setBlockSize(ifc.paragraph.height);
+    if (blockSize === 'auto') this.setBlockSize(ifc.paragraph.height);
   }
 }
 
@@ -916,77 +933,81 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
   }
 
   const cInlineSize = box.containingBlock.getInlineSize(box.writingMode);
-  const style = box.style.createLogicalView(box.writingMode);
-  let marginInlineStart = style.marginLineLeft;
-  let marginInlineEnd = style.marginLineRight;
+  const inlineSize = box.style.getInlineSize(box.writingMode);
+  let marginLineLeft = box.style.getMarginLineLeft(box.writingMode);
+  let marginLineRight = box.style.getMarginLineRight(box.writingMode);
 
   if (cInlineSize === undefined) {
     throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
   }
 
   // Paragraphs 2 and 3
-  if (style.inlineSize !== 'auto') {
-    const specifiedInlineSize = style.inlineSize
-      + style.borderLineLeftWidth
-      + style.paddingLineLeft
-      + style.paddingLineRight
-      + style.borderLineRightWidth
-      + (marginInlineStart === 'auto' ? 0 : marginInlineStart)
-      + (marginInlineEnd === 'auto' ? 0 : marginInlineEnd);
+  if (inlineSize !== 'auto') {
+    const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box.writingMode);
+    const paddingLineLeft = box.style.getPaddingLineLeft(box.writingMode);
+    const paddingLineRight = box.style.getPaddingLineRight(box.writingMode);
+    const borderLineRightWidth = box.style.getBorderLineRightWidth(box.writingMode);
+    const specifiedInlineSize = inlineSize
+      + borderLineLeftWidth
+      + paddingLineLeft
+      + paddingLineRight
+      + borderLineRightWidth
+      + (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+      + (marginLineRight === 'auto' ? 0 : marginLineRight);
 
     // Paragraph 2: zero out auto margins if specified values sum to a length
     // greater than the containing block's width.
     if (specifiedInlineSize > cInlineSize) {
-      if (marginInlineStart === 'auto') marginInlineStart = 0;
-      if (marginInlineEnd === 'auto') marginInlineEnd = 0;
+      if (marginLineLeft === 'auto') marginLineLeft = 0;
+      if (marginLineRight === 'auto') marginLineRight = 0;
     }
 
-    if (marginInlineStart !== 'auto' && marginInlineEnd !== 'auto') {
+    if (marginLineLeft !== 'auto' && marginLineRight !== 'auto') {
       // Paragraph 3: check over-constrained values. This expands the right
       // margin in LTR documents to fill space, or, if the above scenario was
       // hit, it makes the right margin negative.
       if (box.direction === 'ltr') {
-        marginInlineEnd = cInlineSize - (specifiedInlineSize - marginInlineEnd);
+        marginLineRight = cInlineSize - (specifiedInlineSize - marginLineRight);
       } else {
-        marginInlineStart = cInlineSize - (specifiedInlineSize - marginInlineEnd);
+        marginLineLeft = cInlineSize - (specifiedInlineSize - marginLineRight);
       }
     } else { // one or both of the margins is auto, specifiedWidth < cb width
-      if (marginInlineStart === 'auto' && marginInlineEnd !== 'auto') {
+      if (marginLineLeft === 'auto' && marginLineRight !== 'auto') {
         // Paragraph 4: only auto value is margin-left
-        marginInlineStart = cInlineSize - specifiedInlineSize;
-      } else if (marginInlineEnd === 'auto' && marginInlineStart !== 'auto') {
+        marginLineLeft = cInlineSize - specifiedInlineSize;
+      } else if (marginLineRight === 'auto' && marginLineLeft !== 'auto') {
         // Paragraph 4: only auto value is margin-right
-        marginInlineEnd = cInlineSize - specifiedInlineSize;
+        marginLineRight = cInlineSize - specifiedInlineSize;
       } else {
         // Paragraph 6: two auto values, center the content
         const margin = (cInlineSize - specifiedInlineSize) / 2;
-        marginInlineStart = marginInlineEnd = margin;
+        marginLineLeft = marginLineRight = margin;
       }
     }
   }
 
   // Paragraph 5: auto width
-  if (style.inlineSize === 'auto') {
-    if (marginInlineStart === 'auto') marginInlineStart = 0;
-    if (marginInlineEnd === 'auto') marginInlineEnd = 0;
+  if (inlineSize === 'auto') {
+    if (marginLineLeft === 'auto') marginLineLeft = 0;
+    if (marginLineRight === 'auto') marginLineRight = 0;
   }
 
-  assumePx(marginInlineStart);
-  assumePx(marginInlineEnd);
+  assumePx(marginLineLeft);
+  assumePx(marginLineRight);
 
-  box.setInlinePosition(marginInlineStart);
-  box.setInlineOuterSize(cInlineSize - marginInlineStart - marginInlineEnd);
+  box.setInlinePosition(marginLineLeft);
+  box.setInlineOuterSize(cInlineSize - marginLineLeft - marginLineRight);
 }
 
 // §10.6.3
 function doBlockBoxModelForBlockBox(box: BlockContainer) {
-  const style = box.style.createLogicalView(box.writingMode);
+  const blockSize = box.style.getBlockSize(box.writingMode);
 
   if (!box.isBlockLevel()) {
     throw new Error('doBlockBoxModelForBlockBox called with inline');
   }
 
-  if (style.blockSize === 'auto') {
+  if (blockSize === 'auto') {
     if (box.children.length === 0) {
       box.setBlockSize(0); // Case 4
     } else {
@@ -996,7 +1017,7 @@ function doBlockBoxModelForBlockBox(box: BlockContainer) {
       // more might need to happen here.
     }
   } else {
-    box.setBlockSize(style.blockSize);
+    box.setBlockSize(blockSize);
   }
 }
 
@@ -1047,11 +1068,12 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
 }
 
 function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
-  const style = box.style.createLogicalView(box.writingMode);
+  const marginLineLeft = box.style.getMarginLineLeft(box.writingMode);
+  const marginLineRight = box.style.getMarginLineRight(box.writingMode);
   box.setInlineOuterSize(
     inlineSize -
-    (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft) -
-    (style.marginLineRight === 'auto' ? 0 : style.marginLineRight)
+    (marginLineLeft === 'auto' ? 0 : marginLineLeft) -
+    (marginLineRight === 'auto' ? 0 : marginLineRight)
   );
 }
 
@@ -1092,14 +1114,19 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
     }
   }
 
-  const style = box.style.createLogicalView(box.writingMode);
+  const marginLineLeft = box.style.getMarginLineLeft(box.writingMode);
+  const marginLineRight = box.style.getMarginLineRight(box.writingMode);
+  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box.writingMode);
+  const paddingLineLeft = box.style.getPaddingLineLeft(box.writingMode);
+  const paddingLineRight = box.style.getPaddingLineRight(box.writingMode);
+  const borderLineRightWidth = box.style.getBorderLineRightWidth(box.writingMode);
 
-  intrinsicSize += (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft)
-    + style.borderLineLeftWidth
-    + style.paddingLineLeft
-    + style.paddingLineRight
-    + style.borderLineRightWidth
-    + (style.marginLineRight === 'auto' ? 0 : style.marginLineRight);
+  intrinsicSize += (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+    + borderLineLeftWidth
+    + paddingLineLeft
+    + paddingLineRight
+    + borderLineRightWidth
+    + (marginLineRight === 'auto' ? 0 : marginLineRight);
 
   return intrinsicSize;
 }

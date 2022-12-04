@@ -275,11 +275,12 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const style = this.style.createLogicalView(writingMode);
+    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(writingMode);
+    const paddingBlockStart = this.style.getPaddingBlockStart(writingMode);
 
     this.borderArea.setBlockStart(writingMode, position);
-    this.paddingArea.setBlockStart(writingMode, style.borderBlockStartWidth);
-    this.contentArea.setBlockStart(writingMode, style.paddingBlockStart);
+    this.paddingArea.setBlockStart(writingMode, borderBlockStartWidth);
+    this.contentArea.setBlockStart(writingMode, paddingBlockStart);
   }
 
   setBlockSize(size: number) {
@@ -288,14 +289,17 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const style = this.style.createLogicalView(writingMode);
+    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(writingMode);
+    const paddingBlockStart = this.style.getPaddingBlockStart(writingMode);
+    const paddingBlockEnd = this.style.getPaddingBlockEnd(writingMode);
+    const borderBlockEndWidth = this.style.getBorderBlockEndWidth(writingMode);
 
     this.contentArea.setBlockSize(writingMode, size);
 
-    const paddingSize = size + style.paddingBlockStart + style.paddingBlockEnd
+    const paddingSize = size + paddingBlockStart + paddingBlockEnd
     this.paddingArea.setBlockSize(writingMode, paddingSize);
 
-    const borderSize = paddingSize + style.borderBlockStartWidth + style.borderBlockEndWidth;
+    const borderSize = paddingSize + borderBlockStartWidth + borderBlockEndWidth;
     this.borderArea.setBlockSize(writingMode, borderSize);
   }
 
@@ -305,11 +309,12 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const style = this.style.createLogicalView(writingMode);
+    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(writingMode);
+    const paddingLineLeft = this.style.getPaddingLineLeft(writingMode);
 
     this.borderArea.setLineLeft(writingMode, lineLeft);
-    this.paddingArea.setLineLeft(writingMode, style.borderLineLeftWidth);
-    this.contentArea.setLineLeft(writingMode, style.paddingLineLeft);
+    this.paddingArea.setLineLeft(writingMode, borderLineLeftWidth);
+    this.contentArea.setLineLeft(writingMode, paddingLineLeft);
   }
 
   setInlineOuterSize(size: number) {
@@ -318,14 +323,17 @@ export class Box {
     }
 
     const writingMode = this.containingBlock.writingMode;
-    const style = this.style.createLogicalView(writingMode);
+    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(writingMode);
+    const paddingLineLeft = this.style.getPaddingLineLeft(writingMode);
+    const paddingLineRight = this.style.getPaddingLineRight(writingMode);
+    const borderLineRightWidth = this.style.getBorderLineRightWidth(writingMode);
 
     this.borderArea.setInlineSize(writingMode, size);
 
-    const paddingSize = size - style.borderLineLeftWidth - style.borderLineRightWidth;
+    const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
     this.paddingArea.setInlineSize(writingMode, paddingSize);
 
-    const contentSize = paddingSize - style.paddingLineLeft - style.paddingLineRight;
+    const contentSize = paddingSize - paddingLineLeft - paddingLineRight;
     this.contentArea.setInlineSize(writingMode, contentSize);
   }
 

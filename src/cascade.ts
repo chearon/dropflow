@@ -27,55 +27,55 @@ export type LogicalStyle = {
   inlineSize: number | 'auto'
 };
 
-const horizontalTb = (style: Style):LogicalStyle => ({
-  get marginBlockStart() { return style.marginTop; },
-  get marginBlockEnd() { return style.marginBottom; },
-  get marginLineLeft() { return style.marginLeft; },
-  get marginLineRight() { return style.marginRight; },
-  get paddingBlockStart() { return style.paddingTop; },
-  get paddingBlockEnd() { return style.paddingBottom; },
-  get paddingLineLeft() { return style.paddingLeft; },
-  get paddingLineRight() { return style.paddingRight; },
-  get borderBlockStartWidth() { return style.borderTopWidth; },
-  get borderBlockEndWidth() { return style.borderBottomWidth; },
-  get borderLineLeftWidth() { return style.borderLeftWidth; },
-  get borderLineRightWidth() { return style.borderRightWidth; },
-  get blockSize() { return style.height; },
-  get inlineSize() { return style.width; }
-});
-
-const verticalLr = (style: Style):LogicalStyle => ({
-  get marginBlockStart() { return style.marginLeft; },
-  get marginBlockEnd() { return style.marginRight; },
-  get marginLineLeft() { return style.marginTop; },
-  get marginLineRight() { return style.marginBottom; },
-  get paddingBlockStart() { return style.paddingLeft; },
-  get paddingBlockEnd() { return style.paddingRight; },
-  get paddingLineLeft() { return style.paddingTop; },
-  get paddingLineRight() { return style.paddingBottom; },
-  get borderBlockStartWidth() { return style.borderLeftWidth; },
-  get borderBlockEndWidth() { return style.borderRightWidth; },
-  get borderLineLeftWidth() { return style.borderTopWidth; },
-  get borderLineRightWidth() { return style.borderBottomWidth; },
-  get blockSize() { return style.width; },
-  get inlineSize() { return style.height; }
-});
-
-const verticalRl = (style: Style):LogicalStyle => ({
-  get marginBlockStart() { return style.marginRight; },
-  get marginBlockEnd() { return style.marginLeft; },
-  get marginLineLeft() { return style.marginTop; },
-  get marginLineRight() { return style.marginBottom; },
-  get paddingBlockStart() { return style.paddingRight; },
-  get paddingBlockEnd() { return style.paddingLeft; },
-  get paddingLineLeft() { return style.paddingTop; },
-  get paddingLineRight() { return style.paddingBottom; },
-  get borderBlockStartWidth() { return style.borderRightWidth; },
-  get borderBlockEndWidth() { return style.borderLeftWidth; },
-  get borderLineLeftWidth() { return style.borderTopWidth; },
-  get borderLineRightWidth() { return style.borderBottomWidth; },
-  get blockSize() { return style.width; },
-  get inlineSize() { return style.height; }
+const LogicalMaps = Object.freeze({
+  'horizontal-tb': Object.freeze({
+    marginBlockStart: 'marginTop',
+    marginBlockEnd: 'marginBottom',
+    marginLineLeft: 'marginLeft',
+    marginLineRight: 'marginRight',
+    paddingBlockStart: 'paddingTop',
+    paddingBlockEnd: 'paddingBottom',
+    paddingLineLeft: 'paddingLeft',
+    paddingLineRight: 'paddingRight',
+    borderBlockStartWidth: 'borderTopWidth',
+    borderBlockEndWidth: 'borderBottomWidth',
+    borderLineLeftWidth: 'borderLeftWidth',
+    borderLineRightWidth: 'borderRightWidth',
+    blockSize: 'height',
+    inlineSize: 'width'
+  }),
+  'vertical-lr': Object.freeze({
+    marginBlockStart: 'marginLeft',
+    marginBlockEnd: 'marginRight',
+    marginLineLeft: 'marginTop',
+    marginLineRight: 'marginBottom',
+    paddingBlockStart: 'paddingLeft',
+    paddingBlockEnd: 'paddingRight',
+    paddingLineLeft: 'paddingTop',
+    paddingLineRight: 'paddingBottom',
+    borderBlockStartWidth: 'borderLeftWidth',
+    borderBlockEndWidth: 'borderRightWidth',
+    borderLineLeftWidth: 'borderTopWidth',
+    borderLineRightWidth: 'borderBottomWidth',
+    blockSize: 'width',
+    inlineSize: 'height'
+  }),
+  'vertical-rl': Object.freeze({
+    marginBlockStart: 'marginRight',
+    marginBlockEnd: 'marginLeft',
+    marginLineLeft: 'marginTop',
+    marginLineRight: 'marginBottom',
+    paddingBlockStart: 'paddingRight',
+    paddingBlockEnd: 'paddingLeft',
+    paddingLineLeft: 'paddingTop',
+    paddingLineRight: 'paddingBottom',
+    borderBlockStartWidth: 'borderRightWidth',
+    borderBlockEndWidth: 'borderLeftWidth',
+    borderLineLeftWidth: 'borderTopWidth',
+    borderLineRightWidth: 'borderBottomWidth',
+    blockSize: 'width',
+    inlineSize: 'height'
+  })
 });
 
 type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
@@ -467,10 +467,60 @@ export class Style implements ComputedPlainStyle {
     return this.s.textAlign;
   }
 
-  createLogicalView(writingMode: WritingMode) {
-    return writingMode === 'horizontal-tb' ? horizontalTb(this) :
-      writingMode === 'vertical-lr' ? verticalLr(this) :
-      verticalRl(this);
+  getMarginBlockStart(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].marginBlockStart];
+  }
+
+  getMarginBlockEnd(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].marginBlockEnd];
+  }
+
+  getMarginLineLeft(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].marginLineLeft];
+  }
+
+  getMarginLineRight(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].marginLineRight];
+  }
+
+  getPaddingBlockStart(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].paddingBlockStart];
+  }
+
+  getPaddingBlockEnd(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].paddingBlockEnd];
+  }
+
+  getPaddingLineLeft(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].paddingLineLeft];
+  }
+
+  getPaddingLineRight(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].paddingLineRight];
+  }
+
+  getBorderBlockStartWidth(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].borderBlockStartWidth];
+  }
+
+  getBorderBlockEndWidth(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].borderBlockEndWidth];
+  }
+
+  getBorderLineLeftWidth(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].borderLineLeftWidth];
+  }
+
+  getBorderLineRightWidth(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].borderLineRightWidth];
+  }
+
+  getBlockSize(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].blockSize];
+  }
+
+  getInlineSize(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].inlineSize];
   }
 }
 

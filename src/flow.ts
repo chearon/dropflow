@@ -462,12 +462,16 @@ class FloatSide {
     const cbLineSide = box.style.float === 'left' ? cbLineLeft : cbLineRight;
     const marginOffset = box.style.float === 'left' ? margins.lineLeft : margins.lineRight;
     const marginEnd = box.style.float === 'left' ? margins.lineRight : margins.lineLeft;
-    const borderArea = box.borderArea.createLogicalView(box.writingMode);
 
     if (box.style.float === 'left') {
-      borderArea.lineLeft = cbOffset - cbLineSide + marginOffset;
+      box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
     } else {
-      borderArea.lineRight = cbOffset - cbLineSide + marginOffset;
+      if (!box.containingBlock) throw new Error(`${box.id} has no containing block`);
+      const area = box.containingBlock.createLogicalView(box.containingBlock.writingMode);
+      if (area.inlineSize === undefined) throw new Error(`${box.id} containing block has no inline size`);
+      const size = box.borderArea.createLogicalView(box.containingBlock.writingMode).inlineSize;
+      if (size === undefined) throw new Error(`${box.id} has no inline size`);
+      box.setInlinePosition(cbOffset - cbLineSide + area.inlineSize - marginOffset - size - marginEnd);
     }
 
     for (let track = startTrack; track < endTrack; track += 1) {
@@ -748,16 +752,26 @@ export class BlockContainer extends Box {
   }
 
   getContainingBlockToContent() {
+    if (!this.containingBlock) {
+      throw new Error(`Box ${this.id} has no containing block`);
+    }
+
+    const container = this.containingBlock.createLogicalView(this.writingMode);
     const style = this.style.createLogicalView(this.writingMode);
     const border = this.borderArea.createLogicalView(this.writingMode);
     const blockStart = style.borderBlockStartWidth + style.paddingBlockStart;
+    const content = this.contentArea.createLogicalView(this.writingMode);
 
-    if (border.lineLeft == null || border.lineRight == null) {
-      throw new Error(`Couldn't get borderToContent: box ${this.id} wasn't inline-laid-out`);
+    if (border.lineLeft == null || content.inlineSize == null) {
+      throw new Error(`Box ${this.id} wasn't inline-laid-out`);
+    }
+
+    if (container.inlineSize == null) {
+      throw new Error(`Containing block ${this.id} wasn't laid out`);
     }
 
     const lineLeft = border.lineLeft + style.borderLineLeftWidth + style.paddingLineLeft;
-    const lineRight = border.lineRight + style.borderLineRightWidth + style.paddingLineRight;
+    const lineRight = container.inlineSize - lineLeft - content.inlineSize;
 
     return {blockStart, lineLeft, lineRight};
   }
@@ -950,27 +964,17 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
     }
   }
 
-  const content = box.contentArea.createLogicalView(box.writingMode);
   // Paragraph 5: auto width
   if (style.inlineSize === 'auto') {
     if (marginInlineStart === 'auto') marginInlineStart = 0;
     if (marginInlineEnd === 'auto') marginInlineEnd = 0;
   }
 
-  const padding = box.paddingArea.createLogicalView(box.writingMode);
-  const border = box.borderArea.createLogicalView(box.writingMode);
-
   assumePx(marginInlineStart);
   assumePx(marginInlineEnd);
 
-  border.lineLeft = marginInlineStart;
-  border.lineRight = marginInlineEnd;
-
-  padding.lineLeft = style.borderLineLeftWidth;
-  padding.lineRight = style.borderLineRightWidth;
-
-  content.lineLeft = style.paddingLineLeft;
-  content.lineRight = style.paddingLineRight;
+  box.setInlinePosition(marginInlineStart);
+  box.setInlineOuterSize(container.inlineSize - marginInlineStart - marginInlineEnd);
 }
 
 // §10.6.3
@@ -1043,19 +1047,11 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
 
 function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
   const style = box.style.createLogicalView(box.writingMode);
-  const border = box.borderArea.createLogicalView(box.writingMode);
-  const padding = box.paddingArea.createLogicalView(box.writingMode);
-  const content = box.contentArea.createLogicalView(box.writingMode);
-
-  border.inlineSize = inlineSize -
+  box.setInlineOuterSize(
+    inlineSize -
     (style.marginLineLeft === 'auto' ? 0 : style.marginLineLeft) -
-    (style.marginLineRight === 'auto' ? 0 : style.marginLineRight);
-
-  padding.lineLeft = style.borderLineLeftWidth;
-  padding.lineRight = style.borderLineRightWidth;
-
-  content.lineLeft = style.paddingLineLeft;
-  content.lineRight = style.paddingLineRight;
+    (style.marginLineRight === 'auto' ? 0 : style.marginLineRight)
+  );
 }
 
 function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-content' | 'max-content') {

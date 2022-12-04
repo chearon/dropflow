@@ -5,9 +5,7 @@ import {Break, Inline, IfcInline, BlockContainer} from './flow.js';
 
 export type LogicalArea = {
   blockStart: number | undefined
-  blockEnd: number | undefined
   lineLeft: number | undefined
-  lineRight: number | undefined
   blockSize: number | undefined
   inlineSize: number | undefined
 };
@@ -15,12 +13,8 @@ export type LogicalArea = {
 const horizontalTb = (area: Area):LogicalArea => ({
   get blockStart() { return area.top; },
 	set blockStart(v) { area.top = v; },
-  get blockEnd() { return area.bottom; },
-  set blockEnd(v) { area.bottom = v; },
   get lineLeft() { return area.left; },
   set lineLeft(v) { area.left = v; },
-  get lineRight() { return area.right; },
-  set lineRight(v) { area.right = v; },
   get blockSize() { return area.height; },
   set blockSize(v) { area.height = v; },
   get inlineSize() { return area.width; },
@@ -30,12 +24,8 @@ const horizontalTb = (area: Area):LogicalArea => ({
 const verticalLr = (area: Area):LogicalArea => ({
   get blockStart() { return area.left; },
   set blockStart(v) { area.left = v; },
-  get blockEnd() { return area.right; },
-  set blockEnd(v) { area.right = v; },
   get lineLeft() { return area.top; },
   set lineLeft(v) { area.top = v; },
-  get lineRight() { return area.bottom; },
-  set lineRight(v) { area.bottom = v; },
   get blockSize() { return area.width; },
   set blockSize(v) { area.width = v; },
   get inlineSize() { return area.height; },
@@ -45,12 +35,8 @@ const verticalLr = (area: Area):LogicalArea => ({
 const verticalRl = (area: Area):LogicalArea => ({
   get blockStart() { return area.right; },
   set blockStart(v) { area.right = v; },
-  get blockEnd() { return area.left; },
-  set blockEnd(v) { area.left = v; },
   get lineLeft() { return area.top; },
   set lineLeft(v) { area.top = v; },
-  get lineRight() { return area.bottom; },
-  set lineRight(v) { area.bottom = v; },
   get blockSize() { return area.width; },
   set blockSize(v) { area.width = v; },
   get inlineSize() { return area.height; },
@@ -73,7 +59,6 @@ export class Area {
   private spec: {
     t?: number;
     r?: number;
-    b?: number;
     l?: number;
     w?: number;
     h?: number;
@@ -94,75 +79,45 @@ export class Area {
   }
 
   set top(v: number | undefined) {
-    if (this.spec.b != null && this.spec.h != null) throw overspecified(this, 'top');
     this.spec.t = v;
   }
 
   get top() {
-    if (this.spec.t != null) return this.spec.t;
-    if (this.spec.b != null && this.spec.h != null && this.parent && this.parent.height != null) {
-      return this.parent.height - this.spec.b - this.spec.h;
-    }
+    return this.spec.t;
   }
 
   set right(v: number | undefined) {
-    if (this.spec.l != null && this.spec.w != null) throw overspecified(this, 'right');
+    if (this.spec.l != null) throw overspecified(this, 'right');
     this.spec.r = v;
   }
 
   get right() {
-    if (this.spec.r != null) return this.spec.r;
-    if (this.spec.l != null && this.spec.w != null && this.parent && this.parent.width != null) {
-      return this.parent.width - this.spec.l - this.spec.w;
-    }
-  }
-
-  set bottom(v: number | undefined) {
-    if (this.spec.t != null && this.spec.h != null) throw overspecified(this, 'bottom');
-    this.spec.b = v;
-  }
-
-  get bottom() {
-    if (this.spec.b != null) return this.spec.b;
-    if (this.spec.t != null && this.spec.h != null && this.parent && this.parent.height != null) {
-      return this.parent.height - this.spec.t - this.spec.h;
-    }
+    return this.spec.r;
   }
 
   set left(v: number | undefined) {
-    if (this.spec.r != null && this.spec.w != null) throw overspecified(this, 'left');
+    if (this.spec.r != null) throw overspecified(this, 'left');
     this.spec.l = v;
   }
 
   get left() {
-    if (this.spec.l != null) return this.spec.l;
-    if (this.spec.r != null && this.spec.w != null && this.parent && this.parent.width != null) {
-      return this.parent.width - this.spec.r - this.spec.w;
-    }
+    return this.spec.l;
   }
 
   set width(v: number | undefined) {
-    if (this.spec.l != null && this.spec.r != null) throw overspecified(this, 'width');
     this.spec.w = v;
   }
 
   set height(v: number | undefined) {
-    if (this.spec.t != null && this.spec.b != null) throw overspecified(this, 'height');
     this.spec.h = v;
   }
 
   get width():number | undefined {
-    if (this.spec.w != null) return this.spec.w;
-    if (this.spec.l != null && this.spec.r != null && this.parent && this.parent.width != null) {
-      return this.parent.width - this.spec.l - this.spec.r;
-    }
+    return this.spec.w;
   }
 
   get height():number | undefined {
-    if (this.spec.h != null) return this.spec.h;
-    if (this.spec.t != null && this.spec.b != null && this.parent && this.parent.height != null) {
-      return this.parent.height - this.spec.t - this.spec.b;
-    }
+    return this.spec.h;
   }
 
   absolutify() {
@@ -182,17 +137,16 @@ export class Area {
       throw new Error(`Cannot absolutify area ${this.id}: no horizontal position`);
     }
 
-    if (this.spec.t == null && this.spec.b == null) {
+    if (this.spec.t == null) {
       throw new Error(`Cannot absolutify area ${this.id}: no vertical position`);
     }
 
-    const {width: pwidth, height: pheight, x: px, y: py} = this.parent;
+    const {width: pwidth, x: px, y: py} = this.parent;
 
     if (this.spec.l != null) this.x = px + this.spec.l;
     if (this.spec.r != null) this.x = px + pwidth - this.spec.r - this.width;
 
     if (this.spec.t != null) this.y = py + this.spec.t;
-    if (this.spec.b != null) this.y = py + pheight - this.spec.b - this.height;
   }
 
   createLogicalView(writingMode: WritingMode) {
@@ -203,8 +157,8 @@ export class Area {
 
   repr(indent = 0) {
     const {width: w, height: h, x, y} = this;
-    const {t, r, b, l} = this.spec;
-    const p1 = `${t ?? '-'} ${r ?? '-'} ${b ?? '-'} ${l ?? '-'}`;
+    const {t, l} = this.spec;
+    const p1 = `${t ?? '-'},${l ?? '-'}`;
     return '  '.repeat(indent) + `⚃ Area ${this.id}: inset: ${p1} → ${w}⨯${h} @${x},${y}`;
   }
 }
@@ -337,6 +291,44 @@ export class Box {
     border.blockSize = padding.blockSize
       + style.borderBlockStartWidth
       + style.borderBlockEndWidth;
+  }
+
+  setInlinePosition(lineLeft: number) {
+    if (!this.containingBlock) {
+      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
+    }
+
+    const writingMode = this.containingBlock.writingMode;
+    const content = this.contentArea.createLogicalView(writingMode);
+    const padding = this.paddingArea.createLogicalView(writingMode);
+    const border = this.borderArea.createLogicalView(writingMode);
+    const style = this.style.createLogicalView(writingMode);
+
+    border.lineLeft = lineLeft;
+    padding.lineLeft = style.borderLineLeftWidth;
+    content.lineLeft = style.paddingLineLeft;
+  }
+
+  setInlineOuterSize(size: number) {
+    if (!this.containingBlock) {
+      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
+    }
+
+    const writingMode = this.containingBlock.writingMode;
+    const content = this.contentArea.createLogicalView(writingMode);
+    const padding = this.paddingArea.createLogicalView(writingMode);
+    const border = this.borderArea.createLogicalView(writingMode);
+    const style = this.style.createLogicalView(writingMode);
+
+    border.inlineSize = size;
+
+    padding.inlineSize = border.inlineSize
+      - style.borderLineLeftWidth
+      - style.borderLineRightWidth;
+
+    content.inlineSize = padding.inlineSize
+      - style.paddingLineLeft
+      - style.paddingLineRight;
   }
 
   *descendents(boxIf?: DescendIf, subtreeIf?: DescendIf): DescendState {

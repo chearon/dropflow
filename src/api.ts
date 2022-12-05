@@ -2,7 +2,7 @@ import {HTMLElement, TextNode} from './dom.js';
 import {parseNodes} from './parser.js';
 import {createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
-import {paint as paintHtml} from './paint/html/index.js';
+import {paint as paintHtml} from './paint/html.js';
 import {Area} from './box.js';
 import {id} from './util.js';
 import FontConfigInit from 'fontconfig';

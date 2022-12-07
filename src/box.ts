@@ -31,11 +31,6 @@ const LogicalMaps = Object.freeze({
   })
 });
 
-const overspecified = (a: Area, side: string) => new Error(
-  `Cannot set ${side} on area ${a.id} because this dimension is already ` +
-  'locked-in (must choose two of width, left, right, for example)'
-);
-
 export class Area {
   id: string;
   writingMode: WritingMode;
@@ -43,14 +38,11 @@ export class Area {
   x = 0;
   y = 0;
   parent?: Area;
-
-  private spec: {
-    t?: number;
-    r?: number;
-    l?: number;
-    w?: number;
-    h?: number;
-  } = {};
+  top?: number;
+  right?: number;
+  left?: number;
+  width?: number;
+  height?: number;
 
   constructor(id: string, style: ComputedPlainStyle, x?: number, y?: number, w?: number, h?: number) {
     this.id = id;
@@ -64,48 +56,6 @@ export class Area {
 
   setParent(p: Area) {
     this.parent = p;
-  }
-
-  set top(v: number | undefined) {
-    this.spec.t = v;
-  }
-
-  get top() {
-    return this.spec.t;
-  }
-
-  set right(v: number | undefined) {
-    if (this.spec.l != null) throw overspecified(this, 'right');
-    this.spec.r = v;
-  }
-
-  get right() {
-    return this.spec.r;
-  }
-
-  set left(v: number | undefined) {
-    if (this.spec.r != null) throw overspecified(this, 'left');
-    this.spec.l = v;
-  }
-
-  get left() {
-    return this.spec.l;
-  }
-
-  set width(v: number | undefined) {
-    this.spec.w = v;
-  }
-
-  set height(v: number | undefined) {
-    this.spec.h = v;
-  }
-
-  get width():number | undefined {
-    return this.spec.w;
-  }
-
-  get height():number | undefined {
-    return this.spec.h;
   }
 
   setBlockStart(writingMode: WritingMode, v: number) {
@@ -153,25 +103,25 @@ export class Area {
       throw new Error(`Cannot absolutify area ${this.id}: indeterminate size`);
     }
 
-    if (this.spec.l == null && this.spec.r == null) {
+    if (this.left == null && this.right == null) {
       throw new Error(`Cannot absolutify area ${this.id}: no horizontal position`);
     }
 
-    if (this.spec.t == null) {
+    if (this.top == null) {
       throw new Error(`Cannot absolutify area ${this.id}: no vertical position`);
     }
 
     const {width: pwidth, x: px, y: py} = this.parent;
 
-    if (this.spec.l != null) this.x = px + this.spec.l;
-    if (this.spec.r != null) this.x = px + pwidth - this.spec.r - this.width;
+    if (this.left != null) this.x = px + this.left;
+    if (this.right != null) this.x = px + pwidth - this.right - this.width;
 
-    if (this.spec.t != null) this.y = py + this.spec.t;
+    if (this.top != null) this.y = py + this.top;
   }
 
   repr(indent = 0) {
     const {width: w, height: h, x, y} = this;
-    const {t, l} = this.spec;
+    const {top: t, left: l} = this;
     const p1 = `${t ?? '-'},${l ?? '-'}`;
     return '  '.repeat(indent) + `⚃ Area ${this.id}: inset: ${p1} → ${w}⨯${h} @${x},${y}`;
   }

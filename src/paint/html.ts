@@ -1,7 +1,6 @@
 import {Color} from '../cascade.js';
 import {BlockContainer, IfcInline, Inline} from '../flow.js';
 import {ShapedItem, getAscenderDescender} from '../text.js';
-import {Area} from '../box.js';
 import {Harfbuzz} from 'harfbuzzjs';
 import {encode} from 'entities';
 
@@ -11,25 +10,12 @@ function camelToKebab(camel: string) {
   return camel.replace(/[A-Z]/g, s => '-' + s.toLowerCase());
 }
 
-function drawDiv(style: StringMap, attrs: StringMap, text: string = '') {
-  const styleString = Object.entries(style).map(([prop, value]) => {
-    return `${camelToKebab(prop)}: ${value}`;
-  }).join('; ');
-
-  const attrString = Object.entries(attrs).map(([name, value]) => {
-    return `${name}="${value}"`; // TODO html entities
-  }).join(' ');
-
-  return `<div style="${styleString};" ${attrString}>${text}</div>`;
-}
-
-function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: Harfbuzz) {
+function drawTextAt(item: ShapedItem, x: number, y: number, hb: Harfbuzz, b: HtmlPaintBackend) {
   const colors = item.paragraph.colors;
   const match = item.match;
   const style = item.attrs.style;
   const hbFont = hb.createFont(item.face);
   const {ascender, descender} = getAscenderDescender(style, hbFont, item.face.upem);
-  let spans = '';
   let glyphStart = 0;
   let glyphEnd = item.glyphs.length - 1;
 
@@ -53,37 +39,14 @@ function drawTextAt(item: ShapedItem, x: number, y: number, depth: number, hb: H
     const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
     const start = Math.max(colorStart, textStart);
     const end = Math.min(colorEnd, textEnd);
-    const text = encode(item.paragraph.string.slice(start, end));
+    const text = item.paragraph.string.slice(start, end);
+    const tx = x + item.measure(start);
 
-    spans += `<span style="color: rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})">${text}</span>`;
+    b.fillColor = color;
+    b.font = `${match.slant} ${match.weight} ${match.width} ${style.fontSize}px ${match.family}`;
+    b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
+    b.text(tx, y, text, {ascender, descender});
   }
-
-  return drawDiv({
-    position: 'absolute',
-    left: '0',
-    top: '0',
-    transform: `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`,
-    font: `${match.slant} ${match.weight} ${match.width} ${style.fontSize}px/0 ${match.family}`,
-    zIndex: String(depth),
-    whiteSpace: 'pre',
-    direction: item.attrs.level % 2 ? 'rtl' : 'ltr',
-    unicodeBidi: 'bidi-override'
-  }, {}, spans);
-}
-
-function drawColoredBoxDiv(area: Area, color: Color, depth: number) {
-  const {id, x, y, width, height} = area;
-  const {r, g, b, a} = color;
-
-  return drawDiv({
-    position: 'absolute',
-    left: x + 'px',
-    top: y + 'px',
-    width: width + 'px',
-    height: height + 'px',
-    backgroundColor: `rgba(${r}, ${g}, ${b}, ${a})`,
-    zIndex: String(depth)
-  }, {title: `area id: ${id}`});
 }
 
 function inlineMarginAdvance(state: IfcPaintState, inline: Inline, side: 'start' | 'end') {
@@ -169,16 +132,16 @@ function inlineBackgroundAdvance(state: IfcPaintState, item: ShapedItem, mark: n
   }
 }
 
-function paintText(state: IfcPaintState, item: ShapedItem, hb: Harfbuzz) {
+function paintText(state: IfcPaintState, item: ShapedItem, hb: Harfbuzz, b: HtmlPaintBackend) {
   const direction = state.ifc.style.direction;
   const w = item.measure();
   const atLeft = direction === 'ltr' ? state.left : state.left - w;
-  const s = drawTextAt(item, atLeft, state.top, state.depth, hb);
+  const atTop = state.top;
 
   state.left = direction === 'ltr' ? state.left + w : state.left - w;
   state.bgcursor = state.left;
 
-  return s;
+  return () => drawTextAt(item, atLeft, atTop, hb, b);
 }
 
 type BackgroundBox = {
@@ -240,11 +203,10 @@ type IfcPaintState = {
   ifc: IfcInline,
   left: number,
   top: number,
-  bgcursor: number,
-  depth: number
+  bgcursor: number
 };
 
-function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: number, hb: Harfbuzz) {
+function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuzz, b: HtmlPaintBackend) {
   if (blockContainer.contentArea.width === undefined) throw new Error('Assertion failed');
 
   if (!blockContainer.isBlockContainerOfInlines()) throw new Error('Assertion failed');
@@ -252,18 +214,16 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
   const [ifc] = blockContainer.children;
   const direction = ifc.style.direction;
   const counts:Map<Inline, number> = new Map();
-  const state:IfcPaintState = {ifc, left: 0, top: 0, bgcursor: 0, depth};
+  const state:IfcPaintState = {ifc, left: 0, top: 0, bgcursor: 0};
   const contentBlockOffset = blockContainer.contentArea.y;
-  let ret = '';
 
   for (const float of ifc.floats) {
-    ret += paintBlockContainer(float, hb, depth);
+    paintBlockContainer(float, hb, b);
   }
 
   for (const linebox of ifc.paragraph.lineboxes) {
     const boxBuilder = new ContiguousBoxBuilder();
     const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
-    let renderedText = '';
 
     if (direction === 'ltr') {
       state.left = blockContainer.contentArea.x + linebox.inlineOffset;
@@ -272,6 +232,8 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
     }
 
     state.top = contentBlockOffset + linebox.blockOffset + linebox.ascender;
+
+    const textQueue = [];
 
     for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
       const item = n.value;
@@ -301,9 +263,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
         }
       }
 
-      if (item instanceof ShapedItem) {
-        renderedText += paintText(state, item, hb);
-      }
+      if (item instanceof ShapedItem) textQueue.push(paintText(state, item, hb, b));
 
       for (let i = item.inlines.length - 1; i >= 0; --i) {
         const inline = item.inlines[i];
@@ -332,30 +292,19 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
       const bgc = inline.style.backgroundColor;
       const clip = inline.style.backgroundClip;
       const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
-      const {r: tr, g: tg, b: tb, a: ta} = borderTopColor;
-      const {r: rr, g: rg, b: rb, a: ra} = borderRightColor;
-      const {r: br, g: bg, b: bb, a: ba} = borderBottomColor;
-      const {r: lr, g: lg, b: lb, a: la} = borderLeftColor;
+      const {a: ta} = borderTopColor;
+      const {a: ra} = borderRightColor;
+      const {a: ba} = borderBottomColor;
+      const {a: la} = borderLeftColor;
 
       for (const {start, end, ascender, descender, naturalStart, naturalEnd} of list) {
         const {paddingTop, paddingRight, paddingBottom, paddingLeft} = inline.style;
         const paintLeft = naturalStart && direction === 'ltr' || naturalEnd && direction === 'rtl';
         const paintRight = naturalEnd && direction === 'ltr' || naturalStart && direction === 'rtl';
         let {borderTopWidth, borderRightWidth, borderBottomWidth, borderLeftWidth} = inline.style;
-        let borderLeft = '';
-        let borderRight = '';
 
-        if (paintLeft) {
-          borderLeft = `${borderLeftWidth}px solid rgba(${lr}, ${lg}, ${lb}, ${la})`;
-        } else {
-          borderLeftWidth = 0;
-        }
-
-        if (paintRight) {
-          borderRight = `${borderRightWidth}px solid rgba(${rr}, ${rg}, ${rb}, ${ra})`;
-        } else {
-          borderRightWidth = 0;
-        }
+        if (!paintLeft) borderLeftWidth = 0;
+        if (!paintRight) borderRightWidth = 0;
 
         if (start !== end && bgc.a > 0) {
           let extraTop = 0;
@@ -371,20 +320,15 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
             extraBottom += borderBottomWidth;
           }
 
-          ret += drawDiv({
-            position: 'absolute',
-            left: Math.min(start, end) + 'px',
-            top: state.top - ascender - extraTop + 'px',
-            width: Math.abs(start - end) + 'px',
-            height: ascender + descender + extraTop + extraBottom + 'px',
-            backgroundColor: `rgba(${bgc.r}, ${bgc.g}, ${bgc.b}, ${bgc.a})`,
-            zIndex: String(depth),
-          }, {title: 'bg for inline ' + inline.id});
+          b.fillColor = bgc;
+          const x = Math.min(start, end);
+          const y = state.top - ascender - extraTop;
+          const width = Math.abs(start - end);
+          const height = ascender + descender + extraTop + extraBottom;
+          b.rect(x, y, width, height);
         }
 
         if (start !== end && (ta > 0 || ra > 0 || ba > 0 || la > 0)) {
-          const borderTop = `${borderTopWidth}px solid rgba(${tr}, ${tg}, ${tb}, ${ta})`;
-          const borderBottom = `${borderBottomWidth}px solid rgba(${br}, ${bg}, ${bb}, ${ba})`;
           let extraLeft = 0;
           let extraRight = 0;
 
@@ -393,74 +337,177 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, depth: numb
           if (paintRight && clip === 'content-box') extraRight += paddingRight;
           if (paintRight && clip !== 'border-box') extraRight += borderRightWidth;
 
-          ret += drawDiv({
-            position: 'absolute',
-            left: Math.min(start, end) - extraLeft + 'px',
-            top: state.top - ascender - paddingTop - borderTopWidth + 'px',
-            width: Math.abs(start - end) + extraLeft + extraRight + 'px',
-            height: paddingTop + ascender + descender + paddingBottom + 'px',
-            zIndex: String(depth),
-            borderTop,
-            borderRight,
-            borderBottom,
-            borderLeft,
-          }, {title: 'borders for inline ' + inline.id});
+          const left = Math.min(start, end) - extraLeft;
+          const top = state.top - ascender - paddingTop - borderTopWidth;
+          const width = Math.abs(start - end) + extraLeft + extraRight;
+          const height = paddingTop + ascender + descender + paddingBottom;
+
+          const work = [
+            ['top', borderTopWidth, borderTopColor],
+            ['right', borderRightWidth, borderRightColor],
+            ['bottom', borderBottomWidth, borderBottomColor],
+            ['left', borderLeftWidth, borderLeftColor]
+          ] as const;
+
+          // TODO there's a bug here: try
+          // <span style="background-color:red; border-left: 2px solid yellow; border-top: 4px solid maroon;">red</span>
+
+          for (const [side, lineWidth, color] of work) {
+            const length = side === 'left' || side === 'right'
+              ? height + borderTopWidth + borderBottomWidth
+              : width + borderLeftWidth + borderRightWidth;
+            let x = side === 'right' ? borderLeftWidth + left + width : borderLeftWidth + left;
+            let y = side === 'bottom' ? borderTopWidth + top + height : borderTopWidth + top;
+            x += side === 'left' ? -lineWidth/2 : side === 'right' ? lineWidth/2 : -borderLeftWidth;
+            y += side === 'top' ? -lineWidth/2 : side === 'bottom' ? lineWidth/2 : -borderTopWidth;
+            b.lineWidth = lineWidth;
+            b.strokeColor = color;
+            b.edge(x, y, length, side);
+          }
         }
       }
     }
 
-    ret += renderedText;
+    for (const cb of textQueue) cb();
 
     state.top += linebox.descender;
   }
-
-  return ret;
 }
 
-function paintBlockContainer(blockContainer: BlockContainer, hb: Harfbuzz, depth = 0) {
+function paintBlockContainer(blockContainer: BlockContainer, hb: Harfbuzz, b: HtmlPaintBackend) {
   const style = blockContainer.style;
   const {backgroundColor, backgroundClip} = style;
   const {paddingArea, borderArea, contentArea} = blockContainer;
-  let s = backgroundClip === 'border-box' ? drawColoredBoxDiv(borderArea, backgroundColor, depth) :
-    backgroundClip === 'padding-box' ? drawColoredBoxDiv(paddingArea, backgroundColor, depth) :
-    backgroundClip === 'content-box' ? drawColoredBoxDiv(contentArea, backgroundColor, depth) :
-    '';
+  const area = backgroundClip === 'border-box' ? borderArea :
+    backgroundClip === 'padding-box' ? paddingArea :
+    contentArea;
 
-  // now paint borders TODO border styles that aren't solid, border-radius
-  for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
-    // @ts-ignore
-    const sideWidth = style[`border${side}Width`];
-    if (sideWidth > 0) {
-      // @ts-ignore
-      const borderColor = style[`border${side}Color`];
-      const height = side === 'Top' || side === 'Bottom' ? sideWidth : borderArea.height;
-      const width = side === 'Left' || side === 'Right' ? sideWidth : borderArea.width;
+  if (area.width === undefined || area.height === undefined) throw new Error('Assertion failed');
+  if (borderArea.width === undefined || borderArea.height === undefined) {
+    throw new Error('cannot paint padding area, indeterminate size');
+  }
 
-      if (paddingArea.width === undefined || paddingArea.height === undefined) {
-        throw new Error('cannot paint padding area, indeterminate size');
-      }
+  b.fillColor = backgroundColor;
+  b.rect(area.x, area.y, area.width, area.height);
 
-      const x = side == 'Right' ? paddingArea.x + paddingArea.width : borderArea.x;
-      const y = side === 'Bottom' ? paddingArea.y + paddingArea.height : borderArea.y;
-      const a = new Area('', style, x, y, width, height);
+  const work = [
+    ['top', style.borderTopWidth, style.borderTopColor],
+    ['right', style.borderRightWidth, style.borderRightColor],
+    ['bottom', style.borderBottomWidth, style.borderBottomColor],
+    ['left', style.borderLeftWidth, style.borderLeftColor],
+  ] as const;
 
-      s += drawColoredBoxDiv(a, borderColor, depth);
-    }
+  for (const [side, lineWidth, color] of work) {
+    if (lineWidth === 0) continue;
+    const length = side === 'top' || side === 'bottom' ? borderArea.width : borderArea.height;
+    let x = side === 'right' ? borderArea.x + borderArea.width - lineWidth: borderArea.x;
+    let y = side === 'bottom' ? borderArea.y + borderArea.height - lineWidth : borderArea.y;
+    b.strokeColor = color;
+    b.lineWidth = lineWidth;
+    x += side === 'left' ? -lineWidth/2 : side === 'right' ? lineWidth/2 : 0;
+    y += side === 'top' ? -lineWidth/2 : side === 'bottom' ? lineWidth/2 : 0;
+    b.edge(x, y, length, side);
   }
 
   if (blockContainer.isBlockContainerOfInlines()) {
-    s += paintBlockContainerOfInline(blockContainer, depth, hb);
+    paintBlockContainerOfInline(blockContainer, hb, b);
   }
 
   for (const child of blockContainer.children) {
     if (child.isBlockContainer()) {
-      s += paintBlockContainer(child, hb, depth + 1);
+      paintBlockContainer(child, hb, b);
     }
   }
+}
 
-  return s;
+class HtmlPaintBackend {
+  s: string;
+  fillColor: Color;
+  strokeColor: Color;
+  lineWidth: number;
+  direction: 'ltr' | 'rtl';
+  font: string;
+  hb: Harfbuzz;
+
+  constructor(hb: Harfbuzz) {
+    this.s = '';
+    this.fillColor = {r: 0, g: 0, b: 0, a: 0};
+    this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
+    this.lineWidth = 0;
+    this.direction = 'ltr';
+    this.font = '';
+    this.hb = hb;
+  }
+
+  style(style: StringMap) {
+    return Object.entries(style).map(([prop, value]) => {
+      return `${camelToKebab(prop)}: ${value}`;
+    }).join('; ');
+  }
+
+  attrs(attrs: StringMap) {
+    return Object.entries(attrs).map(([name, value]) => {
+      return `${name}="${value}"`;
+    }).join(' ');
+  }
+
+  // TODO: pass in amount of each side that's shared with another border so they can divide
+  // TODO: pass in border-radius
+  edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left') {
+    const {r, g, b, a} = this.strokeColor;
+    const sw = this.lineWidth;
+    const left = (side === 'left' ? x - sw/2 : side === 'right' ? x - sw/2 : x) + 'px';
+    const top = (side === 'top' ? y - sw/2 : side === 'bottom' ? y - sw/2 : y) + 'px';
+    const width = side === 'top' || side === 'bottom' ? length + 'px' : sw + 'px';
+    const height = side === 'left' || side === 'right' ? length + 'px' : sw + 'px';
+    const position = 'absolute';
+    const backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
+    const style = this.style({position, left, top, width, height, backgroundColor});
+
+    this.s += `<div style="${style}"></div>`;
+  }
+
+  text(
+    x: number,
+    y: number,
+    text: string,
+    // TODO split text into text and textHtml which takes this arg.
+    // then the frontend can be more efficient for canvas
+    extents: {ascender: number, descender: number}
+  ) {
+    const {ascender, descender} = extents;
+    const {r, g, b, a} = this.fillColor;
+    const style = this.style({
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      transform: `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`,
+      font: this.font,
+      lineHeight: '0',
+      whiteSpace: 'pre',
+      direction: this.direction,
+      unicodeBidi: 'bidi-override',
+      color: `rgba(${r}, ${g}, ${b}, ${a})`
+    });
+    this.s += `<div style="${style}">${encode(text)}</div>`;
+  }
+
+  rect(x: number, y: number, w: number, h: number) {
+    const {r, g, b, a} = this.fillColor;
+    const style = this.style({
+      position: 'absolute',
+      left: x + 'px',
+      top: y + 'px',
+      width: w + 'px',
+      height: h + 'px',
+      backgroundColor: `rgba(${r}, ${g}, ${b}, ${a})`
+    });
+    this.s += `<div style="${style}"></div>`;
+  }
 }
 
 export function paint(blockContainer: BlockContainer, hb: Harfbuzz) {
-  return paintBlockContainer(blockContainer, hb);
+  const b = new HtmlPaintBackend(hb);
+  paintBlockContainer(blockContainer, hb, b);
+  return b.s;
 }

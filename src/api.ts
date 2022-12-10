@@ -2,7 +2,8 @@ import {HTMLElement, TextNode} from './dom.js';
 import {parseNodes} from './parser.js';
 import {createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
-import {paint as paintHtml} from './paint/html.js';
+import HtmlPaintBackend from './paint/html.js';
+import paintBlockContainer from './paint/paint.js';
 import {Area} from './box.js';
 import {id} from './util.js';
 import FontConfigInit from 'fontconfig';
@@ -78,8 +79,10 @@ export async function layout(root: BlockContainer, width = 640, height = 480) {
   root.absolutify();
 }
 
-export async function paint(root: BlockContainer) {
-  return paintHtml(root, await HarfbuzzInit);
+export async function paintToHtml(root: BlockContainer) {
+  const b = new HtmlPaintBackend(await HarfbuzzInit);
+  paintBlockContainer(root, await HarfbuzzInit, b);
+  return b.s;
 }
 
 type Node = HTMLElement | TextNode;

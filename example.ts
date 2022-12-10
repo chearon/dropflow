@@ -67,5 +67,5 @@ import * as oflo from './node.js';
 
   // -------------- Step 4 --------------
   console.log('Paint');
-  console.log(await oflo.paint(blockContainer));
+  console.log(await oflo.paintToHtml(blockContainer));
 })();

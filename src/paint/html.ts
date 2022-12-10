@@ -340,7 +340,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuz
           const left = Math.min(start, end) - extraLeft;
           const top = state.top - ascender - paddingTop - borderTopWidth;
           const width = Math.abs(start - end) + extraLeft + extraRight;
-          const height = paddingTop + ascender + descender + paddingBottom;
+          const height = borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth;
 
           const work = [
             ['top', borderTopWidth, borderTopColor],
@@ -353,13 +353,11 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuz
           // <span style="background-color:red; border-left: 2px solid yellow; border-top: 4px solid maroon;">red</span>
 
           for (const [side, lineWidth, color] of work) {
-            const length = side === 'left' || side === 'right'
-              ? height + borderTopWidth + borderBottomWidth
-              : width + borderLeftWidth + borderRightWidth;
-            let x = side === 'right' ? borderLeftWidth + left + width : borderLeftWidth + left;
-            let y = side === 'bottom' ? borderTopWidth + top + height : borderTopWidth + top;
-            x += side === 'left' ? -lineWidth/2 : side === 'right' ? lineWidth/2 : -borderLeftWidth;
-            y += side === 'top' ? -lineWidth/2 : side === 'bottom' ? lineWidth/2 : -borderTopWidth;
+            const length = side === 'left' || side === 'right' ? height : width;
+            let x = side === 'right' ? left + width : left;
+            let y = side === 'bottom' ? top + height : top;
+            x += side === 'left' ? lineWidth/2 : side === 'right' ? -lineWidth/2 : 0;
+            y += side === 'top' ? lineWidth/2 : side === 'bottom' ? -lineWidth/2 : 0;
             b.lineWidth = lineWidth;
             b.strokeColor = color;
             b.edge(x, y, length, side);

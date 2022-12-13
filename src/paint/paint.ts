@@ -1,7 +1,7 @@
 import {BlockContainer, IfcInline, Inline} from '../flow.js';
 import {ShapedItem, getAscenderDescender} from '../text.js';
-import {Harfbuzz} from 'harfbuzzjs';
 import {Color} from '../cascade.js';
+import {hb} from '../deps.js';
 
 export interface PaintBackend {
   fillColor: Color;
@@ -14,7 +14,7 @@ export interface PaintBackend {
   rect(x: number, y: number, w: number, h: number): void;
 }
 
-function drawTextAt(item: ShapedItem, x: number, y: number, hb: Harfbuzz, b: PaintBackend) {
+function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
   const colors = item.paragraph.colors;
   const match = item.match;
   const style = item.attrs.style;
@@ -136,7 +136,7 @@ function inlineBackgroundAdvance(state: IfcPaintState, item: ShapedItem, mark: n
   }
 }
 
-function paintText(state: IfcPaintState, item: ShapedItem, hb: Harfbuzz, b: PaintBackend) {
+function paintText(state: IfcPaintState, item: ShapedItem, b: PaintBackend) {
   const direction = state.ifc.style.direction;
   const w = item.measure();
   const atLeft = direction === 'ltr' ? state.left : state.left - w;
@@ -145,7 +145,7 @@ function paintText(state: IfcPaintState, item: ShapedItem, hb: Harfbuzz, b: Pain
   state.left = direction === 'ltr' ? state.left + w : state.left - w;
   state.bgcursor = state.left;
 
-  return () => drawTextAt(item, atLeft, atTop, hb, b);
+  return () => drawTextAt(item, atLeft, atTop, b);
 }
 
 type BackgroundBox = {
@@ -166,7 +166,7 @@ class ContiguousBoxBuilder {
     this.closed = new Map();
   }
 
-  open(inline: Inline, naturalStart: boolean, start: number, hb: Harfbuzz) {
+  open(inline: Inline, naturalStart: boolean, start: number) {
     const box = this.opened.get(inline);
     if (!inline.face) throw new Error(`Inline ${inline.id} never got an HbFace`);
     if (box) {
@@ -210,7 +210,7 @@ type IfcPaintState = {
   bgcursor: number
 };
 
-function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuzz, b: PaintBackend) {
+function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBackend) {
   if (blockContainer.contentArea.width === undefined) throw new Error('Assertion failed');
 
   if (!blockContainer.isBlockContainerOfInlines()) throw new Error('Assertion failed');
@@ -222,7 +222,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuz
   const contentBlockOffset = blockContainer.contentArea.y;
 
   for (const float of ifc.floats) {
-    paintBlockContainer(float, hb, b);
+    paintBlockContainer(float, b);
   }
 
   for (const linebox of ifc.paragraph.lineboxes) {
@@ -258,7 +258,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuz
         }
 
         if (isFirstOccurance) inlineSideAdvance(state, inline, 'start');
-        boxBuilder.open(inline, isFirstOccurance, state.bgcursor, hb);
+        boxBuilder.open(inline, isFirstOccurance, state.bgcursor);
 
         if (isFirstOccurance) {
           counts.set(inline, 1);
@@ -267,7 +267,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuz
         }
       }
 
-      if (item instanceof ShapedItem) textQueue.push(paintText(state, item, hb, b));
+      if (item instanceof ShapedItem) textQueue.push(paintText(state, item, b));
 
       for (let i = item.inlines.length - 1; i >= 0; --i) {
         const inline = item.inlines[i];
@@ -376,7 +376,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, hb: Harfbuz
   }
 }
 
-export default function paintBlockContainer(blockContainer: BlockContainer, hb: Harfbuzz, b: PaintBackend) {
+export default function paintBlockContainer(blockContainer: BlockContainer, b: PaintBackend) {
   const style = blockContainer.style;
   const {backgroundColor, backgroundClip} = style;
   const {paddingArea, borderArea, contentArea} = blockContainer;
@@ -412,12 +412,12 @@ export default function paintBlockContainer(blockContainer: BlockContainer, hb: 
   }
 
   if (blockContainer.isBlockContainerOfInlines()) {
-    paintBlockContainerOfInline(blockContainer, hb, b);
+    paintBlockContainerOfInline(blockContainer, b);
   }
 
   for (const child of blockContainer.children) {
     if (child.isBlockContainer()) {
-      paintBlockContainer(child, hb, b);
+      paintBlockContainer(child, b);
     }
   }
 }

@@ -6,9 +6,7 @@ import HtmlPaintBackend from './paint/html.js';
 import paintBlockContainer from './paint/paint.js';
 import {Area} from './box.js';
 import {id} from './util.js';
-import FontConfigInit from 'fontconfig';
-import ItemizerInit from 'itemizer';
-import HarfbuzzInit from 'harfbuzzjs';
+import {fcfg} from './deps.js';
 
 function getRootComputedStyle(style?: DeclaredPlainStyle) {
   return createComputedStyle(initialStyle, {
@@ -28,18 +26,8 @@ function getRootComputedStyle(style?: DeclaredPlainStyle) {
 // html api is just for development
 // ***
 
-let fcfg: FontConfigInit.FontConfig | undefined;
-let fcfgPromise: Promise<FontConfigInit.FontConfig> | undefined;
-
-export async function getFontConfigConfig() {
-  if (fcfg) return fcfg;
-  if (fcfgPromise) return await fcfgPromise;
-  return fcfgPromise = FontConfigInit.then(FontConfig => new FontConfig());
-}
-
-export async function registerFont(path: string) {
-  const cfg = await getFontConfigConfig();
-  await cfg.addFont(path);
+export function registerFont(path: string) {
+  return fcfg.addFont(path);
 }
 
 // TODO: remove the style argument. read styles on <html> instead
@@ -62,26 +50,24 @@ export function generate(rootElement: HTMLElement) {
 }
 
 export async function layout(root: BlockContainer, width = 640, height = 480) {
-  const [cfg, itemizer, hb] = await Promise.all([getFontConfigConfig(), ItemizerInit, HarfbuzzInit]);
   const initialContainingBlock = new Area('', root.style, 0, 0, width, height);
   root.containingBlock = initialContainingBlock;
   root.setBlockPosition(0);
   const logging = {text: new Set([])};
-  await root.preprocess({fcfg: cfg, itemizer, hb, logging});
+  await root.preprocess({logging});
   layoutBlockBox(root, {
     bfc: new BlockFormattingContext(300),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
     mode: 'normal',
-    logging,
-    hb
+    logging
   });
   root.absolutify();
 }
 
 export async function paintToHtml(root: BlockContainer) {
-  const b = new HtmlPaintBackend(await HarfbuzzInit);
-  paintBlockContainer(root, await HarfbuzzInit, b);
+  const b = new HtmlPaintBackend();
+  paintBlockContainer(root, b);
   return b.s;
 }
 

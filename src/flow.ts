@@ -3,9 +3,7 @@ import {HTMLElement, TextNode} from './dom.js';
 import {createComputedStyle, Style} from './cascade.js';
 import {Run, Collapser, Paragraph, createParagraph, Linebox} from './text.js';
 import {Box, Area} from './box.js';
-import {Harfbuzz, HbFace} from 'harfbuzzjs';
-import {FontConfig} from 'fontconfig';
-import {Itemizer} from 'itemizer';
+import {HbFace} from 'harfbuzzjs';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -34,14 +32,10 @@ export type LayoutContext = {
   lastPositionedArea: Area,
   mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext,
-  hb: Harfbuzz,
   logging: {text: Set<string>}
 };
 
 export type PreprocessContext = {
-  fcfg: FontConfig,
-  itemizer: Itemizer,
-  hb: Harfbuzz,
   logging: {text: Set<string>}
 };
 

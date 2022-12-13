@@ -3,11 +3,12 @@ import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import {getBuffer} from './io.js';
-import {Harfbuzz, HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
-import {FontConfig, Cascade} from 'fontconfig';
+import {HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
+import {Cascade} from 'fontconfig';
 import LineBreak from './unicode/lineBreak.js';
 import nextGraphemeBreak from './unicode/graphemeBreak.js';
 import type {FontConfigCssMatch} from 'fontconfig';
+import {fcfg, itemizer, hb} from './deps.js';
 
 let debug = true;
 
@@ -324,7 +325,7 @@ async function getFontBuffer(filename: string) {
   return await bufferp;
 }
 
-async function createFace(hb: Harfbuzz, filename: string, index: number) {
+async function createFace(filename: string, index: number) {
   const buffer = await getFontBuffer(filename);
   const blob = hb.createBlob(buffer);
   const face = hb.createFace(blob, index);
@@ -332,16 +333,16 @@ async function createFace(hb: Harfbuzz, filename: string, index: number) {
   return face;
 }
 
-function getFace(hb: Harfbuzz, filename: string, index: number) {
+function getFace(filename: string, index: number) {
   let fontp = hbFaceCache.get(filename + index);
   if (!fontp) {
-    fontp = createFace(hb, filename, index);
+    fontp = createFace(filename, index);
     hbFaceCache.set(filename + index, fontp);
   }
   return fontp;
 }
 
-function getCascade(fcfg: FontConfig, style: Style, script: string) {
+function getCascade(style: Style, script: string) {
   const fontKey = createFontKey(style, script);
   let cascade = cascadeCache.get(fontKey);
   if (!cascade) {
@@ -637,8 +638,8 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   reshape(ctx: LayoutContext) {
-    const font = ctx.hb.createFont(this.face);
-    const buf = this.paragraph.createAndShapeBuffer(ctx.hb, this.offset, this.text.length, font, this.attrs);
+    const font = hb.createFont(this.face);
+    const buf = this.paragraph.createAndShapeBuffer(this.offset, this.text.length, font, this.attrs);
     this.glyphs = buf.json();
     buf.destroy();
     font.destroy();
@@ -1112,7 +1113,7 @@ export class Paragraph {
     };
   }
 
-  *itemize({itemizer}: PreprocessContext) {
+  *itemize() {
     if (this.string.length === 0) return;
 
     const iEmoji = itemizer.emoji(this.string);
@@ -1163,7 +1164,7 @@ export class Paragraph {
     }
   }
 
-  createAndShapeBuffer(hb: Harfbuzz, offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+  createAndShapeBuffer(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const buf = hb.createBuffer();
     buf.setClusterLevel(1);
     buf.addUtf16(this.array.byteOffset, this.array.length, offset, length);
@@ -1174,7 +1175,7 @@ export class Paragraph {
     return buf;
   }
 
-  createExtentsArray(hb: Harfbuzz, styles: [Style, number][], faces: [HbFace, number][]) {
+  createExtentsArray(styles: [Style, number][], faces: [HbFace, number][]) {
     const extents:[{ascender: number, descender: number}, number][] = [];
     const facemap:Map<HbFace, HbFont> = new Map();
     let lastFace = null;
@@ -1208,7 +1209,6 @@ export class Paragraph {
 
   async shape(ctx: PreprocessContext) {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
-    const {hb, fcfg} = ctx;
     const items:ShapedItem[] = [];
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
@@ -1222,10 +1222,10 @@ export class Paragraph {
     log += `Full text: "${this.string}"\n`;
     let lastItemIndex = 0;
 
-    for (const {i: itemIndex, attrs} of this.itemize(ctx)) {
+    for (const {i: itemIndex, attrs} of this.itemize()) {
       const start = lastItemIndex;
       const end = itemIndex;
-      const cascade = getCascade(fcfg, attrs.style, attrs.script);
+      const cascade = getCascade(attrs.style, attrs.script);
       const text = this.slice(start, end);
       const shapeWork = [{offset: start, text}];
 
@@ -1237,7 +1237,7 @@ export class Paragraph {
       cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
         const match = cascade.matches[i].toCssMatch();
         const isLastMatch = i === cascade.matches.length - 1;
-        const face = await getFace(hb, match.file, match.index);
+        const face = await getFace(match.file, match.index);
         // TODO set size and such for hinting?
         const font = hb.createFont(face);
         // Allows to tack successive (re)shaping parts onto one larger item
@@ -1272,7 +1272,7 @@ export class Paragraph {
 
         while (shapeWork.length) {
           const {text, offset} = shapeWork.pop()!;
-          const buf = this.createAndShapeBuffer(ctx.hb, offset, text.length, font, attrs);
+          const buf = this.createAndShapeBuffer(offset, text.length, font, attrs);
           const shapedPart = buf.json();
           let didPushPart = false;
 
@@ -1362,7 +1362,7 @@ export class Paragraph {
     }
 
     this.colors = colors;
-    this.extents = this.createExtentsArray(ctx.hb, styles, faces.sort((a, b) => a[1] - b[1]));
+    this.extents = this.createExtentsArray(styles, faces.sort((a, b) => a[1] - b[1]));
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
   }
 
@@ -1724,7 +1724,7 @@ export class Paragraph {
   }
 }
 
-function createIfcBuffer(hb: Harfbuzz, text: string) {
+function createIfcBuffer(text: string) {
   const allocation = hb.allocateUint16Array(text.length);
   const a = allocation.array;
 
@@ -1758,14 +1758,14 @@ function createIfcBuffer(hb: Harfbuzz, text: string) {
 }
 
 export async function createParagraph(ifc: IfcInline, ctx: PreprocessContext) {
-  const strutCascade = getCascade(ctx.fcfg, ifc.style, 'Latn');
+  const strutCascade = getCascade(ifc.style, 'Latn');
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
-  const strutFace = await getFace(ctx.hb, strutFontMatch.file, strutFontMatch.index);
-  const strutFont = ctx.hb.createFont(strutFace);
+  const strutFace = await getFace(strutFontMatch.file, strutFontMatch.index);
+  const strutFont = hb.createFont(strutFace);
   const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
   // TODO: if this lib ever gets used more seriously, need to expose a way to
   // teardown memory retained here
-  const buffer = createIfcBuffer(ctx.hb, ifc.text);
+  const buffer = createIfcBuffer(ifc.text);
   strutFont.destroy();
   return new Paragraph(ifc, strut, buffer.array);
 }

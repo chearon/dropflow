@@ -1,5 +1,4 @@
 import {Color} from '../cascade.js';
-import {Harfbuzz} from 'harfbuzzjs';
 import {encode} from 'entities';
 import {PaintBackend} from './paint.js';
 
@@ -16,16 +15,14 @@ export default class HtmlPaintBackend implements PaintBackend {
   lineWidth: number;
   direction: 'ltr' | 'rtl';
   font: string;
-  hb: Harfbuzz;
 
-  constructor(hb: Harfbuzz) {
+  constructor() {
     this.s = '';
     this.fillColor = {r: 0, g: 0, b: 0, a: 0};
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
     this.direction = 'ltr';
     this.font = '';
-    this.hb = hb;
   }
 
   style(style: StringMap) {

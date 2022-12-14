@@ -4,27 +4,8 @@ import * as oflo from './node.js';
 console.time('Add fonts');
 await Promise.all([
   oflo.registerFont('assets/Arimo/Arimo-Bold.ttf'),
-  oflo.registerFont('assets/Arimo/Arimo-BoldItalic.ttf'),
-  oflo.registerFont('assets/Arimo/Arimo-Italic.ttf'),
   oflo.registerFont('assets/Arimo/Arimo-Regular.ttf'),
-  oflo.registerFont('assets/Cousine/Cousine-Bold.ttf'),
-  oflo.registerFont('assets/Cousine/Cousine-BoldItalic.ttf'),
-  oflo.registerFont('assets/Cousine/Cousine-Italic.ttf'),
-  oflo.registerFont('assets/Cousine/Cousine-Regular.ttf'),
-  oflo.registerFont('assets/Tinos/Tinos-Bold.ttf'),
-  oflo.registerFont('assets/Tinos/Tinos-BoldItalic.ttf'),
-  oflo.registerFont('assets/Tinos/Tinos-Italic.ttf'),
-  oflo.registerFont('assets/Tinos/Tinos-Regular.ttf'),
-  oflo.registerFont('assets/Noto/NotoColorEmoji.ttf'),
-  oflo.registerFont('assets/Noto/NotoSansSC-Regular.otf'),
-  oflo.registerFont('assets/Noto/NotoSansJP-Regular.otf'),
-  oflo.registerFont('assets/Noto/NotoSansTC-Regular.otf'),
-  oflo.registerFont('assets/Noto/NotoSansKR-Regular.otf'),
-  oflo.registerFont('assets/Noto/NotoSansHebrew-Regular.ttf'),
-  oflo.registerFont('assets/Noto/NotoSansCherokee-Regular.ttf'),
-  oflo.registerFont('assets/Ramabhadra/Ramabhadra-Regular.ttf'),
-  oflo.registerFont('assets/Roboto/Roboto-Regular.ttf'),
-  oflo.registerFont('assets/Cairo/Cairo-Regular.ttf')
+  oflo.registerFont('assets/Cousine/Cousine-Regular.ttf')
 ]);
 console.timeEnd('Add fonts');
 console.log();

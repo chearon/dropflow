@@ -1341,7 +1341,7 @@ export class Paragraph {
             faces.push([face, offset]);
             items.push(new ShapedItem(this, face, match, glyphs, offset, text, {...attrs}));
 
-            if (isLastMatch) {
+            if (isLastMatch && reshape) {
               log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
               break cascade;
             } else {

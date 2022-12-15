@@ -308,8 +308,8 @@ function basename(p: string) {
   return p.match(/([^.\/]+)\.[A-z]+$/)?.[1] || p;
 }
 
-function createFontKey(style: Style, script: string) {
-  return `${style.fontWeight} ${style.fontVariant} ${style.fontFamily} ${script}`;
+function createFontKey(s: Style, script: string) {
+  return `${s.fontStyle} ${s.fontWeight} ${s.fontStretch} ${s.fontFamily} ${script}`;
 }
 
 const fontBufferCache = new Map<string, Promise<ArrayBuffer>>();

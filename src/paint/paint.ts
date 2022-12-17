@@ -47,7 +47,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
     const tx = x + item.measure(start);
 
     b.fillColor = color;
-    b.font = `${match.slant} ${match.weight} ${match.width} ${style.fontSize}px ${match.family}`;
+    b.font = `${match.style} ${match.weight} ${match.width} ${style.fontSize}px ${match.family}`;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
     b.text(tx, y, text, {ascender, descender});
   }

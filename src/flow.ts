@@ -1238,7 +1238,7 @@ export class Inline extends Box {
     return '▭';
   }
 
-  get desc() {
+  get desc(): string /* TS 4.9 throws TS7023 - almost certainly a bug */ {
     return (this.isAnonymous() ? dim : '')
       + (this.isIfcInline() ? underline : '')
       + 'Inline'

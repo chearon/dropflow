@@ -283,7 +283,7 @@ export class Box {
     this.contentArea.setInlineSize(writingMode, contentSize);
   }
 
-  repr(indent = 0, options?: {containingBlocks?: boolean, css?: keyof Style}) {
+  repr(indent = 0, options?: {containingBlocks?: boolean, css?: keyof Style}): string {
     let c = '';
 
     if (!this.isRun() && this.children.length) {

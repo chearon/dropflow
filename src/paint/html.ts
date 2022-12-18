@@ -1,6 +1,7 @@
 import {Color} from '../cascade.js';
 import {encode} from 'entities';
 import {PaintBackend} from './paint.js';
+import {FontConfigCssMatch} from 'fontconfig';
 
 type StringMap = Record<string, string>;
 
@@ -14,7 +15,8 @@ export default class HtmlPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: string;
+  font: FontConfigCssMatch;
+  fontSize: number;
 
   constructor() {
     this.s = '';
@@ -22,7 +24,8 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
     this.direction = 'ltr';
-    this.font = '';
+    this.font = {file: '', index: 0, family: '', weight: '', width: '', style: ''};
+    this.fontSize = 0;
   }
 
   style(style: StringMap) {
@@ -63,12 +66,13 @@ export default class HtmlPaintBackend implements PaintBackend {
   ) {
     const {ascender, descender} = extents;
     const {r, g, b, a} = this.fillColor;
+    const m = this.font;
     const style = this.style({
       position: 'absolute',
       left: '0',
       top: '0',
       transform: `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`,
-      font: this.font,
+      font: `${m.style} ${m.weight} ${m.width} ${this.fontSize}px ${m.family}`,
       lineHeight: '0',
       whiteSpace: 'pre',
       direction: this.direction,
@@ -91,3 +95,5 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.s += `<div style="${style}"></div>`;
   }
 }
+
+

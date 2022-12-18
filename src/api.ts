@@ -3,10 +3,13 @@ import {parseNodes} from './parser.js';
 import {createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
 import HtmlPaintBackend from './paint/html.js';
+import CanvasPaintBackend from './paint/canvas.js';
 import paintBlockContainer from './paint/paint.js';
 import {Area} from './box.js';
 import {id} from './util.js';
 import {fcfg} from './deps.js';
+import {FontConfigCssMatch} from 'fontconfig';
+import type {CanvasRenderingContext2D} from 'canvas';
 
 function getRootComputedStyle(style?: DeclaredPlainStyle) {
   return createComputedStyle(initialStyle, {
@@ -53,7 +56,7 @@ export async function layout(root: BlockContainer, width = 640, height = 480) {
   const initialContainingBlock = new Area('', root.style, 0, 0, width, height);
   root.containingBlock = initialContainingBlock;
   root.setBlockPosition(0);
-  const logging = {text: new Set([])};
+  const logging = {text: new Set(['54'])};
   await root.preprocess({logging});
   layoutBlockBox(root, {
     bfc: new BlockFormattingContext(300),
@@ -65,10 +68,21 @@ export async function layout(root: BlockContainer, width = 640, height = 480) {
   root.absolutify();
 }
 
-export async function paintToHtml(root: BlockContainer) {
+export function paintToHtml(root: BlockContainer) {
   const b = new HtmlPaintBackend();
   paintBlockContainer(root, b);
   return b.s;
+}
+
+export function eachRegisteredFont(cb: (family: FontConfigCssMatch) => void) {
+  for (const match of fcfg.list()) {
+    cb(match.toCssMatch());
+  }
+}
+
+export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D) {
+  const b = new CanvasPaintBackend(ctx);
+  paintBlockContainer(root, b);
 }
 
 type Node = HTMLElement | TextNode;

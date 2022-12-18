@@ -2,13 +2,15 @@ import {BlockContainer, IfcInline, Inline} from '../flow.js';
 import {ShapedItem, getAscenderDescender} from '../text.js';
 import {Color} from '../cascade.js';
 import {hb} from '../deps.js';
+import {FontConfigCssMatch} from 'fontconfig';
 
 export interface PaintBackend {
   fillColor: Color;
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: string;
+  font: FontConfigCssMatch;
+  fontSize: number;
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
   text(x: number, y: number, text: string,  extents: {ascender: number, descender: number}): void;
   rect(x: number, y: number, w: number, h: number): void;
@@ -47,7 +49,8 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
     const tx = x + item.measure(start);
 
     b.fillColor = color;
-    b.font = `${match.style} ${match.weight} ${match.width} ${style.fontSize}px ${match.family}`;
+    b.fontSize = style.fontSize;
+    b.font = match;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
     b.text(tx, y, text, {ascender, descender});
   }
@@ -357,6 +360,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
           // <span style="background-color:red; border-left: 2px solid yellow; border-top: 4px solid maroon;">red</span>
 
           for (const [side, lineWidth, color] of work) {
+            if (lineWidth === 0) continue;
             const length = side === 'left' || side === 'right' ? height : width;
             let x = side === 'right' ? left + width : left;
             let y = side === 'bottom' ? top + height : top;
@@ -421,3 +425,5 @@ export default function paintBlockContainer(blockContainer: BlockContainer, b: P
     }
   }
 }
+
+

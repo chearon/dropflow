@@ -1,8 +1,13 @@
 import {BlockContainer, IfcInline, Inline} from '../flow.js';
-import {ShapedItem, getAscenderDescender} from '../text.js';
+import {ShapedItem} from '../text.js';
 import {Color} from '../cascade.js';
 import {hb} from '../deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
+
+export type TextArgs = {
+  textStart: number;
+  textEnd: number;
+};
 
 export interface PaintBackend {
   fillColor: Color;
@@ -12,7 +17,7 @@ export interface PaintBackend {
   font: FontConfigCssMatch;
   fontSize: number;
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
-  text(x: number, y: number, text: string,  extents: {ascender: number, descender: number}): void;
+  text(x: number, y: number, item: ShapedItem, args: TextArgs): void;
   rect(x: number, y: number, w: number, h: number): void;
 }
 
@@ -20,8 +25,6 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
   const colors = item.paragraph.colors;
   const match = item.match;
   const style = item.attrs.style;
-  const hbFont = hb.createFont(item.face);
-  const {ascender, descender} = getAscenderDescender(style, hbFont, item.face.upem);
   let glyphStart = 0;
   let glyphEnd = item.glyphs.length - 1;
 
@@ -31,8 +34,6 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
   const glyphs = item.glyphs.slice(glyphStart, glyphEnd + 1);
   const textStart = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
   const textEnd = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) + 1 : 0;
-
-  hbFont.destroy();
 
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
@@ -45,14 +46,13 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
     const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
     const start = Math.max(colorStart, textStart);
     const end = Math.min(colorEnd, textEnd);
-    const text = item.paragraph.string.slice(start, end);
     const tx = x + item.measure(start);
 
     b.fillColor = color;
     b.fontSize = style.fontSize;
     b.font = match;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-    b.text(tx, y, text, {ascender, descender});
+    b.text(tx, y, item, {textStart: start, textEnd: end});
   }
 }
 

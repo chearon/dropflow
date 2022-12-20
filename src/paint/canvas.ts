@@ -1,7 +1,8 @@
-import {Color} from '../cascade.js';
-import {PaintBackend} from './paint.js';
-import {FontConfigCssMatch} from 'fontconfig';
+import type {Color} from '../cascade.js';
+import type {PaintBackend, TextArgs} from './paint.js';
+import type {FontConfigCssMatch} from 'fontconfig';
 import type {CanvasRenderingContext2D} from 'canvas';
+import type {ShapedItem} from '../text.js';
 
 export default class CanvasPaintBackend implements PaintBackend {
   s: string;
@@ -36,12 +37,12 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.stroke();
   }
 
-  text(x: number, y: number, text: string) {
+  text(x: number, y: number, item: ShapedItem, {textStart, textEnd}: TextArgs) {
     const {r, g, b, a} = this.fillColor;
     const m = this.font;
     this.ctx.font = `${m.style} ${m.weight} ${m.width} ${this.fontSize}px ${m.family}`;
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-    this.ctx.fillText(text, x, y);
+    this.ctx.fillText(item.paragraph.string.slice(textStart, textEnd), x, y);
   }
 
   rect(x: number, y: number, w: number, h: number) {

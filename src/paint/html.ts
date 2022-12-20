@@ -1,7 +1,9 @@
-import {Color} from '../cascade.js';
+import type {Color} from '../cascade.js';
+import type {PaintBackend, TextArgs} from './paint.js';
+import type {FontConfigCssMatch} from 'fontconfig';
 import {encode} from 'entities';
-import {PaintBackend} from './paint.js';
-import {FontConfigCssMatch} from 'fontconfig';
+import {getAscenderDescender, ShapedItem} from '../text.js';
+import {hb} from '../deps.js';
 
 type StringMap = Record<string, string>;
 
@@ -56,15 +58,10 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.s += `<div style="${style}"></div>`;
   }
 
-  text(
-    x: number,
-    y: number,
-    text: string,
-    // TODO split text into text and textHtml which takes this arg.
-    // then the frontend can be more efficient for canvas
-    extents: {ascender: number, descender: number}
-  ) {
-    const {ascender, descender} = extents;
+  text(x: number, y: number, item: ShapedItem, {textStart, textEnd}: TextArgs) {
+    const hbFont = hb.createFont(item.face);
+    const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
+    const text = item.paragraph.string.slice(textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const m = this.font;
     const style = this.style({
@@ -79,6 +76,7 @@ export default class HtmlPaintBackend implements PaintBackend {
       unicodeBidi: 'bidi-override',
       color: `rgba(${r}, ${g}, ${b}, ${a})`
     });
+    hbFont.destroy();
     this.s += `<div style="${style}">${encode(text)}</div>`;
   }
 

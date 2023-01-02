@@ -30,8 +30,6 @@ console.log(blockContainer.repr());
 
 await oflo.layout(blockContainer, 100, 300);
 
-console.log(oflo.paintToHtml(blockContainer));
-
 oflo.eachRegisteredFont(match => registerFont(match.file, match));
 const canvas = createCanvas(200, 600);
 const ctx = canvas.getContext('2d');

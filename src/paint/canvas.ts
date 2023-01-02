@@ -5,7 +5,6 @@ import type {CanvasRenderingContext2D} from 'canvas';
 import type {ShapedItem} from '../text.js';
 
 export default class CanvasPaintBackend implements PaintBackend {
-  s: string;
   fillColor: Color;
   strokeColor: Color;
   lineWidth: number;
@@ -15,7 +14,6 @@ export default class CanvasPaintBackend implements PaintBackend {
   ctx: CanvasRenderingContext2D;
 
   constructor(ctx: CanvasRenderingContext2D) {
-    this.s = '';
     this.fillColor = {r: 0, g: 0, b: 0, a: 0};
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;

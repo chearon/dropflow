@@ -3,11 +3,7 @@ import {ShapedItem} from '../text.js';
 import {Color} from '../cascade.js';
 import {hb} from '../deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
-
-export type TextArgs = {
-  textStart: number;
-  textEnd: number;
-};
+import type {HbGlyphInfo} from 'harfbuzzjs';
 
 export interface PaintBackend {
   fillColor: Color;
@@ -17,42 +13,73 @@ export interface PaintBackend {
   font: FontConfigCssMatch;
   fontSize: number;
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
-  text(x: number, y: number, item: ShapedItem, args: TextArgs): void;
+  text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number): void;
   rect(x: number, y: number, w: number, h: number): void;
+}
+
+function getTextOffsetsForUncollapsedGlyphs(glyphs: HbGlyphInfo[]) {
+  let glyphStart = 0;
+  let glyphEnd = glyphs.length - 1;
+
+  while (glyphStart < glyphs.length && glyphs[glyphStart].ax === 0) glyphStart += 1;
+  while (glyphEnd >= 0 && glyphs[glyphEnd].ax === 0) glyphEnd -= 1;
+
+  if (glyphs[glyphStart] && glyphs[glyphEnd]) {
+    const textStart = Math.min(glyphs[glyphStart].cl, glyphs[glyphEnd].cl);
+    const textEnd = Math.max(glyphs[glyphStart].cl, glyphs[glyphEnd].cl) + 1;
+    return {textStart, textEnd};
+  } else {
+    return {textStart: 0, textEnd: 0};
+  }
 }
 
 function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
   const colors = item.paragraph.colors;
   const match = item.match;
   const style = item.attrs.style;
-  let glyphStart = 0;
-  let glyphEnd = item.glyphs.length - 1;
-
-  while (glyphStart < item.glyphs.length && item.glyphs[glyphStart].ax === 0) glyphStart += 1;
-  while (glyphEnd >= 0 && item.glyphs[glyphEnd].ax === 0) glyphEnd -= 1;
-
-  const glyphs = item.glyphs.slice(glyphStart, glyphEnd + 1);
-  const textStart = glyphs.length ? Math.min(glyphs[0].cl, glyphs[glyphs.length - 1].cl) : 0;
-  const textEnd = glyphs.length ? Math.max(glyphs[0].cl, glyphs[glyphs.length - 1].cl) + 1 : 0;
-
+  const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item.glyphs);
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  const colorsStart = item.colorsStart();
-  for (let i = colorsStart; i < colors.length && colors[i][1] < item.end(); ++i) {
+  const end = item.attrs.level & 1 ? item.colorsStart() - 1 : item.colorsEnd();
+  let i = item.attrs.level & 1 ? item.colorsEnd() - 1 : item.colorsStart();
+  let glyphIndex = 0;
+  let tx = x;
+
+  while (i !== end) {
     const [color, offset] = colors[i];
     const colorStart = offset;
     const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
     const start = Math.max(colorStart, textStart);
     const end = Math.min(colorEnd, textEnd);
-    const tx = x + item.measure(start);
+    let ax = 0;
+
+    if (item.attrs.level & 1) {
+      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex].cl >= start) {
+        ax += item.glyphs[glyphIndex].ax;
+        glyphIndex += 1;
+      }
+    } else {
+      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex].cl < end) {
+        ax += item.glyphs[glyphIndex].ax;
+        glyphIndex += 1;
+      }
+    }
 
     b.fillColor = color;
     b.fontSize = style.fontSize;
     b.font = match;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-    b.text(tx, y, item, {textStart: start, textEnd: end});
+    b.text(tx, y, item, start, end);
+
+    tx += ax / item.face.upem * style.fontSize;
+
+    if (item.attrs.level & 1) {
+      i -= 1;
+    } else {
+      i += 1;
+    }
   }
 }
 

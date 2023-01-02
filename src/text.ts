@@ -6,7 +6,7 @@ import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
 import LineBreak from './unicode/lineBreak.js';
-import nextGraphemeBreak from './unicode/graphemeBreak.js';
+import {nextGraphemeBreak} from './unicode/graphemeBreak.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import {fcfg, itemizer, hb} from './deps.js';
 
@@ -707,6 +707,14 @@ export class ShapedItem implements IfcRenderItem {
     if (s === this.paragraph.colors.length) return s - 1;
     if (this.paragraph.colors[s][1] !== this.offset) return s - 1;
     return s;
+  }
+
+  // used in shaping
+  colorsEnd() {
+    const s = binarySearchTuple(this.paragraph.colors, this.end() - 1);
+    if (s === this.paragraph.colors.length) return s;
+    if (this.paragraph.colors[s][1] !== this.end() - 1) return s;
+    return s + 1;
   }
 
   end() {

@@ -17,6 +17,10 @@ const rootElement = oflo.parse(`
     <span style="background-color: red; color: white; border: 2px solid green;">
       (ajmil at-tihānī bimunāsabah al-mīlād)
     </span>
+    <div>
+      عربي
+      ع<span style="color: blue;">ر</span>ب<span style="color: red;">ي</span>
+    </div>
   </div>
 `);
 

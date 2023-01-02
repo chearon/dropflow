@@ -1,5 +1,5 @@
 import type {Color} from '../cascade.js';
-import type {PaintBackend, TextArgs} from './paint.js';
+import type {PaintBackend} from './paint.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import {encode} from 'entities';
 import {getAscenderDescender, ShapedItem} from '../text.js';
@@ -58,7 +58,7 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.s += `<div style="${style}"></div>`;
   }
 
-  text(x: number, y: number, item: ShapedItem, {textStart, textEnd}: TextArgs) {
+  text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
     const hbFont = hb.createFont(item.face);
     const {ascender, descender} = getAscenderDescender(item.attrs.style, hbFont, item.face.upem);
     const text = item.paragraph.string.slice(textStart, textEnd);

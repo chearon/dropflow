@@ -96,7 +96,7 @@ function shouldBreak(previous: number, current: number) {
 };
 
 // Returns the next grapheme break in the string after the given index
-export default function nextGraphemeBreak(string: string, index: number) {
+export function nextGraphemeBreak(string: string, index: number) {
   if (index == null) {
     index = 0;
   }
@@ -127,3 +127,36 @@ export default function nextGraphemeBreak(string: string, index: number) {
 
   return string.length;
 };
+
+export function previousGraphemeBreak(string: string, index: number) {
+  if (index == null) {
+    index = string.length;
+  }
+  if (index > string.length) {
+    return string.length;
+  }
+
+  if (index <= 1) {
+    return 0;
+  }
+
+  index--;
+  let next = graphemeBreakTrie.get(codePointAt(string, index));
+  for (let i = index - 1; i >= 0; i--) {
+    // check for already processed high surrogates
+    var middle, middle1;
+    if ((0xd800 <= (middle = string.charCodeAt(i)) && middle <= 0xdbff) &&
+        (0xdc00 <= (middle1 = string.charCodeAt(i + 1)) && middle1 <= 0xdfff)) {
+      continue;
+    }
+
+    const prev = graphemeBreakTrie.get(codePointAt(string, i));
+    if (shouldBreak(prev, next)) {
+      return i + 1;
+    }
+
+    next = prev;
+  }
+
+  return 0;
+}

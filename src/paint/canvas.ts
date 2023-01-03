@@ -171,8 +171,8 @@ export default class CanvasPaintBackend implements PaintBackend {
       if (fg) {
         this.ctx.scale(scale, scale);
         fg.path.toFunction()(this.ctx);
+        this.ctx.restore();
       }
-      this.ctx.restore();
       sx += glyph.ax;
       sy += glyph.ay;
     }

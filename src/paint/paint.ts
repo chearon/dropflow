@@ -437,8 +437,8 @@ export default function paintBlockContainer(blockContainer: BlockContainer, b: P
     let y = side === 'bottom' ? borderArea.y + borderArea.height - lineWidth : borderArea.y;
     b.strokeColor = color;
     b.lineWidth = lineWidth;
-    x += side === 'left' ? -lineWidth/2 : side === 'right' ? lineWidth/2 : 0;
-    y += side === 'top' ? -lineWidth/2 : side === 'bottom' ? lineWidth/2 : 0;
+    x += side === 'left' || side === 'right' ? lineWidth/2 : 0;
+    y += side === 'top' || side === 'bottom' ? lineWidth/2 : 0;
     b.edge(x, y, length, side);
   }
 

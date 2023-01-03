@@ -1,6 +1,6 @@
 # overflow
 
-Overflow is a CSS layout engine written in TypeScript. It has high quality text layout and is capable of displaying many of the beautiful languages of the world. It tries to be fast, but it's more concerned with exploring the reaches of the foundational CSS standards.
+Overflow is a CSS layout engine concerned with exploring the reaches of the foundational W3C standards. It has high quality text layout and is capable of displaying many of the beautiful languages of the world. It is just about as fast as it can be, achieving the 16ms mark for documents that don't have a lot of text.
 
 # Usage
 

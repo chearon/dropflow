@@ -470,7 +470,7 @@ class FloatSide {
       if (inlineSize === undefined) throw new Error(`${box.id} containing block has no inline size`);
       const size = box.borderArea.getInlineSize(box.containingBlock.writingMode);
       if (size === undefined) throw new Error(`${box.id} has no inline size`);
-      box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size - marginEnd);
+      box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
     }
 
     for (let track = startTrack; track < endTrack; track += 1) {

@@ -988,6 +988,18 @@ describe('Flow', function () {
       expect(t.contentArea.height).to.equal(40);
     });
 
+    it('places left floats with margin-left correctly', async function () {
+      await this.layout(`
+        <div style="width: 300px;">
+          <div id="t" style="width: 100px; height: 100px; margin-left: 100px; float: right;"></div>
+        </div>
+      `);
+
+      /** @type import('./flow').BlockContainer */
+      const t = this.get('#t');
+      expect(t.contentArea.x).to.equal(200);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

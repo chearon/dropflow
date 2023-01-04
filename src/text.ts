@@ -639,9 +639,7 @@ export class ShapedItem implements IfcRenderItem {
 
   reshape(ctx: LayoutContext) {
     const font = hb.createFont(this.face);
-    const buf = this.paragraph.createAndShapeBuffer(this.offset, this.text.length, font, this.attrs);
-    this.glyphs = buf.json();
-    buf.destroy();
+    this.glyphs = this.paragraph.shapePart(this.offset, this.text.length, font, this.attrs);
     font.destroy();
   }
 
@@ -1172,7 +1170,7 @@ export class Paragraph {
     }
   }
 
-  createAndShapeBuffer(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+  shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const buf = hb.createBuffer();
     buf.setClusterLevel(1);
     buf.addUtf16(this.array.byteOffset, this.array.length, offset, length);
@@ -1180,7 +1178,9 @@ export class Paragraph {
     buf.setScript(attrs.script);
     buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
     hb.shape(font, buf);
-    return buf;
+    const json = buf.json();
+    buf.destroy();
+    return json;
   }
 
   createExtentsArray(styles: [Style, number][], faces: [HbFace, number][]) {
@@ -1280,8 +1280,7 @@ export class Paragraph {
 
         while (shapeWork.length) {
           const {text, offset} = shapeWork.pop()!;
-          const buf = this.createAndShapeBuffer(offset, text.length, font, attrs);
-          const shapedPart = buf.json();
+          const shapedPart = this.shapePart(offset, text.length, font, attrs);
           let didPushPart = false;
 
           log += `    Shaping "${text}" with font ${match.file}\n`;

@@ -132,11 +132,6 @@ export class Box {
   public style: Style;
   public children: Box[];
   public attrs: number;
-  public containingBlock: Area | null = null;
-
-  public borderArea: Area;
-  public paddingArea: Area;
-  public contentArea: Area;
 
   public static ATTRS = {
     isAnonymous: 1,
@@ -150,12 +145,6 @@ export class Box {
     this.style = style;
     this.children = children;
     this.attrs = attrs;
-
-    this.borderArea = new Area(this.id + 'b', style);
-    this.paddingArea = new Area(this.id + 'p', style);
-    this.contentArea = new Area(this.id + 'c', style);
-    this.paddingArea.setParent(this.borderArea);
-    this.contentArea.setParent(this.paddingArea);
   }
 
   isBlockContainer(): this is BlockContainer {
@@ -206,83 +195,6 @@ export class Box {
     return '◼︎';
   }
 
-  absolutify() {
-    this.borderArea.absolutify();
-    this.paddingArea.absolutify();
-    this.contentArea.absolutify();
-    for (const c of this.children) {
-      c.absolutify();
-    }
-  }
-
-  setBlockPosition(position: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
-    const writingMode = this.containingBlock.writingMode;
-    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(writingMode);
-    const paddingBlockStart = this.style.getPaddingBlockStart(writingMode);
-
-    this.borderArea.setBlockStart(writingMode, position);
-    this.paddingArea.setBlockStart(writingMode, borderBlockStartWidth);
-    this.contentArea.setBlockStart(writingMode, paddingBlockStart);
-  }
-
-  setBlockSize(size: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
-    const writingMode = this.containingBlock.writingMode;
-    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(writingMode);
-    const paddingBlockStart = this.style.getPaddingBlockStart(writingMode);
-    const paddingBlockEnd = this.style.getPaddingBlockEnd(writingMode);
-    const borderBlockEndWidth = this.style.getBorderBlockEndWidth(writingMode);
-
-    this.contentArea.setBlockSize(writingMode, size);
-
-    const paddingSize = size + paddingBlockStart + paddingBlockEnd
-    this.paddingArea.setBlockSize(writingMode, paddingSize);
-
-    const borderSize = paddingSize + borderBlockStartWidth + borderBlockEndWidth;
-    this.borderArea.setBlockSize(writingMode, borderSize);
-  }
-
-  setInlinePosition(lineLeft: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
-    const writingMode = this.containingBlock.writingMode;
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(writingMode);
-    const paddingLineLeft = this.style.getPaddingLineLeft(writingMode);
-
-    this.borderArea.setLineLeft(writingMode, lineLeft);
-    this.paddingArea.setLineLeft(writingMode, borderLineLeftWidth);
-    this.contentArea.setLineLeft(writingMode, paddingLineLeft);
-  }
-
-  setInlineOuterSize(size: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
-    const writingMode = this.containingBlock.writingMode;
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(writingMode);
-    const paddingLineLeft = this.style.getPaddingLineLeft(writingMode);
-    const paddingLineRight = this.style.getPaddingLineRight(writingMode);
-    const borderLineRightWidth = this.style.getBorderLineRightWidth(writingMode);
-
-    this.borderArea.setInlineSize(writingMode, size);
-
-    const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
-    this.paddingArea.setInlineSize(writingMode, paddingSize);
-
-    const contentSize = paddingSize - paddingLineLeft - paddingLineRight;
-    this.contentArea.setInlineSize(writingMode, contentSize);
-  }
-
   repr(indent = 0, options?: {containingBlocks?: boolean, css?: keyof Style}): string {
     let c = '';
 
@@ -292,7 +204,7 @@ export class Box {
 
     let extra = '';
 
-    if (options && options.containingBlocks && (this.isBlockContainer() || this.isInline())) {
+    if (options && options.containingBlocks && this.isBlockContainer()) {
       extra += ` (cb = ${this.containingBlock ? this.containingBlock.id : '(null)'})`;
     }
 

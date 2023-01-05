@@ -88,8 +88,8 @@ function inlineMarginAdvance(state: IfcPaintState, inline: Inline, side: 'start'
   const style = inline.style;
   let margin
     = (direction === 'ltr' ? side === 'start' : side === 'end')
-    ? style.marginLeft
-    : style.marginRight;
+    ? style.getMarginLineLeft(state.ifc)
+    : style.getMarginLineRight(state.ifc);
 
   if (margin === 'auto') margin = 0;
 
@@ -124,8 +124,8 @@ function inlinePaddingAdvance(state: IfcPaintState, inline: Inline, side: 'start
   const style = inline.style;
   const padding
     = (direction === 'ltr' ? side === 'start' : side === 'end')
-    ? style.paddingLeft
-    : style.paddingRight;
+    ? style.getPaddingLineLeft(state.ifc)
+    : style.getPaddingLineRight(state.ifc);
 
   if (side === 'start' && style.backgroundClip === 'content-box') {
     state.bgcursor += direction === 'ltr' ? padding : -padding;
@@ -332,10 +332,16 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
       const {a: la} = borderLeftColor;
 
       for (const {start, end, ascender, descender, naturalStart, naturalEnd} of list) {
-        const {paddingTop, paddingRight, paddingBottom, paddingLeft} = inline.style;
+        const paddingTop = inline.style.getPaddingBlockStart(state.ifc);
+        const paddingRight = inline.style.getPaddingLineRight(state.ifc);
+        const paddingBottom = inline.style.getPaddingBlockEnd(state.ifc);
+        const paddingLeft = inline.style.getPaddingLineLeft(state.ifc);
         const paintLeft = naturalStart && direction === 'ltr' || naturalEnd && direction === 'rtl';
         const paintRight = naturalEnd && direction === 'ltr' || naturalStart && direction === 'rtl';
-        let {borderTopWidth, borderRightWidth, borderBottomWidth, borderLeftWidth} = inline.style;
+        const borderTopWidth = inline.style.getBorderBlockStartWidth(state.ifc);
+        let borderRightWidth = inline.style.getBorderLineRightWidth(state.ifc);
+        const borderBottomWidth = inline.style.getBorderBlockEndWidth(state.ifc);
+        let borderLeftWidth = inline.style.getBorderLineLeftWidth(state.ifc);
 
         if (!paintLeft) borderLeftWidth = 0;
         if (!paintRight) borderRightWidth = 0;
@@ -345,8 +351,8 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
           let extraBottom = 0;
 
           if (clip !== 'content-box') {
-            extraTop += inline.style.paddingTop;
-            extraBottom += inline.style.paddingBottom;
+            extraTop += inline.style.getPaddingBlockStart(state.ifc);
+            extraBottom += inline.style.getPaddingBlockEnd(state.ifc);
           }
 
           if (clip === 'border-box') {

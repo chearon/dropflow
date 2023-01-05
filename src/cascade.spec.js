@@ -2,6 +2,7 @@
 
 import {createComputedStyle, initialStyle, Style, inherited, initial} from './cascade.js';
 import {Area} from './box.js';
+import {BlockContainer} from './flow.js';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {
@@ -18,11 +19,13 @@ describe('CSS Style', function () {
     });
 
     const style = new Style('root', computed);
+    const box = new BlockContainer(style, [], 0);
+    box.containingBlock = new Area('a', style, 0, 0, 100, 100);
 
-    expect(style.borderTopWidth).to.equal(0);
-    expect(style.borderRightWidth).to.equal(0);
-    expect(style.borderBottomWidth).to.equal(0);
-    expect(style.borderLeftWidth).to.equal(0);
+    expect(style.getBorderBlockStartWidth(box)).to.equal(0);
+    expect(style.getBorderBlockEndWidth(box)).to.equal(0);
+    expect(style.getBorderLineLeftWidth(box)).to.equal(0);
+    expect(style.getBorderLineRightWidth(box)).to.equal(0);
   });
 
   it('calculates used values for percentages', function () {
@@ -40,19 +43,19 @@ describe('CSS Style', function () {
     });
 
     const style = new Style('root', computed);
+    const box = new BlockContainer(style, [], 0);
+    box.containingBlock = new Area('a', style, 0, 0, 100, 200);
 
-    style.resolvePercentages(new Area('a', style, 0, 0, 100, 200));
-
-    expect(style.paddingTop).to.equal(50);
-    expect(style.paddingRight).to.equal(50);
-    expect(style.paddingBottom).to.equal(50);
-    expect(style.paddingLeft).to.equal(50);
-    expect(style.width).to.equal(50);
-    expect(style.height).to.equal(100);
-    expect(style.marginTop).to.equal(50);
-    expect(style.marginRight).to.equal(50);
-    expect(style.marginBottom).to.equal(50);
-    expect(style.marginLeft).to.equal(50);
+    expect(style.getPaddingBlockStart(box)).to.equal(50);
+    expect(style.getPaddingLineRight(box)).to.equal(50);
+    expect(style.getPaddingBlockEnd(box)).to.equal(50);
+    expect(style.getPaddingLineLeft(box)).to.equal(50);
+    expect(style.getInlineSize(box)).to.equal(50);
+    expect(style.getBlockSize(box)).to.equal(100);
+    expect(style.getMarginBlockStart(box)).to.equal(50);
+    expect(style.getMarginLineRight(box)).to.equal(50);
+    expect(style.getMarginBlockEnd(box)).to.equal(50);
+    expect(style.getMarginLineLeft(box)).to.equal(50);
   });
 
   it('normalizes border-box to content-box', function () {
@@ -68,8 +71,9 @@ describe('CSS Style', function () {
     });
 
     const style = new Style('root', computed);
-    style.resolveBoxModel();
-    expect(style.width).to.equal(60);
+    const box = new BlockContainer(style, [], 0);
+    box.containingBlock = new Area('a', style, 0, 0, 100, 100);
+    expect(style.getInlineSize(box)).to.equal(60);
   });
 
   it('normalizes padding-box to content-box', function () {
@@ -83,8 +87,10 @@ describe('CSS Style', function () {
     });
 
     const style = new Style('root', computed);
-    style.resolveBoxModel();
-    expect(style.width).to.equal(80);
+    const box = new BlockContainer(style, [], 0);
+    box.containingBlock = new Area('a', style, 0, 0, 100, 100);
+
+    expect(style.getInlineSize(box)).to.equal(80);
   });
 
   it('computes unitless line-height', function () {

@@ -46,6 +46,18 @@ export const T = 9;
 export const LV = 10;
 export const LVT = 11;
 
+const GB4 = new Set([Control, CR, LF]);
+
+const GB5 = new Set([Control, CR, LF]);
+
+const GB6 = new Set([L, V, LV, LVT]);
+
+const GB7A = new Set([LV, V]);
+
+const GB7B = new Set([V, T]);
+
+const GB8 = new Set([LVT, T]);
+
 // Returns whether a break is allowed between the
 // two given grapheme breaking classes
 function shouldBreak(previous: number, current: number) {
@@ -54,23 +66,23 @@ function shouldBreak(previous: number, current: number) {
     return false;
 
     // GB4. (Control|CR|LF) ÷
-  } else if ([Control, CR, LF].includes(previous)) {
+  } else if (GB4.has(previous)) {
     return true;
 
     // GB5. ÷ (Control|CR|LF)
-  } else if ([Control, CR, LF].includes(current)) {
+  } else if (GB5.has(current)) {
     return true;
 
     // GB6. L X (L|V|LV|LVT)
-  } else if ((previous === L) && [L, V, LV, LVT].includes(current)) {
+  } else if ((previous === L) && GB6.has(current)) {
     return false;
 
     // GB7. (LV|V) X (V|T)
-  } else if ([LV, V].includes(previous) && [V, T].includes(current)) {
+  } else if (GB7A.has(previous) && GB7B.has(current)) {
     return false;
 
     // GB8. (LVT|T) X (T)
-  } else if ([LVT, T].includes(previous) && (current === T)) {
+  } else if (GB8.has(previous) && (current === T)) {
     return false;
 
     // GB8a. Regional_Indicator X Regional_Indicator

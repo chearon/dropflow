@@ -37,7 +37,7 @@ export class Run extends Box {
     super(style, [], 0);
 
     this.text = text;
-    this.style = style || new Style('anontext', createComputedStyle(initialStyle, {
+    this.style = style || new Style(createComputedStyle(initialStyle, {
       whiteSpace: 'normal'
     }));
   }

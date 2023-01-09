@@ -18,7 +18,7 @@ describe('CSS Style', function () {
       borderLeftStyle: 'none'
     });
 
-    const style = new Style('root', computed);
+    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new Area('a', style, 0, 0, 100, 100);
 
@@ -42,7 +42,7 @@ describe('CSS Style', function () {
       marginLeft: {value: 50, unit: '%'}
     });
 
-    const style = new Style('root', computed);
+    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new Area('a', style, 0, 0, 100, 200);
 
@@ -70,7 +70,7 @@ describe('CSS Style', function () {
       boxSizing: 'border-box'
     });
 
-    const style = new Style('root', computed);
+    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new Area('a', style, 0, 0, 100, 100);
     expect(style.getInlineSize(box)).to.equal(60);
@@ -86,7 +86,7 @@ describe('CSS Style', function () {
       boxSizing: 'padding-box'
     });
 
-    const style = new Style('root', computed);
+    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new Area('a', style, 0, 0, 100, 100);
 

@@ -222,8 +222,6 @@ function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value
 }
 
 export class Style implements ComputedPlainStyle {
-  id: string;
-
   whiteSpace: ComputedPlainStyle['whiteSpace'];
   color: ComputedPlainStyle['color'];
   fontSize: ComputedPlainStyle['fontSize'];
@@ -270,9 +268,7 @@ export class Style implements ComputedPlainStyle {
 
   private s: Used;
 
-  constructor(id: string, style: ComputedPlainStyle) {
-    this.id = id;
-
+  constructor(style: ComputedPlainStyle) {
     // CSS properties that are already as close to the used values as they can
     // be. For example, `position: absolute; display: block;`
     this.whiteSpace = style.whiteSpace;
@@ -697,4 +693,15 @@ export function createComputedStyle(s1: ComputedPlainStyle, s2: CascadedPlainSty
   computedStyleCache.set(s1, m1);
 
   return ret;
+}
+
+const styleCache = new WeakMap<ComputedPlainStyle, Style>();
+
+export function createStyle(s: ComputedPlainStyle) {
+  let style = styleCache.get(s);
+  if (!style) {
+    style = new Style(s);
+    styleCache.set(s, style);
+  }
+  return style;
 }

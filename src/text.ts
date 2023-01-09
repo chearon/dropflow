@@ -1221,14 +1221,15 @@ export class Paragraph {
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
+    const log = ctx.logging.text.has(this.ifc.id) ? (s: string) => logstr += s : null;
     let inline = inlineIterator.next();
     let inlineEnd = 0;
-
-    let log = '';
-    log += `Preprocess ${this.ifc.id}\n`;
-    log += '='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n';
-    log += `Full text: "${this.string}"\n`;
+    let logstr = '';
     let lastItemIndex = 0;
+
+    log?.(`Preprocess ${this.ifc.id}\n`);
+    log?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
+    log?.(`Full text: "${this.string}"\n`);
 
     for (const {i: itemIndex, attrs} of this.itemize()) {
       const start = lastItemIndex;
@@ -1237,10 +1238,10 @@ export class Paragraph {
       const text = this.slice(start, end);
       const shapeWork = [{offset: start, text}];
 
-      log += `  Item ${lastItemIndex}..${itemIndex}:\n`;
-      log += `  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `;
-      log += `size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`;
-      log += `  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`;
+      log?.(`  Item ${lastItemIndex}..${itemIndex}:\n`);
+      log?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
+      log?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
+      log?.(`  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`);
 
       cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
         const match = cascade.matches[i].toCssMatch();
@@ -1283,8 +1284,8 @@ export class Paragraph {
           const shapedPart = this.shapePart(offset, text.length, font, attrs);
           let didPushPart = false;
 
-          log += `    Shaping "${text}" with font ${match.file}\n`;
-          log += '    Shaper returned: ' + logGlyphs(shapedPart) + '\n';
+          log?.(`    Shaping "${text}" with font ${match.file}\n`);
+          log?.('    Shaper returned: ' + logGlyphs(shapedPart) + '\n');
 
           // Grapheme cluster iterator
           let ucClusterStart = 0;
@@ -1341,7 +1342,7 @@ export class Paragraph {
 
           if (reshape && !isLastMatch) {
             shapeWork.push({offset, text});
-            log += `    ==> Must reshape "${text}"\n`;
+            log?.(`    ==> Must reshape "${text}"\n`);
           } else {
             const glyphs = part.glyphs.slice(gstart, gend);
 
@@ -1349,10 +1350,10 @@ export class Paragraph {
             items.push(new ShapedItem(this, face, match, glyphs, offset, text, {...attrs}));
 
             if (isLastMatch && reshape) {
-              log += '    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n';
+              log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
               break cascade;
             } else {
-              log += '    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n';
+              log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
             }
           }
         }
@@ -1363,8 +1364,8 @@ export class Paragraph {
       lastItemIndex = itemIndex;
     }
 
-    if (ctx.logging.text.has(this.ifc.id)) {
-      console.log(log.slice(0, -1));
+    if (log) {
+      console.log(logstr.slice(0, -1));
       console.log();
     }
 

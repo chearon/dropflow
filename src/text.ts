@@ -3,7 +3,7 @@ import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import {getBuffer} from './io.js';
-import {HbFace, HbFont, HbGlyphInfo} from 'harfbuzzjs';
+import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
 import LineBreak from './unicode/lineBreak.js';
 import {nextGraphemeBreak} from './unicode/graphemeBreak.js';
@@ -637,12 +637,6 @@ export class ShapedItem implements IfcRenderItem {
     return right;
   }
 
-  reshape(ctx: LayoutContext) {
-    const font = hb.createFont(this.face);
-    this.glyphs = this.paragraph.shapePart(this.offset, this.text.length, font, this.attrs);
-    font.destroy();
-  }
-
   measure(ci = this.end(), direction: 1 | -1 = 1) {
     const g = this.glyphs;
     let w = 0;
@@ -1066,10 +1060,42 @@ function isink(c: string) {
   return c !== undefined && c !== ' ' && c !== '\t';
 }
 
+function createIfcBuffer(text: string) {
+  const allocation = hb.allocateUint16Array(text.length);
+  const a = allocation.array;
+
+  // Inspired by this diff in Chromium, which reveals the code that normalizes
+  // the buffer passed to HarfBuzz before shaping:
+  // https://chromium.googlesource.com/chromium/src.git/+/275c35fe82bd295a75c0d555db0e0b26fcdf980b%5E%21/#F18
+  // I haven't verified that HarfBuzz actually does anything unreasonable with
+  // these yet. I also added \n to this list since, possibly unlike Chrome,
+  // I'm including those as part of the whole shaped IFC
+  for (let i = 0; i < text.length; ++i) {
+    const c = text.charCodeAt(i);
+    if (
+      c == zeroWidthNonJoinerCharacter
+      || c == zeroWidthJoinerCharacter
+      || c == formFeedCharacter
+      || c == carriageReturnCharacter
+      || c == softHyphenCharacter
+      || c === lineFeedCharacter
+      || (c >= leftToRightMarkCharacter && c <= rightToLeftMarkCharacter)
+      || (c >= leftToRightEmbedCharacter && c <= rightToLeftOverrideCharacter)
+      || c == zeroWidthNoBreakSpaceCharacter
+      || c == objectReplacementCharacter
+    ) {
+      a[i] = zeroWidthSpaceCharacter;
+    } else {
+      a[i] = c;
+    }
+  }
+
+  return allocation;
+}
+
 export class Paragraph {
   ifc: IfcInline;
   string: string;
-  array: Uint16Array;
   colors: [Color, number][];
   extents: [AscenderDescender, number][];
   brokenItems: ShapedItem[];
@@ -1078,10 +1104,9 @@ export class Paragraph {
   height: number;
   strut: AscenderDescender;
 
-  constructor(ifc: IfcInline, strut: AscenderDescender, array: Uint16Array) {
+  constructor(ifc: IfcInline, strut: AscenderDescender) {
     this.ifc = ifc;
     this.string = ifc.text;
-    this.array = array;
     this.colors = [];
     this.extents = [];
     this.brokenItems = [];
@@ -1170,10 +1195,10 @@ export class Paragraph {
     }
   }
 
-  shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+  shapePart(buffer: AllocatedUint16Array, offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const buf = hb.createBuffer();
     buf.setClusterLevel(1);
-    buf.addUtf16(this.array.byteOffset, this.array.length, offset, length);
+    buf.addUtf16(buffer.array.byteOffset, buffer.array.length, offset, length);
     buf.setDirection(attrs.level % 2 ? 'rtl' : 'ltr');
     buf.setScript(attrs.script);
     buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
@@ -1221,6 +1246,7 @@ export class Paragraph {
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
+    const buffer = createIfcBuffer(this.ifc.text);
     const log = ctx.logging.text.has(this.ifc.id) ? (s: string) => logstr += s : null;
     let inline = inlineIterator.next();
     let inlineEnd = 0;
@@ -1281,7 +1307,7 @@ export class Paragraph {
 
         while (shapeWork.length) {
           const {text, offset} = shapeWork.pop()!;
-          const shapedPart = this.shapePart(offset, text.length, font, attrs);
+          const shapedPart = this.shapePart(buffer, offset, text.length, font, attrs);
           let didPushPart = false;
 
           log?.(`    Shaping "${text}" with font ${match.file}\n`);
@@ -1372,6 +1398,8 @@ export class Paragraph {
     this.colors = colors;
     this.extents = this.createExtentsArray(styles, faces.sort((a, b) => a[1] - b[1]));
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
+
+    buffer.destroy();
   }
 
   createMarkIterator() {
@@ -1732,48 +1760,16 @@ export class Paragraph {
   }
 }
 
-function createIfcBuffer(text: string) {
-  const allocation = hb.allocateUint16Array(text.length);
-  const a = allocation.array;
-
-  // Inspired by this diff in Chromium, which reveals the code that normalizes
-  // the buffer passed to HarfBuzz before shaping:
-  // https://chromium.googlesource.com/chromium/src.git/+/275c35fe82bd295a75c0d555db0e0b26fcdf980b%5E%21/#F18
-  // I haven't verified that HarfBuzz actually does anything unreasonable with
-  // these yet. I also added \n to this list since, possibly unlike Chrome,
-  // I'm including those as part of the whole shaped IFC
-  for (let i = 0; i < text.length; ++i) {
-    const c = text.charCodeAt(i);
-    if (
-      c == zeroWidthNonJoinerCharacter
-      || c == zeroWidthJoinerCharacter
-      || c == formFeedCharacter
-      || c == carriageReturnCharacter
-      || c == softHyphenCharacter
-      || c === lineFeedCharacter
-      || (c >= leftToRightMarkCharacter && c <= rightToLeftMarkCharacter)
-      || (c >= leftToRightEmbedCharacter && c <= rightToLeftOverrideCharacter)
-      || c == zeroWidthNoBreakSpaceCharacter
-      || c == objectReplacementCharacter
-    ) {
-      a[i] = zeroWidthSpaceCharacter;
-    } else {
-      a[i] = c;
-    }
-  }
-
-  return allocation;
-}
-
-export async function createParagraph(ifc: IfcInline, ctx: PreprocessContext) {
+export async function createParagraph(ifc: IfcInline) {
   const strutCascade = getCascade(ifc.style, 'Latn');
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
   const strutFace = await getFace(strutFontMatch.file, strutFontMatch.index);
   const strutFont = hb.createFont(strutFace);
   const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
-  // TODO: if this lib ever gets used more seriously, need to expose a way to
-  // teardown memory retained here
-  const buffer = createIfcBuffer(ifc.text);
   strutFont.destroy();
-  return new Paragraph(ifc, strut, buffer.array);
+  return new Paragraph(ifc, strut);
+}
+
+export function createEmptyParagraph(ifc: IfcInline) {
+  return new Paragraph(ifc, {ascender: 0, descender: 0});
 }

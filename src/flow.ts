@@ -1,7 +1,7 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, createComputedStyle, Style, EMPTY_STYLE} from './cascade.js';
-import {Run, Collapser, Paragraph, createParagraph, Linebox} from './text.js';
+import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox} from './text.js';
 import {Box, Area} from './box.js';
 import {HbFace} from 'harfbuzzjs';
 
@@ -1354,7 +1354,7 @@ export class IfcInline extends Inline {
     this.text = '';
     this._hasText = false;
     this.prepare();
-    this.paragraph = new Paragraph(this, {ascender: 0, descender: 0}, new Uint16Array());
+    this.paragraph = createEmptyParagraph(this);
     this.containingBlock = null;
   }
 
@@ -1524,7 +1524,7 @@ export class IfcInline extends Inline {
 
   async preprocess(ctx: PreprocessContext) {
     if (this.hasText() || this.hasFloats()) {
-      this.paragraph = await createParagraph(this, ctx);
+      this.paragraph = await createParagraph(this);
       await this.paragraph.shape(ctx);
     }
 

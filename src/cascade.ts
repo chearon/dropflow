@@ -186,6 +186,8 @@ export type DeclaredPlainStyle = {
   clear?: Clear | Inherited | Initial;
 };
 
+export const EMPTY_STYLE:DeclaredPlainStyle = {};
+
 export type CascadedPlainStyle = DeclaredPlainStyle;
 
 type RemoveUnits<T, U> =
@@ -578,6 +580,28 @@ export const uaDeclaredStyles:UaDeclaredStyles = Object.freeze({
   }
 });
 
+const cascadedCache = new WeakMap<CascadedPlainStyle, WeakMap<CascadedPlainStyle, DeclaredPlainStyle>>();
+
+export function cascadeStyles(s1: DeclaredPlainStyle, s2: DeclaredPlainStyle): CascadedPlainStyle {
+  let m1 = cascadedCache.get(s1);
+  let m2 = m1 && m1.get(s2);
+
+  if (m2) return m2;
+
+  const ret = {...s1, ...s2};
+
+  if (m1) {
+    m1.set(s2, ret);
+    return ret;
+  }
+
+  m1 = new WeakMap();
+  m1.set(s2, ret);
+  cascadedCache.set(s1, m1);
+
+  return ret;
+}
+
 function defaultifyStyle(parentStyle: ComputedPlainStyle, style: CascadedPlainStyle) {
   const ret: any = {};
 
@@ -643,6 +667,8 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
   return ret as ComputedPlainStyle;
 }
 
+const computedStyleCache = new WeakMap<DeclaredPlainStyle, WeakMap<DeclaredPlainStyle, ComputedPlainStyle>>();
+
 /**
  * Very simple property inheritance model. createStyle starts out with cascaded
  * styles (CSS Cascading and Inheritance Level 4 §4.2) which is computed from
@@ -652,7 +678,23 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
  * Used/actual styles (§4.5, §4.6) are calculated during layout, external to
  * this file.
  */
-export function createComputedStyle(parentStyle: ComputedPlainStyle, cascadedStyle: CascadedPlainStyle) {
-  const specifiedStyle = defaultifyStyle(parentStyle, cascadedStyle);
-  return computeStyle(parentStyle, specifiedStyle);
+export function createComputedStyle(s1: ComputedPlainStyle, s2: CascadedPlainStyle) {
+  let m1 = computedStyleCache.get(s1);
+  let m2 = m1 && m1.get(s2);
+
+  if (m2) return m2;
+
+  const specifiedStyle = defaultifyStyle(s1, s2);
+  const ret = computeStyle(s1, specifiedStyle);
+
+  if (m1) {
+    m1.set(s2, ret);
+    return ret;
+  }
+
+  m1 = new WeakMap();
+  m1.set(s2, ret);
+  computedStyleCache.set(s1, m1);
+
+  return ret;
 }

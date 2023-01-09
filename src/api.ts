@@ -1,6 +1,6 @@
 import {HTMLElement, TextNode} from './dom.js';
 import {parseNodes} from './parser.js';
-import {createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles} from './cascade.js';
+import {cascadeStyles, createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles, EMPTY_STYLE} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
 import HtmlPaintBackend from './paint/html.js';
 import CanvasPaintBackend from './paint/canvas.js';
@@ -11,14 +11,16 @@ import {fcfg} from './deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
 import type {CanvasRenderingContext2D} from 'canvas';
 
-function getRootComputedStyle(style?: DeclaredPlainStyle) {
-  return createComputedStyle(initialStyle, {
-    ...style,
-    display: { // required
-      outer: 'block',
-      inner: 'flow-root'
-    }
-  });
+// required styles that always come last in the cascade
+const rootDeclaredStyle:DeclaredPlainStyle = {
+  display: {
+    outer: 'block',
+    inner: 'flow-root'
+  }
+};
+
+function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
+  return createComputedStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
 }
 
 // ***
@@ -109,10 +111,10 @@ export function dom(el: HTMLElement | HTMLElement[], style?: DeclaredPlainStyle)
       parents.pop();
     } else if (el instanceof TextNode) {
       el.id = id();
-      el.style = createComputedStyle(parent.style, {});
+      el.style = createComputedStyle(parent.style, EMPTY_STYLE);
     } else if (!el.parent) {
-      const uaDeclaredStyle = uaDeclaredStyles[el.tagName] || {};
-      const cascadedStyle = {...uaDeclaredStyle, ...el.declaredStyle};
+      const uaDeclaredStyle = uaDeclaredStyles[el.tagName] || EMPTY_STYLE;
+      const cascadedStyle = cascadeStyles(uaDeclaredStyle, el.declaredStyle || EMPTY_STYLE);
 
       el.style = createComputedStyle(parent.style, cascadedStyle);
       el.declaredStyle = null;

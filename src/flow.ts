@@ -1,6 +1,6 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
-import {createComputedStyle, Style} from './cascade.js';
+import {createComputedStyle, Style, EMPTY_STYLE} from './cascade.js';
 import {Run, Collapser, Paragraph, createParagraph, Linebox} from './text.js';
 import {Box, Area} from './box.js';
 import {HbFace} from 'harfbuzzjs';
@@ -1739,7 +1739,7 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
 
     if (inlines.length > 0) {
       const anonStyleId = parentEl.id + '.' + ++subId;
-      const anonComputedStyle = createComputedStyle(parentEl.style, {});
+      const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);
       const anonStyle = new Style(anonStyleId, anonComputedStyle);
       const ifc = new IfcInline(anonStyle, inlines);
       blocks.push(new BlockContainer(anonStyle, [ifc], Box.ATTRS.isAnonymous));
@@ -1791,7 +1791,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
       }
     } else { // TextNode
       const id = child.id + '.1';
-      const computed = createComputedStyle(el.style, {});
+      const computed = createComputedStyle(el.style, EMPTY_STYLE);
       hasInline = true;
       boxes.push(new Run(child.text, new Style(id, computed)));
     }
@@ -1807,7 +1807,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
 
   if (hasInline && !hasBlock) {
     const anonStyleId = el.id + '.1';
-    const anonComputedStyle = createComputedStyle(el.style, {});
+    const anonComputedStyle = createComputedStyle(el.style, EMPTY_STYLE);
     const anonStyle = new Style(anonStyleId, anonComputedStyle);
     const inline = new IfcInline(anonStyle, boxes as InlineLevel[]);
     const box = new BlockContainer(style, [inline], attrs);

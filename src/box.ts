@@ -35,31 +35,42 @@ export class Area {
   id: string;
   writingMode: WritingMode;
   direction: Direction;
-  x = 0;
-  y = 0;
-  parent?: Area;
-  top?: number;
-  right?: number;
-  left?: number;
-  width?: number;
-  height?: number;
+  x: number;
+  y: number;
+  parent: Area | null;
+  top: number;
+  right: number;
+  left: number;
+  lrside: 'left' | 'right';
+  width: number;
+  height: number;
 
   constructor(id: string, style: ComputedPlainStyle, x?: number, y?: number, w?: number, h?: number) {
     this.id = id;
     this.writingMode = style.writingMode;
     this.direction = style.direction;
-
-    if (x != null && y != null && w != null && h != null) {
-      [this.x, this.y, this.width, this.height] = [x, y, w, h];
-    }
+    this.x = x || 0;
+    this.y = y || 0;
+    this.parent = null;
+    this.top = 0;
+    this.right = 0;
+    this.left = 0;
+    this.lrside = 'left';
+    this.width = w || 0;
+    this.height = h || 0;
   }
 
   setParent(p: Area) {
     this.parent = p;
   }
 
+  // TODO: I could remove the writingMode arguments and use parent.writingMode
+  // which would simplify the calling side. or is that what I did originally?
+
   setBlockStart(writingMode: WritingMode, v: number) {
-    this[LogicalMaps[writingMode].blockStart] = v;
+    const blockStart = LogicalMaps[writingMode].blockStart;
+    this[blockStart] = v;
+    if (blockStart === 'left' || blockStart === 'right') this.lrside = blockStart;
   }
 
   getBlockStart(writingMode: WritingMode) {
@@ -67,7 +78,9 @@ export class Area {
   }
 
   setLineLeft(writingMode: WritingMode, v: number) {
-    this[LogicalMaps[writingMode].lineLeft] = v;
+    const lineLeft = LogicalMaps[writingMode].lineLeft;
+    this[lineLeft] = v;
+    if (lineLeft === 'left') this.lrside = lineLeft;
   }
 
   getLineLeft(writingMode: WritingMode) {
@@ -95,28 +108,15 @@ export class Area {
       throw new Error(`Cannot absolutify area ${this.id}, parent was never set`);
     }
 
-    if (this.parent.width == null || this.parent.height == null) {
-      throw new Error(`Cannot absolutify area ${this.id}, parent (${this.parent.id}) was not absolutified`);
-    }
-
-    if (this.width == null || this.height == null) {
-      throw new Error(`Cannot absolutify area ${this.id}: indeterminate size`);
-    }
-
-    if (this.left == null && this.right == null) {
-      throw new Error(`Cannot absolutify area ${this.id}: no horizontal position`);
-    }
-
-    if (this.top == null) {
-      throw new Error(`Cannot absolutify area ${this.id}: no vertical position`);
-    }
-
     const {width: pwidth, x: px, y: py} = this.parent;
 
-    if (this.left != null) this.x = px + this.left;
-    if (this.right != null) this.x = px + pwidth - this.right - this.width;
+    if (this.lrside === 'left') {
+      this.x = px + this.left;
+    } else {
+      this.x = px + pwidth - this.right - this.width;
+    }
 
-    if (this.top != null) this.y = py + this.top;
+    this.y = py + this.top;
   }
 
   repr(indent = 0) {

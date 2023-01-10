@@ -222,7 +222,6 @@ export class BlockFormattingContext {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
         const blockSize = box.contentArea.getBlockSize(box.writingMode);
-        if (blockSize === undefined) throw new Error('Assertion failed');
         lineboxHeight = blockSize;
       }
       box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx.getBothBottom()));
@@ -253,13 +252,6 @@ export class BlockFormattingContext {
         }
 
         const blockSize = box.borderArea.getBlockSize(box.writingMode);
-
-        // The block size would only be indeterminate for floats, which are
-        // not a part of the descendants() return value, or for orthogonal
-        // writing modes, which are also not in descendants() due to their
-        // establishing a new BFC. If neither of those are true and the block
-        // size is indeterminate that's a bug.
-        assumePx(blockSize);
 
         sizeStack[level] += blockSize;
         this.cbBlockStart = offset + blockSize;
@@ -427,10 +419,6 @@ class FloatSide {
   }
 
   placeFloat(box: BlockContainer, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
-    if (box.borderArea.width === undefined || box.borderArea.height === undefined) {
-      throw new Error('Tried to place float that hasn\'t been laid out');
-    }
-
     if (box.style.float === 'none') {
       throw new Error('Tried to place float:none');
     }
@@ -467,9 +455,7 @@ class FloatSide {
     } else {
       if (!box.containingBlock) throw new Error(`${box.id} has no containing block`);
       const inlineSize = box.containingBlock.getInlineSize(box.containingBlock.writingMode);
-      if (inlineSize === undefined) throw new Error(`${box.id} containing block has no inline size`);
       const size = box.borderArea.getInlineSize(box.containingBlock.writingMode);
-      if (size === undefined) throw new Error(`${box.id} has no inline size`);
       box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
     }
 
@@ -555,10 +541,6 @@ export class FloatContext {
   }
 
   getVacancyForBox(box: BlockContainer) {
-    if (box.borderArea.height === undefined || box.borderArea.width === undefined) {
-      throw new Error('Attempted to place a float that hasn\'t been laid out');
-    }
-
     const float = box.style.float;
     const floats = float === 'left' ? this.leftFloats : this.rightFloats;
     const oppositeFloats = float === 'left' ? this.rightFloats : this.leftFloats;
@@ -631,10 +613,6 @@ export class FloatContext {
   placeFloat(lineWidth: number, lineIsEmpty: boolean, box: BlockContainer) {
     if (box.style.float === 'none') {
       throw new Error('Attempted to place float: none');
-    }
-
-    if (box.borderArea.height === undefined || box.borderArea.width === undefined) {
-      throw new Error('Attempted to place a float that hasn\'t been laid out');
     }
 
     if (this.misfits.length) {
@@ -846,15 +824,6 @@ export class BlockContainer extends Box {
     const bLineLeft = this.borderArea.getLineLeft(this.writingMode);
     const blockStart = borderBlockStartWidth + paddingBlockStart;
     const cInlineSize = this.contentArea.getInlineSize(this.writingMode);
-
-    if (bLineLeft == null || cInlineSize == null) {
-      throw new Error(`Box ${this.id} wasn't inline-laid-out`);
-    }
-
-    if (inlineSize == null) {
-      throw new Error(`Containing block ${this.id} wasn't laid out`);
-    }
-
     const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
     const paddingLineLeft = this.style.getPaddingLineLeft(this);
     const lineLeft = bLineLeft + borderLineLeftWidth + paddingLineLeft;
@@ -1006,10 +975,6 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
   let marginLineLeft = box.style.getMarginLineLeft(box);
   let marginLineRight = box.style.getMarginLineRight(box);
 
-  if (cInlineSize === undefined) {
-    throw new Error('Auto-inline size for orthogonal writing modes not yet supported');
-  }
-
   // Paragraphs 2 and 3
   if (inlineSize !== 'auto') {
     const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
@@ -1105,7 +1070,6 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
 
   if (box.isBfcRoot()) {
     const inlineSize = box.contentArea.getInlineSize(box.writingMode);
-    if (inlineSize === undefined) throw new Error('Cannot create BFC: layout parent');
     cctx.bfc = new BlockFormattingContext(inlineSize);
   }
 
@@ -1228,7 +1192,6 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
       const minContent = layoutContribution(box, ctx, 'min-content');
       const maxContent = layoutContribution(box, ctx, 'max-content');
       const availableSpace = box.containingBlock.getInlineSize(box.writingMode);
-      if (availableSpace === undefined) throw new Error('Assertion failed');
       inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
     }
   }
@@ -1237,7 +1200,6 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   doBlockBoxModelForBlockBox(box);
 
   const cInlineSize = box.contentArea.getInlineSize(box.writingMode);
-  if (cInlineSize === undefined) throw new Error('Assertion failed');
   cctx.bfc = new BlockFormattingContext(cInlineSize);
 
   if (box.isBlockContainerOfInlines()) {

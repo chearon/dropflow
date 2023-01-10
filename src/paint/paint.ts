@@ -241,8 +241,6 @@ type IfcPaintState = {
 };
 
 function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBackend) {
-  if (blockContainer.contentArea.width === undefined) throw new Error('Assertion failed');
-
   if (!blockContainer.isBlockContainerOfInlines()) throw new Error('Assertion failed');
 
   const [ifc] = blockContainer.children;
@@ -420,11 +418,6 @@ export default function paintBlockContainer(blockContainer: BlockContainer, b: P
   const area = backgroundClip === 'border-box' ? borderArea :
     backgroundClip === 'padding-box' ? paddingArea :
     contentArea;
-
-  if (area.width === undefined || area.height === undefined) throw new Error('Assertion failed');
-  if (borderArea.width === undefined || borderArea.height === undefined) {
-    throw new Error('cannot paint padding area, indeterminate size');
-  }
 
   b.fillColor = backgroundColor;
   b.rect(area.x, area.y, area.width, area.height);

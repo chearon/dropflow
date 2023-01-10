@@ -1104,7 +1104,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   doBlockBoxModelForBlockBox(box);
 
   if (box.isBfcRoot()) {
-    const inlineSize = box.contentArea.width;
+    const inlineSize = box.contentArea.getInlineSize(box.writingMode);
     if (inlineSize === undefined) throw new Error('Cannot create BFC: layout parent');
     cctx.bfc = new BlockFormattingContext(inlineSize);
   }

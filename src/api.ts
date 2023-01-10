@@ -58,14 +58,12 @@ export async function layout(root: BlockContainer, width = 640, height = 480) {
   const initialContainingBlock = new Area('', root.style, 0, 0, width, height);
   root.containingBlock = initialContainingBlock;
   root.setBlockPosition(0);
-  const logging = {text: new Set(['54'])};
-  await root.preprocess({logging});
+  await root.preprocess();
   layoutBlockBox(root, {
     bfc: new BlockFormattingContext(300),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
-    mode: 'normal',
-    logging
+    mode: 'normal'
   });
   root.absolutify();
 }

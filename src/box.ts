@@ -138,6 +138,7 @@ export class Box {
     isInline: 1 << 1,
     isBfcRoot: 1 << 2,
     isFloat: 1 << 3,
+    enableLogging: 1 << 4
   };
 
   constructor(style: Style, children: Box[], attrs: number) {

@@ -1,7 +1,7 @@
 import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade.js';
-import {IfcInline, Inline, BlockContainer, PreprocessContext, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
+import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
@@ -1096,24 +1096,26 @@ function createIfcBuffer(text: string) {
 export class Paragraph {
   ifc: IfcInline;
   string: string;
+  strut: AscenderDescender;
+  enableLogging: boolean;
   colors: [Color, number][];
   extents: [AscenderDescender, number][];
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
-  strut: AscenderDescender;
 
-  constructor(ifc: IfcInline, strut: AscenderDescender) {
+  constructor(ifc: IfcInline, strut: AscenderDescender, enableLogging: boolean) {
     this.ifc = ifc;
     this.string = ifc.text;
+    this.strut = strut;
+    this.enableLogging = enableLogging;
     this.colors = [];
     this.extents = [];
     this.brokenItems = [];
     this.wholeItems = [];
     this.lineboxes = [];
     this.height = 0;
-    this.strut = strut;
   }
 
   slice(start: number, end: number) {
@@ -1240,14 +1242,14 @@ export class Paragraph {
     return extents;
   }
 
-  async shape(ctx: PreprocessContext) {
+  async shape() {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const items:ShapedItem[] = [];
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
     const buffer = createIfcBuffer(this.ifc.text);
-    const log = ctx.logging.text.has(this.ifc.id) ? (s: string) => logstr += s : null;
+    const log = this.enableLogging ? (s: string) => logstr += s : null;
     let inline = inlineIterator.next();
     let inlineEnd = 0;
     let logstr = '';
@@ -1739,7 +1741,7 @@ export class Paragraph {
       fctx.consumeMisfits();
     }
 
-    if (ctx.logging.text.has(this.ifc.id)) {
+    if (this.enableLogging) {
       console.log(`Paragraph ${this.ifc.id}:`);
       logParagraph(this.brokenItems);
       for (const [i, line] of lines.entries()) {
@@ -1760,16 +1762,16 @@ export class Paragraph {
   }
 }
 
-export async function createParagraph(ifc: IfcInline) {
+export async function createParagraph(ifc: IfcInline, enableLogging: boolean) {
   const strutCascade = getCascade(ifc.style, 'Latn');
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
   const strutFace = await getFace(strutFontMatch.file, strutFontMatch.index);
   const strutFont = hb.createFont(strutFace);
   const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
   strutFont.destroy();
-  return new Paragraph(ifc, strut);
+  return new Paragraph(ifc, strut, enableLogging);
 }
 
 export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, {ascender: 0, descender: 0});
+  return new Paragraph(ifc, {ascender: 0, descender: 0}, false);
 }

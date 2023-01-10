@@ -31,12 +31,7 @@ export type LayoutContext = {
   lastBlockContainerArea: Area,
   lastPositionedArea: Area,
   mode: 'min-content' | 'max-content' | 'normal',
-  bfc: BlockFormattingContext,
-  logging: {text: Set<string>}
-};
-
-export type PreprocessContext = {
-  logging: {text: Set<string>}
+  bfc: BlockFormattingContext
 };
 
 class MarginCollapseCollection {
@@ -912,6 +907,10 @@ export class BlockContainer extends Box {
     return Boolean(this.attrs & Box.ATTRS.isFloat);
   }
 
+  loggingEnabled() {
+    return Boolean(this.attrs & Box.ATTRS.enableLogging);
+  }
+
   isBlockContainerOfInlines(): this is BlockContainerOfInlines {
     return Boolean(this.children.length && this.children[0].isIfcInline());
   }
@@ -933,10 +932,11 @@ export class BlockContainer extends Box {
     return !this.isBlockContainerOfInlines();
   }
 
-  async preprocess(ctx: PreprocessContext) {
+  async preprocess() {
     const promises:Promise<any>[] = [];
     for (const child of this.children) {
-      promises.push(child.preprocess(ctx));
+      const promise = child.isIfcInline() ? child.preprocess(this.loggingEnabled()) : child.preprocess();
+      promises.push(promise);
     }
     await Promise.all(promises);
   }
@@ -1088,7 +1088,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
 
   if (box.isBfcRoot()) {
     cctx.bfc.finalize(box, cctx);
-    if (ctx.logging.text.has(box.id)) {
+    if (box.loggingEnabled()) {
       console.log('Left floats');
       console.log(cctx.bfc.fctx.leftFloats.repr());
       console.log('Right floats');
@@ -1484,13 +1484,13 @@ export class IfcInline extends Inline {
     yield {i: ci, style: currentStyle};
   }
 
-  async preprocess(ctx: PreprocessContext) {
+  async preprocess(enableLogging: boolean) {
     if (this.hasText() || this.hasFloats()) {
-      this.paragraph = await createParagraph(this);
-      await this.paragraph.shape(ctx);
+      this.paragraph = await createParagraph(this, enableLogging);
+      await this.paragraph.shape();
     }
 
-    await Promise.all(this.floats.map(float => float.preprocess(ctx)));
+    await Promise.all(this.floats.map(float => float.preprocess()));
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1613,7 +1613,7 @@ export function createPreorderInlineIterator(inline: IfcInline) {
 
 // Helper for generateInlineBox
 function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, InlineNotRun?] {
-  let children = [], bail = false;
+  let children = [], bail = false, attrs = 0;
 
   if (el.style.display.outer !== 'inline' && el.style.display.outer !== 'none') {
     throw Error('Inlines only');
@@ -1648,7 +1648,8 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
     }
 
     if (!bail) stack.pop();
-    box = new Inline(createStyle(el.style), children, 0);
+    if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
+    box = new Inline(createStyle(el.style), children, attrs);
     el.boxes.push(box);
   } else if (el.style.display.inner == 'flow-root') {
     box = generateBlockContainer(el);
@@ -1729,6 +1730,8 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   } else if (el.style.display.inner !== 'flow') {
     throw Error('Only flow layout supported');
   }
+
+  if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
 
   for (const child of el.children) {
     if (child instanceof HTMLElement) {

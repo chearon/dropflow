@@ -473,25 +473,6 @@ function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
   return {pull, next};
 }
 
-type GlyphIterator = ReturnType<typeof createGlyphIterator>;
-
-type GlyphIteratorValue = ReturnType<GlyphIterator["next"]>;
-
-type MwRet = [number, GlyphIteratorValue];
-function measureWidth(item: ShapedItem, glyphIterator: GlyphIterator, it: GlyphIteratorValue, ci: number):MwRet {
-  let width = 0;
-
-  while (!it.done && item.glyphs[it.value.start].cl < ci) {
-    for (let i = it.value.start; i < it.value.end; ++i) {
-      const glyphWidth = item.glyphs[i].ax / item.face.upem * item.attrs.style.fontSize;
-      width += glyphWidth;
-    }
-    it = glyphIterator.next();
-  }
-
-  return [width, it];
-}
-
 const reset = '\x1b[0m';
 const bold = '\x1b[1m';
 
@@ -561,6 +542,8 @@ class ShapedShim implements IfcRenderItem {
     return this.offset;
   }
 }
+
+type MeasureState = {glyphIndex: number | null};
 
 export class ShapedItem implements IfcRenderItem {
   paragraph: Paragraph;
@@ -637,23 +620,30 @@ export class ShapedItem implements IfcRenderItem {
     return right;
   }
 
-  measure(ci = this.end(), direction: 1 | -1 = 1) {
+  measure(ci = this.end(), direction: 1 | -1 = 1, state?: MeasureState | undefined) {
     const g = this.glyphs;
     let w = 0;
+    let i;
 
-    if (this.attrs.level % 2) {
+    if (this.attrs.level & 1) {
       if (direction === 1) {
-        for (let i = g.length - 1; i >= 0 && g[i].cl < ci; i--) w += g[i].ax;
+        i = state?.glyphIndex ?? g.length - 1;
+        while (i >= 0 && g[i].cl < ci) w += g[i--].ax;
       } else {
-        for (let i = 0; i < g.length && g[i].cl >= ci; i++) w += g[i].ax;
+        i = state?.glyphIndex ?? 0;
+        while (i < g.length && g[i].cl >= ci) w += g[i++].ax;
       }
     } else {
       if (direction === 1) {
-        for (let i = 0; i < g.length && g[i].cl < ci; i++) w += g[i].ax;
+        i = state?.glyphIndex ?? 0;
+        while (i < g.length && g[i].cl < ci) w += g[i++].ax;
       } else {
-        for (let i = g.length - 1; i >= 0 && g[i].cl >= ci; i--) w += g[i].ax;
+        i = state?.glyphIndex ?? g.length - 1;
+        while (i >= 0 && g[i].cl >= ci) w += g[i--].ax;
       }
     }
+
+    if (state) state.glyphIndex = i;
 
     return w / this.face.upem * this.attrs.style.fontSize;
   }
@@ -1416,8 +1406,7 @@ export class Paragraph {
     // Item iterator
     let itemIndex = -1;
     let emittedItemEnd = false;
-    let glyphIterator = createGlyphIterator([], 'ltr');
-    let glyph = glyphIterator.next();
+    const itemMeasureState = {glyphIndex: null};
     let itemMark = 0;
     // Ink iterator
     let isInk = false;
@@ -1447,9 +1436,8 @@ export class Paragraph {
 
       if (itemIndex < this.brokenItems.length && itemIndex > -1) {
         const item = this.brokenItems[itemIndex];
-        const [advance, nextGlyph] = measureWidth(item, glyphIterator, glyph, mark.position);
+        const advance = item.measure(mark.position, 1, itemMeasureState);
         mark.advance = advance;
-        glyph = nextGlyph;
       }
 
       mark.isInk = isink(this.string[mark.position - 1]);
@@ -1509,8 +1497,7 @@ export class Paragraph {
         if (itemIndex < this.brokenItems.length) {
           const item = this.brokenItems[itemIndex];
           itemMark += item.text.length;
-          glyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
-          glyph = glyphIterator.next();
+          itemMeasureState.glyphIndex = null;
           mark.isItemStart = true;
           mark.itemIndex += 1;
           emittedItemEnd = false;
@@ -1551,13 +1538,10 @@ export class Paragraph {
       mark.itemIndex += 1;
 
       const item = paragraph.brokenItems[this.itemIndex];
-      const rightGlyphIterator = createGlyphIterator(item.glyphs, item.attrs.level % 2 ? 'rtl' : 'ltr');
-      const rightGlyph = rightGlyphIterator.next();
-      const [, nextGlyph] = measureWidth(item, rightGlyphIterator, rightGlyph, mark.position);
 
       if (itemIndex === this.itemIndex) {
-        glyphIterator = rightGlyphIterator;
-        glyph = nextGlyph;
+        itemMeasureState.glyphIndex = null;
+        item.measure(mark.position, 1, itemMeasureState);
       }
     }
 

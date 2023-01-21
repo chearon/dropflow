@@ -1261,7 +1261,7 @@ export class Paragraph {
       log?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
       log?.(`  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`);
 
-      cascade: for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
+      for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
         const match = cascade.matches[i].toCssMatch();
         const isLastMatch = i === cascade.matches.length - 1;
         const face = await getFace(match.file, match.index);
@@ -1369,7 +1369,6 @@ export class Paragraph {
 
             if (isLastMatch && reshape) {
               log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
-              break cascade;
             } else {
               log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
             }

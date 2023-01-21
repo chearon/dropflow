@@ -275,6 +275,16 @@ describe('Shaping', function () {
   before(setupLayoutTests);
   afterEach(logIfFailed);
 
+  it('doesn\'t infinite loop when the last match can\'t shape two parts', async function () {
+    await this.layout('𓀀 𓀁');
+    /** @type import('./flow').IfcInline[] */
+    const [inline] = this.get().children;
+    expect(inline.paragraph.brokenItems).to.have.lengthOf(3);
+    expect(inline.paragraph.brokenItems[0].glyphs[0].g).to.equal(0)
+    expect(inline.paragraph.brokenItems[1].glyphs[0].g).not.to.equal(0);
+    expect(inline.paragraph.brokenItems[2].glyphs[0].g).to.equal(0);
+  });
+
   describe('Boundaries', function () {
     it('splits shaping boundaries on fonts', async function () {
       await this.layout(`

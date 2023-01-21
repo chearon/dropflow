@@ -155,12 +155,12 @@ function inlineBackgroundAdvance(state: IfcPaintState, item: ShapedItem, mark: n
 
   if (mark > item.offset && mark < item.end()) {
     if (direction === 'ltr' && side === 'start' || direction === 'rtl' && side === 'end') {
-      const direction = item.attrs.level % 2 ? -1 : 1;
+      const direction = item.attrs.level & 1 ? -1 : 1;
       state.bgcursor += item instanceof ShapedItem ? item.measure(mark, direction) : 0;
     }
 
     if (direction === 'rtl' && side === 'start' || direction == 'ltr' && side === 'end') {
-      const direction = item.attrs.level % 2 ? 1 : -1;
+      const direction = item.attrs.level & 1 ? 1 : -1;
       state.bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction) : 0;
     }
   }
@@ -276,7 +276,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
         const inline = item.inlines[i];
         const count = counts.get(inline);
         const isFirstOccurance = count === undefined;
-        const isOrthogonal = (item.attrs.level % 2 ? 'rtl' : 'ltr') !== direction;
+        const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
         const mark = isOrthogonal ? inline.end : inline.start;
 
         state.bgcursor = state.left;
@@ -301,7 +301,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
         const inline = item.inlines[i];
         const count = counts.get(inline)!;
         const isLastOccurance = count === inline.nshaped;
-        const isOrthogonal = (item.attrs.level % 2 ? 'rtl' : 'ltr') !== direction;
+        const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
         const mark = isOrthogonal ? inline.start : inline.end;
 
         state.bgcursor = state.left;

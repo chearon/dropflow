@@ -589,7 +589,7 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   split(offset: number) {
-    const dir = this.attrs.level % 2 ? 'rtl' : 'ltr';
+    const dir = this.attrs.level & 1 ? 'rtl' : 'ltr';
     const glyphs = shiftGlyphs(this.glyphs, this.offset + offset, dir);
     const needsReshape = Boolean(glyphs[0].flags & 1);
     const inlines = this.inlines;
@@ -671,7 +671,7 @@ export class ShapedItem implements IfcRenderItem {
     }
 
     const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
-    const glyphIterator = createGlyphIterator(this.glyphs, level % 2 ? 'rtl' : 'ltr');
+    const glyphIterator = createGlyphIterator(this.glyphs, level & 1 ? 'rtl' : 'ltr');
 
     for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {
       const cl = this.glyphs[glyph.value.start].cl;
@@ -949,7 +949,7 @@ export class Linebox extends LineItemLinkedList {
 
     for (let i = 0, n = start; n && i < length; ++i, n = n.next) {
       if (n.value.attrs.level === minLevel) {
-        if (minLevel % 2) {
+        if (minLevel & 1) {
           if (i > levelStartIndex) {
             ret.rconcat(this.reorderRange(levelStartNode, i - levelStartIndex));
           }
@@ -966,7 +966,7 @@ export class Linebox extends LineItemLinkedList {
       }
     }
 
-    if (minLevel % 2) {
+    if (minLevel & 1) {
       if (levelStartIndex < length) {
         ret.rconcat(this.reorderRange(levelStartNode, length - levelStartIndex));
       }
@@ -1191,7 +1191,7 @@ export class Paragraph {
     const buf = hb.createBuffer();
     buf.setClusterLevel(1);
     buf.addUtf16(buffer.array.byteOffset, buffer.array.length, offset, length);
-    buf.setDirection(attrs.level % 2 ? 'rtl' : 'ltr');
+    buf.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
     buf.setScript(attrs.script);
     buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
     hb.shape(font, buf);
@@ -1309,7 +1309,7 @@ export class Paragraph {
           let ucClusterStart = 0;
           let ucClusterEnd = 0;
           // HB cluster iterator
-          const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level % 2 ? 'rtl' : 'ltr');
+          const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level & 1 ? 'rtl' : 'ltr');
           let hbIt = hbGlyphIterator.next();
           let hbClusterEnd = 0;
           let clusterNeedsReshape = false;

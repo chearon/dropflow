@@ -543,7 +543,14 @@ class ShapedShim implements IfcRenderItem {
   }
 }
 
-type MeasureState = {glyphIndex: number | null};
+type MeasureState = {
+  glyphIndex: number;
+  characterIndex: number;
+  clusterStart: number;
+  clusterEnd: number;
+  clusterAdvance: number;
+  done: boolean;
+};
 
 export class ShapedItem implements IfcRenderItem {
   paragraph: Paragraph;
@@ -620,30 +627,98 @@ export class ShapedItem implements IfcRenderItem {
     return right;
   }
 
-  measure(ci = this.end(), direction: 1 | -1 = 1, state?: MeasureState | undefined) {
-    const g = this.glyphs;
-    let w = 0;
-    let i;
+  createMeasureState(direction: 1 | -1 = 1) {
+    let glyphIndex;
 
     if (this.attrs.level & 1) {
-      if (direction === 1) {
-        i = state?.glyphIndex ?? g.length - 1;
-        while (i >= 0 && g[i].cl < ci) w += g[i--].ax;
-      } else {
-        i = state?.glyphIndex ?? 0;
-        while (i < g.length && g[i].cl >= ci) w += g[i++].ax;
-      }
+      glyphIndex = direction === 1 ? this.glyphs.length - 1 : 0;
     } else {
+      glyphIndex = direction === 1 ? 0 : this.glyphs.length - 1;
+    }
+
+    return {
+      glyphIndex,
+      characterIndex: direction === 1 ? -1 : this.end(),
+      clusterStart: direction === 1 ? 0 : this.end(),
+      clusterEnd: direction === 1 ? 0 : this.end(),
+      clusterAdvance: 0,
+      done: false
+    }
+  }
+
+  nextCluster(direction: 1 | -1, state: MeasureState) {
+    const inc = this.attrs.level & 1 ? direction === 1 ? -1 : 1 : direction === 1 ? 1 : -1;
+    const g = this.glyphs;
+    let glyphIndex = state.glyphIndex;
+
+    if (g[glyphIndex]) {
+      const cl = g[glyphIndex].cl;
+      let w = 0;
+
+      while (g[glyphIndex] && cl == g[glyphIndex].cl) {
+        w += g[glyphIndex].ax;
+        glyphIndex += inc;
+      }
+
       if (direction === 1) {
-        i = state?.glyphIndex ?? 0;
-        while (i < g.length && g[i].cl < ci) w += g[i++].ax;
+        state.clusterStart = state.clusterEnd;
+        state.clusterEnd = g[glyphIndex] ? g[glyphIndex].cl : this.end();
       } else {
-        i = state?.glyphIndex ?? g.length - 1;
-        while (i >= 0 && g[i].cl >= ci) w += g[i--].ax;
+        state.clusterEnd = state.clusterStart;
+        state.clusterStart = cl;
+      }
+
+      state.glyphIndex = glyphIndex;
+      state.clusterAdvance = w;
+    } else {
+      state.done = true;
+    }
+  }
+
+  measureInsideCluster(state: MeasureState, ci: number) {
+    const s = this.paragraph.string.slice(state.clusterStart, state.clusterEnd);
+    const restrictedCi = Math.max(state.clusterStart, Math.min(ci, state.clusterEnd));
+    const numCharacters = Math.abs(restrictedCi - state.characterIndex);
+    let w = 0;
+    let numGraphemes = 0;
+
+    for (let i = 0; i < s.length; i = nextGraphemeBreak(s, i)) {
+      numGraphemes += 1;
+    }
+
+    if (numGraphemes > 1) {
+      const clusterSize = state.clusterEnd - state.clusterStart;
+      const cursor = Math.floor(numGraphemes * numCharacters / clusterSize);
+      w += state.clusterAdvance * cursor / numGraphemes;
+    }
+
+    return w;
+  }
+
+  measure(ci = this.end(), direction: 1 | -1 = 1, state = this.createMeasureState(direction)) {
+    let w = 0;
+
+    if (state.characterIndex > state.clusterStart && state.characterIndex < state.clusterEnd) {
+      w += this.measureInsideCluster(state, ci);
+      if (ci > state.clusterStart && ci < state.clusterEnd) {
+        state.characterIndex = ci;
+        return w / this.face.upem * this.attrs.style.fontSize;
+      } else {
+        this.nextCluster(direction, state);
       }
     }
 
-    if (state) state.glyphIndex = i;
+    while (!state.done && (direction === 1 ? ci >= state.clusterEnd : ci <= state.clusterStart)) {
+      w += state.clusterAdvance;
+      this.nextCluster(direction, state);
+    }
+
+    state.characterIndex = direction === 1 ? state.clusterStart : state.clusterEnd;
+
+    if (ci > state.clusterStart && ci < state.clusterEnd) {
+      w += this.measureInsideCluster(state, ci);
+      state.characterIndex = ci;
+    }
 
     return w / this.face.upem * this.attrs.style.fontSize;
   }
@@ -1405,7 +1480,7 @@ export class Paragraph {
     // Item iterator
     let itemIndex = -1;
     let emittedItemEnd = false;
-    const itemMeasureState = {glyphIndex: null};
+    let itemMeasureState: MeasureState | undefined;
     let itemMark = 0;
     // Ink iterator
     let isInk = false;
@@ -1496,7 +1571,7 @@ export class Paragraph {
         if (itemIndex < this.brokenItems.length) {
           const item = this.brokenItems[itemIndex];
           itemMark += item.text.length;
-          itemMeasureState.glyphIndex = null;
+          itemMeasureState = item.createMeasureState();
           mark.isItemStart = true;
           mark.itemIndex += 1;
           emittedItemEnd = false;
@@ -1539,7 +1614,7 @@ export class Paragraph {
       const item = paragraph.brokenItems[this.itemIndex];
 
       if (itemIndex === this.itemIndex) {
-        itemMeasureState.glyphIndex = null;
+        itemMeasureState = item.createMeasureState();
         item.measure(mark.position, 1, itemMeasureState);
       }
     }

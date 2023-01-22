@@ -734,15 +734,6 @@ export class BlockContainer extends Box {
     return this.containingBlock.direction;
   }
 
-  absolutify() {
-    this.borderArea.absolutify();
-    this.paddingArea.absolutify();
-    this.contentArea.absolutify();
-    for (const c of this.children) {
-      c.absolutify();
-    }
-  }
-
   setBlockPosition(position: number) {
     if (!this.containingBlock) {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
@@ -939,6 +930,15 @@ export class BlockContainer extends Box {
       promises.push(promise);
     }
     await Promise.all(promises);
+  }
+
+  postprocess() {
+    this.borderArea.absolutify();
+    this.paddingArea.absolutify();
+    this.contentArea.absolutify();
+    for (const c of this.children) {
+      c.postprocess();
+    }
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1493,6 +1493,11 @@ export class IfcInline extends Inline {
     await Promise.all(this.floats.map(float => float.preprocess()));
   }
 
+  postprocess() {
+    for (const box of this.floats) box.postprocess();
+    this.paragraph.destroy();
+  }
+
   doTextLayout(ctx: LayoutContext) {
     if (this.hasText() || this.hasFloats()) {
       this.paragraph.createLineboxes(ctx);
@@ -1505,10 +1510,6 @@ export class IfcInline extends Inline {
 
   hasFloats() {
     return this.floats.length > 0;
-  }
-
-  absolutify() {
-    for (const box of this.floats) box.absolutify();
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

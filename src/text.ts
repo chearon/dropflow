@@ -598,7 +598,7 @@ export class ShapedItem implements IfcRenderItem {
   split(offset: number) {
     const dir = this.attrs.level & 1 ? 'rtl' : 'ltr';
     const glyphs = shiftGlyphs(this.glyphs, this.offset + offset, dir);
-    const needsReshape = Boolean(glyphs[0].flags & 1);
+    const needsReshape = Boolean(dir === 'ltr' ? glyphs[0].flags & 1 : glyphs.at(-1)!.flags & 1);
     const inlines = this.inlines;
     const right = new ShapedItem(
       this.paragraph,
@@ -625,6 +625,12 @@ export class ShapedItem implements IfcRenderItem {
     for (const i of right.inlines) i.nshaped += 1;
 
     return right;
+  }
+
+  reshape() {
+    const font = hb.createFont(this.face);
+    this.glyphs = this.paragraph.shapePart(this.offset, this.text.length, font, this.attrs);
+    font.destroy();
   }
 
   createMeasureState(direction: 1 | -1 = 1) {
@@ -1161,6 +1167,7 @@ function createIfcBuffer(text: string) {
 export class Paragraph {
   ifc: IfcInline;
   string: string;
+  buffer: AllocatedUint16Array;
   strut: AscenderDescender;
   enableLogging: boolean;
   colors: [Color, number][];
@@ -1173,6 +1180,7 @@ export class Paragraph {
   constructor(ifc: IfcInline, strut: AscenderDescender, enableLogging: boolean) {
     this.ifc = ifc;
     this.string = ifc.text;
+    this.buffer = createIfcBuffer(this.ifc.text);
     this.strut = strut;
     this.enableLogging = enableLogging;
     this.colors = [];
@@ -1183,6 +1191,10 @@ export class Paragraph {
     this.height = 0;
   }
 
+  destroy() {
+    this.buffer.destroy();
+  }
+
   slice(start: number, end: number) {
     return this.string.slice(start, end);
   }
@@ -1190,6 +1202,8 @@ export class Paragraph {
   split(itemIndex: number, offset: number) {
     const left = this.brokenItems[itemIndex];
     const right = left.split(offset - left.offset);
+    if (left.needsReshape) left.reshape();
+    if (right.needsReshape) right.reshape();
     this.brokenItems.splice(itemIndex + 1, 0, right);
   }
 
@@ -1262,10 +1276,10 @@ export class Paragraph {
     }
   }
 
-  shapePart(buffer: AllocatedUint16Array, offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+  shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const buf = hb.createBuffer();
     buf.setClusterLevel(1);
-    buf.addUtf16(buffer.array.byteOffset, buffer.array.length, offset, length);
+    buf.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
     buf.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
     buf.setScript(attrs.script);
     buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
@@ -1313,7 +1327,6 @@ export class Paragraph {
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
-    const buffer = createIfcBuffer(this.ifc.text);
     const log = this.enableLogging ? (s: string) => logstr += s : null;
     let inline = inlineIterator.next();
     let inlineEnd = 0;
@@ -1374,7 +1387,7 @@ export class Paragraph {
 
         while (shapeWork.length) {
           const {text, offset} = shapeWork.pop()!;
-          const shapedPart = this.shapePart(buffer, offset, text.length, font, attrs);
+          const shapedPart = this.shapePart(offset, text.length, font, attrs);
           let didPushPart = false;
 
           log?.(`    Shaping "${text}" with font ${match.file}\n`);
@@ -1464,8 +1477,6 @@ export class Paragraph {
     this.colors = colors;
     this.extents = this.createExtentsArray(styles, faces.sort((a, b) => a[1] - b[1]));
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
-
-    buffer.destroy();
   }
 
   createMarkIterator() {

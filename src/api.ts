@@ -65,7 +65,7 @@ export async function layout(root: BlockContainer, width = 640, height = 480) {
     lastPositionedArea: initialContainingBlock,
     mode: 'normal'
   });
-  root.absolutify();
+  root.postprocess();
 }
 
 export function paintToHtml(root: BlockContainer) {

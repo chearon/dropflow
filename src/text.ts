@@ -961,7 +961,6 @@ export class Linebox extends LineItemLinkedList {
   endOffset: number;
   width: LineWidthTracker;
   dir: 'ltr' | 'rtl';
-  trimStartFinished: boolean;
   blockOffset: number;
   inlineOffset: number;
 
@@ -972,7 +971,6 @@ export class Linebox extends LineItemLinkedList {
     this.ascender = strut.ascender;
     this.descender = strut.descender;
     this.width = new LineWidthTracker();
-    this.trimStartFinished = false;
     this.blockOffset = 0;
     this.inlineOffset = 0;
   }
@@ -985,7 +983,6 @@ export class Linebox extends LineItemLinkedList {
     this.concat(candidates);
     this.width.concat(width);
     this.endOffset = endOffset;
-    if (!this.trimStartFinished) this.trimStart();
   }
 
   hasText() {
@@ -1003,10 +1000,7 @@ export class Linebox extends LineItemLinkedList {
   trimStart() {
     for (let n = this.head; n; n = n.next) {
       if (n.value instanceof ShapedShim) continue;
-      if (n.value.collapseWhitespace('start')) {
-        this.trimStartFinished = true;
-        return;
-      }
+      if (n.value.collapseWhitespace('start')) return;
     }
   }
 
@@ -1098,6 +1092,7 @@ export class Linebox extends LineItemLinkedList {
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
     const width = this.width.trimmed();
     this.blockOffset = vacancy.blockOffset;
+    this.trimStart();
     this.trimEnd();
     this.reorder();
     this.calculateExtents();

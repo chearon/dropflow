@@ -1612,7 +1612,12 @@ export class Paragraph {
         }
         if (bk && this.ifc.hasText()) {
           breakMark = bk.position;
-          linebreak = bk;
+          if (linebreak) {
+            linebreak.position = bk.position;
+            linebreak.required = bk.required;
+          } else {
+            linebreak = {...bk};
+          }
         } else {
           linebreak = null;
           breakMark = end;

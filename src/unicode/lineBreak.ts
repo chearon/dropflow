@@ -137,6 +137,8 @@ class Break {
   }
 }
 
+const bk = new Break(0, false);
+
 export default class LineBreaker {
   private string: string;
   private pos: number;
@@ -271,7 +273,9 @@ export default class LineBreaker {
       // explicit newline
       if ((this.curClass === BK) || ((this.curClass === CR) && (this.nextClass !== LF))) {
         this.curClass = mapFirst(mapClass(this.nextClass));
-        return new Break(this.lastPos, true);
+        bk.position = this.lastPos;
+        bk.required = true;
+        return bk;
       }
 
       let shouldBreak = this.getSimpleBreak();
@@ -284,14 +288,18 @@ export default class LineBreaker {
       this.LB8a = (this.nextClass === ZWJ);
 
       if (shouldBreak) {
-        return new Break(this.lastPos);
+        bk.position = this.lastPos;
+        bk.required = false;
+        return bk;
       }
     }
 
     if (this.lastPos < this.string.length) {
       const required = this.curClass === BK || this.curClass === CR && this.nextClass !== LF;
       this.lastPos = this.string.length;
-      return new Break(this.string.length, required);
+      bk.position = this.string.length;
+      bk.required = required;
+      return bk;
     }
 
     return null;

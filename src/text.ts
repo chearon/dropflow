@@ -508,11 +508,11 @@ function logGlyphs(glyphs: HbGlyphInfo[]) {
 
 type ShapingPart = {
   offset: number,
+  length: number,
   cstart: number,
   cend: number,
   gstart: number,
   gend: number,
-  text: string,
   glyphs: HbGlyphInfo[],
   reshape: boolean
 };
@@ -570,7 +570,7 @@ export class ShapedItem implements IfcRenderItem {
   match: FontConfigCssMatch;
   glyphs: HbGlyphInfo[];
   offset: number;
-  text: string;
+  length: number;
   attrs: Readonly<ShapingAttrs>;
   needsReshape: boolean;
   inlines: Inline[];
@@ -581,7 +581,7 @@ export class ShapedItem implements IfcRenderItem {
     match: FontConfigCssMatch,
     glyphs: HbGlyphInfo[],
     offset: number,
-    text: string,
+    length: number,
     attrs: Readonly<ShapingAttrs>
   ) {
     this.paragraph = paragraph;
@@ -589,7 +589,7 @@ export class ShapedItem implements IfcRenderItem {
     this.match = match;
     this.glyphs = glyphs;
     this.offset = offset;
-    this.text = text;
+    this.length = length;
     this.attrs = attrs;
     this.needsReshape = false;
     this.inlines = [];
@@ -602,7 +602,7 @@ export class ShapedItem implements IfcRenderItem {
       this.match,
       this.glyphs.map(glyph => ({...glyph})),
       this.offset,
-      this.text,
+      this.length,
       this.attrs
     );
   }
@@ -618,12 +618,11 @@ export class ShapedItem implements IfcRenderItem {
       this.match,
       glyphs,
       this.offset + offset,
-      this.text.slice(offset),
+      this.length - offset,
       this.attrs
     );
 
-    this.text = this.text.slice(0, offset);
-
+    this.length = offset;
     this.needsReshape = needsReshape;
     this.inlines = inlines.filter(inline => {
       return inline.start < this.end() && inline.end > this.offset;
@@ -641,7 +640,7 @@ export class ShapedItem implements IfcRenderItem {
 
   reshape() {
     const font = hb.createFont(this.face);
-    this.glyphs = this.paragraph.shapePart(this.offset, this.text.length, font, this.attrs);
+    this.glyphs = this.paragraph.shapePart(this.offset, this.length, font, this.attrs);
     font.destroy();
   }
 
@@ -793,7 +792,12 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   end() {
-    return this.offset + this.text.length;
+    return this.offset + this.length;
+  }
+
+  // only use this in debugging or tests
+  text() {
+    return this.paragraph.string.slice(this.offset, this.offset + this.length);
   }
 }
 
@@ -802,7 +806,7 @@ function logParagraph(paragraph: ShapedItem[]) {
     const lead = `  @${item.offset} `;
     const leadsp = ' '.repeat(lead.length);
     console.log(`${lead}F:${basename(item.face.name)}`);
-    console.log(`${leadsp}T:"${item.text}"`);
+    console.log(`${leadsp}T:"${item.text()}"`);
     console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
   }
 }
@@ -1348,8 +1352,7 @@ export class Paragraph {
       const start = lastItemIndex;
       const end = itemIndex;
       const cascade = getCascade(attrs.style, attrs.script);
-      const text = this.slice(start, end);
-      const shapeWork = [{offset: start, text}];
+      const shapeWork = [{offset: start, length: end - start}];
 
       log?.(`  Item ${lastItemIndex}..${itemIndex}:\n`);
       log?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
@@ -1393,34 +1396,35 @@ export class Paragraph {
         }
 
         while (shapeWork.length) {
-          const {text, offset} = shapeWork.pop()!;
-          const shapedPart = this.shapePart(offset, text.length, font, attrs);
+          const {offset, length} = shapeWork.pop()!;
+          const end = offset + length;
+          const shapedPart = this.shapePart(offset, length, font, attrs);
           let didPushPart = false;
 
-          log?.(`    Shaping "${text}" with font ${match.file}\n`);
+          log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.file}\n`);
           log?.('    Shaper returned: ' + logGlyphs(shapedPart) + '\n');
 
           // Grapheme cluster iterator
-          let ucClusterStart = 0;
-          let ucClusterEnd = 0;
+          let ucClusterStart = offset;
+          let ucClusterEnd = offset;
           // HB cluster iterator
           const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level & 1 ? 'rtl' : 'ltr');
           let hbIt = hbGlyphIterator.next();
-          let hbClusterEnd = 0;
+          let hbClusterEnd = offset;
           let clusterNeedsReshape = false;
 
           do {
             const mark = Math.min(ucClusterEnd, hbClusterEnd);
 
-            if (ucClusterEnd < text.length && mark === ucClusterEnd) {
+            if (ucClusterEnd < end && mark === ucClusterEnd) {
               ucClusterStart = ucClusterEnd;
-              ucClusterEnd = nextGraphemeBreak(text, ucClusterEnd);
+              ucClusterEnd = nextGraphemeBreak(this.string, ucClusterEnd);
             }
 
-            if (hbClusterEnd < text.length && mark === hbClusterEnd) {
+            if (hbClusterEnd < end && mark === hbClusterEnd) {
               clusterNeedsReshape = hbIt.done ? /* impossible */ false : hbIt.value.needsReshape;
               hbIt = hbGlyphIterator.next();
-              hbClusterEnd = hbIt.done ? text.length : shapedPart[hbIt.value.start].cl - offset;
+              hbClusterEnd = hbIt.done ? end : shapedPart[hbIt.value.start].cl;
             }
 
             const nextMark = Math.min(ucClusterEnd, hbClusterEnd);
@@ -1430,12 +1434,12 @@ export class Paragraph {
               if (!didPushPart || clusterNeedsReshape !== parts[parts.length - 1].reshape) {
                 parts.push({
                   offset,
+                  length,
                   cstart: ucClusterStart,
                   cend: ucClusterEnd,
                   gstart: glyphStart,
                   gend: glyphEnd,
                   reshape: clusterNeedsReshape,
-                  text,
                   glyphs: shapedPart
                 });
                 didPushPart = true;
@@ -1445,22 +1449,22 @@ export class Paragraph {
                 parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
               }
             }
-          } while (ucClusterEnd < text.length || hbClusterEnd < text.length);
+          } while (ucClusterEnd < end || hbClusterEnd < end);
         }
 
         for (const part of parts) {
           const {gstart, gend, cstart, cend, reshape} = part;
-          const offset = part.offset + cstart;
-          const text = part.text.slice(cstart, cend);
+          const offset = cstart;
+          const length = cend - cstart;
 
           if (reshape && !isLastMatch) {
-            shapeWork.push({offset, text});
-            log?.(`    ==> Must reshape "${text}"\n`);
+            shapeWork.push({offset, length});
+            log?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
           } else {
             const glyphs = part.glyphs.slice(gstart, gend);
 
             faces.push([face, offset]);
-            items.push(new ShapedItem(this, face, match, glyphs, offset, text, {...attrs}));
+            items.push(new ShapedItem(this, face, match, glyphs, offset, length, {...attrs}));
 
             if (isLastMatch && reshape) {
               log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
@@ -1588,7 +1592,7 @@ export class Paragraph {
 
         if (itemIndex < this.brokenItems.length) {
           const item = this.brokenItems[itemIndex];
-          itemMark += item.text.length;
+          itemMark += item.length;
           itemMeasureState = item.createMeasureState();
           mark.isItemStart = true;
           mark.itemIndex += 1;
@@ -1823,7 +1827,7 @@ export class Paragraph {
       for (const [i, line] of lines.entries()) {
         let log = `Line ${i} (${line.width.trimmed()} width): `;
         for (let n = line.head; n; n = n.next) {
-          log += n.value instanceof ShapedItem ? `“${n.value.text}” ` : '“”';
+          log += n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“”';
         }
         console.log(log);
       }

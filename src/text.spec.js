@@ -404,7 +404,7 @@ describe('Shaping', function () {
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       let s = '';
-      for (const item of inline.paragraph.brokenItems) s += item.text;
+      for (const item of inline.paragraph.brokenItems) s += item.text();
       expect(s).to.equal('Lorem大併外بينᏣᎳᎩ');
     });
 
@@ -423,7 +423,7 @@ describe('Shaping', function () {
       `);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.paragraph.brokenItems[1].text.length).to.equal(2);
+      expect(inline.paragraph.brokenItems[1].length).to.equal(2);
     });
   });
 });
@@ -685,14 +685,14 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(2);
 
     let n = ifc.paragraph.lineboxes[0].head; // ' Give_me_the_next_span '
-    expect(n.value.text).to.equal(' Give_me_the_next_span ');
+    expect(n.value.text()).to.equal(' Give_me_the_next_span ');
     n = n.next; // Shiv ''
     expect(n.value.inlines[0].getLineLeftMarginBorderPadding(ifc)).to.equal(300);
     expect(n.value.inlines[0].getLineRightMarginBorderPadding(ifc)).to.equal(0);
     expect(n.next).to.be.null;
 
     n = ifc.paragraph.lineboxes[1].head; // 'not me'
-    expect(n.value.text).to.equal('not me ');
+    expect(n.value.text()).to.equal('not me ');
     expect(n.value.inlines[0].getLineLeftMarginBorderPadding(ifc)).to.equal(150);
   });
 

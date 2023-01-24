@@ -1649,6 +1649,7 @@ export class Paragraph {
     const fctx = bfc.fctx;
     const candidates = new LineCandidates();
     const candidatesWidth = new LineWidthTracker();
+    const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
     const basedir = this.ifc.style.direction;
     const parents:Inline[] = [];
     let line:Linebox | null = null;
@@ -1735,7 +1736,7 @@ export class Paragraph {
         }
 
         const blockSize = breakExtents.ascender + breakExtents.descender;
-        const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+        fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (line.hasText() && line.width.forWord() + candidatesWidth.asWord() > vacancy.inlineSize) {
           const lastLine = line;
@@ -1757,7 +1758,7 @@ export class Paragraph {
         }
 
         if (!line.hasText() /* line was just added */) {
-          const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+          fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
           if (candidatesWidth.forFloat() > vacancy.inlineSize) {
             const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidatesWidth.forFloat());
             blockOffset = newVacancy.blockOffset;
@@ -1783,7 +1784,7 @@ export class Paragraph {
         floats.length = 0;
 
         if (mark.isBreakForced) {
-          const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+          fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
           line.postprocess(vacancy, this.ifc.style.textAlign);
           fctx.postLine(line, true);
           blockOffset += line.height();
@@ -1813,7 +1814,7 @@ export class Paragraph {
 
     if (line) {
       const blockSize = breakExtents.ascender + breakExtents.descender;
-      const vacancy = fctx.getVacancyForLine(blockOffset, blockSize).makeLocal(bfc);
+      fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
       line.postprocess(vacancy, this.ifc.style.textAlign);
       blockOffset += line.height();
       fctx.postLine(line, false);

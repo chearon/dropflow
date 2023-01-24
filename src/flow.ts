@@ -491,13 +491,6 @@ export class IfcVacancy {
     this.leftFloatCount = leftFloatCount;
     this.rightFloatCount = rightFloatCount;
   }
-
-  makeLocal(bfc: BlockFormattingContext) {
-    this.leftOffset -= bfc.cbLineLeft;
-    this.rightOffset -= bfc.cbLineRight;
-    this.blockOffset -= bfc.cbBlockStart;
-    return this;
-  }
 };
 
 export class FloatContext {
@@ -533,6 +526,17 @@ export class FloatContext {
     const rightOffset = this.bfc.cbLineRight + rightInlineSpace;
     const inlineSize = this.bfc.inlineSize - leftOffset - rightOffset;
     return new IfcVacancy(leftOffset, rightOffset, blockOffset, inlineSize, 0, 0);
+  }
+
+  getLocalVacancyForLine(bfc: BlockFormattingContext, blockOffset: number, blockSize: number, vacancy: IfcVacancy) {
+    const leftInlineSpace = this.leftFloats.getOccupiedSpace(blockOffset, blockSize, -this.bfc.cbLineLeft);
+    const rightInlineSpace = this.rightFloats.getOccupiedSpace(blockOffset, blockSize, -this.bfc.cbLineRight);
+    vacancy.leftOffset = this.bfc.cbLineLeft + leftInlineSpace;
+    vacancy.rightOffset = this.bfc.cbLineRight + rightInlineSpace;
+    vacancy.inlineSize = this.bfc.inlineSize - vacancy.leftOffset - vacancy.rightOffset;
+    vacancy.blockOffset = blockOffset - bfc.cbBlockStart;
+    vacancy.leftOffset -= bfc.cbLineLeft;
+    vacancy.rightOffset -= bfc.cbLineRight;
   }
 
   getVacancyForBox(box: BlockContainer) {

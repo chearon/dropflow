@@ -94,7 +94,7 @@ const LogicalMaps = Object.freeze({
   })
 });
 
-type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
+export type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
 
 type ValuePctPxEm = number | {value: number, unit: '%' | 'em'};
 

@@ -1,6 +1,6 @@
 import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
-import {Style, initialStyle, createComputedStyle, Color, TextAlign} from './cascade.js';
+import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
@@ -25,6 +25,18 @@ const leftToRightEmbedCharacter = 0x202A;
 const rightToLeftOverrideCharacter = 0x202E;
 const zeroWidthNoBreakSpaceCharacter = 0xFEFF;
 const objectReplacementCharacter = 0xFFFC;
+
+function isWsCollapsible(whiteSpace: WhiteSpace) {
+  return whiteSpace === 'normal' || whiteSpace === 'nowrap' || whiteSpace === 'pre-line';
+}
+
+function isSgUncollapsible(whiteSpace: WhiteSpace) {
+  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line';
+}
+
+function isNowrap(whiteSpace: WhiteSpace) {
+  return whiteSpace === 'nowrap' || whiteSpace === 'pre';
+}
 
 // TODO runs aren't really boxes per the spec. You can't position them, etc.
 // I wonder if I should create a class like RenderItem (Box extends RenderItem)
@@ -69,15 +81,15 @@ export class Run extends Box {
   }
 
   get wsCollapsible() {
-    return !!this.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
+    return isWsCollapsible(this.style.whiteSpace);
   }
 
   get sgUncollapsible() {
-    return !!this.style.whiteSpace.match(/^(pre|pre-wrap|break-spaces|pre-line)$/);
+    return isSgUncollapsible(this.style.whiteSpace);
   }
 
   get sgCollapsible() {
-    return !this.sgUncollapsible;
+    return !isSgUncollapsible(this.style.whiteSpace);
   }
 
   mod(start: number, end: number, s: string) {
@@ -1663,8 +1675,8 @@ export class Paragraph {
 
       if (mark.inlinePre) parents.push(mark.inlinePre);
 
-      const wsCollapsible = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(normal|nowrap|pre-line)$/);
-      const nowrap = (parents[parents.length - 1] || this.ifc).style.whiteSpace.match(/^(nowrap|pre)$/);
+      const wsCollapsible = isWsCollapsible((parents[parents.length - 1] || this.ifc).style.whiteSpace);
+      const nowrap = isNowrap((parents[parents.length - 1] || this.ifc).style.whiteSpace);
 
       if (mark.isInk) {
         candidatesWidth.addInk(mark.advance);

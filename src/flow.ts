@@ -1490,6 +1490,7 @@ export class IfcInline extends Inline {
 
   async preprocess(enableLogging: boolean) {
     if (this.hasText() || this.hasFloats()) {
+      this.paragraph.destroy();
       this.paragraph = await createParagraph(this, enableLogging);
       await this.paragraph.shape();
     }

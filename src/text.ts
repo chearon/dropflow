@@ -1188,10 +1188,10 @@ export class Paragraph {
   lineboxes: Linebox[];
   height: number;
 
-  constructor(ifc: IfcInline, strut: AscenderDescender, enableLogging: boolean) {
+  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, strut: AscenderDescender, enableLogging: boolean) {
     this.ifc = ifc;
     this.string = ifc.text;
-    this.buffer = createIfcBuffer(this.ifc.text);
+    this.buffer = buffer;
     this.strut = strut;
     this.enableLogging = enableLogging;
     this.colors = [];
@@ -1854,10 +1854,16 @@ export async function createParagraph(ifc: IfcInline, enableLogging: boolean) {
   const strutFace = await getFace(strutFontMatch.file, strutFontMatch.index);
   const strutFont = hb.createFont(strutFace);
   const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
+  const buffer = createIfcBuffer(ifc.text)
   strutFont.destroy();
-  return new Paragraph(ifc, strut, enableLogging);
+  return new Paragraph(ifc, buffer, strut, enableLogging);
 }
 
+const EmptyBuffer = {
+  array: new Uint16Array(),
+  destroy: () => {}
+};
+
 export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, {ascender: 0, descender: 0}, false);
+  return new Paragraph(ifc, EmptyBuffer, {ascender: 0, descender: 0}, false);
 }

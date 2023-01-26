@@ -6,7 +6,7 @@ import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
 import LineBreak from './unicode/lineBreak.js';
-import {nextGraphemeBreak} from './unicode/graphemeBreak.js';
+import {nextGraphemeBreak, previousGraphemeBreak} from './unicode/graphemeBreak.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import {fcfg, itemizer, hb} from './deps.js';
 
@@ -610,7 +610,10 @@ export class ShapedItem implements IfcRenderItem {
   split(offset: number) {
     const dir = this.attrs.level & 1 ? 'rtl' : 'ltr';
     const glyphs = shiftGlyphs(this.glyphs, this.offset + offset, dir);
-    const needsReshape = Boolean(dir === 'ltr' ? glyphs[0].flags & 1 : glyphs.at(-1)!.flags & 1);
+    const firstGlyph = dir === 'ltr' ? glyphs[0] : glyphs.at(-1)!;
+    const needsReshape = Boolean(firstGlyph.flags & 1)
+      || firstGlyph.cl !== this.offset + offset // cluster break
+      || this.paragraph.isInsideGraphemeBoundary(this.offset + offset);
     const inlines = this.inlines;
     const right = new ShapedItem(
       this.paragraph,
@@ -1216,6 +1219,10 @@ export class Paragraph {
     if (left.needsReshape) left.reshape();
     if (right.needsReshape) right.reshape();
     this.brokenItems.splice(itemIndex + 1, 0, right);
+  }
+
+  isInsideGraphemeBoundary(offset: number) {
+    return nextGraphemeBreak(this.string, previousGraphemeBreak(this.string, offset)) !== offset;
   }
 
   length() {

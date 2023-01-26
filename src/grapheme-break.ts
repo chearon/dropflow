@@ -1,5 +1,5 @@
 // All code based on foliojs/grapheme-breaker at time of writing
-import graphemeBreakTrie from '../../gen/graphemeBreakTrie.js';
+import graphemeBreakTrie from '../gen/grapheme-break-trie.js';
 
 // Gets a code point from a UTF-16 string
 // handling surrogate pairs appropriately

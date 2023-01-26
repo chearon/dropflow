@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {h, dom, generate, layout, registerFont} from './api.js';
+import {h, dom, generate, layout, registerFont} from '../src/api.js';
 
 describe('Hyperscript API', function () {
   it('accepts children argument', function () {

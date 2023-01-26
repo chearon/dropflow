@@ -1,5 +1,5 @@
 // All code based on foliojs/linebreak at time of writing
-import lineBreakTrie from '../../gen/lineBreakTrie.js';
+import lineBreakTrie from '../gen/line-break-trie.js';
 
 const DI_BRK = 0; // Direct break opportunity
 const IN_BRK = 1; // Indirect break opportunity

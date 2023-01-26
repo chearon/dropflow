@@ -1,9 +1,9 @@
-import type {Color} from '../cascade.js';
+import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import {encode} from 'entities';
-import {getAscenderDescender, ShapedItem} from '../text.js';
-import {hb} from '../deps.js';
+import {getAscenderDescender, ShapedItem} from './text.js';
+import {hb} from './deps.js';
 
 type StringMap = Record<string, string>;
 

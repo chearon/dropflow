@@ -5,8 +5,8 @@ import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, 
 import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
-import LineBreak from './unicode/lineBreak.js';
-import {nextGraphemeBreak, previousGraphemeBreak} from './unicode/graphemeBreak.js';
+import LineBreak from './line-break.js';
+import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import {fcfg, itemizer, hb} from './deps.js';
 

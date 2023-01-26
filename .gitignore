@@ -1,5 +1,4 @@
 node_modules/
 *.js
 !gen.js
-!src/*.spec.js
-!src/**/*.spec.js
+!test/*.js

@@ -1,7 +1,7 @@
-import {BlockContainer, IfcInline, Inline} from '../flow.js';
-import {ShapedItem} from '../text.js';
-import {Color} from '../cascade.js';
-import {hb} from '../deps.js';
+import {BlockContainer, IfcInline, Inline} from './flow.js';
+import {ShapedItem} from './text.js';
+import {Color} from './cascade.js';
+import {hb} from './deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
 import type {HbGlyphInfo} from 'harfbuzzjs';
 

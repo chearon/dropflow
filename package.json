@@ -18,7 +18,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "mocha src/*.spec.js",
+    "test": "mocha test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js",
     "buildcssparser": "peggy --format es src/css.pegjs",
     "build": "tsc"
   },

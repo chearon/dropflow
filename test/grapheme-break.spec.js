@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import fs from 'fs';
 import punycode from 'punycode';
-import nextGraphemeBreak from './GraphemeBreak.js';
+import nextGraphemeBreak from '../src/grapheme-break.js';
 
 function split(str) {
   const ret = [];

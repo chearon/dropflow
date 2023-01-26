@@ -1,10 +1,10 @@
-import type {Color} from '../cascade.js';
+import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import type {CanvasRenderingContext2D} from 'canvas';
-import type {ShapedItem} from '../text.js';
+import type {ShapedItem} from './text.js';
 import type {HbGlyphInfo} from 'harfbuzzjs';
-import {nextGraphemeBreak, previousGraphemeBreak} from '../unicode/graphemeBreak.js';
+import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import {openSync as openFontSync} from 'fontkit';
 
 function graphemeBoundaries(text: string, index: number) {

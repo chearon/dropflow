@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import request from 'request';
-import * as lbClasses from './src/unicode/lineBreak.js';
-import * as gbClasses from './src/unicode/graphemeBreak.js';
+import * as lbClasses from './src/line-break.js';
+import * as gbClasses from './src/grapheme-break.js';
 import UnicodeTrieBuilder from 'unicode-trie/builder.js';
 import {URL} from 'url';
 
@@ -44,7 +44,7 @@ request('http://www.unicode.org/Public/14.0.0/ucd/LineBreak.txt', function (err,
 
     if ((type != null) && (rangeType !== type)) {
       if (typeof lbClasses[type] !== 'number') {
-        throw new Error(`Class ${type} not found; update lineBreak.ts?`);
+        throw new Error(`Class ${type} not found; update line-break.ts?`);
       }
       trie.setRange(parseInt(start, 16), parseInt(end, 16), lbClasses[type], true);
       type = null;
@@ -60,7 +60,7 @@ request('http://www.unicode.org/Public/14.0.0/ucd/LineBreak.txt', function (err,
 
   trie.setRange(parseInt(start, 16), parseInt(end, 16), lbClasses[type], true);
   
-  writeTrie(path.join(__dirname, 'gen/lineBreakTrie.ts'), trie);
+  writeTrie(path.join(__dirname, 'gen/line-break-trie.ts'), trie);
 });
 
 request(`http://www.unicode.org/Public/8.0.0/ucd/auxiliary/GraphemeBreakProperty.txt`, function (err, res, data) {
@@ -76,11 +76,11 @@ request(`http://www.unicode.org/Public/8.0.0/ucd/auxiliary/GraphemeBreakProperty
     const end = match[2] != null ? match[2] : start;
     const type = match[3];
     if (typeof gbClasses[type] !== 'number') {
-      throw new Error(`Class ${type} not found; update graphemeBreak.ts?`);
+      throw new Error(`Class ${type} not found; update grapheme-break.ts?`);
     }
 
     trie.setRange(parseInt(start, 16), parseInt(end, 16), gbClasses[type]);
   }
 
-  writeTrie(path.join(__dirname, 'gen/graphemeBreakTrie.ts'), trie);
+  writeTrie(path.join(__dirname, 'gen/grapheme-break-trie.ts'), trie);
 });

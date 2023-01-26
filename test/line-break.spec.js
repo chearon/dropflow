@@ -1,5 +1,5 @@
 import fs from 'fs';
-import LineBreaker from './lineBreak.js';
+import LineBreaker from '../src/line-break.js';
 import assert from 'assert';
 
 describe('unicode line break tests', function () {

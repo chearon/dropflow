@@ -2,3 +2,4 @@ node_modules/
 *.js
 !gen.js
 !test/*.js
+examples/*.png

@@ -1207,6 +1207,7 @@ export class Paragraph {
 
   destroy() {
     this.buffer.destroy();
+    this.buffer = EmptyBuffer;
   }
 
   slice(start: number, end: number) {

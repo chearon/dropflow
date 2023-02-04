@@ -76,4 +76,21 @@ describe('Hyperscript API', function () {
     expect(ifc.paragraph.lineboxes[3].blockOffset).to.equal(60);
     expect(ifc.paragraph.height).to.equal(80);
   });
+
+  it('layout twice is successful', async function () {
+    const style = {fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']};
+    const tree = dom([
+      h('div', {style}, [
+        h('div', 'Chapter 1'),
+        h('div', {attrs: {id: 't'}}, ['The quick brown fox jumps over the lazy dog', h('br'), 'The end'])
+      ])
+    ]);
+
+    const box = generate(tree);
+    await registerFont('assets/Arimo/Arimo-Regular.ttf');
+    await layout(box, 100);
+    await layout(box, 100);
+    const ifc = box.children[0].children[1].children[0];
+    expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
+  });
 });

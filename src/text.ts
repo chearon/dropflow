@@ -342,6 +342,8 @@ async function createFace(filename: string, index: number) {
   const blob = hb.createBlob(buffer);
   const face = hb.createFace(blob, index);
   face.name = basename(filename); // TODO can it be done in hbjs?
+  // TODO: right now I'm not ever freeing blobs or faces. this is okay for most
+  // usages, but I should implement an LRU or something
   return face;
 }
 

@@ -1,13 +1,12 @@
 import * as oflo from '../node.js';
+import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
 
 console.time('Add fonts');
-await Promise.all([
-  oflo.registerFont('assets/Arimo/Arimo-Bold.ttf'),
-  oflo.registerFont('assets/Arimo/Arimo-Regular.ttf'),
-  oflo.registerFont('assets/Arimo/Arimo-Italic.ttf')
-]);
+registerFontAsset('Arimo/Arimo-Bold.ttf');
+registerFontAsset('Arimo/Arimo-Regular.ttf');
+registerFontAsset('Arimo/Arimo-Italic.ttf');
 oflo.eachRegisteredFont(match => registerFont(match.file, match));
 console.timeEnd('Add fonts');
 console.log();

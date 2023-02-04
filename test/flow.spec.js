@@ -2,10 +2,11 @@
 
 import {expect} from 'chai';
 import * as oflo from '../node.js';
+import {registerFontAsset} from '../assets/register.js';
 
 describe('Flow', function () {
   before(async function () {
-    await oflo.registerFont('assets/Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
 
     /**
      * @param {string} [html]

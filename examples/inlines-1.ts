@@ -1,13 +1,12 @@
 import * as oflo from '../node.js';
 import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
+import {registerFontAsset} from '../assets/register.js';
 
-await Promise.all([
-  oflo.registerFont('assets/Arimo/Arimo-Bold.ttf'),
-  oflo.registerFont('assets/Arimo/Arimo-Regular.ttf'),
-  oflo.registerFont('assets/Arimo/Arimo-Italic.ttf'),
-  oflo.registerFont('assets/Cousine/Cousine-Regular.ttf')
-]);
+registerFontAsset('assets/Arimo/Arimo-Bold.ttf');
+registerFontAsset('assets/Arimo/Arimo-Regular.ttf');
+registerFontAsset('assets/Arimo/Arimo-Italic.ttf');
+registerFontAsset('assets/Cousine/Cousine-Regular.ttf');
 
 const rootElement = oflo.parse(`
   <div style="font-family: Arimo; font-size: 16px; line-height: 1.4; background-color: white;">

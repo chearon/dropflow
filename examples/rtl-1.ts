@@ -1,11 +1,10 @@
 import * as oflo from '../node.js';
+import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
 
-await Promise.all([
-  oflo.registerFont('assets/Cairo/Cairo-Medium.ttf'),
-  oflo.registerFont('assets/Raleway/static/Raleway-Regular.ttf')
-]);
+registerFontAsset('Cairo/Cairo-Medium.ttf'),
+registerFontAsset('Raleway/static/Raleway-Regular.ttf')
 
 const rootElement = oflo.parse(`
   <div style="background-color: #ccc;">

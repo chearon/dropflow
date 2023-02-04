@@ -1,6 +1,7 @@
 //@ts-check
 import {expect} from 'chai';
 import * as oflo from '../node.js';
+import {registerFontAsset} from '../assets/register.js';
 import {Run, Collapser} from '../src/text.js';
 import {initialStyle, createComputedStyle} from '../src/cascade.js';
 
@@ -230,19 +231,17 @@ describe('Text Module', function () {
   });
 });
 
-async function setupLayoutTests() {
-  await Promise.all([
-    oflo.registerFont('assets/Arimo/Arimo-Regular.ttf'),
-    oflo.registerFont('assets/Noto/NotoSansSC-Regular.otf'),
-    oflo.registerFont('assets/Noto/NotoSansJP-Regular.otf'),
-    oflo.registerFont('assets/Noto/NotoSansTC-Regular.otf'),
-    oflo.registerFont('assets/Noto/NotoSansKR-Regular.otf'),
-    oflo.registerFont('assets/Noto/NotoSansHebrew-Regular.ttf'),
-    oflo.registerFont('assets/Noto/NotoSansCherokee-Regular.ttf'),
-    oflo.registerFont('assets/Ramabhadra/Ramabhadra-Regular.ttf'),
-    oflo.registerFont('assets/Cairo/Cairo-Regular.ttf'),
-    oflo.registerFont('assets/Roboto/Roboto-Regular.ttf')
-  ]);
+function setupLayoutTests() {
+  registerFontAsset('Arimo/Arimo-Regular.ttf');
+  registerFontAsset('Noto/NotoSansSC-Regular.otf');
+  registerFontAsset('Noto/NotoSansJP-Regular.otf');
+  registerFontAsset('Noto/NotoSansTC-Regular.otf');
+  registerFontAsset('Noto/NotoSansKR-Regular.otf');
+  registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
+  registerFontAsset('Noto/NotoSansCherokee-Regular.ttf');
+  registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+  registerFontAsset('Cairo/Cairo-Regular.ttf');
+  registerFontAsset('Roboto/Roboto-Regular.ttf');
 
   this.layout = async function (html) {
     this.rootElement = oflo.parse(html);

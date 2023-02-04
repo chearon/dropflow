@@ -31,8 +31,8 @@ function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
 // html api is just for development
 // ***
 
-export function registerFont(path: string) {
-  return fcfg.addFont(path);
+export function registerFont(buffer: Uint8Array, filename: string) {
+  fcfg.addFont(buffer, filename);
 }
 
 // TODO: remove the style argument. read styles on <html> instead

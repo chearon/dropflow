@@ -1,5 +1,6 @@
 import {expect} from 'chai';
-import {h, dom, generate, layout, registerFont} from '../src/api.js';
+import {registerFontAsset} from '../assets/register.js';
+import {h, dom, generate, layout} from '../src/api.js';
 
 describe('Hyperscript API', function () {
   it('accepts children argument', function () {
@@ -63,7 +64,7 @@ describe('Hyperscript API', function () {
     ]);
 
     const box = generate(tree);
-    await registerFont('assets/Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
     await layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
@@ -87,7 +88,7 @@ describe('Hyperscript API', function () {
     ]);
 
     const box = generate(tree);
-    await registerFont('assets/Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
     await layout(box, 100);
     await layout(box, 100);
     const ifc = box.children[0].children[1].children[0];

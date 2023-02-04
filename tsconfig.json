@@ -1,5 +1,5 @@
 {
-  "include": ["*.ts", "src/**/*", "*.d.ts", "examples/*.ts"],
+  "include": ["*.ts", "src/**/*", "*.d.ts", "examples/*.ts", "assets/register.ts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
     "lib": ["esnext"],

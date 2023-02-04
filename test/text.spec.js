@@ -242,6 +242,7 @@ function setupLayoutTests() {
   registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
   registerFontAsset('Cairo/Cairo-Regular.ttf');
   registerFontAsset('Roboto/Roboto-Regular.ttf');
+  registerFontAsset('Raleway/Raleway-Regular.ttf');
 
   this.layout = function (html) {
     this.rootElement = oflo.parse(html);
@@ -905,6 +906,42 @@ describe('Lines', function () {
     const [ifc] = this.get('#t').children;
     expect(ifc.paragraph.lineboxes.length).to.equal(1);
     expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(59);
+  });
+
+  it('breaks ligatures with internal break opportunities', function () {
+    this.layout(`
+      <div id="t" style="font: 16px/1.4 Raleway; width: 95px;">
+        Affable waf&ZeroWidthSpace;fle
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes.length).to.equal(2);
+    expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(13);
+    expect(inline.paragraph.lineboxes[1].head.value.glyphs[0].g).to.equal(474);
+  });
+
+  it('breaks after ligature when it fits', function () {
+    this.layout(`
+      <div id="t" style="font: 16px/1.4 Raleway; width: 100px;">
+        Affable waf&ZeroWidthSpace;fle
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes.length).to.equal(1);
+  });
+
+  it('breaks before ligature when it doesn\'t fit', function () {
+    this.layout(`
+      <div id="t" style="font: 16px/1.4 Raleway; width: 52px;">
+        Affable waf&ZeroWidthSpace;fle
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes.length).to.equal(2);
+    expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(9);
   });
 
   describe('Whitespace', function () {

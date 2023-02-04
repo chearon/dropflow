@@ -927,13 +927,10 @@ export class BlockContainer extends Box {
     return !this.isBlockContainerOfInlines();
   }
 
-  async preprocess() {
-    const promises:Promise<any>[] = [];
+  preprocess() {
     for (const child of this.children) {
-      const promise = child.isIfcInline() ? child.preprocess(this.loggingEnabled()) : child.preprocess();
-      promises.push(promise);
+      child.isIfcInline() ? child.preprocess(this.loggingEnabled()) : child.preprocess();
     }
-    await Promise.all(promises);
   }
 
   postprocess() {
@@ -1488,14 +1485,14 @@ export class IfcInline extends Inline {
     yield {i: ci, style: currentStyle};
   }
 
-  async preprocess(enableLogging: boolean) {
+  preprocess(enableLogging: boolean) {
     if (this.hasText() || this.hasFloats()) {
       this.paragraph.destroy();
-      this.paragraph = await createParagraph(this, enableLogging);
-      await this.paragraph.shape();
+      this.paragraph = createParagraph(this, enableLogging);
+      this.paragraph.shape();
     }
 
-    await Promise.all(this.floats.map(float => float.preprocess()));
+    for (const box of this.floats) box.preprocess();
   }
 
   postprocess() {

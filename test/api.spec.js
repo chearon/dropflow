@@ -65,7 +65,7 @@ describe('Hyperscript API', function () {
 
     const box = generate(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
-    await layout(box, 100);
+    layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
     expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
@@ -89,8 +89,8 @@ describe('Hyperscript API', function () {
 
     const box = generate(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
-    await layout(box, 100);
-    await layout(box, 100);
+    layout(box, 100);
+    layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
   });

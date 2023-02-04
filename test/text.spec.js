@@ -243,10 +243,10 @@ function setupLayoutTests() {
   registerFontAsset('Cairo/Cairo-Regular.ttf');
   registerFontAsset('Roboto/Roboto-Regular.ttf');
 
-  this.layout = async function (html) {
+  this.layout = function (html) {
     this.rootElement = oflo.parse(html);
     this.blockContainer = oflo.generate(this.rootElement);
-    await oflo.layout(this.blockContainer);
+    oflo.layout(this.blockContainer);
     this.get = function (...args) {
       if (typeof args[0] === 'string') {
         const elements = this.rootElement.query(args[0]);
@@ -274,8 +274,8 @@ describe('Shaping', function () {
   before(setupLayoutTests);
   afterEach(logIfFailed);
 
-  it('doesn\'t infinite loop when the last match can\'t shape two parts', async function () {
-    await this.layout('𓀀 𓀁');
+  it('doesn\'t infinite loop when the last match can\'t shape two parts', function () {
+    this.layout('𓀀 𓀁');
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get().children;
     expect(inline.paragraph.brokenItems).to.have.lengthOf(3);
@@ -285,8 +285,8 @@ describe('Shaping', function () {
   });
 
   describe('Boundaries', function () {
-    it('splits shaping boundaries on fonts', async function () {
-      await this.layout(`
+    it('splits shaping boundaries on fonts', function () {
+      this.layout(`
         <span style="font: 12px Arimo;">Arimo</span>
         <span style="font: 12px Roboto;">Roboto</span>
       `);
@@ -295,8 +295,8 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
     });
 
-    it('splits shaping boundaries on font-size', async function () {
-      await this.layout(`
+    it('splits shaping boundaries on font-size', function () {
+      this.layout(`
         <span style="font-size: 12px;">a</span>
         <span style="font-size: 13px;">b</span>
       `);
@@ -305,15 +305,15 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
     });
 
-    it('splits shaping boundaries on font-style', async function () {
-      await this.layout(`a<span style="font-style: italic;">b</span>`);
+    it('splits shaping boundaries on font-style', function () {
+      this.layout(`a<span style="font-style: italic;">b</span>`);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
     });
 
-    it('does not split shaping boundaries on line-height', async function () {
-      await this.layout(`
+    it('does not split shaping boundaries on line-height', function () {
+      this.layout(`
         <span style="line-height: 3;">Left</span>
         <span style="line-height: 4;">Right</span>
       `);
@@ -322,40 +322,40 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
     });
 
-    it('splits shaping boundaries based on script', async function () {
-      await this.layout('Lorem Ipusm העמוד');
+    it('splits shaping boundaries based on script', function () {
+      this.layout('Lorem Ipusm העמוד');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
       expect(inline.paragraph.brokenItems[0].face).to.equal(inline.paragraph.brokenItems[1].face);
     });
 
-    it('splits shaping boundaries based on emoji', async function () {
-      await this.layout('Hey 😃 emoji are kinda hard 🦷');
+    it('splits shaping boundaries based on emoji', function () {
+      this.layout('Hey 😃 emoji are kinda hard 🦷');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(4);
     });
 
-    it('splits shaping boundaries on inline padding', async function () {
-      await this.layout(`It's me, <span style="padding: 1em;">padding boi</span>`);
+    it('splits shaping boundaries on inline padding', function () {
+      this.layout(`It's me, <span style="padding: 1em;">padding boi</span>`);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
       expect(inline.paragraph.brokenItems[1].offset).to.equal(9);
     });
 
-    it('doesn\'t create empty shaped items if shaping boundaries overlap', async function () {
-      await this.layout(`L<span style="padding: 1em; font: 8px Arimo;">R</span>`);
+    it('doesn\'t create empty shaped items if shaping boundaries overlap', function () {
+      this.layout(`L<span style="padding: 1em; font: 8px Arimo;">R</span>`);
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
       expect(inline.paragraph.brokenItems[1].offset).to.equal(1);
     });
 
-    it('has correct glyph order for Hebrew text', async function () {
+    it('has correct glyph order for Hebrew text', function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
-      await this.layout('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
+      this.layout('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get('div').children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
@@ -365,16 +365,16 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems[0].glyphs[2].g).to.equal(2439);
     });
 
-    it('doesn\'t create empty shaped items if style and script overlap', async function () {
+    it('doesn\'t create empty shaped items if style and script overlap', function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
-      await this.layout('Hello <span style="font: 16px Arimo;">הלו</span>');
+      this.layout('Hello <span style="font: 16px Arimo;">הלו</span>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
     });
 
-    it('assigns levels, inlcuding to LRE..PDF', async function () {
-      await this.layout('Saying HNY: \u202Bحلول السنة intruding english! الجديدة\u202C');
+    it('assigns levels, inlcuding to LRE..PDF', function () {
+      this.layout('Saying HNY: \u202Bحلول السنة intruding english! الجديدة\u202C');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
@@ -387,8 +387,8 @@ describe('Shaping', function () {
   });
 
   describe('Fallbacks', function () {
-    it('falls back on diacritic é', async function () {
-      await this.layout('<span style="font: 12px/1 Ramabhadra;">xe\u0301</span>');
+    it('falls back on diacritic é', function () {
+      this.layout('<span style="font: 12px/1 Ramabhadra;">xe\u0301</span>');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
@@ -398,8 +398,8 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems[0].face).not.to.equal(inline.paragraph.brokenItems[1].face);
     });
 
-    it('sums to the same string with many reshapes', async function () {
-      await this.layout('Lorem大併外بينᏣᎳᎩ');
+    it('sums to the same string with many reshapes', function () {
+      this.layout('Lorem大併外بينᏣᎳᎩ');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       let s = '';
@@ -407,8 +407,8 @@ describe('Shaping', function () {
       expect(s).to.equal('Lorem大併外بينᏣᎳᎩ');
     });
 
-    it('falls back to tofu', async function () {
-      await this.layout('\uffff');
+    it('falls back to tofu', function () {
+      this.layout('\uffff');
       /** @type import('./flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
@@ -416,8 +416,8 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems[0].glyphs[0].g).to.equal(0);
     });
 
-    it('reshapes the correct segments', async function () {
-      await this.layout(`
+    it('reshapes the correct segments', function () {
+      this.layout(`
         <span style="font-family: Arimo, Cairo;">هل تتحدث لغة أخرى بجانب العربية؟</span>
       `);
       /** @type import('./flow').IfcInline[] */
@@ -431,8 +431,8 @@ describe('Lines', function () {
   before(setupLayoutTests);
   afterEach(logIfFailed);
 
-  it('always puts one word per line at minimum', async function () {
-    await this.layout('<div style="width: 0;">eat lots of peaches</div>');
+  it('always puts one word per line at minimum', function () {
+    this.layout('<div style="width: 0;">eat lots of peaches</div>');
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes).to.have.lengthOf(4);
     expect(inline.paragraph.lineboxes[0].end()).to.equal(4);
@@ -441,8 +441,8 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[3].end()).to.equal(19);
   });
 
-  it('breaks between shaping boundaries', async function () {
-    await this.layout(`
+  it('breaks between shaping boundaries', function () {
+    this.layout(`
       <div style="width: 100px; font: 16px Roboto;">
         Lorem ipsum <span style="font-size: 17px;">lorem ipsum</span>
       </div>
@@ -454,8 +454,8 @@ describe('Lines', function () {
     expect(inline.paragraph.brokenItems).to.have.lengthOf(3);
   });
 
-  it('breaks inside shaping boundaries', async function () {
-    await this.layout(`
+  it('breaks inside shaping boundaries', function () {
+    this.layout(`
       <div style="width: 100px; font: 16px Roboto;">
         Lorem ipsum lorem ipsum
       </div>
@@ -467,8 +467,8 @@ describe('Lines', function () {
     expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
   });
 
-  it('leaves shaping boundaries whole if they can be', async function () {
-    await this.layout(`
+  it('leaves shaping boundaries whole if they can be', function () {
+    this.layout(`
       <div style="width: 16px; font: 16px Roboto;">
         <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
         <span style="color: green;">lorem</span><span style="color: purple;">ipsum</span>
@@ -479,10 +479,10 @@ describe('Lines', function () {
     expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
   });
 
-  it('splits accurately on hebrew text', async function () {
+  it('splits accurately on hebrew text', function () {
     // "I love you" according to https://omniglot.com/language/phrases/hebrew.php
     // Three words, Arimo@16px in 60px the first two should fit on the first line
-    await this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
+    this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
     /** @type import('./flow').IfcInline[] */
     const [inline] = this.get('div').children;
     expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
@@ -491,10 +491,10 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[1].end()).to.equal(13);
   });
 
-  it('measures break width correctly', async function () {
+  it('measures break width correctly', function () {
     // there was once a bug in measureWidth that didn't measure the last
     // glyph. "aa a" is < 35px but "aa aa" is > 35px
-    await this.layout(`
+    this.layout(`
       <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
     /** @type import('./flow').IfcInline[] */
@@ -502,8 +502,8 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
   });
 
-  it('correctly breaks items when a 1-word line follows 2+ 1-word lines', async function () {
-    await this.layout(`
+  it('correctly breaks items when a 1-word line follows 2+ 1-word lines', function () {
+    this.layout(`
       <div style="width: 0px; font: 400 16px Roboto;">
         lorem ipsum lorem
       </div>
@@ -519,10 +519,10 @@ describe('Lines', function () {
     expect(inline.paragraph.brokenItems[2].offset).to.equal(13);
   });
 
-  it('distributes border, margin, and padding to line items', async function () {
+  it('distributes border, margin, and padding to line items', function () {
     // this isn't really wrapping, it's text processing. should I come up
     // with a new word or should the code change to separate concepts?
-    await this.layout(`
+    this.layout(`
       <div style="font: 16px Arimo;">
         <span style="padding: 5px;">A</span>
         <span style="border: 10px solid blue;">A</span>
@@ -553,8 +553,8 @@ describe('Lines', function () {
     expect(a3.value.inlines[0].nshaped).to.equal(1);
   });
 
-  it('puts contiguous padding at the top line except the last padding-lefts', async function () {
-    await this.layout(`
+  it('puts contiguous padding at the top line except the last padding-lefts', function () {
+    this.layout(`
       <div style="width: 50px; font: 16px Arimo;">
         It's a <span style="padding: 10px;"></span><span style="padding-left: 11px;"></span>
         <span style="padding-left: 10px;">wrap!</span>
@@ -584,8 +584,8 @@ describe('Lines', function () {
     expect(n.value.inlines[0].getLineRightMarginBorderPadding(ifc)).to.equal(0);
   });
 
-  it('assigns the right number of shaped items with non-shaping-boundary spans', async function () {
-    await this.layout(`
+  it('assigns the right number of shaped items with non-shaping-boundary spans', function () {
+    this.layout(`
       <span>One span<span>Two spans</span></span>
     `);
 
@@ -594,8 +594,8 @@ describe('Lines', function () {
     expect(ifc.children[1].nshaped).to.equal(1);
   });
 
-  it('updates item inlines/count when wrapping', async function () {
-    await this.layout(`
+  it('updates item inlines/count when wrapping', function () {
+    this.layout(`
       <div style="width: 100px; font: Arimo;">
         <span><span>One span </span><span>Two spans</span></span>
       </div>
@@ -612,8 +612,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[1].inlines[1].end).to.equal(19);
   });
 
-  it('considers padding-right on a break as belonging to the left word', async function () {
-    await this.layout(`
+  it('considers padding-right on a break as belonging to the left word', function () {
+    this.layout(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-right: 70px;">fits </span>padding
       </div>
@@ -626,8 +626,8 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[1].end()).to.equal(11);
   });
 
-  it('ignores empty spans when assigning padding to words', async function () {
-    await this.layout(`
+  it('ignores empty spans when assigning padding to words', function () {
+    this.layout(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-left: 70px;"><span></span>hey</span>
       </div>
@@ -646,8 +646,8 @@ describe('Lines', function () {
     expect(n.value.inlines).to.have.lengthOf(1);
   });
 
-  it('adds padding that wasn\'t measured for fit to the line', async function () {
-    await this.layout(`
+  it('adds padding that wasn\'t measured for fit to the line', function () {
+    this.layout(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-right: 30px;">x </span>x
       </div>
@@ -658,8 +658,8 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
   });
 
-  it('adds buffered padding to line width', async function () {
-    await this.layout(`
+  it('adds buffered padding to line width', function () {
+    this.layout(`
       <div style="font: 16px Arimo; width: 5em;">
         Hey<span style="padding-left: 5em;"> wrap</span>
       </div>
@@ -671,8 +671,8 @@ describe('Lines', function () {
   });
 
 
-  it('adds buffered padding to line width', async function () {
-    await this.layout(`
+  it('adds buffered padding to line width', function () {
+    this.layout(`
       <div style="width: 300px; font: 16px Arimo;">
         Give_me_the_next_span
         <span style="padding-left: 300px;"></span><span style="padding-left: 150px;">not me</span>
@@ -695,8 +695,8 @@ describe('Lines', function () {
     expect(n.value.inlines[0].getLineLeftMarginBorderPadding(ifc)).to.equal(150);
   });
 
-  it('calculates line height with the correct shaped item/inline pairings', async function () {
-    await this.layout(`
+  it('calculates line height with the correct shaped item/inline pairings', function () {
+    this.layout(`
       <div style="width: 0;"><span style="font: 16px/2 Noto Sans Hebrew;">אוטו </span><span style="font: 16px/3 Cairo;">Car</span></div>
     `);
 
@@ -710,8 +710,8 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[1].descender).to.be.approximately(18.1, 0.1);
   });
 
-  it('supports line-height: px', async function () {
-    await this.layout(`
+  it('supports line-height: px', function () {
+    this.layout(`
       <div style="font: 16px/100px Arimo;">The lines are so big!</div>
     `);
 
@@ -720,8 +720,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[0].ascender + ifc.paragraph.lineboxes[0].descender).to.equal(100);
   });
 
-  it('uses the correct line height when multiple spans cross a shaped item', async function () {
-    await this.layout(`
+  it('uses the correct line height when multiple spans cross a shaped item', function () {
+    this.layout(`
       <div style="width: 16px; font: 16px Roboto;">
         <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
       </div>
@@ -731,8 +731,8 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[0].ascender + inline.paragraph.lineboxes[0].descender).to.equal(32);
   });
 
-  it('uses the correct line height when a shaped item is broken', async function () {
-    await this.layout(`
+  it('uses the correct line height when a shaped item is broken', function () {
+    this.layout(`
       <div style="width: 0; font: 16px Roboto;">
         <span style="line-height: 32px;">lorem</span> <span style="line-height: 64px;">ipsum</span>
       </div>
@@ -742,8 +742,8 @@ describe('Lines', function () {
     expect(ifc.contentArea.height).to.equal(32 + 64);
   });
 
-  it('uses the correct inline side to create shaping boundaries', async function () {
-    await this.layout(`
+  it('uses the correct inline side to create shaping boundaries', function () {
+    this.layout(`
       <div style="width: 300px; direction: rtl; font: 16px Cairo;">
         <span style="padding-left: 1em;">أنا </span>بخير شكرا و أنت؟
       </div>
@@ -755,11 +755,11 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[0].end()).to.equal(5);
   });
 
-  it('adds new lines at <br>', async function () {
+  it('adds new lines at <br>', function () {
     // Translation from Arabic:
     // How are you?
     // I'm fine thank you, and you?
-    await this.layout(`
+    this.layout(`
       <div style="width: 150px; direction: rtl; font: 16px Cairo;">
         كيف حالك؟
         <br>أنا بخير شكرا و أنت؟
@@ -772,8 +772,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[0].end()).to.equal(11);
   });
 
-  it('sets the height of an ifc box correctly', async function () {
-    await this.layout(`
+  it('sets the height of an ifc box correctly', function () {
+    this.layout(`
       <div style="width: 500px; font: 16px Ramabhadra">
         <span style="font: 16px Roboto;">I could be<br>reading a book</span>
         <span style="font: 12px Arimo;">But I like writing layout engines instead</span>
@@ -783,8 +783,8 @@ describe('Lines', function () {
     expect(this.get('div').contentArea.height).to.be.approximately(60.7, 0.1);
   });
 
-  it('doesn\'t set the height if it\'s explicitly set', async function () {
-    await this.layout(`
+  it('doesn\'t set the height if it\'s explicitly set', function () {
+    this.layout(`
       <div style="height: 50px; width: 100px; font: 16px Arimo;">
         I could be reading a book but I like writing layout engines instead
       </div>
@@ -793,8 +793,8 @@ describe('Lines', function () {
     expect(this.get('div').contentArea.height).to.equal(50);
   });
 
-  it('carries over colors and line heights correctly', async function () {
-    await this.layout(`
+  it('carries over colors and line heights correctly', function () {
+    this.layout(`
       <div style="width: 0; line-height: 32px;">
         break
         it
@@ -816,8 +816,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[2].head.value.colorsStart()).to.deep.equal(1);
   });
 
-  it('takes strut into account', async function () {
-    await this.layout(`
+  it('takes strut into account', function () {
+    this.layout(`
       <div style="font: 16px/1 Arimo;"><span style="font: 4px Arimo;">tiny!</span></div>
     `);
 
@@ -826,8 +826,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.height).to.equal(16);
   });
 
-  it('sets box to linebox height when it\'s a bfc and ifc', async function () {
-    await this.layout(`
+  it('sets box to linebox height when it\'s a bfc and ifc', function () {
+    this.layout(`
       <div id="t" style="display: flow-root; line-height: 20px;">woeisme</div>
     `);
 
@@ -836,8 +836,8 @@ describe('Lines', function () {
     expect(t.contentArea.height).to.equal(20);
   });
 
-  it('uses the right block position for a wrapped word with a hard break at the end', async function () {
-    await this.layout(`
+  it('uses the right block position for a wrapped word with a hard break at the end', function () {
+    this.layout(`
       <div id="t" style="font: 16px/20px Arimo; width: 80px;">
         A simple test<br>
       </div>
@@ -849,8 +849,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
   });
 
-  it('doesn\'t wrap in spans with soft wraps turned off', async function () {
-    await this.layout(`
+  it('doesn\'t wrap in spans with soft wraps turned off', function () {
+    this.layout(`
       <div id="t" style="font: 16px Arimo; width: 100px;">
         I like
         <span style="white-space: nowrap;">tests that aren't hard to think about</span>
@@ -864,8 +864,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(46);
   });
 
-  it('does wrap on a <br> inside a nowrap span', async function () {
-    await this.layout(`
+  it('does wrap on a <br> inside a nowrap span', function () {
+    this.layout(`
       <div id="t" style="font: 16px Arimo; width: 100px;">
         I like
         <span style="white-space: nowrap;">tests that aren't<br>hard to think about</span>
@@ -879,8 +879,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(25);
   });
 
-  it('wraps on soft wraps inside a nowrap span', async function () {
-    await this.layout(`
+  it('wraps on soft wraps inside a nowrap span', function () {
+    this.layout(`
       <div id="t" style="font: 16px Arimo; width: 100px;">
         I like
         <span style="white-space: nowrap;">tests that <span style="white-space: normal;">aren't hard</span> to think about</span>
@@ -894,8 +894,8 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(26);
   });
 
-  it('lays out entirely nowrap text', async function () {
-    await this.layout(`
+  it('lays out entirely nowrap text', function () {
+    this.layout(`
       <div id="t" style="font: 16px Arimo; width: 100px; white-space: nowrap;">
         I like tests that aren't hard to think about because easy
       </div>
@@ -908,29 +908,29 @@ describe('Lines', function () {
   });
 
   describe('Whitespace', function () {
-    it('skips whitespace at the beginning of the line if it\'s collapsible', async function () {
-      await this.layout(`
+    it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
+      this.layout(`
         <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
       `);
       const [inline] = this.get('div').children;
       expect(inline.paragraph.lineboxes.length).to.equal(1);
     });
 
-    it('keeps whitespace at the beginning of the line when it\'s not collapsible', async function () {
-      await this.layout(`
+    it('keeps whitespace at the beginning of the line when it\'s not collapsible', function () {
+      this.layout(`
         <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
       `);
       const [inline] = this.get('div').children;
       expect(inline.paragraph.lineboxes.length).to.equal(2);
     });
 
-    it('measures whitespace before a break if the break has padding on it', async function () {
+    it('measures whitespace before a break if the break has padding on it', function () {
       // "Word_fits<5>" does fit on a line, but "Word_fits_<5>" does not
       //
       // Interestingly, Firefox fails this one - it puts the padding-right on the
       // first line right up next to the end of the word "fits", even though that
       // appears incorrect since we put a space before the padding in the source below.
-      await this.layout(`
+      this.layout(`
         <div style="width: 70px; font: 16px Arimo;">
           Word <span style="padding-right: 5px;">fits </span>padding
         </div>
@@ -941,8 +941,8 @@ describe('Lines', function () {
       expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
     });
 
-    it('collapses whitespace at the start of the line', async function () {
-      await this.layout(`
+    it('collapses whitespace at the start of the line', function () {
+      this.layout(`
         <div style="width: 100px; font: 16px Arimo;">
           Oh give me a home where the buffalo roam
         </div>
@@ -953,8 +953,8 @@ describe('Lines', function () {
       expect(inline.paragraph.lineboxes[0].head.value.glyphs[0].ax).to.equal(0);
     });
 
-    it('starts a new linebox after \\n when newlines are preserved', async function () {
-      await this.layout(`
+    it('starts a new linebox after \\n when newlines are preserved', function () {
+      this.layout(`
         <div style="width: 300px; font: 16px/20px Arimo; white-space: pre-line;">
           Funny it is
           The things that I spout
@@ -972,8 +972,8 @@ describe('Lines', function () {
       expect(ifc.paragraph.height).to.equal(120);
     });
 
-    it('can make empty lineboxes when newlines are preserved', async function () {
-      await this.layout(`
+    it('can make empty lineboxes when newlines are preserved', function () {
+      this.layout(`
         <div style="width: 300px; font: 16px Arimo; white-space: pre-line;">
           I have to make words
 
@@ -992,8 +992,8 @@ describe('Lines', function () {
       expect(ifc.paragraph.lineboxes[4].startOffset).to.equal(24);
     });
 
-    it('makes two lineboxes for <br>\\n or \\n<br> when newlines are preserved', async function () {
-      await this.layout('<div style="white-space: pre-line;">a\n<br>b<br>\nc');
+    it('makes two lineboxes for <br>\\n or \\n<br> when newlines are preserved', function () {
+      this.layout('<div style="white-space: pre-line;">a\n<br>b<br>\nc');
       /** @type import('./flow').IfcInline[] */
       const [ifc] = this.get('div').children;
       expect(ifc.paragraph.lineboxes).to.have.lengthOf(5);
@@ -1009,8 +1009,8 @@ describe('Lines', function () {
       expect(ifc.paragraph.lineboxes[4].endOffset).to.equal(5);
     });
 
-    it('measures uncollapsible whitespace for fit', async function () {
-      await this.layout(
+    it('measures uncollapsible whitespace for fit', function () {
+      this.layout(
         '<div style="width: 100px; font: 16px Arimo; white-space: pre-wrap;">' +
           '            im not gonna fit' +
         '</div>'
@@ -1023,8 +1023,8 @@ describe('Lines', function () {
       expect(ifc.paragraph.lineboxes[1].endOffset).to.equal(28);
     });
 
-    it('doesn\'t measure uncollapsible whitespace at the end of the line for fit', async function () {
-      await this.layout(
+    it('doesn\'t measure uncollapsible whitespace at the end of the line for fit', function () {
+      this.layout(
         '<div style="width: 100px; font: 16px Arimo; white-space: pre-wrap;">' +
           'im gonna fit            ' +
         '</div>'

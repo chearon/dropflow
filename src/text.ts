@@ -324,21 +324,21 @@ function createFontKey(s: Style, script: string) {
   return `${s.fontStyle} ${s.fontWeight} ${s.fontStretch} ${s.fontFamily} ${script}`;
 }
 
-const fontBufferCache = new Map<string, Promise<ArrayBuffer>>();
-const hbFaceCache = new Map<string, Promise<HbFace>>();
+const fontBufferCache = new Map<string, ArrayBuffer>();
+const hbFaceCache = new Map<string, HbFace>();
 const cascadeCache = new Map<string, Cascade>();
 
-async function getFontBuffer(filename: string) {
-  let bufferp = fontBufferCache.get(filename);
-  if (!bufferp) {
-    bufferp = getBuffer(filename);
-    fontBufferCache.set(filename, bufferp);
+function getFontBuffer(filename: string) {
+  let buffer = fontBufferCache.get(filename);
+  if (!buffer) {
+    buffer = getBuffer(filename);
+    fontBufferCache.set(filename, buffer);
   }
-  return await bufferp;
+  return buffer;
 }
 
-async function createFace(filename: string, index: number) {
-  const buffer = await getFontBuffer(filename);
+function createFace(filename: string, index: number) {
+  const buffer = getFontBuffer(filename);
   const blob = hb.createBlob(buffer);
   const face = hb.createFace(blob, index);
   face.name = basename(filename); // TODO can it be done in hbjs?
@@ -348,12 +348,12 @@ async function createFace(filename: string, index: number) {
 }
 
 function getFace(filename: string, index: number) {
-  let fontp = hbFaceCache.get(filename + index);
-  if (!fontp) {
-    fontp = createFace(filename, index);
-    hbFaceCache.set(filename + index, fontp);
+  let face = hbFaceCache.get(filename + index);
+  if (!face) {
+    face = createFace(filename, index);
+    hbFaceCache.set(filename + index, face);
   }
-  return fontp;
+  return face;
 }
 
 function getCascade(style: Style, script: string) {
@@ -1342,7 +1342,7 @@ export class Paragraph {
     return extents;
   }
 
-  async shape() {
+  shape() {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const items:ShapedItem[] = [];
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
@@ -1372,7 +1372,7 @@ export class Paragraph {
       for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
         const match = cascade.matches[i].toCssMatch();
         const isLastMatch = i === cascade.matches.length - 1;
-        const face = await getFace(match.file, match.index);
+        const face = getFace(match.file, match.index);
         // TODO set size and such for hinting?
         const font = hb.createFont(face);
         // Allows to tack successive (re)shaping parts onto one larger item
@@ -1858,10 +1858,10 @@ export class Paragraph {
   }
 }
 
-export async function createParagraph(ifc: IfcInline, enableLogging: boolean) {
+export function createParagraph(ifc: IfcInline, enableLogging: boolean) {
   const strutCascade = getCascade(ifc.style, 'Latn');
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
-  const strutFace = await getFace(strutFontMatch.file, strutFontMatch.index);
+  const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
   const strutFont = hb.createFont(strutFace);
   const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
   const buffer = createIfcBuffer(ifc.text)

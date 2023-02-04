@@ -54,11 +54,11 @@ export function generate(rootElement: HTMLElement) {
   return generateBlockContainer(rootElement);
 }
 
-export async function layout(root: BlockContainer, width = 640, height = 480) {
+export function layout(root: BlockContainer, width = 640, height = 480) {
   const initialContainingBlock = new Area('', root.style, 0, 0, width, height);
   root.containingBlock = initialContainingBlock;
   root.setBlockPosition(0);
-  await root.preprocess();
+  root.preprocess();
   layoutBlockBox(root, {
     bfc: new BlockFormattingContext(300),
     lastBlockContainerArea: initialContainingBlock,

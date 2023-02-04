@@ -27,7 +27,7 @@ const rootElement = oflo.parse(`
 const blockContainer = oflo.generate(rootElement);
 console.log(blockContainer.repr());
 
-await oflo.layout(blockContainer, 300, 200);
+oflo.layout(blockContainer, 300, 200);
 
 oflo.eachRegisteredFont(match => registerFont(match.file, match));
 const canvas = createCanvas(600, 400);

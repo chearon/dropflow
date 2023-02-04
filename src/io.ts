@@ -1,4 +1,4 @@
-let getBufferImpl: (path: string) => Promise<ArrayBuffer>;
+let getBufferImpl: (path: string) => ArrayBuffer;
 
 export function getBuffer(path: string) {
   if (!getBufferImpl) throw new Error('Call setGetBufferImpl in the entry point');

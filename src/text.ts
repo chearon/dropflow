@@ -922,10 +922,10 @@ class LineWidthTracker {
   addWs(width: number, isCollapsible: boolean) {
     if (this.inkSeen) {
       this.wsAfter += width;
-      this.wsAfterCollapsible = isCollapsible ? width : 0;
+      this.wsAfterCollapsible += isCollapsible ? width : 0;
     } else {
       this.wsBefore += width;
-      this.wsBeforeCollapsible = isCollapsible ? width : 0;
+      this.wsBeforeCollapsible += isCollapsible ? width : 0;
     }
   }
 
@@ -968,8 +968,10 @@ class LineWidthTracker {
   reset() {
     this.inkSeen = false;
     this.wsBefore = 0;
+    this.wsBeforeCollapsible = 0;
     this.ink = 0;
     this.wsAfter = 0;
+    this.wsAfterCollapsible = 0;
   }
 }
 

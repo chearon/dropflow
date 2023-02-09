@@ -1001,6 +1001,18 @@ describe('Flow', function () {
       expect(t.contentArea.x).to.equal(200);
     });
 
+    it('ignores leading spacing on words for the very first line when there\'s a float', function () {
+      this.layout(`
+        <div id="t" style="font: 24px Arimo; width: 64px;">
+          <div style="width: 10px; height: 10px; float: right;"></div>dope
+        </div>
+      `);
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

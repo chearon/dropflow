@@ -327,6 +327,7 @@ function createFontKey(s: Style, script: string) {
 const fontBufferCache = new Map<string, ArrayBuffer>();
 const hbFaceCache = new Map<string, HbFace>();
 const cascadeCache = new Map<string, Cascade>();
+const hyphenCache = new Map<string, HbGlyphInfo[]>();
 
 function getFontBuffer(filename: string) {
   let buffer = fontBufferCache.get(filename);
@@ -369,6 +370,41 @@ function getCascade(style: Style, script: string) {
     cascadeCache.set(fontKey, cascade);
   }
   return cascade;
+}
+
+const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
+
+function createHyphenCacheKey(item: ShapedItem) {
+  return item.match.file + item.match.index;
+}
+
+function loadHyphen(item: ShapedItem) {
+  const key = createHyphenCacheKey(item);
+
+  if (!hyphenCache.has(key)) {
+    hyphenCache.set(key, []);
+
+    for (const hyphen of HyphenCodepointsToTry) {
+      const buf = hb.createBuffer();
+      const font = hb.createFont(item.face);
+      buf.setClusterLevel(1);
+      buf.addText(hyphen);
+      buf.setScript('Latin');
+      buf.setDirection('ltr');
+      buf.setLanguage('en');
+      hb.shape(font, buf);
+      const glyphs = buf.json();
+      buf.destroy();
+      if (glyphs[0]?.g) {
+        hyphenCache.set(key, glyphs);
+        break;
+      }
+    }
+  }
+}
+
+function getHyphen(item: ShapedItem) {
+  return hyphenCache.get(createHyphenCacheKey(item));
 }
 
 // Generated from pango-language.c
@@ -902,6 +938,7 @@ class LineWidthTracker {
   private ink: number;
   private endWs: number;
   private endWsC: number;
+  private hyphen: number;
 
   constructor() {
     this.inkSeen = false;
@@ -910,12 +947,14 @@ class LineWidthTracker {
     this.ink = 0;
     this.endWs = 0;
     this.endWsC = 0;
+    this.hyphen = 0;
   }
 
   addInk(width: number) {
     this.ink += this.endWs + width;
     this.endWs = 0;
     this.endWsC = 0;
+    this.hyphen = 0;
     this.inkSeen = true;
   }
 
@@ -927,6 +966,12 @@ class LineWidthTracker {
       this.startWs += width;
       this.startWsC += isCollapsible ? width : 0;
     }
+
+    this.hyphen = 0;
+  }
+
+  addHyphen(width: number) {
+    this.hyphen = width;
   }
 
   concat(width: LineWidthTracker) {
@@ -947,10 +992,12 @@ class LineWidthTracker {
       this.endWsC = width.endWsC;
       this.inkSeen = width.inkSeen;
     }
+
+    this.hyphen = width.hyphen;
   }
 
   forFloat() {
-    return this.startWs - this.startWsC + this.ink;
+    return this.startWs - this.startWsC + this.ink + this.hyphen;
   }
 
   forWord() {
@@ -958,11 +1005,11 @@ class LineWidthTracker {
   }
 
   asWord() {
-    return this.startWs + this.ink;
+    return this.startWs + this.ink + this.hyphen;
   }
 
   trimmed() {
-    return this.startWs - this.startWsC + this.ink + this.endWs - this.endWsC;
+    return this.startWs - this.startWsC + this.ink + this.endWs - this.endWsC + this.hyphen;
   }
 
   reset() {
@@ -972,6 +1019,7 @@ class LineWidthTracker {
     this.ink = 0;
     this.endWs = 0;
     this.endWsC = 0;
+    this.hyphen = 0;
   }
 }
 
@@ -1224,6 +1272,17 @@ export class Paragraph {
     if (left.needsReshape) left.reshape();
     if (right.needsReshape) right.reshape();
     this.brokenItems.splice(itemIndex + 1, 0, right);
+    if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
+      const glyphs = getHyphen(left);
+      if (glyphs?.length) {
+        const hyphen = glyphs.map(g => ({...g, cl: offset - 1}));
+        left.glyphs[left.attrs.level & 1 ? 'unshift' : 'push'](...hyphen);
+      }
+      // TODO 1: this sucks, but it's probably still better than using a Uint16Array
+      // and having to convert back to strings for the browser canvas backend
+      // TODO 2: the hyphen character could also be HYPHEN MINUS
+      this.string = this.string.slice(0, offset - 1) + /* U+2010 */ '‐' + this.string.slice(offset);
+    }
   }
 
   isInsideGraphemeBoundary(offset: number) {
@@ -1500,6 +1559,12 @@ export class Paragraph {
     this.colors = colors;
     this.extents = this.createExtentsArray(styles, faces.sort((a, b) => a[1] - b[1]));
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
+
+    let j = 0;
+    for (let i = 0; i < this.string.length; ++i) {
+      if (j + 1 < items.length && items[j + 1].offset <= i) ++j;
+      if (this.string[i] === '\u00ad' /* softHyphenCharacter */) loadHyphen(items[j]);
+    }
   }
 
   createMarkIterator() {
@@ -1754,6 +1819,12 @@ export class Paragraph {
 
         const blockSize = breakExtents.ascender + breakExtents.descender;
         fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+
+        if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
+          const glyphs = getHyphen(item);
+          const {face: {upem}, attrs: {style: {fontSize}}} = item;
+          if (glyphs?.length) candidatesWidth.addHyphen(glyphs.reduce((s, g) => s + g.ax / upem * fontSize, 0));
+        }
 
         if (line.hasText() && line.width.forWord() + candidatesWidth.asWord() > vacancy.inlineSize) {
           const lastLine = line;

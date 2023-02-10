@@ -944,6 +944,42 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(9);
   });
 
+  it('adds a soft hyphen if one fits after a &shy', function () {
+    this.layout(`
+      <div id="t" style="font: 16px Arimo; width: 119px;">
+        Characters com&shy;bine to create words
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes[0].head.value.glyphs.at(-1).g).to.equal(2623);
+    expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(16);
+  });
+
+  it('doesn\'t add a hyphen if it wouldn\'t fit', function () {
+    this.layout(`
+      <div id="t" style="font: 16px Arimo; width: 118px;">
+        Characters com&shy;bine to create words
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes[0].head.value.glyphs.at(-1).g).to.equal(3);
+    expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(12);
+  });
+
+  it('adds a soft hyphen to RTL text if one fits after a &shy', function () {
+    this.layout(`
+      <div id="t" style="direction: rtl; font: 24px Cairo; width: 51px;">
+        دامي&shy;دى
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes[0].head.value.glyphs[0].g).to.equal(672);
+    expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(6);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

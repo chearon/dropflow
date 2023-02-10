@@ -897,81 +897,81 @@ class LineCandidates extends LineItemLinkedList {};
 
 class LineWidthTracker {
   private inkSeen: boolean;
-  private wsBefore: number;
-  private wsBeforeCollapsible: number;
+  private startWs: number;
+  private startWsC: number;
   private ink: number;
-  private wsAfter: number;
-  private wsAfterCollapsible: number;
+  private endWs: number;
+  private endWsC: number;
 
   constructor() {
     this.inkSeen = false;
-    this.wsBefore = 0;
-    this.wsBeforeCollapsible = 0;
+    this.startWs = 0;
+    this.startWsC = 0;
     this.ink = 0;
-    this.wsAfter = 0;
-    this.wsAfterCollapsible = 0;
+    this.endWs = 0;
+    this.endWsC = 0;
   }
 
   addInk(width: number) {
-    this.ink += this.wsAfter + width;
-    this.wsAfter = 0;
-    this.wsAfterCollapsible = 0;
+    this.ink += this.endWs + width;
+    this.endWs = 0;
+    this.endWsC = 0;
     this.inkSeen = true;
   }
 
   addWs(width: number, isCollapsible: boolean) {
     if (this.inkSeen) {
-      this.wsAfter += width;
-      this.wsAfterCollapsible += isCollapsible ? width : 0;
+      this.endWs += width;
+      this.endWsC += isCollapsible ? width : 0;
     } else {
-      this.wsBefore += width;
-      this.wsBeforeCollapsible += isCollapsible ? width : 0;
+      this.startWs += width;
+      this.startWsC += isCollapsible ? width : 0;
     }
   }
 
   concat(width: LineWidthTracker) {
     if (this.inkSeen) {
       if (width.inkSeen) {
-        this.ink += this.wsAfter + width.wsBefore + width.ink;
-        this.wsAfter = width.wsAfter;
-        this.wsAfterCollapsible = width.wsAfterCollapsible;
+        this.ink += this.endWs + width.startWs + width.ink;
+        this.endWs = width.endWs;
+        this.endWsC = width.endWsC;
       } else {
-        this.wsAfter += width.wsBefore;
-        this.wsAfterCollapsible = width.wsBeforeCollapsible + width.wsAfterCollapsible;
+        this.endWs += width.startWs;
+        this.endWsC = width.startWsC + width.endWsC;
       }
     } else {
-      this.wsBefore += width.wsBefore;
-      this.wsBeforeCollapsible += width.wsBeforeCollapsible;
+      this.startWs += width.startWs;
+      this.startWsC += width.startWsC;
       this.ink = width.ink;
-      this.wsAfter = width.wsAfter;
-      this.wsAfterCollapsible = width.wsAfterCollapsible;
+      this.endWs = width.endWs;
+      this.endWsC = width.endWsC;
       this.inkSeen = width.inkSeen;
     }
   }
 
   forFloat() {
-    return this.wsBefore - this.wsBeforeCollapsible + this.ink;
+    return this.startWs - this.startWsC + this.ink;
   }
 
   forWord() {
-    return this.wsBefore - this.wsBeforeCollapsible + this.ink + this.wsAfter;
+    return this.startWs - this.startWsC + this.ink + this.endWs;
   }
 
   asWord() {
-    return this.wsBefore + this.ink;
+    return this.startWs + this.ink;
   }
 
   trimmed() {
-    return this.wsBefore - this.wsBeforeCollapsible + this.ink + this.wsAfter - this.wsAfterCollapsible;
+    return this.startWs - this.startWsC + this.ink + this.endWs - this.endWsC;
   }
 
   reset() {
     this.inkSeen = false;
-    this.wsBefore = 0;
-    this.wsBeforeCollapsible = 0;
+    this.startWs = 0;
+    this.startWsC = 0;
     this.ink = 0;
-    this.wsAfter = 0;
-    this.wsAfterCollapsible = 0;
+    this.endWs = 0;
+    this.endWsC = 0;
   }
 }
 

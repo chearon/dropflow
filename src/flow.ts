@@ -1704,7 +1704,9 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
       const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);
       const anonStyle = createStyle(anonComputedStyle);
       const ifc = new IfcInline(anonStyle, inlines);
-      blocks.push(new BlockContainer(anonStyle, [ifc], Box.ATTRS.isAnonymous));
+      let attrs = Box.ATTRS.isAnonymous;
+      if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
+      blocks.push(new BlockContainer(anonStyle, [ifc], attrs));
     }
 
     if (i < boxes.length) {

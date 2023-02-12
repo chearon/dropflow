@@ -3,7 +3,7 @@ import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';
 
-registerFontAsset('Cairo/Cairo-Medium.ttf');
+registerFontAsset('Cairo/Cairo-Regular.ttf');
 registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Italic.ttf');

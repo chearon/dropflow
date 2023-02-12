@@ -3,10 +3,10 @@ import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';
 
-registerFontAsset('assets/Arimo/Arimo-Bold.ttf');
-registerFontAsset('assets/Arimo/Arimo-Regular.ttf');
-registerFontAsset('assets/Arimo/Arimo-Italic.ttf');
-registerFontAsset('assets/Cousine/Cousine-Regular.ttf');
+registerFontAsset('Arimo/Arimo-Bold.ttf');
+registerFontAsset('Arimo/Arimo-Regular.ttf');
+registerFontAsset('Arimo/Arimo-Italic.ttf');
+registerFontAsset('Cousine/Cousine-Regular.ttf');
 
 const rootElement = oflo.parse(`
   <div style="font-family: Arimo; font-size: 16px; line-height: 1.4; background-color: white;">

@@ -3,8 +3,8 @@ import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
 
-registerFontAsset('Cairo/Cairo-Medium.ttf'),
-registerFontAsset('Raleway/static/Raleway-Regular.ttf')
+registerFontAsset('Cairo/Cairo-Regular.ttf'),
+registerFontAsset('Raleway/Raleway-Regular.ttf')
 
 const rootElement = oflo.parse(`
   <div style="background-color: #ccc;">

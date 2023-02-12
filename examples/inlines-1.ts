@@ -9,7 +9,7 @@ registerFontAsset('Arimo/Arimo-Italic.ttf');
 registerFontAsset('Cousine/Cousine-Regular.ttf');
 
 const rootElement = oflo.parse(`
-  <div style="font-family: Arimo; font-size: 16px; line-height: 1.4; background-color: white;">
+  <div style="font: 16px/1.4 Arimo; background-color: white;" x-overflow-log>
     <span style="background-color: #eee;">
       I <span style="font-family: Cousine; color: #11a;">like</span> to write
       <span style="font-size: 3em;">layout code</span>

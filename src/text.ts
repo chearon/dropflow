@@ -1901,7 +1901,11 @@ export class Paragraph {
       console.log(`Paragraph ${this.ifc.id}:`);
       logParagraph(this.brokenItems);
       for (const [i, line] of lines.entries()) {
-        let log = `Line ${i} (${line.width.trimmed()} width): `;
+        const W = line.width.trimmed().toFixed(2);
+        const A = line.ascender.toFixed(2);
+        const D = line.descender.toFixed(2);
+        const B = line.blockOffset.toFixed(2);
+        let log = `Line ${i} (W:${W} A:${A} D:${D} B:${B}): `;
         for (let n = line.head; n; n = n.next) {
           log += n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“”';
         }

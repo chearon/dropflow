@@ -1026,21 +1026,23 @@ class LineWidthTracker {
 type AscenderDescender = {ascender: number, descender: number};
 
 export class Linebox extends LineItemLinkedList {
+  dir: 'ltr' | 'rtl';
+  startOffset: number;
+  paragraph: Paragraph;
   ascender: number;
   descender: number;
-  startOffset: number;
   endOffset: number;
   width: LineWidthTracker;
-  dir: 'ltr' | 'rtl';
   blockOffset: number;
   inlineOffset: number;
 
-  constructor(dir: Linebox['dir'], start: number, strut: AscenderDescender) {
+  constructor(dir: Linebox['dir'], start: number, paragraph: Paragraph) {
     super();
     this.dir = dir;
     this.startOffset = this.endOffset = start;
-    this.ascender = strut.ascender;
-    this.descender = strut.descender;
+    this.paragraph = paragraph;
+    this.ascender = paragraph.strut.ascender;
+    this.descender = paragraph.strut.descender;
     this.width = new LineWidthTracker();
     this.blockOffset = 0;
     this.inlineOffset = 0;
@@ -1152,11 +1154,15 @@ export class Linebox extends LineItemLinkedList {
   calculateExtents() {
     // TODO technically trimmed whitespace is still affecting ascender/descender
     // I wonder if this is something browsers handle? extreme edge case though
-    for (let n = this.head; n; n = n.next) {
-      if (n.value instanceof ShapedItem) {
-        this.ascender = Math.max(this.ascender, n.value.measureExtents().ascender);
-        this.descender = Math.max(this.descender, n.value.measureExtents().descender);
-      }
+    let i = binarySearchTuple(this.paragraph.extents, this.startOffset);
+
+    if (!this.paragraph.extents[i]) return;
+    if (this.paragraph.extents[i][1] !== this.startOffset) i -= 1;
+
+    while (i < this.paragraph.extents.length && this.paragraph.extents[i][1] < this.endOffset) {
+      const [extents] = this.paragraph.extents[i++];
+      this.ascender = Math.max(this.ascender, extents.ascender);
+      this.descender = Math.max(this.descender, extents.descender);
     }
   }
 
@@ -1813,7 +1819,7 @@ export class Paragraph {
 
       if (mark.isBreak && (lineHasInk && !nowrap || mark.isBreakForced || mark.position === this.length())) {
         if (!line) {
-          lines.push(line = new Linebox(basedir, 0, this.strut));
+          lines.push(line = new Linebox(basedir, 0, this));
           fctx.preTextContent();
         }
 
@@ -1829,7 +1835,7 @@ export class Paragraph {
         if (line.hasText() && line.width.forWord() + candidatesWidth.asWord() > vacancy.inlineSize) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
-          lines.push(line = new Linebox(basedir, lastBreakMark.position, this.strut));
+          lines.push(line = new Linebox(basedir, lastBreakMark.position, this));
           const lastBreakMarkItem = this.brokenItems[lastBreakMark.itemIndex];
           if (
             lastBreakMarkItem &&
@@ -1873,7 +1879,7 @@ export class Paragraph {
           line.postprocess(vacancy, this.ifc.style.textAlign);
           fctx.postLine(line, true);
           blockOffset += line.height();
-          lines.push(line = new Linebox(basedir, mark.position, this.strut));
+          lines.push(line = new Linebox(basedir, mark.position, this));
         }
       }
 

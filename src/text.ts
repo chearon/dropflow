@@ -1854,9 +1854,6 @@ export class Paragraph {
           }
         }
 
-        // TODO: if these candidates grow the line height, we have to check and
-        // make sure it won't cause the line to start hitting floats
-
         line.addLogical(candidates, candidatesWidth, mark.position);
 
         candidates.clear();

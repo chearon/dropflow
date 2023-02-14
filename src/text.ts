@@ -781,22 +781,6 @@ export class ShapedItem implements IfcRenderItem {
     return w / this.face.upem * this.attrs.style.fontSize;
   }
 
-  measureExtents(ci = this.end()) {
-    const ret = {ascender: 0, descender: 0};
-    let i = binarySearchTuple(this.paragraph.extents, this.offset);
-
-    if (!this.paragraph.extents[i]) return ret;
-    if (this.paragraph.extents[i][1] !== this.offset) i -= 1;
-
-    while (i < this.paragraph.extents.length && this.paragraph.extents[i][1] < ci) {
-      const [extents] = this.paragraph.extents[i++];
-      ret.ascender = Math.max(ret.ascender, extents.ascender);
-      ret.descender = Math.max(ret.descender, extents.descender);
-    }
-
-    return ret;
-  }
-
   collapseWhitespace(at: 'start' | 'end') {
     // TODO: this is copied in Inline
     if (!this.attrs.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/)) {
@@ -1031,6 +1015,7 @@ export class Linebox extends LineItemLinkedList {
   paragraph: Paragraph;
   ascender: number;
   descender: number;
+  extentsOffset: number;
   endOffset: number;
   width: LineWidthTracker;
   blockOffset: number;
@@ -1043,6 +1028,7 @@ export class Linebox extends LineItemLinkedList {
     this.paragraph = paragraph;
     this.ascender = paragraph.strut.ascender;
     this.descender = paragraph.strut.descender;
+    this.extentsOffset = binarySearchTuple(this.paragraph.extents, this.startOffset);
     this.width = new LineWidthTracker();
     this.blockOffset = 0;
     this.inlineOffset = 0;
@@ -1151,28 +1137,33 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  calculateExtents() {
+  extentsUntil(end = this.endOffset) {
+    const ret = {ascender: this.ascender, descender: this.descender};
     // TODO technically trimmed whitespace is still affecting ascender/descender
     // I wonder if this is something browsers handle? extreme edge case though
-    let i = binarySearchTuple(this.paragraph.extents, this.startOffset);
+    let i = this.extentsOffset;
 
-    if (!this.paragraph.extents[i]) return;
+    if (!this.paragraph.extents[i]) return ret;
     if (this.paragraph.extents[i][1] !== this.startOffset) i -= 1;
 
-    while (i < this.paragraph.extents.length && this.paragraph.extents[i][1] < this.endOffset) {
+    while (i < this.paragraph.extents.length && this.paragraph.extents[i][1] < end) {
       const [extents] = this.paragraph.extents[i++];
-      this.ascender = Math.max(this.ascender, extents.ascender);
-      this.descender = Math.max(this.descender, extents.descender);
+      ret.ascender = Math.max(ret.ascender, extents.ascender);
+      ret.descender = Math.max(ret.descender, extents.descender);
     }
+
+    return ret;
   }
 
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
     const width = this.width.trimmed();
+    const extents = this.extentsUntil();
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();
     this.reorder();
-    this.calculateExtents();
+    this.ascender = extents.ascender;
+    this.descender = extents.descender;
     this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
     if (width < vacancy.inlineSize) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
@@ -1744,7 +1735,6 @@ export class Paragraph {
     let lastBreakMark:IfcMark | undefined;
     const lines = [];
     const floats = [];
-    let breakExtents = {ascender: 0, descender: 0};
     let unbreakableMark = 0;
     let blockOffset = bfc.cbBlockStart;
 
@@ -1759,12 +1749,6 @@ export class Paragraph {
 
     for (const mark of {[Symbol.iterator]: () => this.createMarkIterator()}) {
       const item = this.brokenItems[mark.itemIndex];
-
-      if (mark.isInk) {
-        const extents = item.measureExtents(mark.position); // TODO is this slow?
-        breakExtents.ascender = Math.max(extents.ascender, breakExtents.ascender);
-        breakExtents.descender = Math.max(extents.descender, breakExtents.descender);
-      }
 
       if (mark.inlinePre) parents.push(mark.inlinePre);
 
@@ -1823,7 +1807,8 @@ export class Paragraph {
           fctx.preTextContent();
         }
 
-        const blockSize = breakExtents.ascender + breakExtents.descender;
+        const extents = line.extentsUntil(mark.position);
+        const blockSize = extents.ascender + extents.descender;
         fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
@@ -1864,8 +1849,6 @@ export class Paragraph {
 
         candidates.clear();
         candidatesWidth.reset();
-        breakExtents.ascender = 0;
-        breakExtents.descender = 0;
         lastBreakMark = mark;
 
         for (const float of floats) {
@@ -1904,7 +1887,8 @@ export class Paragraph {
     }
 
     if (line) {
-      const blockSize = breakExtents.ascender + breakExtents.descender;
+      const extents = line.extentsUntil();
+      const blockSize = extents.ascender + extents.descender;
       fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
       line.postprocess(vacancy, this.ifc.style.textAlign);
       blockOffset += line.height();

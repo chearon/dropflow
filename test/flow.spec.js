@@ -1029,6 +1029,22 @@ describe('Flow', function () {
       expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
     });
 
+    it('checks for collision with float when a new word is smaller than the line height', function () {
+      this.layout(`
+        <div id="t" style="font: 12px Arimo; width: 100px;">
+          <div style="width: 1px; height: 20px; float: right;"></div>
+          <div style="width: 50px; height: 20px; float: right; clear: right;"></div>
+          <span style="line-height: 40px; font-family: Cousine;">howdy</span>
+          <span style="line-height: 20px;">partner</span>
+        </div>
+      `);
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.paragraph.lineboxes).to.have.lengthOf(2);
+      expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(40);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

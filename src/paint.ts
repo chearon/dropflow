@@ -209,6 +209,7 @@ class ContiguousBoxBuilder {
       const end = start;
       const naturalEnd = false;
       const box:BackgroundBox = {start, end, ascender, descender, naturalStart, naturalEnd};
+      font.destroy();
       this.opened.set(inline, box);
       // Make sure closed is in open order
       if (!this.closed.has(inline)) this.closed.set(inline, []);

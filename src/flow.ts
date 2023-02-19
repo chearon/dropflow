@@ -1,8 +1,8 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
-import {createStyle, createComputedStyle, Style, EMPTY_STYLE} from './cascade.js';
+import {createStyle, createComputedStyle, Style, EMPTY_STYLE, ComputedPlainStyle, WritingMode, Direction} from './cascade.js';
 import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox} from './text.js';
-import {Box, Area} from './box.js';
+import {Box} from './box.js';
 import {HbFace} from 'harfbuzzjs';
 
 function assumePx(v: any): asserts v is number {
@@ -28,8 +28,8 @@ const dim = '\x1b[2m';
 const underline = '\x1b[4m';
 
 export type LayoutContext = {
-  lastBlockContainerArea: Area,
-  lastPositionedArea: Area,
+  lastBlockContainerArea: BlockContainerArea,
+  lastPositionedArea: BlockContainerArea,
   mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext
 };
@@ -683,6 +683,123 @@ export class FloatContext {
   }
 }
 
+const LogicalMaps = Object.freeze({
+  'horizontal-tb': Object.freeze({
+    blockStart: 'top',
+    lineLeft: 'left',
+    blockSize: 'height',
+    inlineSize: 'width'
+  }),
+  'vertical-lr': Object.freeze({
+    blockStart: 'left',
+    lineLeft: 'top',
+    blockSize: 'width',
+    inlineSize: 'height'
+  }),
+  'vertical-rl': Object.freeze({
+    blockStart: 'right',
+    lineLeft: 'top',
+    blockSize: 'width',
+    inlineSize: 'height'
+  })
+});
+
+export class BlockContainerArea {
+  id: string;
+  writingMode: WritingMode;
+  direction: Direction;
+  x: number;
+  y: number;
+  parent: BlockContainerArea | null;
+  top: number;
+  right: number;
+  left: number;
+  lrside: 'left' | 'right';
+  width: number;
+  height: number;
+
+  constructor(id: string, style: ComputedPlainStyle, x?: number, y?: number, w?: number, h?: number) {
+    this.id = id;
+    this.writingMode = style.writingMode;
+    this.direction = style.direction;
+    this.x = x || 0;
+    this.y = y || 0;
+    this.parent = null;
+    this.top = 0;
+    this.right = 0;
+    this.left = 0;
+    this.lrside = 'left';
+    this.width = w || 0;
+    this.height = h || 0;
+  }
+
+  setParent(p: BlockContainerArea) {
+    this.parent = p;
+  }
+
+  // TODO: I could remove the writingMode arguments and use parent.writingMode
+  // which would simplify the calling side. or is that what I did originally?
+
+  setBlockStart(writingMode: WritingMode, v: number) {
+    const blockStart = LogicalMaps[writingMode].blockStart;
+    this[blockStart] = v;
+    if (blockStart === 'left' || blockStart === 'right') this.lrside = blockStart;
+  }
+
+  getBlockStart(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].blockStart];
+  }
+
+  setLineLeft(writingMode: WritingMode, v: number) {
+    const lineLeft = LogicalMaps[writingMode].lineLeft;
+    this[lineLeft] = v;
+    if (lineLeft === 'left') this.lrside = lineLeft;
+  }
+
+  getLineLeft(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].lineLeft];
+  }
+
+  setBlockSize(writingMode: WritingMode, v: number) {
+    this[LogicalMaps[writingMode].blockSize] = v;
+  }
+
+  getBlockSize(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].blockSize];
+  }
+
+  setInlineSize(writingMode: WritingMode, v: number) {
+    this[LogicalMaps[writingMode].inlineSize] = v;
+  }
+
+  getInlineSize(writingMode: WritingMode) {
+    return this[LogicalMaps[writingMode].inlineSize];
+  }
+
+  absolutify() {
+    if (!this.parent) {
+      throw new Error(`Cannot absolutify area ${this.id}, parent was never set`);
+    }
+
+    const {width: pwidth, x: px, y: py} = this.parent;
+
+    if (this.lrside === 'left') {
+      this.x = px + this.left;
+    } else {
+      this.x = px + pwidth - this.right - this.width;
+    }
+
+    this.y = py + this.top;
+  }
+
+  repr(indent = 0) {
+    const {width: w, height: h, x, y} = this;
+    const {top: t, left: l} = this;
+    const p1 = `${t ?? '-'},${l ?? '-'}`;
+    return '  '.repeat(indent) + `⚃ Area ${this.id}: inset: ${p1} → ${w}⨯${h} @${x},${y}`;
+  }
+}
+
 type BlockContainerOfInlines = BlockContainer & {
   children: IfcInline[];
 }
@@ -694,18 +811,18 @@ type BlockContainerOfBlockContainers = BlockContainer & {
 export class BlockContainer extends Box {
   public children: IfcInline[] | BlockContainer[];
 
-  public borderArea: Area;
-  public paddingArea: Area;
-  public contentArea: Area;
-  public containingBlock: Area | null = null;
+  public borderArea: BlockContainerArea;
+  public paddingArea: BlockContainerArea;
+  public contentArea: BlockContainerArea;
+  public containingBlock: BlockContainerArea | null = null;
 
   constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
     super(style, children, attrs);
     this.children = children;
 
-    this.borderArea = new Area(this.id + 'b', style);
-    this.paddingArea = new Area(this.id + 'p', style);
-    this.contentArea = new Area(this.id + 'c', style);
+    this.borderArea = new BlockContainerArea(this.id + 'b', style);
+    this.paddingArea = new BlockContainerArea(this.id + 'p', style);
+    this.contentArea = new BlockContainerArea(this.id + 'c', style);
     this.paddingArea.setParent(this.borderArea);
     this.contentArea.setParent(this.paddingArea);
   }
@@ -1305,7 +1422,7 @@ export class IfcInline extends Inline {
   public floats: BlockContainer[];
   public text: string;
   public paragraph: Paragraph;
-  public containingBlock: Area | null;
+  public containingBlock: BlockContainerArea | null;
   private _hasText: boolean;
 
   constructor(style: Style, children: InlineLevel[]) {

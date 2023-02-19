@@ -5,7 +5,7 @@ import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockCon
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend from './paint-canvas.js';
 import paintBlockContainer from './paint.js';
-import {Area} from './box.js';
+import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
 import {fcfg} from './deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
@@ -55,7 +55,7 @@ export function generate(rootElement: HTMLElement) {
 }
 
 export function layout(root: BlockContainer, width = 640, height = 480) {
-  const initialContainingBlock = new Area('', root.style, 0, 0, width, height);
+  const initialContainingBlock = new BlockContainerArea('', root.style, 0, 0, width, height);
   root.containingBlock = initialContainingBlock;
   root.setBlockPosition(0);
   root.preprocess();

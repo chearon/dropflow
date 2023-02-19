@@ -425,6 +425,17 @@ describe('Shaping', function () {
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems[1].length).to.equal(2);
     });
+
+    it('affect line height when line height is normal', function () {
+      this.layout(`
+        <span style="font-family: Arimo, Cairo;">hey هل تتحدث لغة أخرى بجانب العربية؟</span>
+      `);
+      /** @type import('../src/flow').IfcInline[] */
+      const [inline] = this.get().children;
+      expect(inline.paragraph.lineboxes).to.have.lengthOf(1)
+      expect(inline.paragraph.lineboxes[0].ascender).to.equal(20.848);
+      expect(inline.paragraph.lineboxes[0].descender).to.equal(9.136);
+    });
   });
 });
 

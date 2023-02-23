@@ -669,7 +669,7 @@ export class FloatContext {
 
   postLine(line: Linebox, didBreak: boolean) {
     if (didBreak || this.misfits.length) {
-      this.dropShelf(this.bfc.cbBlockStart + line.blockOffset + line.height());
+      this.dropShelf(this.bfc.cbBlockStart + line.blockOffset + line.height.total());
     }
 
     this.consumeMisfits();

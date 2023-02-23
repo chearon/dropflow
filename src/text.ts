@@ -958,14 +958,23 @@ class LineItemLinkedList {
 
 class LineCandidates extends LineItemLinkedList {
   width: LineWidthTracker;
+  extents: ShapedItemMetrics;
 
   constructor() {
     super();
     this.width = new LineWidthTracker();
+    this.extents = {...ShapedItem.EmptyMetrics};
+  }
+
+  stampMetrics(metrics: ShapedItemMetrics) {
+    this.extents.ascender = Math.max(this.extents.ascender, metrics.ascender);
+    this.extents.descender = Math.max(this.extents.descender, metrics.descender);
   }
 
   reset() {
     this.width.reset();
+    this.extents.ascender = 0;
+    this.extents.descender = 0;
     this.clear();
   }
 };
@@ -1062,6 +1071,37 @@ class LineWidthTracker {
   }
 }
 
+class LineHeightTracker {
+  strut: ShapedItemMetrics;
+  metrics: ShapedItemMetrics;
+
+  constructor(strut: ShapedItemMetrics) {
+    this.strut = strut;
+    this.metrics = {...strut};
+    /* TODO: vertical-align position and push/pop methods */
+  }
+
+  concat(metrics: ShapedItemMetrics) {
+    this.metrics.ascender = Math.max(this.metrics.ascender, metrics.ascender);
+    this.metrics.descender = Math.max(this.metrics.descender, metrics.descender);
+
+  }
+
+  total() {
+    return this.metrics.ascender + this.metrics.descender;
+  }
+
+  totalWith(metrics: ShapedItemMetrics) {
+    return Math.max(this.metrics.ascender, metrics.ascender)
+      + Math.max(this.metrics.descender, metrics.descender);
+  }
+
+  reset() {
+    this.metrics.ascender = this.strut.ascender;
+    this.metrics.descender = this.strut.descender;
+  }
+}
+
 export class Linebox extends LineItemLinkedList {
   dir: 'ltr' | 'rtl';
   startOffset: number;
@@ -1071,6 +1111,7 @@ export class Linebox extends LineItemLinkedList {
   metricsOffset: number;
   endOffset: number;
   width: LineWidthTracker;
+  height: LineHeightTracker;
   blockOffset: number;
   inlineOffset: number;
 
@@ -1083,17 +1124,15 @@ export class Linebox extends LineItemLinkedList {
     this.descender = paragraph.strut.descender;
     this.metricsOffset = binarySearchTuple(this.paragraph.metrics, this.startOffset);
     this.width = new LineWidthTracker();
+    this.height = new LineHeightTracker(paragraph.strut);
     this.blockOffset = 0;
     this.inlineOffset = 0;
-  }
-
-  height() {
-    return this.ascender + this.descender;
   }
 
   addCandidates(candidates: LineCandidates, endOffset: number) {
     this.concat(candidates);
     this.width.concat(candidates.width);
+    this.height.concat(candidates.extents);
     this.endOffset = endOffset;
   }
 
@@ -1190,27 +1229,9 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  extentsUntil(end = this.endOffset) {
-    const ret = {ascender: this.ascender, descender: this.descender};
-    // TODO technically trimmed whitespace is still affecting ascender/descender
-    // I wonder if this is something browsers handle? extreme edge case though
-    let i = this.metricsOffset;
-
-    if (!this.paragraph.metrics[i]) return ret;
-    if (this.paragraph.metrics[i][1] !== this.startOffset) i -= 1;
-
-    while (i < this.paragraph.metrics.length && this.paragraph.metrics[i][1] < end) {
-      const [metrics] = this.paragraph.metrics[i++];
-      ret.ascender = Math.max(ret.ascender, metrics.ascender);
-      ret.descender = Math.max(ret.descender, metrics.descender);
-    }
-
-    return ret;
-  }
-
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
     const width = this.width.trimmed();
-    const extents = this.extentsUntil();
+    const extents = this.height.metrics;
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();
@@ -1240,6 +1261,7 @@ type IfcMark = {
   float: BlockContainer | null,
   advance: number,
   itemIndex: number,
+  metrics: ShapedItemMetrics,
   split: (this: IfcMark, mark: IfcMark) => void
 };
 
@@ -1638,6 +1660,8 @@ export class Paragraph {
     // Ink iterator
     let isInk = false;
     let inkMark = 0;
+    // Metrics iterator
+    let metricsIndex = 0;
     // Other
     const end = this.length();
 
@@ -1654,6 +1678,7 @@ export class Paragraph {
         float: null,
         advance: 0,
         itemIndex,
+        metrics: this.metrics[metricsIndex]?.[0] || ShapedItem.EmptyMetrics,
         split
       };
 
@@ -1714,9 +1739,15 @@ export class Paragraph {
           mark.isBreakForced = true;
           inline = inlineIterator.next();
         }
-
-        if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
       }
+
+      // Metrics change at inline start or item start, are emitted with inlinePre
+      if (metricsIndex + 1 < this.metrics.length && this.metrics[metricsIndex + 1][1] === mark.position) {
+        metricsIndex += 1;
+        mark.metrics = this.metrics[metricsIndex][0];
+      }
+
+      if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
 
       if (itemIndex < this.brokenItems.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
         itemIndex += 1;
@@ -1806,7 +1837,10 @@ export class Paragraph {
     for (const mark of {[Symbol.iterator]: () => this.createMarkIterator()}) {
       const item = this.brokenItems[mark.itemIndex];
 
-      if (mark.inlinePre) parents.push(mark.inlinePre);
+      if (mark.inlinePre) {
+        candidates.stampMetrics(mark.metrics);
+        parents.push(mark.inlinePre);
+      }
 
       const wsCollapsible = isWsCollapsible((parents[parents.length - 1] || this.ifc).style.whiteSpace);
       const nowrap = isNowrap((parents[parents.length - 1] || this.ifc).style.whiteSpace);
@@ -1863,8 +1897,7 @@ export class Paragraph {
           fctx.preTextContent();
         }
 
-        const extents = line.extentsUntil(mark.position);
-        const blockSize = extents.ascender + extents.descender;
+        const blockSize = line.height.totalWith(candidates.extents);
         fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
@@ -1889,7 +1922,7 @@ export class Paragraph {
           }
           lastLine.postprocess(vacancy, this.ifc.style.textAlign);
           fctx.postLine(lastLine, true);
-          blockOffset += lastLine.height();
+          blockOffset += lastLine.height.total();
         }
 
         if (!line.hasText() /* line was just added */) {
@@ -1903,8 +1936,7 @@ export class Paragraph {
 
         line.addCandidates(candidates, mark.position);
 
-        candidates.clear();
-        candidates.width.reset();
+        candidates.reset();
         lastBreakMark = mark;
 
         for (const float of floats) {
@@ -1917,7 +1949,7 @@ export class Paragraph {
           fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
           line.postprocess(vacancy, this.ifc.style.textAlign);
           fctx.postLine(line, true);
-          blockOffset += line.height();
+          blockOffset += line.height.total();
           lines.push(line = new Linebox(basedir, mark.position, this));
         }
       }
@@ -1926,6 +1958,7 @@ export class Paragraph {
         item.inlines = parents.slice();
         for (const p of parents) p.nshaped += 1;
         candidates.push(item);
+        candidates.stampMetrics(mark.metrics);
       }
 
       // Handle a span that starts inside a shaped item
@@ -1943,11 +1976,10 @@ export class Paragraph {
     }
 
     if (line) {
-      const extents = line.extentsUntil();
-      const blockSize = extents.ascender + extents.descender;
+      const blockSize = line.height.total();
       fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
       line.postprocess(vacancy, this.ifc.style.textAlign);
-      blockOffset += line.height();
+      blockOffset += line.height.total();
       fctx.postLine(line, false);
     } else {
       fctx.consumeMisfits();

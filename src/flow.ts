@@ -3,7 +3,6 @@ import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, createComputedStyle, Style, EMPTY_STYLE, ComputedPlainStyle, WritingMode, Direction} from './cascade.js';
 import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox} from './text.js';
 import {Box} from './box.js';
-import {HbFace} from 'harfbuzzjs';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -1352,25 +1351,29 @@ export class Break extends Box {
   }
 }
 
+export type InlineMetrics = {
+  ascender: number;
+  descender: number;
+};
+
 export class Inline extends Box {
   public children: InlineLevel[];
   public nshaped: number;
+  public metrics: InlineMetrics;
   public start: number;
   public end: number;
-  public face: HbFace | null;
 
   constructor(style: Style, children: InlineLevel[], attrs: number) {
     super(style, children, attrs);
     this.children = children;
     this.nshaped = 0;
+    this.metrics = Inline.EmptyMetrics;
 
     // TODO: these get set in ifc.prepare() because it needs to happen after
     // whitespace collapsing. Instead I should do whitespace collapsing on
     // shaped items, that way these can be set at parse time and not be affected
     this.start = 0;
     this.end = 0;
-
-    this.face = null;
   }
 
   hasLineLeftGap(ifc: IfcInline) {
@@ -1414,6 +1417,11 @@ export class Inline extends Box {
   absolutify() {
     // noop: inlines are painted in a different way than block containers
   }
+
+  static EmptyMetrics = Object.freeze({
+    ascender: 0,
+    descender: 0
+  });
 }
 
 export class IfcInline extends Inline {

@@ -1,7 +1,7 @@
 import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
-import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
+import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox, InlineMetrics} from './flow.js';
 import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
@@ -457,9 +457,34 @@ function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 
-// exported because used by painter
-export function getAscenderDescender(style: Style, font: HbFont, upem: number) { // CSS2 §10.8.1
+function getInlineMetrics(map: Map<string, InlineMetrics>, style: Style, font: HbFont, upem: number) {
+  const {fontSize} = style;
+  const key = `${fontSize}${font.ptr}${upem}`;
+  const existing = map.get(key);
+
+  if (existing) return existing;
+
+  const {ascender, descender} = font.getExtents('ltr'); // TODO vertical text
+
+  const ret = {
+    ascender: ascender / upem * fontSize,
+    descender: -descender / upem * fontSize
+  };
+
+  map.set(key, ret);
+
+  return ret;
+}
+
+// exported because used by html painter
+export function getItemMetrics(map: Map<string, ShapedItemMetrics>, style: Style, font: HbFont, upem: number) {
   const {fontSize, lineHeight: cssLineHeight} = style;
+  const key = `${fontSize}${cssLineHeight}${font.ptr}${upem}`;
+  const existing = map.get(key);
+
+  if (existing) return existing;
+
+  // now do CSS2 §10.8.1
   const {ascender, descender, lineGap} = font.getExtents("ltr"); // TODO
   const emHeight = (ascender - descender) / upem;
   const pxHeight = emHeight * fontSize;
@@ -467,7 +492,15 @@ export function getAscenderDescender(style: Style, font: HbFont, upem: number) {
   const halfLeading = (lineHeight - pxHeight) / 2;
   const ascenderPx = ascender / upem * fontSize;
   const descenderPx = -descender / upem * fontSize;
-  return {ascender: halfLeading + ascenderPx, descender: halfLeading + descenderPx};
+
+  const ret = {
+    ascender: halfLeading + ascenderPx,
+    descender: halfLeading + descenderPx
+  };
+
+  map.set(key, ret);
+
+  return ret;
 }
 
 function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
@@ -600,6 +633,11 @@ type MeasureState = {
   clusterEnd: number;
   clusterAdvance: number;
   done: boolean;
+};
+
+export type ShapedItemMetrics = {
+  ascender: number;
+  descender: number;
 };
 
 export class ShapedItem implements IfcRenderItem {
@@ -824,6 +862,11 @@ export class ShapedItem implements IfcRenderItem {
   text() {
     return this.paragraph.string.slice(this.offset, this.offset + this.length);
   }
+
+  static EmptyMetrics = {
+    ascender: 0,
+    descender: 0
+  };
 }
 
 function logParagraph(paragraph: ShapedItem[]) {
@@ -1007,15 +1050,13 @@ class LineWidthTracker {
   }
 }
 
-type AscenderDescender = {ascender: number, descender: number};
-
 export class Linebox extends LineItemLinkedList {
   dir: 'ltr' | 'rtl';
   startOffset: number;
   paragraph: Paragraph;
   ascender: number;
   descender: number;
-  extentsOffset: number;
+  metricsOffset: number;
   endOffset: number;
   width: LineWidthTracker;
   blockOffset: number;
@@ -1028,7 +1069,7 @@ export class Linebox extends LineItemLinkedList {
     this.paragraph = paragraph;
     this.ascender = paragraph.strut.ascender;
     this.descender = paragraph.strut.descender;
-    this.extentsOffset = binarySearchTuple(this.paragraph.extents, this.startOffset);
+    this.metricsOffset = binarySearchTuple(this.paragraph.metrics, this.startOffset);
     this.width = new LineWidthTracker();
     this.blockOffset = 0;
     this.inlineOffset = 0;
@@ -1141,15 +1182,15 @@ export class Linebox extends LineItemLinkedList {
     const ret = {ascender: this.ascender, descender: this.descender};
     // TODO technically trimmed whitespace is still affecting ascender/descender
     // I wonder if this is something browsers handle? extreme edge case though
-    let i = this.extentsOffset;
+    let i = this.metricsOffset;
 
-    if (!this.paragraph.extents[i]) return ret;
-    if (this.paragraph.extents[i][1] !== this.startOffset) i -= 1;
+    if (!this.paragraph.metrics[i]) return ret;
+    if (this.paragraph.metrics[i][1] !== this.startOffset) i -= 1;
 
-    while (i < this.paragraph.extents.length && this.paragraph.extents[i][1] < end) {
-      const [extents] = this.paragraph.extents[i++];
-      ret.ascender = Math.max(ret.ascender, extents.ascender);
-      ret.descender = Math.max(ret.descender, extents.descender);
+    while (i < this.paragraph.metrics.length && this.paragraph.metrics[i][1] < end) {
+      const [metrics] = this.paragraph.metrics[i++];
+      ret.ascender = Math.max(ret.ascender, metrics.ascender);
+      ret.descender = Math.max(ret.descender, metrics.descender);
     }
 
     return ret;
@@ -1231,23 +1272,23 @@ export class Paragraph {
   ifc: IfcInline;
   string: string;
   buffer: AllocatedUint16Array;
-  strut: AscenderDescender;
+  strut: ShapedItemMetrics;
   enableLogging: boolean;
   colors: [Color, number][];
-  extents: [AscenderDescender, number][];
+  metrics: [ShapedItemMetrics, number][];
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
 
-  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, strut: AscenderDescender, enableLogging: boolean) {
+  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, strut: ShapedItemMetrics, enableLogging: boolean) {
     this.ifc = ifc;
     this.string = ifc.text;
     this.buffer = buffer;
     this.strut = strut;
     this.enableLogging = enableLogging;
     this.colors = [];
-    this.extents = [];
+    this.metrics = [];
     this.brokenItems = [];
     this.wholeItems = [];
     this.lineboxes = [];
@@ -1368,9 +1409,10 @@ export class Paragraph {
     return json;
   }
 
-  createExtentsArray(styles: [Style, number][], faces: [HbFace, number][]) {
-    const extents:[{ascender: number, descender: number}, number][] = [];
+  createItemMetrics(styles: [Style, number][], faces: [HbFace, number][]) {
+    const metrics:[{ascender: number, descender: number}, number][] = [];
     const facemap:Map<HbFace, HbFont> = new Map();
+    const areaCache = new Map();
     let lastFace = null;
     let lastStyle = null;
     let si = 0;
@@ -1386,7 +1428,7 @@ export class Paragraph {
       if (!font) facemap.set(face, font = hb.createFont(face));
 
       if (face !== lastFace || !lastStyle || lastStyle.fontSize !== style.fontSize || lastStyle.lineHeight != style.lineHeight) {
-        extents.push([getAscenderDescender(style, font, face.upem), Math.max(so, fo)]);
+        metrics.push([getItemMetrics(areaCache, style, font, face.upem), Math.max(so, fo)]);
         lastFace = face;
         lastStyle = style;
       }
@@ -1397,7 +1439,7 @@ export class Paragraph {
 
     for (const font of facemap.values()) font.destroy();
 
-    return extents;
+    return metrics;
   }
 
   shape() {
@@ -1407,6 +1449,7 @@ export class Paragraph {
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
     const log = this.enableLogging ? (s: string) => logstr += s : null;
+    const inlineAreaCache = new Map();
     let inline = inlineIterator.next();
     let inlineEnd = 0;
     let logstr = '';
@@ -1438,23 +1481,25 @@ export class Paragraph {
 
         // note this won't budge for matches i=1, 2, ...
         while (!inline.done && inlineEnd < itemIndex) {
+          const style = inline.value.style;
+
           if (inline.value.isInline()) {
-            inline.value.face = face;
+            inline.value.metrics = getInlineMetrics(inlineAreaCache, style, font, face.upem);
           }
 
           if (inline.value.isRun()) {
             const [, lastColorOffset] = colors[colors.length - 1];
             if (lastColorOffset === inline.value.start) {
-              colors[colors.length - 1][0] = inline.value.style.color;
+              colors[colors.length - 1][0] = style.color;
             } else {
-              colors.push([inline.value.style.color, inline.value.start]);
+              colors.push([style.color, inline.value.start]);
             }
 
             const [, lastStyleOffset] = styles[styles.length - 1];
             if (lastStyleOffset === inline.value.start) {
-              styles[styles.length - 1][0] = inline.value.style;
+              styles[styles.length - 1][0] = style;
             } else {
-              styles.push([inline.value.style, inline.value.start]);
+              styles.push([style, inline.value.start]);
             }
 
             inlineEnd += inline.value.text.length;
@@ -1554,7 +1599,7 @@ export class Paragraph {
     }
 
     this.colors = colors;
-    this.extents = this.createExtentsArray(styles, faces.sort((a, b) => a[1] - b[1]));
+    this.metrics = this.createItemMetrics(styles, faces.sort((a, b) => a[1] - b[1]));
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
 
     let j = 0;
@@ -1927,7 +1972,7 @@ export function createParagraph(ifc: IfcInline, enableLogging: boolean) {
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
   const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
   const strutFont = hb.createFont(strutFace);
-  const strut = getAscenderDescender(ifc.style, strutFont, strutFace.upem);
+  const strut = getItemMetrics(new Map(), ifc.style, strutFont, strutFace.upem);
   const buffer = createIfcBuffer(ifc.text)
   strutFont.destroy();
   return new Paragraph(ifc, buffer, strut, enableLogging);
@@ -1939,5 +1984,5 @@ const EmptyBuffer = {
 };
 
 export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, EmptyBuffer, {ascender: 0, descender: 0}, false);
+  return new Paragraph(ifc, EmptyBuffer, ShapedItem.EmptyMetrics, false);
 }

@@ -1,7 +1,6 @@
 import {BlockContainer, IfcInline, Inline} from './flow.js';
 import {ShapedItem} from './text.js';
 import {Color} from './cascade.js';
-import {hb} from './deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
 import type {HbGlyphInfo} from 'harfbuzzjs';
 
@@ -198,18 +197,13 @@ class ContiguousBoxBuilder {
 
   open(inline: Inline, naturalStart: boolean, start: number) {
     const box = this.opened.get(inline);
-    if (!inline.face) throw new Error(`Inline ${inline.id} never got an HbFace`);
     if (box) {
       box.end = start;
     } else {
-      const font = hb.createFont(inline.face);
-      const extents = font.getExtents("ltr"); // TODO
-      const ascender = extents.ascender / inline.face.upem * inline.style.fontSize;
-      const descender = -extents.descender / inline.face.upem * inline.style.fontSize;
       const end = start;
       const naturalEnd = false;
+      const {ascender, descender} = inline.metrics;
       const box:BackgroundBox = {start, end, ascender, descender, naturalStart, naturalEnd};
-      font.destroy();
       this.opened.set(inline, box);
       // Make sure closed is in open order
       if (!this.closed.has(inline)) this.closed.set(inline, []);

@@ -956,7 +956,19 @@ class LineItemLinkedList {
   }
 }
 
-class LineCandidates extends LineItemLinkedList {};
+class LineCandidates extends LineItemLinkedList {
+  width: LineWidthTracker;
+
+  constructor() {
+    super();
+    this.width = new LineWidthTracker();
+  }
+
+  reset() {
+    this.width.reset();
+    this.clear();
+  }
+};
 
 class LineWidthTracker {
   private inkSeen: boolean;
@@ -1079,9 +1091,9 @@ export class Linebox extends LineItemLinkedList {
     return this.ascender + this.descender;
   }
 
-  addLogical(candidates: LineCandidates, width: LineWidthTracker, endOffset: number) {
+  addCandidates(candidates: LineCandidates, endOffset: number) {
     this.concat(candidates);
-    this.width.concat(width);
+    this.width.concat(candidates.width);
     this.endOffset = endOffset;
   }
 
@@ -1772,7 +1784,6 @@ export class Paragraph {
     const bfc = ctx.bfc;
     const fctx = bfc.fctx;
     const candidates = new LineCandidates();
-    const candidatesWidth = new LineWidthTracker();
     const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
     const basedir = this.ifc.style.direction;
     const parents:Inline[] = [];
@@ -1801,9 +1812,9 @@ export class Paragraph {
       const nowrap = isNowrap((parents[parents.length - 1] || this.ifc).style.whiteSpace);
 
       if (mark.isInk) {
-        candidatesWidth.addInk(mark.advance);
+        candidates.width.addInk(mark.advance);
       } else {
-        candidatesWidth.addWs(mark.advance, !!wsCollapsible);
+        candidates.width.addWs(mark.advance, !!wsCollapsible);
       }
 
       if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
@@ -1825,7 +1836,7 @@ export class Paragraph {
         const p = basedir === 'ltr' ? 'getLineLeftMarginBorderPadding' : 'getLineRightMarginBorderPadding';
         const op = basedir === 'ltr' ? 'getLineRightMarginBorderPadding' : 'getLineLeftMarginBorderPadding';
         const w = mark.inlinePre?.[p](this.ifc) ?? 0 + (mark.inlinePost?.[op](this.ifc) ?? 0);
-        candidatesWidth.addInk(w);
+        candidates.width.addInk(w);
       }
 
       if (mark.inlinePre && mark.inlinePost) {
@@ -1859,10 +1870,10 @@ export class Paragraph {
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
           const glyphs = getHyphen(item);
           const {face: {upem}, attrs: {style: {fontSize}}} = item;
-          if (glyphs?.length) candidatesWidth.addHyphen(glyphs.reduce((s, g) => s + g.ax / upem * fontSize, 0));
+          if (glyphs?.length) candidates.width.addHyphen(glyphs.reduce((s, g) => s + g.ax / upem * fontSize, 0));
         }
 
-        if (line.hasText() && line.width.forWord() + candidatesWidth.asWord() > vacancy.inlineSize) {
+        if (line.hasText() && line.width.forWord() + candidates.width.asWord() > vacancy.inlineSize) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(basedir, lastBreakMark.position, this));
@@ -1883,17 +1894,17 @@ export class Paragraph {
 
         if (!line.hasText() /* line was just added */) {
           fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-          if (candidatesWidth.forFloat() > vacancy.inlineSize) {
-            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidatesWidth.forFloat());
+          if (candidates.width.forFloat() > vacancy.inlineSize) {
+            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
             blockOffset = newVacancy.blockOffset;
             fctx.dropShelf(blockOffset);
           }
         }
 
-        line.addLogical(candidates, candidatesWidth, mark.position);
+        line.addCandidates(candidates, mark.position);
 
         candidates.clear();
-        candidatesWidth.reset();
+        candidates.width.reset();
         lastBreakMark = mark;
 
         for (const float of floats) {

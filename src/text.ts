@@ -1,7 +1,7 @@
 import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
-import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox, InlineMetrics} from './flow.js';
+import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
@@ -457,50 +457,24 @@ function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 
-function getInlineMetrics(map: Map<string, InlineMetrics>, style: Style, font: HbFont, upem: number) {
-  const {fontSize} = style;
-  const key = `${fontSize}${font.ptr}${upem}`;
-  const existing = map.get(key);
-
-  if (existing) return existing;
-
-  const {ascender, descender} = font.getExtents('ltr'); // TODO vertical text
-
-  const ret = {
-    ascender: ascender / upem * fontSize,
-    descender: -descender / upem * fontSize
-  };
-
-  map.set(key, ret);
-
-  return ret;
-}
-
 // exported because used by html painter
-export function getItemMetrics(map: Map<string, ShapedItemMetrics>, style: Style, font: HbFont, upem: number) {
+export function getMetrics(style: Style, font: HbFont, upem: number): InlineMetrics {
   const {fontSize, lineHeight: cssLineHeight} = style;
-  const key = `${fontSize}${cssLineHeight}${font.ptr}${upem}`;
-  const existing = map.get(key);
-
-  if (existing) return existing;
-
   // now do CSS2 §10.8.1
-  const {ascender, descender, lineGap} = font.getExtents("ltr"); // TODO
-  const emHeight = (ascender - descender) / upem;
-  const pxHeight = emHeight * fontSize;
-  const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap / upem * fontSize : cssLineHeight;
+  const {ascender, descender, lineGap} = font.getExtents('ltr'); // TODO vertical text
+  const toPx = 1 / upem * fontSize;
+  const pxHeight = (ascender - descender) * toPx;
+  const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap * toPx : cssLineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
   const ascenderPx = ascender / upem * fontSize;
   const descenderPx = -descender / upem * fontSize;
 
-  const ret = {
-    ascender: halfLeading + ascenderPx,
-    descender: halfLeading + descenderPx
+  return {
+    ascenderBox: halfLeading + ascenderPx,
+    ascender: ascenderPx,
+    descender: descenderPx,
+    descenderBox: halfLeading + descenderPx
   };
-
-  map.set(key, ret);
-
-  return ret;
 }
 
 function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
@@ -635,10 +609,19 @@ type MeasureState = {
   done: boolean;
 };
 
-export type ShapedItemMetrics = {
+export type InlineMetrics = {
   ascender: number;
+  ascenderBox: number;
+  descenderBox: number;
   descender: number;
 };
+
+export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
+  ascenderBox: 0,
+  ascender: 0,
+  descender: 0,
+  descenderBox: 0
+});
 
 export class ShapedItem implements IfcRenderItem {
   paragraph: Paragraph;
@@ -647,7 +630,7 @@ export class ShapedItem implements IfcRenderItem {
   glyphs: HbGlyphInfo[];
   offset: number;
   length: number;
-  attrs: Readonly<ShapingAttrs>;
+  attrs: ShapingAttrs;
   needsReshape: boolean;
   inlines: Inline[];
 
@@ -658,7 +641,7 @@ export class ShapedItem implements IfcRenderItem {
     glyphs: HbGlyphInfo[],
     offset: number,
     length: number,
-    attrs: Readonly<ShapingAttrs>
+    attrs: ShapingAttrs
   ) {
     this.paragraph = paragraph;
     this.face = face;
@@ -859,11 +842,6 @@ export class ShapedItem implements IfcRenderItem {
   text() {
     return this.paragraph.string.slice(this.offset, this.offset + this.length);
   }
-
-  static EmptyMetrics = {
-    ascender: 0,
-    descender: 0
-  };
 }
 
 function logParagraph(paragraph: ShapedItem[]) {
@@ -965,15 +943,15 @@ class LineCandidates extends LineItemLinkedList {
     this.descender = 0;
   }
 
-  stampMetrics(metrics: ShapedItemMetrics) {
-    this.ascender = Math.max(this.ascender, metrics.ascender);
-    this.descender = Math.max(this.descender, metrics.descender);
+  stampMetrics(metrics: InlineMetrics) {
+    this.ascender = Math.max(this.ascender, metrics.ascenderBox);
+    this.descender = Math.max(this.descender, metrics.descenderBox);
   }
 
-  reset(metrics: ShapedItemMetrics) {
+  reset(metrics: InlineMetrics) {
     this.width.reset();
-    this.ascender = metrics.ascender;
-    this.descender = metrics.descender;
+    this.ascender = metrics.ascenderBox;
+    this.descender = metrics.descenderBox;
     this.clear();
   }
 };
@@ -1070,35 +1048,40 @@ class LineWidthTracker {
   }
 }
 
+type InlineExtents = {
+  ascender: number;
+  descender: number;
+};
+
 class LineHeightTracker {
-  strut: ShapedItemMetrics;
+  strut: InlineMetrics;
   ascender: number;
   descender: number;
 
-  constructor(strut: ShapedItemMetrics) {
+  constructor(strut: InlineMetrics) {
     this.strut = strut;
-    this.ascender = strut.ascender;
-    this.descender = strut.descender;
+    this.ascender = strut.ascenderBox;
+    this.descender = strut.descenderBox;
     /* TODO: vertical-align position and push/pop methods */
   }
 
-  concat(metrics: ShapedItemMetrics) {
-    this.ascender = Math.max(this.ascender, metrics.ascender);
-    this.descender = Math.max(this.descender, metrics.descender);
+  concat(extents: InlineExtents) {
+    this.ascender = Math.max(this.ascender, extents.ascender);
+    this.descender = Math.max(this.descender, extents.descender);
   }
 
   total() {
     return this.ascender + this.descender;
   }
 
-  totalWith(metrics: ShapedItemMetrics) {
+  totalWith(metrics: InlineExtents) {
     return Math.max(this.ascender, metrics.ascender)
       + Math.max(this.descender, metrics.descender);
   }
 
   reset() {
-    this.ascender = this.strut.ascender;
-    this.descender = this.strut.descender;
+    this.ascender = this.strut.ascenderBox;
+    this.descender = this.strut.descenderBox;
   }
 }
 
@@ -1119,8 +1102,8 @@ export class Linebox extends LineItemLinkedList {
     this.dir = dir;
     this.startOffset = this.endOffset = start;
     this.paragraph = paragraph;
-    this.ascender = paragraph.strut.ascender;
-    this.descender = paragraph.strut.descender;
+    this.ascender = paragraph.strut.ascenderBox;
+    this.descender = paragraph.strut.descenderBox;
     this.width = new LineWidthTracker();
     this.height = new LineHeightTracker(paragraph.strut);
     this.blockOffset = 0;
@@ -1258,7 +1241,7 @@ type IfcMark = {
   float: BlockContainer | null,
   advance: number,
   itemIndex: number,
-  metrics: ShapedItemMetrics,
+  metrics: InlineMetrics,
   split: (this: IfcMark, mark: IfcMark) => void
 };
 
@@ -1303,16 +1286,16 @@ export class Paragraph {
   ifc: IfcInline;
   string: string;
   buffer: AllocatedUint16Array;
-  strut: ShapedItemMetrics;
+  strut: InlineMetrics;
   enableLogging: boolean;
   colors: [Color, number][];
-  metrics: [ShapedItemMetrics, number][];
+  metrics: [InlineMetrics, number][];
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
 
-  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, strut: ShapedItemMetrics, enableLogging: boolean) {
+  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, strut: InlineMetrics, enableLogging: boolean) {
     this.ifc = ifc;
     this.string = ifc.text;
     this.buffer = buffer;
@@ -1441,9 +1424,8 @@ export class Paragraph {
   }
 
   createItemMetrics(styles: [Style, number][], faces: [HbFace, number][]) {
-    const metrics:[{ascender: number, descender: number}, number][] = [];
+    const metrics:[InlineMetrics, number][] = [];
     const facemap:Map<HbFace, HbFont> = new Map();
-    const areaCache = new Map();
     let lastFace = null;
     let lastStyle = null;
     let si = 0;
@@ -1459,7 +1441,7 @@ export class Paragraph {
       if (!font) facemap.set(face, font = hb.createFont(face));
 
       if (face !== lastFace || !lastStyle || lastStyle.fontSize !== style.fontSize || lastStyle.lineHeight != style.lineHeight) {
-        metrics.push([getItemMetrics(areaCache, style, font, face.upem), Math.max(so, fo)]);
+        metrics.push([getMetrics(style, font, face.upem), Math.max(so, fo)]);
         lastFace = face;
         lastStyle = style;
       }
@@ -1480,7 +1462,6 @@ export class Paragraph {
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const faces:[HbFace, number][] = [];
     const log = this.enableLogging ? (s: string) => logstr += s : null;
-    const inlineAreaCache = new Map();
     let inline = inlineIterator.next();
     let inlineEnd = 0;
     let logstr = '';
@@ -1515,7 +1496,7 @@ export class Paragraph {
           const style = inline.value.style;
 
           if (inline.value.isInline()) {
-            inline.value.metrics = getInlineMetrics(inlineAreaCache, style, font, face.upem);
+            inline.value.metrics = getMetrics(style, font, face.upem);
           }
 
           if (inline.value.isRun()) {
@@ -1675,7 +1656,7 @@ export class Paragraph {
         float: null,
         advance: 0,
         itemIndex,
-        metrics: this.metrics[metricsIndex]?.[0] || ShapedItem.EmptyMetrics,
+        metrics: this.metrics[metricsIndex]?.[0] || EmptyInlineMetrics,
         split
       };
 
@@ -2012,7 +1993,7 @@ export function createParagraph(ifc: IfcInline, enableLogging: boolean) {
   const strutFontMatch = strutCascade.matches[0].toCssMatch();
   const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
   const strutFont = hb.createFont(strutFace);
-  const strut = getItemMetrics(new Map(), ifc.style, strutFont, strutFace.upem);
+  const strut = getMetrics(ifc.style, strutFont, strutFace.upem);
   const buffer = createIfcBuffer(ifc.text)
   strutFont.destroy();
   return new Paragraph(ifc, buffer, strut, enableLogging);
@@ -2024,5 +2005,5 @@ const EmptyBuffer = {
 };
 
 export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, EmptyBuffer, ShapedItem.EmptyMetrics, false);
+  return new Paragraph(ifc, EmptyBuffer, EmptyInlineMetrics, false);
 }

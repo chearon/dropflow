@@ -1,9 +1,8 @@
 import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
 import type {FontConfigCssMatch} from 'fontconfig';
-import type {ShapedItemMetrics} from './text.js';
 import {encode} from 'entities';
-import {getItemMetrics, ShapedItem} from './text.js';
+import {getMetrics, ShapedItem} from './text.js';
 import {hb} from './deps.js';
 
 type StringMap = Record<string, string>;
@@ -20,7 +19,6 @@ export default class HtmlPaintBackend implements PaintBackend {
   direction: 'ltr' | 'rtl';
   font: FontConfigCssMatch;
   fontSize: number;
-  metricsCache: Map<string, ShapedItemMetrics>;
 
   constructor() {
     this.s = '';
@@ -30,7 +28,6 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.direction = 'ltr';
     this.font = {file: '', index: 0, family: '', weight: '', width: '', style: ''};
     this.fontSize = 0;
-    this.metricsCache = new Map();
   }
 
   style(style: StringMap) {
@@ -63,7 +60,7 @@ export default class HtmlPaintBackend implements PaintBackend {
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
     const hbFont = hb.createFont(item.face);
-    const {ascender, descender} = getItemMetrics(this.metricsCache, item.attrs.style, hbFont, item.face.upem);
+    const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, hbFont, item.face.upem);
     const text = item.paragraph.string.slice(textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const m = this.font;
@@ -71,7 +68,7 @@ export default class HtmlPaintBackend implements PaintBackend {
       position: 'absolute',
       left: '0',
       top: '0',
-      transform: `translate(${x}px, ${y - (ascender - (ascender + descender)/2)}px)`,
+      transform: `translate(${x}px, ${y - (ascenderBox - (ascenderBox + descenderBox)/2)}px)`,
       font: `${m.style} ${m.weight} ${m.width} ${this.fontSize}px ${m.family}`,
       lineHeight: '0',
       whiteSpace: 'pre',

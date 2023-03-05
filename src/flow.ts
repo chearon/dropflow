@@ -1,7 +1,7 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, createComputedStyle, Style, EMPTY_STYLE, ComputedPlainStyle, WritingMode, Direction} from './cascade.js';
-import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox} from './text.js';
+import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox, InlineMetrics, EmptyInlineMetrics} from './text.js';
 import {Box} from './box.js';
 
 function assumePx(v: any): asserts v is number {
@@ -1351,11 +1351,6 @@ export class Break extends Box {
   }
 }
 
-export type InlineMetrics = {
-  ascender: number;
-  descender: number;
-};
-
 export class Inline extends Box {
   public children: InlineLevel[];
   public nshaped: number;
@@ -1367,7 +1362,7 @@ export class Inline extends Box {
     super(style, children, attrs);
     this.children = children;
     this.nshaped = 0;
-    this.metrics = Inline.EmptyMetrics;
+    this.metrics = EmptyInlineMetrics;
 
     // TODO: these get set in ifc.prepare() because it needs to happen after
     // whitespace collapsing. Instead I should do whitespace collapsing on
@@ -1417,11 +1412,6 @@ export class Inline extends Box {
   absolutify() {
     // noop: inlines are painted in a different way than block containers
   }
-
-  static EmptyMetrics = Object.freeze({
-    ascender: 0,
-    descender: 0
-  });
 }
 
 export class IfcInline extends Inline {

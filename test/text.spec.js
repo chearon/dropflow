@@ -838,6 +838,19 @@ describe('Lines', function () {
     expect(ifc.paragraph.height).to.equal(16);
   });
 
+  it('takes inline struts into account', function () {
+    this.layout(`
+      <!-- Cairo does not have Phi. Cairo has larger suggested leading than Arimo. -->
+      <div style="font: 16px/0 Arimo;">
+        <span style="font: 16px Cairo, Arimo;">ɸ</span>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.height).to.be.approximately(29.984, 0.001);
+  });
+
   it('sets box to linebox height when it\'s a bfc and ifc', function () {
     this.layout(`
       <div id="t" style="display: flow-root; line-height: 20px;">woeisme</div>

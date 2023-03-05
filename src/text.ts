@@ -1817,6 +1817,7 @@ export class Paragraph {
 
       if (mark.inlinePre) {
         candidates.stampMetrics(mark.metrics);
+        candidates.stampMetrics(mark.inlinePre.metrics);
         parents.push(mark.inlinePre);
       }
 

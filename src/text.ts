@@ -1496,7 +1496,12 @@ export class Paragraph {
           const style = inline.value.style;
 
           if (inline.value.isInline()) {
-            inline.value.metrics = getMetrics(style, font, face.upem);
+            const cascade = getCascade(inline.value.style, attrs.script);
+            const match = cascade.matches[0].toCssMatch();
+            const face = getFace(match.file, match.index);
+            const font = hb.createFont(face);
+            inline.value.metrics = getMetrics(inline.value.style, font, face.upem);
+            font.destroy();
           }
 
           if (inline.value.isRun()) {

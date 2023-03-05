@@ -851,6 +851,18 @@ describe('Lines', function () {
     expect(ifc.paragraph.height).to.be.approximately(29.984, 0.001);
   });
 
+  it('takes inline struts into account even if they have no content', function () {
+    this.layout(`
+      <div style="font: 16px/0 Arimo;">
+        whoop_de_do<span style="font: 16px Cairo;"></span>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.height).to.be.approximately(29.984, 0.001);
+  });
+
   it('sets box to linebox height when it\'s a bfc and ifc', function () {
     this.layout(`
       <div id="t" style="display: flow-root; line-height: 20px;">woeisme</div>

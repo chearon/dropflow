@@ -18,7 +18,7 @@ const rootElement = oflo.parse(`
       because it is
       <span style="color: #999; font-style: italic;">equal parts</span>
       <span style="font-weight: bold;">challenging</span>,
-      <span style="font-weight: bold;">fun</span>, and
+      <span style="font-weight: bold; background-color: veronicayellow;">fun</span>, and
       <span style="font-weight: bold;">arcane</span>.
     </span>
   </div>

@@ -70,6 +70,7 @@
     ['red', {r: 255, g: 0, b: 0, a: 1}],
     ['orange', {r: 255, g: 165, b: 0, a: 1}],
     ['yellow', {r: 255, g: 255, b: 0, a: 1}],
+    ['veronicayellow', {r: 255, g: 225, b: 50, a: 1}],
     ['olive', {r: 128, g: 128, b: 0, a: 1}],
     ['purple', {r: 128, g: 0, b: 128, a: 1}],
     ['fuchsia', {r: 255, g: 0, b: 255, a: 1}],
@@ -241,7 +242,7 @@ color
       a: a ? parseInt(a + a, 16) / 255 : 1
     }
   }
-  / ('maroon' / 'red' / 'orange' / 'yellow' / 'olive' / 'purple' / 'fuchsia' / 'white' / 'lime' / 'green' / 'navy' / 'blue' / 'aqua' / 'teal' / 'black' / 'silver' / 'gray' / 'transparent')
+  / ('maroon' / 'red' / 'orange' / 'yellow' / 'veronicayellow' / 'olive' / 'purple' / 'fuchsia' / 'white' / 'lime' / 'green' / 'navy' / 'blue' / 'aqua' / 'teal' / 'black' / 'silver' / 'gray' / 'transparent')
   {
     return colorMap.get(text())
   }

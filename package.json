@@ -6,6 +6,7 @@
     "@types/unicode-trie": "^2.0.0",
     "canvas": "^2.11.0",
     "chai": "^4.2.0",
+    "concurrently": "^7.6.0",
     "mitata": "^0.1.6",
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
@@ -21,7 +22,7 @@
   "scripts": {
     "test": "mocha test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js",
     "buildcssparser": "peggy --format es src/css.pegjs",
-    "build": "tsc"
+    "build": "concurrently tsc npm:buildcssparser"
   },
   "keywords": [
     "css2",

@@ -991,6 +991,17 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(6);
   });
 
+  it('carries over leading to the next line', function () {
+    this.layout(`
+      <div id="t" style="font: 16px/1 Arimo; width: 0;">
+        <span style="line-height: 2;">Scarves of red</span>
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes[2].blockOffset).to.equal(64);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

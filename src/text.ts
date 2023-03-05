@@ -971,10 +971,10 @@ class LineCandidates extends LineItemLinkedList {
     this.extents.descender = Math.max(this.extents.descender, metrics.descender);
   }
 
-  reset() {
+  reset(metrics: ShapedItemMetrics) {
     this.width.reset();
-    this.extents.ascender = 0;
-    this.extents.descender = 0;
+    this.extents.ascender = metrics.ascender;
+    this.extents.descender = metrics.descender;
     this.clear();
   }
 };
@@ -1936,7 +1936,7 @@ export class Paragraph {
 
         line.addCandidates(candidates, mark.position);
 
-        candidates.reset();
+        candidates.reset(mark.metrics);
         lastBreakMark = mark;
 
         for (const float of floats) {

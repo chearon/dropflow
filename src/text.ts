@@ -1108,7 +1108,6 @@ export class Linebox extends LineItemLinkedList {
   paragraph: Paragraph;
   ascender: number;
   descender: number;
-  metricsOffset: number;
   endOffset: number;
   width: LineWidthTracker;
   height: LineHeightTracker;
@@ -1122,7 +1121,6 @@ export class Linebox extends LineItemLinkedList {
     this.paragraph = paragraph;
     this.ascender = paragraph.strut.ascender;
     this.descender = paragraph.strut.descender;
-    this.metricsOffset = binarySearchTuple(this.paragraph.metrics, this.startOffset);
     this.width = new LineWidthTracker();
     this.height = new LineHeightTracker(paragraph.strut);
     this.blockOffset = 0;

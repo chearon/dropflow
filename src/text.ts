@@ -820,10 +820,7 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   collapseWhitespace(at: 'start' | 'end') {
-    // TODO: this is copied in Inline
-    if (!this.attrs.style.whiteSpace.match(/^(normal|nowrap|pre-line)$/)) {
-      return true;
-    }
+    if (!isWsCollapsible(this.attrs.style.whiteSpace)) return true;
 
     const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
     const glyphIterator = createGlyphIterator(this.glyphs, level & 1 ? 'rtl' : 'ltr');

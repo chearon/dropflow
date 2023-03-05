@@ -958,23 +958,25 @@ class LineItemLinkedList {
 
 class LineCandidates extends LineItemLinkedList {
   width: LineWidthTracker;
-  extents: ShapedItemMetrics;
+  ascender: number;
+  descender: number;
 
   constructor() {
     super();
     this.width = new LineWidthTracker();
-    this.extents = {...ShapedItem.EmptyMetrics};
+    this.ascender = 0;
+    this.descender = 0;
   }
 
   stampMetrics(metrics: ShapedItemMetrics) {
-    this.extents.ascender = Math.max(this.extents.ascender, metrics.ascender);
-    this.extents.descender = Math.max(this.extents.descender, metrics.descender);
+    this.ascender = Math.max(this.ascender, metrics.ascender);
+    this.descender = Math.max(this.descender, metrics.descender);
   }
 
   reset(metrics: ShapedItemMetrics) {
     this.width.reset();
-    this.extents.ascender = metrics.ascender;
-    this.extents.descender = metrics.descender;
+    this.ascender = metrics.ascender;
+    this.descender = metrics.descender;
     this.clear();
   }
 };
@@ -1073,32 +1075,33 @@ class LineWidthTracker {
 
 class LineHeightTracker {
   strut: ShapedItemMetrics;
-  metrics: ShapedItemMetrics;
+  ascender: number;
+  descender: number;
 
   constructor(strut: ShapedItemMetrics) {
     this.strut = strut;
-    this.metrics = {...strut};
+    this.ascender = strut.ascender;
+    this.descender = strut.descender;
     /* TODO: vertical-align position and push/pop methods */
   }
 
   concat(metrics: ShapedItemMetrics) {
-    this.metrics.ascender = Math.max(this.metrics.ascender, metrics.ascender);
-    this.metrics.descender = Math.max(this.metrics.descender, metrics.descender);
-
+    this.ascender = Math.max(this.ascender, metrics.ascender);
+    this.descender = Math.max(this.descender, metrics.descender);
   }
 
   total() {
-    return this.metrics.ascender + this.metrics.descender;
+    return this.ascender + this.descender;
   }
 
   totalWith(metrics: ShapedItemMetrics) {
-    return Math.max(this.metrics.ascender, metrics.ascender)
-      + Math.max(this.metrics.descender, metrics.descender);
+    return Math.max(this.ascender, metrics.ascender)
+      + Math.max(this.descender, metrics.descender);
   }
 
   reset() {
-    this.metrics.ascender = this.strut.ascender;
-    this.metrics.descender = this.strut.descender;
+    this.ascender = this.strut.ascender;
+    this.descender = this.strut.descender;
   }
 }
 
@@ -1130,7 +1133,7 @@ export class Linebox extends LineItemLinkedList {
   addCandidates(candidates: LineCandidates, endOffset: number) {
     this.concat(candidates);
     this.width.concat(candidates.width);
-    this.height.concat(candidates.extents);
+    this.height.concat(candidates);
     this.endOffset = endOffset;
   }
 
@@ -1229,13 +1232,12 @@ export class Linebox extends LineItemLinkedList {
 
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
     const width = this.width.trimmed();
-    const extents = this.height.metrics;
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();
     this.reorder();
-    this.ascender = extents.ascender;
-    this.descender = extents.descender;
+    this.ascender = this.height.ascender;
+    this.descender = this.height.descender;
     this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
     if (width < vacancy.inlineSize) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
@@ -1895,7 +1897,7 @@ export class Paragraph {
           fctx.preTextContent();
         }
 
-        const blockSize = line.height.totalWith(candidates.extents);
+        const blockSize = line.height.totalWith(candidates);
         fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {

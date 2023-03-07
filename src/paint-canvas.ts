@@ -129,11 +129,20 @@ export default class CanvasPaintBackend implements PaintBackend {
   // TODO: pass in border-radius
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left') {
     const {r, g, b, a} = this.strokeColor;
+    const lw2 = this.lineWidth/2;
+    const rx = Math.round(x - lw2) + lw2;
+    const ry = Math.round(y - lw2) + lw2;
     this.ctx.beginPath();
     this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     this.ctx.lineWidth = this.lineWidth;
-    this.ctx.moveTo(x, y);
-    this.ctx.lineTo(side === 'top' || side === 'bottom' ? x + length : x, side === 'left' || side === 'right' ? y + length : y);
+    this.ctx.moveTo(
+      side === 'left' || side === 'right' ? rx : Math.round(x),
+      side === 'top' || side === 'bottom' ? ry : Math.round(y)
+    );
+    this.ctx.lineTo(
+      side === 'top' || side === 'bottom' ? Math.round(x + length) : rx,
+      side === 'left' || side === 'right' ? Math.round(y + length) : ry
+    );
     this.ctx.stroke();
   }
 
@@ -223,8 +232,14 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   rect(x: number, y: number, w: number, h: number) {
     const {r, g, b, a} = this.fillColor;
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    const right = Math.round(x + w);
+    const bottom = Math.round(y + h);
+    const rw = right - rx;
+    const rh = bottom - ry;
     this.ctx.beginPath();
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-    this.ctx.fillRect(x, y, w, h);
+    this.ctx.fillRect(rx, ry, rw, rh);
   }
 }

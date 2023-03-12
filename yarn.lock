@@ -729,10 +729,10 @@ isstream@~0.1.2:
   resolved "https://registry.yarnpkg.com/isstream/-/isstream-0.1.2.tgz#47e63f7af55afa6f92e1500e690eb8b8529c099a"
   integrity sha512-Yljz7ffyPbrLpLngrMtZ7NduUgVvi6wG9RJ9IUcyCd59YQ911PBJphODUcbOVbqYfxe1wuYf/LJ8PauMRwsM/g==
 
-itemizer@^1.0.5:
-  version "1.0.5"
-  resolved "https://registry.yarnpkg.com/itemizer/-/itemizer-1.0.5.tgz#5bacf5b85484f375069ab23e0644c13dbe4ee86c"
-  integrity sha512-lnDGrEFfsGNOPcvSg6mxleaB/+36eRWLX04DByn6QuCSDLmgF/aUlGA943yfKRor4kXm2vlKADcbGnOjRY1vFA==
+itemizer@^1.0.6:
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/itemizer/-/itemizer-1.0.6.tgz#fafa1ec65d071ac115795cf2f465973aef52c06e"
+  integrity sha512-gXqu6lz48UiPczy9Ur4jVevECJpcu79jlDn2k9CElkDzYXZZDE28pmTAG4NkzzjIssLzRpNvZUGaz2WN0P3A3w==
   dependencies:
     unicode-properties "^1.4.1"
     unicode-trie "^2.0.0"

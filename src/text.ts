@@ -1804,7 +1804,7 @@ export class Paragraph {
     let line:Linebox | null = null;
     let lastBreakMark:IfcMark | undefined;
     const lines = [];
-    const floats = [];
+    let floats = [];
     let unbreakableMark = 0;
     let blockOffset = bfc.cbBlockStart;
 
@@ -1927,7 +1927,7 @@ export class Paragraph {
           layoutFloatBox(float, ctx);
           fctx.placeFloat(line.width.forFloat(), false, float);
         }
-        floats.length = 0;
+        floats = [];
 
         if (mark.isBreakForced) {
           fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);

@@ -461,17 +461,20 @@ function langForScript(script: string) {
 export function getMetrics(style: Style, font: HbFont, upem: number): InlineMetrics {
   const {fontSize, lineHeight: cssLineHeight} = style;
   // now do CSS2 §10.8.1
-  const {ascender, descender, lineGap} = font.getExtents('ltr'); // TODO vertical text
+  const {ascender, xHeight, descender, lineGap} = font.getMetrics('ltr'); // TODO vertical text
   const toPx = 1 / upem * fontSize;
   const pxHeight = (ascender - descender) * toPx;
   const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap * toPx : cssLineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
-  const ascenderPx = ascender / upem * fontSize;
-  const descenderPx = -descender / upem * fontSize;
+  const ascenderPx = ascender * toPx;
+  const descenderPx = -descender * toPx;
 
   return {
     ascenderBox: halfLeading + ascenderPx,
     ascender: ascenderPx,
+    superscript: 0.34 * fontSize, // magic numbers come from Searchfox.
+    xHeight: xHeight * toPx,
+    subscript: 0.20 * fontSize,   // all browsers use them instead of metrics
     descender: descenderPx,
     descenderBox: halfLeading + descenderPx
   };
@@ -610,15 +613,21 @@ type MeasureState = {
 };
 
 export type InlineMetrics = {
-  ascender: number;
   ascenderBox: number;
-  descenderBox: number;
+  ascender: number;
+  superscript: number;
+  xHeight: number;
+  subscript: number;
   descender: number;
+  descenderBox: number;
 };
 
 export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
   ascenderBox: 0,
   ascender: 0,
+  superscript: 0,
+  xHeight: 0,
+  subscript: 0,
   descender: 0,
   descenderBox: 0
 });
@@ -931,31 +940,6 @@ class LineItemLinkedList {
   }
 }
 
-class LineCandidates extends LineItemLinkedList {
-  width: LineWidthTracker;
-  ascender: number;
-  descender: number;
-
-  constructor() {
-    super();
-    this.width = new LineWidthTracker();
-    this.ascender = 0;
-    this.descender = 0;
-  }
-
-  stampMetrics(metrics: InlineMetrics) {
-    this.ascender = Math.max(this.ascender, metrics.ascenderBox);
-    this.descender = Math.max(this.descender, metrics.descenderBox);
-  }
-
-  reset(metrics: InlineMetrics) {
-    this.width.reset();
-    this.ascender = metrics.ascenderBox;
-    this.descender = metrics.descenderBox;
-    this.clear();
-  }
-};
-
 class LineWidthTracker {
   private inkSeen: boolean;
   private startWs: number;
@@ -1048,41 +1032,253 @@ class LineWidthTracker {
   }
 }
 
-type InlineExtents = {
+export function baselineStep(parent: Inline, inline: Inline) {
+  if (inline.style.verticalAlign === 'baseline') {
+    return 0;
+  }
+
+  if (inline.style.verticalAlign === 'super') {
+    return parent.metrics.superscript;
+  }
+
+  if (inline.style.verticalAlign === 'sub') {
+    return -parent.metrics.subscript;
+  }
+
+  if (inline.style.verticalAlign === 'middle') {
+    const midParent = parent.metrics.xHeight / 2;
+    const midInline = (inline.metrics.ascender - inline.metrics.descender) / 2;
+    return midParent - midInline;
+  }
+
+  if (inline.style.verticalAlign === 'text-top') {
+    return parent.metrics.ascender - inline.metrics.ascenderBox;
+  }
+
+  if (inline.style.verticalAlign === 'text-bottom') {
+    return inline.metrics.descenderBox - parent.metrics.descender;
+  }
+
+  if (typeof inline.style.verticalAlign === 'object') {
+    return (inline.metrics.ascenderBox + inline.metrics.descenderBox) * inline.style.verticalAlign.value / 100;
+  }
+
+  if (typeof inline.style.verticalAlign === 'number') {
+    return inline.style.verticalAlign;
+  }
+
+  return 0;
+}
+
+class AlignmentContext {
   ascender: number;
   descender: number;
+  baselineShift: number;
+
+  constructor(arg: InlineMetrics | AlignmentContext) {
+    if (arg instanceof AlignmentContext) {
+      this.ascender = arg.ascender;
+      this.descender = arg.descender;
+      this.baselineShift = arg.baselineShift;
+    } else {
+      this.ascender = arg.ascenderBox;
+      this.descender = arg.descenderBox;
+      this.baselineShift = 0;
+    }
+  }
+
+  stampMetrics(metrics: InlineMetrics) {
+    const top = this.baselineShift + metrics.ascenderBox;
+    const bottom = metrics.descenderBox - this.baselineShift;
+    this.ascender = Math.max(this.ascender, top);
+    this.descender = Math.max(this.descender, bottom);
+  }
+
+  extend(ctx: AlignmentContext) {
+    this.ascender = Math.max(this.ascender, ctx.ascender);
+    this.descender = Math.max(this.descender, ctx.descender);
+  }
+
+  stepIn(parent: Inline, inline: Inline) {
+    this.baselineShift += baselineStep(parent, inline);
+  }
+
+  stepOut(parent: Inline, inline: Inline) {
+    this.baselineShift -= baselineStep(parent, inline);
+  }
+
+  reset() {
+    this.ascender = 0;
+    this.descender = 0;
+    this.baselineShift = 0;
+  }
+}
+
+class LineCandidates extends LineItemLinkedList {
+  width: LineWidthTracker;
+  height: LineHeightTracker;
+
+  constructor(ifc: IfcInline) {
+    super();
+    this.width = new LineWidthTracker();
+    this.height = new LineHeightTracker(ifc);
+  }
+
+  reset() {
+    this.width.reset();
+    this.height.reset();
+    this.clear();
+  }
 };
 
 class LineHeightTracker {
-  strut: InlineMetrics;
+  ifc: IfcInline;
+  stack: Inline[];
+  contextStack: AlignmentContext[];
+  contextRoots: Map<Inline, AlignmentContext>;
+  markedContextRoots: Inline[];
   ascender: number;
   descender: number;
 
-  constructor(strut: InlineMetrics) {
-    this.strut = strut;
-    this.ascender = strut.ascenderBox;
-    this.descender = strut.descenderBox;
-    /* TODO: vertical-align position and push/pop methods */
+  constructor(ifc: IfcInline) {
+    const ctx = new AlignmentContext(ifc.metrics);
+
+    this.ifc = ifc;
+    this.stack = [];
+    this.contextStack = [ctx];
+    this.contextRoots = new Map([[ifc, ctx]]);
+    this.markedContextRoots = [];
+    this.ascender = ctx.ascender;
+    this.descender = ctx.descender;
   }
 
-  concat(extents: InlineExtents) {
-    this.ascender = Math.max(this.ascender, extents.ascender);
-    this.descender = Math.max(this.descender, extents.descender);
+  stampMetrics(metrics: InlineMetrics) {
+    const ctx = this.contextStack.at(-1)!;
+    ctx.stampMetrics(metrics);
+    this.ascender = Math.max(this.ascender, ctx.ascender);
+    this.descender = Math.max(this.descender, ctx.descender);
+  }
+
+  pushInline(inline: Inline) {
+    const parent = this.stack.at(-1) || this.ifc;
+    let ctx = this.contextStack.at(-1)!;
+
+    this.stack.push(inline);
+
+    if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
+      ctx = new AlignmentContext(inline.metrics);
+      this.contextStack.push(ctx);
+      this.contextRoots.set(inline, ctx);
+    } else {
+      ctx.stepIn(parent, inline);
+      ctx.stampMetrics(inline.metrics);
+    }
+
+    this.ascender = Math.max(this.ascender, ctx.ascender);
+    this.descender = Math.max(this.descender, ctx.descender);
+  }
+
+  popInline() {
+    const inline = this.stack.pop()!;
+
+    if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
+      this.contextStack.pop()!
+      this.markedContextRoots.push(inline);
+    } else {
+      const parent = this.stack.at(-1) || this.ifc;
+      const ctx = this.contextStack.at(-1)!;
+      ctx.stepOut(parent, inline);
+    }
+  }
+
+  concat(height: LineHeightTracker) {
+    for (const [inline, ctx] of height.contextRoots) {
+      const thisCtx = this.contextRoots.get(inline);
+      if (thisCtx) {
+        thisCtx.extend(ctx);
+      } else {
+        this.contextRoots.set(inline, new AlignmentContext(ctx));
+      }
+    }
+
+    this.ascender = Math.max(this.ascender, height.ascender);
+    this.descender = Math.max(this.descender, height.descender);
+  }
+
+  align() {
+    const rootCtx = this.contextRoots.get(this.ifc)!;
+    const lineHeight = this.total();
+    let bottomsHeight = rootCtx.ascender + rootCtx.descender;
+
+    for (const [inline, ctx] of this.contextRoots) {
+      if (inline.style.verticalAlign === 'bottom') {
+        bottomsHeight = Math.max(bottomsHeight, ctx.ascender + ctx.descender);
+      }
+    }
+
+    const ascender = bottomsHeight - rootCtx.descender;
+    const descender = lineHeight - ascender;
+
+    for (const [inline, ctx] of this.contextRoots) {
+      if (inline.style.verticalAlign === 'top') {
+        ctx.baselineShift = ascender - ctx.ascender;
+      } else if (inline.style.verticalAlign === 'bottom') {
+        ctx.baselineShift = ctx.descender - descender;
+      }
+    }
+
+    return [ascender, descender];
   }
 
   total() {
     return this.ascender + this.descender;
   }
 
-  totalWith(metrics: InlineExtents) {
-    return Math.max(this.ascender, metrics.ascender)
-      + Math.max(this.descender, metrics.descender);
+  totalWith(height: LineHeightTracker) {
+    return Math.max(this.total(), height.total());
   }
 
   reset() {
-    this.ascender = this.strut.ascenderBox;
-    this.descender = this.strut.descenderBox;
+    let parent: Inline = this.ifc;
+    let inline = this.stack[0];
+    let i = 0;
+
+    this.ascender = 0;
+    this.descender = 0;
+
+    for (const ctx of this.contextStack) {
+      ctx.reset();
+
+      while (inline) {
+        if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
+          parent = inline;
+          inline = this.stack[++i];
+          break;
+        } else {
+          ctx.stepIn(parent, inline);
+          ctx.stampMetrics(inline.metrics);
+          parent = inline;
+          inline = this.stack[++i];
+        }
+      }
+
+      this.ascender = Math.max(this.ascender, ctx.ascender);
+      this.descender = Math.max(this.descender, ctx.descender);
+    }
+
+    for (const inline of this.markedContextRoots) this.contextRoots.delete(inline);
+    this.markedContextRoots = [];
   }
+}
+
+function getFontMetrics(inline: Inline) {
+  const strutCascade = getCascade(inline.style, 'Latn');
+  const strutFontMatch = strutCascade.matches[0].toCssMatch();
+  const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
+  const strutFont = hb.createFont(strutFace);
+  const metrics = getMetrics(inline.style, strutFont, strutFace.upem);
+  strutFont.destroy();
+  return metrics;
 }
 
 export class Linebox extends LineItemLinkedList {
@@ -1102,10 +1298,10 @@ export class Linebox extends LineItemLinkedList {
     this.dir = dir;
     this.startOffset = this.endOffset = start;
     this.paragraph = paragraph;
-    this.ascender = paragraph.strut.ascenderBox;
-    this.descender = paragraph.strut.descenderBox;
+    this.ascender = 0;
+    this.descender = 0;
     this.width = new LineWidthTracker();
-    this.height = new LineHeightTracker(paragraph.strut);
+    this.height = new LineHeightTracker(paragraph.ifc);
     this.blockOffset = 0;
     this.inlineOffset = 0;
   }
@@ -1113,7 +1309,7 @@ export class Linebox extends LineItemLinkedList {
   addCandidates(candidates: LineCandidates, endOffset: number) {
     this.concat(candidates);
     this.width.concat(candidates.width);
-    this.height.concat(candidates);
+    this.height.concat(candidates.height);
     this.endOffset = endOffset;
   }
 
@@ -1212,12 +1408,13 @@ export class Linebox extends LineItemLinkedList {
 
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
     const width = this.width.trimmed();
+    const [ascender, descender] = this.height.align();
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();
     this.reorder();
-    this.ascender = this.height.ascender;
-    this.descender = this.height.descender;
+    this.ascender = ascender;
+    this.descender = descender;
     this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
     if (width < vacancy.inlineSize) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
@@ -1286,7 +1483,6 @@ export class Paragraph {
   ifc: IfcInline;
   string: string;
   buffer: AllocatedUint16Array;
-  strut: InlineMetrics;
   enableLogging: boolean;
   colors: [Color, number][];
   metrics: [InlineMetrics, number][];
@@ -1295,11 +1491,10 @@ export class Paragraph {
   lineboxes: Linebox[];
   height: number;
 
-  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, strut: InlineMetrics, enableLogging: boolean) {
+  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, enableLogging: boolean) {
     this.ifc = ifc;
     this.string = ifc.text;
     this.buffer = buffer;
-    this.strut = strut;
     this.enableLogging = enableLogging;
     this.colors = [];
     this.metrics = [];
@@ -1471,6 +1666,8 @@ export class Paragraph {
     log?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
     log?.(`Full text: "${this.string}"\n`);
 
+    this.ifc.metrics = getFontMetrics(this.ifc);
+
     for (const {i: itemIndex, attrs} of this.itemize()) {
       const start = lastItemIndex;
       const end = itemIndex;
@@ -1496,12 +1693,7 @@ export class Paragraph {
           const style = inline.value.style;
 
           if (inline.value.isInline()) {
-            const cascade = getCascade(inline.value.style, attrs.script);
-            const match = cascade.matches[0].toCssMatch();
-            const face = getFace(match.file, match.index);
-            const font = hb.createFont(face);
-            inline.value.metrics = getMetrics(inline.value.style, font, face.upem);
-            font.destroy();
+            inline.value.metrics = getFontMetrics(inline.value);
           }
 
           if (inline.value.isRun()) {
@@ -1797,7 +1989,7 @@ export class Paragraph {
   createLineboxes(ctx: LayoutContext) {
     const bfc = ctx.bfc;
     const fctx = bfc.fctx;
-    const candidates = new LineCandidates();
+    const candidates = new LineCandidates(this.ifc);
     const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
     const basedir = this.ifc.style.direction;
     const parents:Inline[] = [];
@@ -1821,8 +2013,8 @@ export class Paragraph {
       const item = this.brokenItems[mark.itemIndex];
 
       if (mark.inlinePre) {
-        candidates.stampMetrics(mark.metrics);
-        candidates.stampMetrics(mark.inlinePre.metrics);
+        candidates.height.pushInline(mark.inlinePre);
+        candidates.height.stampMetrics(mark.metrics);
         parents.push(mark.inlinePre);
       }
 
@@ -1881,7 +2073,7 @@ export class Paragraph {
           fctx.preTextContent();
         }
 
-        const blockSize = line.height.totalWith(candidates);
+        const blockSize = line.height.totalWith(candidates.height);
         fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
@@ -1920,7 +2112,7 @@ export class Paragraph {
 
         line.addCandidates(candidates, mark.position);
 
-        candidates.reset(mark.metrics);
+        candidates.reset();
         lastBreakMark = mark;
 
         for (const float of floats) {
@@ -1942,7 +2134,7 @@ export class Paragraph {
         item.inlines = parents.slice();
         for (const p of parents) p.nshaped += 1;
         candidates.push(item);
-        candidates.stampMetrics(mark.metrics);
+        candidates.height.stampMetrics(mark.metrics);
       }
 
       // Handle a span that starts inside a shaped item
@@ -1951,7 +2143,10 @@ export class Paragraph {
         mark.inlinePre.nshaped += 1;
       }
 
-      if (mark.inlinePost) parents.pop();
+      if (mark.inlinePost) {
+        parents.pop();
+        candidates.height.popInline();
+      }
     }
 
     for (const float of floats) {
@@ -1995,14 +2190,8 @@ export class Paragraph {
 }
 
 export function createParagraph(ifc: IfcInline, enableLogging: boolean) {
-  const strutCascade = getCascade(ifc.style, 'Latn');
-  const strutFontMatch = strutCascade.matches[0].toCssMatch();
-  const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
-  const strutFont = hb.createFont(strutFace);
-  const strut = getMetrics(ifc.style, strutFont, strutFace.upem);
   const buffer = createIfcBuffer(ifc.text)
-  strutFont.destroy();
-  return new Paragraph(ifc, buffer, strut, enableLogging);
+  return new Paragraph(ifc, buffer, enableLogging);
 }
 
 const EmptyBuffer = {
@@ -2011,5 +2200,5 @@ const EmptyBuffer = {
 };
 
 export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, EmptyBuffer, EmptyInlineMetrics, false);
+  return new Paragraph(ifc, EmptyBuffer, false);
 }

@@ -27,7 +27,7 @@ These rules are either working or will be working soon. Shorthand properties are
 | <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |  |
 | <code>text-&zwj;decoration</code> | | 🚧&zwj;&nbsp;Planned | |
 | <code>unicode-&zwj;bidi</code> | | 🚧&zwj;&nbsp;Planned | |
-| <code>vertical-&zwj;align</code> | | 🚧&zwj;&nbsp;Planned | |
+| <code>vertical-&zwj;align</code> | `baseline`, `middle`, `sub`, `super`, `text-top`, `text-bottom`, `%`, `px` etc, `top`, `bottom` | ✅&zwj;&nbsp;Works | |
 | <code>white-&zwj;space</code> | `normal`, `nowrap`, `pre`, `pre-wrap`, `pre-line` | ✅&zwj;&nbsp;Works | |
 
 ## Block formatting

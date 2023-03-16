@@ -1555,6 +1555,10 @@ export class IfcInline extends Inline {
             lastYielded = ci;
           }
         }
+        if (parent.style.verticalAlign !== 'baseline') {
+          if (ci !== lastYielded) yield {i: ci, style: currentStyle};
+          lastYielded = ci;
+        }
         parents.pop();
       } else if (item.isRun()) {
         if (
@@ -1572,6 +1576,11 @@ export class IfcInline extends Inline {
         ci += item.text.length;
       } else if (item.isInline()) {
         parents.push(item);
+
+        if (item.style.verticalAlign !== 'baseline') {
+          if (ci !== lastYielded) yield {i: ci, style: currentStyle};
+          lastYielded = ci;
+        }
 
         if (direction === 'ltr' ? item.hasLineLeftGap(this) : item.hasLineRightGap(this)) {
           if (ci !== lastYielded) {

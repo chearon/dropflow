@@ -98,6 +98,7 @@ start
 declaration
   = font_size_dec
   / line_height_dec
+  / vertical_align_dec
   / font_style_dec
   / font_weight_dec
   / font_variant_dec
@@ -272,6 +273,9 @@ font_size
 line_height
   = line_height:('normal' / LENGTH / PERCENTAGE / NUMBER) { return line_height; }
 
+vertical_align
+  = vertical_align:('baseline' / 'middle' / 'sub' / 'super' / 'text-top' / 'text-bottom' / LENGTH / PERCENTAGE / 'top' / 'bottom') { return vertical_align; }
+
 font_style
   = 'normal' / 'italic' / 'oblique'
 
@@ -410,6 +414,11 @@ font_size_dec
 line_height_dec
   = 'line-height'i S* ':' S* lineHeight:(line_height / default) {
     return {lineHeight};
+  }
+
+vertical_align_dec
+  = 'vertical-align'i S* ':' S* verticalAlign:(vertical_align / default) {
+    return {verticalAlign};
   }
 
 font_style_dec

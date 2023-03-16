@@ -633,7 +633,7 @@ har-validator@~5.1.3:
 
 harfbuzzjs@chearon/harfbuzzjs.git#chearon-patches:
   version "0.3.0"
-  resolved "https://codeload.github.com/chearon/harfbuzzjs/tar.gz/e38626518882058418f74c65729a93ea024deb27"
+  resolved "https://codeload.github.com/chearon/harfbuzzjs/tar.gz/4c9bb2289f58ac89ae146626837eabbfd9a49988"
 
 has-flag@^4.0.0:
   version "4.0.0"

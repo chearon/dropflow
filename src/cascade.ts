@@ -114,6 +114,9 @@ type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed
                  | 'semi-condensed' | 'semi-expanded' | 'expanded'
                  | 'extra-expanded' | 'ultra-expanded';
 
+type VerticalAlign = 'baseline' | 'middle' | 'sub' | 'super' | 'text-top'
+  | 'text-bottom' | ValuePctPx | 'top' | 'bottom';
+
 type BackgroundClip = 'border-box' | 'padding-box' | 'content-box';
 
 export type Direction = 'ltr' | 'rtl';
@@ -151,6 +154,7 @@ export type DeclaredPlainStyle = {
   fontStretch?: FontStretch | Inherited | Initial;
   fontFamily?: string[] | Inherited | Initial;
   lineHeight?: 'normal' | ValuePctPxNone | Inherited | Initial;
+  verticalAlign?: VerticalAlign;
   backgroundColor?: Color | Inherited | Initial;
   backgroundClip?: BackgroundClip | Inherited | Initial;
   display?: Display | Inherited | Initial;
@@ -230,6 +234,7 @@ export class Style implements ComputedPlainStyle {
   fontStyle: ComputedPlainStyle['fontStyle'];
   fontFamily: ComputedPlainStyle['fontFamily'];
   fontStretch: ComputedPlainStyle['fontStretch'];
+  verticalAlign: ComputedPlainStyle['verticalAlign'];
   backgroundColor: ComputedPlainStyle['backgroundColor'];
   backgroundClip: ComputedPlainStyle['backgroundClip'];
   display: ComputedPlainStyle['display'];
@@ -279,6 +284,7 @@ export class Style implements ComputedPlainStyle {
     this.fontStyle = style.fontStyle;
     this.fontFamily = style.fontFamily;
     this.fontStretch = style.fontStretch;
+    this.verticalAlign = style.verticalAlign;
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;
@@ -482,6 +488,7 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   fontFamily: ['Helvetica'],
   fontStretch: 'normal',
   lineHeight: 'normal',
+  verticalAlign: 'baseline',
   backgroundColor: {r: 0, g: 0, b: 0, a: 0},
   backgroundClip: 'border-box',
   display: {outer: 'inline' as const, inner: 'flow' as const},
@@ -530,6 +537,7 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   fontFamily: true,
   fontStretch: true,
   lineHeight: true,
+  verticalAlign: false,
   backgroundColor: false,
   backgroundClip: false,
   display: false,

@@ -1,5 +1,5 @@
 import {BlockContainer, IfcInline, Inline} from './flow.js';
-import {ShapedItem} from './text.js';
+import {ShapedItem, baselineStep} from './text.js';
 import {Color} from './cascade.js';
 import {FontConfigCssMatch} from 'fontconfig';
 import type {HbGlyphInfo} from 'harfbuzzjs';
@@ -180,6 +180,7 @@ function paintText(state: IfcPaintState, item: ShapedItem, b: PaintBackend) {
 type BackgroundBox = {
   start: number,
   end: number,
+  baselineShift: number,
   ascender: number,
   descender: number,
   naturalStart: boolean,
@@ -195,7 +196,7 @@ class ContiguousBoxBuilder {
     this.closed = new Map();
   }
 
-  open(inline: Inline, naturalStart: boolean, start: number) {
+  open(inline: Inline, naturalStart: boolean, start: number, baselineShift: number) {
     const box = this.opened.get(inline);
     if (box) {
       box.end = start;
@@ -203,7 +204,7 @@ class ContiguousBoxBuilder {
       const end = start;
       const naturalEnd = false;
       const {ascender, descender} = inline.metrics;
-      const box:BackgroundBox = {start, end, ascender, descender, naturalStart, naturalEnd};
+      const box: BackgroundBox = {start, end, baselineShift, ascender, descender, naturalStart, naturalEnd};
       this.opened.set(inline, box);
       // Make sure closed is in open order
       if (!this.closed.has(inline)) this.closed.set(inline, []);
@@ -264,6 +265,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
 
     for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
       const item = n.value;
+      let baselineShift = 0;
 
       boxBuilder.closeAll(item.inlines, state.left);
 
@@ -273,15 +275,20 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
         const isFirstOccurance = count === undefined;
         const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
         const mark = isOrthogonal ? inline.end : inline.start;
+        const alignmentContext = linebox.height.contextRoots.get(inline);
 
         state.bgcursor = state.left;
+
+        if (alignmentContext) baselineShift = alignmentContext.baselineShift;
+
+        baselineShift += baselineStep(item.inlines[i - 1] || ifc, inline);
 
         if (item instanceof ShapedItem) {
           inlineBackgroundAdvance(state, item, mark, 'start');
         }
 
         if (isFirstOccurance) inlineSideAdvance(state, inline, 'start');
-        boxBuilder.open(inline, isFirstOccurance, state.bgcursor);
+        boxBuilder.open(inline, isFirstOccurance, state.bgcursor, baselineShift);
 
         if (isFirstOccurance) {
           counts.set(inline, 1);
@@ -289,6 +296,8 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
           counts.set(inline, count! + 1);
         }
       }
+
+      state.top -= baselineShift;
 
       if (item instanceof ShapedItem) textQueue.push(paintText(state, item, b));
 
@@ -311,6 +320,8 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
           boxBuilder.close(inline, isLastOccurance, state.bgcursor);
         }
       }
+
+      state.top += baselineShift;
     }
 
     boxBuilder.closeAll([], state.left);
@@ -324,7 +335,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
       const {a: ba} = borderBottomColor;
       const {a: la} = borderLeftColor;
 
-      for (const {start, end, ascender, descender, naturalStart, naturalEnd} of list) {
+      for (const {start, end, baselineShift, ascender, descender, naturalStart, naturalEnd} of list) {
         const paddingTop = inline.style.getPaddingBlockStart(state.ifc);
         const paddingRight = inline.style.getPaddingLineRight(state.ifc);
         const paddingBottom = inline.style.getPaddingBlockEnd(state.ifc);
@@ -355,7 +366,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
 
           b.fillColor = bgc;
           const x = Math.min(start, end);
-          const y = state.top - ascender - extraTop;
+          const y = state.top - baselineShift - ascender - extraTop;
           const width = Math.abs(start - end);
           const height = ascender + descender + extraTop + extraBottom;
           b.rect(x, y, width, height);
@@ -371,7 +382,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
           if (paintRight && clip !== 'border-box') extraRight += borderRightWidth;
 
           const left = Math.min(start, end) - extraLeft;
-          const top = state.top - ascender - paddingTop - borderTopWidth;
+          const top = state.top - baselineShift - ascender - paddingTop - borderTopWidth;
           const width = Math.abs(start - end) + extraLeft + extraRight;
           const height = borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth;
 

@@ -320,13 +320,38 @@ function basename(p: string) {
   return p.match(/([^.\/]+)\.[A-z]+$/)?.[1] || p;
 }
 
+// this comes from Firefox source. char should be a 16-bit integer
+function hashMix(hash: number, char: number) {
+  return (hash >> 28) ^ (hash << 4) ^ char;
+}
+
 function createFontKey(s: Style, script: string) {
-  return `${s.fontStyle} ${s.fontWeight} ${s.fontStretch} ${s.fontFamily} ${script}`;
+  let hash = s.fontWeight;
+
+  for (let i = 0; i < s.fontStyle.length; ++i) {
+    hash = hashMix(hash, s.fontStyle.charCodeAt(i));
+  }
+
+  for (let i = 0; i < s.fontStretch.length; ++i) {
+    hash = hashMix(hash, s.fontStretch.charCodeAt(i));
+  }
+
+  for (const f of s.fontFamily) {
+    for (let i = 0; i < f.length; ++i) {
+      hash = hashMix(hash, f.charCodeAt(i));
+    }
+  }
+
+  for (let i = 0; i < script.length; ++i) {
+    hash = hashMix(hash, script.charCodeAt(i));
+  }
+
+  return hash;
 }
 
 const fontBufferCache = new Map<string, ArrayBuffer>();
 const hbFaceCache = new Map<string, HbFace>();
-const cascadeCache = new Map<string, Cascade>();
+const cascadeCache = new Map<number, Cascade>();
 const hyphenCache = new Map<string, HbGlyphInfo[]>();
 
 function getFontBuffer(filename: string) {

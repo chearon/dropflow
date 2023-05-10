@@ -16,12 +16,12 @@ export class Box {
   public children: Box[];
   public attrs: number;
 
-  public static ATTRS = {
-    isAnonymous: 1,
-    isInline: 1 << 1,
-    isBfcRoot: 1 << 2,
-    isFloat: 1 << 3,
-    enableLogging: 1 << 4
+  static ATTRS: {
+    isAnonymous: number,
+    isInline: number,
+    isBfcRoot: number,
+    isFloat: number,
+    enableLogging: number
   };
 
   constructor(style: Style, children: Box[], attrs: number) {
@@ -100,3 +100,13 @@ export class Box {
     return '  '.repeat(indent) + this.sym + ' ' + this.desc + extra + c;
   }
 }
+
+// For some reason the inline `static ATTRS = {}` along with
+// useDefineForClassFields generates JS with a syntax error as of typescript 5.0.4
+Box.ATTRS = {
+  isAnonymous: 1,
+  isInline: 1 << 1,
+  isBfcRoot: 1 << 2,
+  isFloat: 1 << 3,
+  enableLogging: 1 << 4
+};

@@ -353,6 +353,7 @@ const fontBufferCache = new Map<string, ArrayBuffer>();
 const hbFaceCache = new Map<string, HbFace>();
 const cascadeCache = new Map<number, Cascade>();
 const hyphenCache = new Map<string, HbGlyphInfo[]>();
+const metricsCache = new Map<number, InlineMetrics>();
 
 function getFontBuffer(filename: string) {
   let buffer = fontBufferCache.get(filename);
@@ -380,6 +381,39 @@ function getFace(filename: string, index: number) {
     hbFaceCache.set(filename + index, face);
   }
   return face;
+}
+
+const metricsCacheBuffer = new ArrayBuffer(16);
+
+function createMetricsKey(inline: Inline) {
+  let fontKey = createFontKey(inline.style, 'Latn');
+  let len = 4;
+
+  new Float64Array(metricsCacheBuffer)[0] = inline.style.fontSize;
+
+  if (inline.style.lineHeight !== 'normal') {
+    new Float64Array(metricsCacheBuffer)[1] = inline.style.lineHeight;
+    len = 8;
+  }
+  const b = new Uint16Array(metricsCacheBuffer, 0, len);
+  for (let i = 0; i < b.length; ++i) {
+    fontKey = hashMix(fontKey, b[i]);
+  }
+  return fontKey;
+}
+
+function getFontMetrics(inline: Inline) {
+  const metricsKey = createMetricsKey(inline);
+  const existing = metricsCache.get(metricsKey);
+  if (existing) return existing;
+  const strutCascade = getCascade(inline.style, 'Latn');
+  const strutFontMatch = strutCascade.matches[0].toCssMatch();
+  const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
+  const strutFont = hb.createFont(strutFace);
+  const metrics = getMetrics(inline.style, strutFont, strutFace.upem);
+  strutFont.destroy();
+  metricsCache.set(metricsKey, metrics);
+  return metrics;
 }
 
 function getCascade(style: Style, script: string) {
@@ -1294,16 +1328,6 @@ class LineHeightTracker {
     for (const inline of this.markedContextRoots) this.contextRoots.delete(inline);
     this.markedContextRoots = [];
   }
-}
-
-function getFontMetrics(inline: Inline) {
-  const strutCascade = getCascade(inline.style, 'Latn');
-  const strutFontMatch = strutCascade.matches[0].toCssMatch();
-  const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
-  const strutFont = hb.createFont(strutFace);
-  const metrics = getMetrics(inline.style, strutFont, strutFace.upem);
-  strutFont.destroy();
-  return metrics;
 }
 
 export class Linebox extends LineItemLinkedList {

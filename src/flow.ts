@@ -1606,7 +1606,9 @@ export class IfcInline extends Inline {
       }
     }
 
-    yield {i: ci, style: currentStyle};
+    if (ci !== lastYielded) {
+      yield {i: ci, style: currentStyle};
+    }
   }
 
   preprocess(enableLogging: boolean) {

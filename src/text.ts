@@ -1504,6 +1504,23 @@ function createIfcBuffer(text: string) {
   return allocation;
 }
 
+const NON_ASCII_MASK = 0b1111_1111_1000_0000;
+
+class TextAnalysis {
+  isSimple: boolean;
+  hyphens: number[];
+
+  constructor(string: string) {
+    this.isSimple = true;
+    this.hyphens = [];
+
+    for (let i = 0; i < string.length; ++i) {
+      if (string.charCodeAt(i) & NON_ASCII_MASK) this.isSimple = false;
+      if (string[i] === '\u00ad' /* softHyphenCharacter */) this.hyphens.push(i);
+    }
+  }
+}
+
 export class Paragraph {
   ifc: IfcInline;
   string: string;
@@ -1515,6 +1532,7 @@ export class Paragraph {
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
+  analysis: TextAnalysis;
 
   constructor(ifc: IfcInline, buffer: AllocatedUint16Array, enableLogging: boolean) {
     this.ifc = ifc;
@@ -1527,6 +1545,7 @@ export class Paragraph {
     this.wholeItems = [];
     this.lineboxes = [];
     this.height = 0;
+    this.analysis = new TextAnalysis(ifc.text);
   }
 
   destroy() {
@@ -1582,51 +1601,72 @@ export class Paragraph {
   *itemize() {
     if (this.string.length === 0) return;
 
-    const iEmoji = itemizer.emoji(this.string);
-    const iBidi = itemizer.bidi(this.string, this.ifc.style.direction === 'ltr' ? 0 : 1);
-    const iScript = itemizer.script(this.string);
     const iStyle = this.ifc.itemizeInlines();
     const iNewline = this.nlIterator();
-
-    let emoji = iEmoji.next();
-    let bidi = iBidi.next();
-    let script = iScript.next();
     let style = iStyle.next();
     let newline = iNewline.next();
 
-    if (emoji.done || bidi.done || script.done || style.done || newline.done) {
-      throw new Error('Iterator ended too early');
-    }
+    if (this.analysis.isSimple) {
+      if (style.done || newline.done) {
+        throw new Error('Iterator ended too early');
+      }
 
-    let ctx:ShapingAttrs = {
-      isEmoji: emoji.value.isEmoji,
-      level: bidi.value.level,
-      script: script.value.script,
-      style: style.value.style
-    };
+      const ctx: ShapingAttrs = {
+        isEmoji: false,
+        level: 0,
+        script: 'Latn',
+        style: style.value.style
+      };
 
-    while (!emoji.done && !bidi.done && !script.done && !style.done && !newline.done) {
-      // Find smallest text index
-      let smallest:number = emoji.value.i;
-      if (!bidi.done && bidi.value.i < smallest) smallest = bidi.value.i;
-      if (!script.done && script.value.i < smallest) smallest = script.value.i;
-      if (!style.done && style.value.i < smallest) smallest = style.value.i;
-      if (!newline.done && newline.value.i < smallest) smallest = newline.value.i;
+      while (!style.done && !newline.done) {
+        const smallest = Math.min(style.value.i, newline.value.i);
 
-      // Map the current iterators to context
-      if (!emoji.done) ctx.isEmoji = emoji.value.isEmoji;
-      if (!bidi.done) ctx.level = bidi.value.level;
-      if (!script.done) ctx.script = script.value.script;
-      if (!style.done) ctx.style = style.value.style;
+        ctx.style = style.value.style;
 
-      // Advance
-      if (!emoji.done && smallest === emoji.value.i) emoji = iEmoji.next();
-      if (!bidi.done && smallest === bidi.value.i) bidi = iBidi.next();
-      if (!script.done && smallest === script.value.i) script = iScript.next();
-      if (!style.done && smallest === style.value.i) style = iStyle.next();
-      if (!newline.done && smallest === newline.value.i) newline = iNewline.next();
+        if (smallest === style.value.i) style = iStyle.next();
+        if (smallest === newline.value.i) newline = iNewline.next();
 
-      yield {i: smallest, attrs: ctx};
+        yield {i: smallest, attrs: ctx};
+      }
+    } else {
+      const iEmoji = itemizer.emoji(this.string);
+      const iBidi = itemizer.bidi(this.string, this.ifc.style.direction === 'ltr' ? 0 : 1);
+      const iScript = itemizer.script(this.string);
+
+      let emoji = iEmoji.next();
+      let bidi = iBidi.next();
+      let script = iScript.next();
+
+      if (emoji.done || bidi.done || script.done || style.done || newline.done) {
+        throw new Error('Iterator ended too early');
+      }
+
+      const ctx: ShapingAttrs = {
+        isEmoji: emoji.value.isEmoji,
+        level: bidi.value.level,
+        script: script.value.script,
+        style: style.value.style
+      };
+
+      while (!emoji.done && !bidi.done && !script.done && !style.done && !newline.done) {
+        // Find smallest text index
+        const smallest = Math.min(emoji.value.i, bidi.value.i, script.value.i, style.value.i, newline.value.i);
+
+        // Map the current iterators to context
+        ctx.isEmoji = emoji.value.isEmoji;
+        ctx.level = bidi.value.level;
+        ctx.script = script.value.script;
+        ctx.style = style.value.style;
+
+        // Advance
+        if (smallest === emoji.value.i) emoji = iEmoji.next();
+        if (smallest === bidi.value.i) bidi = iBidi.next();
+        if (smallest === script.value.i) script = iScript.next();
+        if (smallest === style.value.i) style = iStyle.next();
+        if (smallest === newline.value.i) newline = iNewline.next();
+
+        yield {i: smallest, attrs: ctx};
+      }
     }
   }
 
@@ -1837,8 +1877,8 @@ export class Paragraph {
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
 
     let j = 0;
-    for (let i = 0; i < this.string.length; ++i) {
-      if (j + 1 < items.length && items[j + 1].offset <= i) ++j;
+    for (const i of this.analysis.hyphens) {
+      while (j + 1 < items.length && items[j + 1].offset <= i) ++j;
       if (this.string[i] === '\u00ad' /* softHyphenCharacter */) loadHyphen(items[j]);
     }
   }

@@ -2,7 +2,6 @@ import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
-import {getBuffer} from './io.js';
 import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import {Cascade} from 'fontconfig';
 import LineBreak from './line-break.js';
@@ -349,18 +348,15 @@ function createFontKey(s: Style, script: string) {
   return hash;
 }
 
-const fontBufferCache = new Map<string, ArrayBuffer>();
+export const fontBufferCache = new Map<string, ArrayBuffer>();
 const hbFaceCache = new Map<string, HbFace>();
 const cascadeCache = new Map<number, Cascade>();
 const hyphenCache = new Map<string, HbGlyphInfo[]>();
 const metricsCache = new Map<number, InlineMetrics>();
 
 function getFontBuffer(filename: string) {
-  let buffer = fontBufferCache.get(filename);
-  if (!buffer) {
-    buffer = getBuffer(filename);
-    fontBufferCache.set(filename, buffer);
-  }
+  const buffer = fontBufferCache.get(filename);
+  if (!buffer) throw new Error(`${filename} not found`);
   return buffer;
 }
 

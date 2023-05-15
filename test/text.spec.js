@@ -1,6 +1,6 @@
 //@ts-check
 import {expect} from 'chai';
-import * as oflo from '../node.js';
+import * as oflo from '../src/api.js';
 import {registerFontAsset} from '../assets/register.js';
 import {Run, Collapser} from '../src/text.js';
 import {initialStyle, createComputedStyle} from '../src/cascade.js';

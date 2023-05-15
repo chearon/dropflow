@@ -1,4 +1,4 @@
-import * as oflo from '../node.js';
+import * as oflo from '../src/api.js';
 import fs from 'fs';
 import {createCanvas, registerFont} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';

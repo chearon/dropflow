@@ -9,6 +9,7 @@ import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
 import {fcfg} from './deps.js';
 import {FontConfigCssMatch} from 'fontconfig';
+import {fontBufferCache} from './text.js';
 import type {CanvasRenderingContext2D} from 'canvas';
 
 // required styles that always come last in the cascade
@@ -32,7 +33,10 @@ function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
 // ***
 
 export function registerFont(buffer: Uint8Array, filename: string) {
-  fcfg.addFont(buffer, filename);
+  if (!fontBufferCache.has(filename)) {
+    fcfg.addFont(buffer, filename);
+    fontBufferCache.set(filename, buffer);
+  }
 }
 
 // TODO: remove the style argument. read styles on <html> instead

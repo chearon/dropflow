@@ -769,9 +769,7 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   reshape() {
-    const font = hb.createFont(this.face);
-    this.glyphs = this.paragraph.shapePart(this.offset, this.length, font, this.attrs);
-    font.destroy();
+    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.face, this.attrs);
   }
 
   createMeasureState(direction: 1 | -1 = 1) {
@@ -1694,8 +1692,9 @@ export class Paragraph {
     }
   }
 
-  shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+  shapePart(offset: number, length: number, face: HbFace, attrs: ShapingAttrs) {
     const buf = hb.createBuffer();
+    const font = hb.createFont(face);
     buf.setClusterLevel(1);
     buf.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
     buf.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
@@ -1704,6 +1703,7 @@ export class Paragraph {
     hb.shape(font, buf);
     const json = buf.json();
     buf.destroy();
+    font.destroy();
     return json;
   }
 
@@ -1772,8 +1772,6 @@ export class Paragraph {
         const match = cascade.matches[i].toCssMatch();
         const isLastMatch = i === cascade.matches.length - 1;
         const face = getFace(match.file, match.index);
-        // TODO set size and such for hinting?
-        const font = hb.createFont(face);
         // Allows to tack successive (re)shaping parts onto one larger item
         const parts:ShapingPart[] = [];
 
@@ -1809,7 +1807,7 @@ export class Paragraph {
         while (shapeWork.length) {
           const {offset, length} = shapeWork.pop()!;
           const end = offset + length;
-          const shapedPart = this.shapePart(offset, length, font, attrs);
+          const shapedPart = this.shapePart(offset, length, face, attrs);
           let didPushPart = false;
 
           log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.file}\n`);
@@ -1884,8 +1882,6 @@ export class Paragraph {
             }
           }
         }
-
-        font.destroy();
       }
 
       lastItemIndex = itemIndex;

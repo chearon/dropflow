@@ -3,7 +3,7 @@ import type {PaintBackend} from './paint.js';
 import type {FontConfigCssMatch} from 'fontconfig';
 import type {CanvasRenderingContext2D} from 'canvas';
 import type {ShapedItem} from './text.js';
-import type {HbGlyphInfo} from 'harfbuzzjs';
+import {prevCluster, nextCluster} from './text.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import {openSync as openFontSync} from 'fontkit';
 
@@ -21,20 +21,6 @@ function nextGrapheme(text: string, index: number) {
 function prevGrapheme(text: string, index: number) {
   const {graphemeStart} = graphemeBoundaries(text, index);
   return graphemeStart < index ? graphemeStart : index;
-}
-
-function nextCluster(glyphs: HbGlyphInfo[], index: number) {
-  const cl = glyphs[index].cl;
-  while (++index < glyphs.length && cl == glyphs[index].cl)
-    ;
-  return index;
-}
-
-function prevCluster(glyphs: HbGlyphInfo[], index: number) {
-  const cl = glyphs[index].cl;
-  while (--index >= 0 && cl == glyphs[index].cl)
-    ;
-  return index;
 }
 
 function findGlyph(item: ShapedItem, offset: number) {

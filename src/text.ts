@@ -535,6 +535,20 @@ export function getMetrics(style: Style, font: HbFont, upem: number): InlineMetr
   };
 }
 
+export function nextCluster(glyphs: HbGlyphInfo[], index: number) {
+  const cl = glyphs[index].cl;
+  while (++index < glyphs.length && cl == glyphs[index].cl)
+    ;
+  return index;
+}
+
+export function prevCluster(glyphs: HbGlyphInfo[], index: number) {
+  const cl = glyphs[index].cl;
+  while (--index >= 0 && cl == glyphs[index].cl)
+    ;
+  return index;
+}
+
 function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
   let i = dir === 'ltr' ? 0 : shaped.length - 1;
   let coveredIndexStart = i;
@@ -764,7 +778,36 @@ export class ShapedItem implements IfcRenderItem {
     return right;
   }
 
-  reshape() {
+  reshape(walkBackwards: boolean) {
+    if (walkBackwards && !(this.attrs.level & 1) || !walkBackwards && this.attrs.level & 1) {
+      let i = this.glyphs.length - 1;
+      while ((i = prevCluster(this.glyphs, i)) >= 0) {
+        if (!(this.glyphs[i].flags & 2) && !(this.glyphs[i + 1].flags & 2)) {
+          const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + 1].cl;
+          const length = this.attrs.level & 1 ? this.glyphs[i].cl - offset : this.end() - offset;
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.face, this.attrs);
+          if (!(newGlyphs[0].flags & 2)) {
+            this.glyphs.splice(i + 1);
+            this.glyphs = this.glyphs.concat(newGlyphs);
+            return;
+          }
+        }
+      }
+    } else {
+      let i = 0;
+      while ((i = nextCluster(this.glyphs, i)) < this.glyphs.length) {
+        if (!(this.glyphs[i - 1].flags & 2) && !(this.glyphs[i].flags & 2)) {
+          const offset = this.attrs.level & 1 ? this.glyphs[i].cl : this.offset;
+          const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i].cl - this.offset;
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.face, this.attrs);
+          if (!(newGlyphs.at(-1)!.flags & 2)) {
+            this.glyphs.splice(0, i);
+            this.glyphs = newGlyphs.concat(this.glyphs);
+            return;
+          }
+        }
+      }
+    }
     this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.face, this.attrs);
   }
 
@@ -1578,8 +1621,8 @@ export class Paragraph {
   split(itemIndex: number, offset: number) {
     const left = this.brokenItems[itemIndex];
     const right = left.split(offset - left.offset);
-    if (left.needsReshape) left.reshape();
-    if (right.needsReshape) right.reshape();
+    if (left.needsReshape) left.reshape(true);
+    if (right.needsReshape) right.reshape(false);
     this.brokenItems.splice(itemIndex + 1, 0, right);
     if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
       const glyphs = getHyphen(left);
@@ -1696,6 +1739,7 @@ export class Paragraph {
     buf.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
     buf.setScript(attrs.script);
     buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
+    buf.setFlags(['PRODUCE_UNSAFE_TO_CONCAT']);
     hb.shape(font, buf);
     const json = buf.json();
     buf.destroy();

@@ -175,44 +175,48 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.restore();
   }
 
-  text(x: number, y: number, item: ShapedItem, totalTextStart: number, totalTextEnd: number) {
-    const {
-      startGlyphStart,
-      startGlyphEnd,
-      textStart,
-      textEnd,
-      endGlyphStart,
-      endGlyphEnd
-    } = fastGlyphBoundaries(item, totalTextStart, totalTextEnd);
+  text(x: number, y: number, item: ShapedItem, totalTextStart: number, totalTextEnd: number, isColorBoundary: boolean) {
+    if (isColorBoundary) {
+      const {
+        startGlyphStart,
+        startGlyphEnd,
+        textStart,
+        textEnd,
+        endGlyphStart,
+        endGlyphEnd
+      } = fastGlyphBoundaries(item, totalTextStart, totalTextEnd);
 
-    if (item.attrs.level & 1) {
-      if (endGlyphStart !== endGlyphEnd) {
-        this.correctText(x, y, item, endGlyphStart, endGlyphEnd);
-        x += glyphsWidth(item, endGlyphStart, endGlyphEnd);
-      }
+      if (item.attrs.level & 1) {
+        if (endGlyphStart !== endGlyphEnd) {
+          this.correctText(x, y, item, endGlyphStart, endGlyphEnd);
+          x += glyphsWidth(item, endGlyphStart, endGlyphEnd);
+        }
 
-      if (textStart !== textEnd) {
-        this.fastText(x, y, item.paragraph.slice(textStart, textEnd));
-        x += glyphsWidth(item, startGlyphEnd, endGlyphStart);
-      }
+        if (textStart !== textEnd) {
+          this.fastText(x, y, item.paragraph.slice(textStart, textEnd));
+          x += glyphsWidth(item, startGlyphEnd, endGlyphStart);
+        }
 
-      if (startGlyphStart !== startGlyphEnd) {
-        this.correctText(x, y, item, startGlyphStart, startGlyphEnd);
+        if (startGlyphStart !== startGlyphEnd) {
+          this.correctText(x, y, item, startGlyphStart, startGlyphEnd);
+        }
+      } else {
+        if (startGlyphStart !== startGlyphEnd) {
+          this.correctText(x, y, item, startGlyphStart, startGlyphEnd);
+          x += glyphsWidth(item, startGlyphStart, startGlyphEnd);
+        }
+
+        if (textStart !== textEnd) {
+          this.fastText(x, y, item.paragraph.slice(textStart, textEnd));
+          x += glyphsWidth(item, startGlyphEnd, endGlyphStart);
+        }
+
+        if (endGlyphStart !== endGlyphEnd) {
+          this.correctText(x, y, item, endGlyphStart, endGlyphEnd);
+        }
       }
     } else {
-      if (startGlyphStart !== startGlyphEnd) {
-        this.correctText(x, y, item, startGlyphStart, startGlyphEnd);
-        x += glyphsWidth(item, startGlyphStart, startGlyphEnd);
-      }
-
-      if (textStart !== textEnd) {
-        this.fastText(x, y, item.paragraph.slice(textStart, textEnd));
-        x += glyphsWidth(item, startGlyphEnd, endGlyphStart);
-      }
-
-      if (endGlyphStart !== endGlyphEnd) {
-        this.correctText(x, y, item, endGlyphStart, endGlyphEnd);
-      }
+      this.fastText(x, y, item.paragraph.slice(totalTextStart, totalTextEnd));
     }
   }
 

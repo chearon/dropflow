@@ -12,7 +12,7 @@ export interface PaintBackend {
   font: FontConfigCssMatch;
   fontSize: number;
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
-  text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number): void;
+  text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number, isColorBoundary?: boolean): void;
   rect(x: number, y: number, w: number, h: number): void;
 }
 
@@ -52,6 +52,8 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
     const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
     const start = Math.max(colorStart, textStart);
     const end = Math.min(colorEnd, textEnd);
+    // TODO: should really have isStartColorBoundary, isEndColorBoundary
+    const isColorBoundary = start !== textStart && start === colorStart || end !== textEnd && end === colorEnd;
     let ax = 0;
 
     if (item.attrs.level & 1) {
@@ -70,7 +72,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
     b.fontSize = style.fontSize;
     b.font = match;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-    b.text(tx, y, item, start, end);
+    b.text(tx, y, item, start, end, isColorBoundary);
 
     tx += ax / item.face.upem * style.fontSize;
 

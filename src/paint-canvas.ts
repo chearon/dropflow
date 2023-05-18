@@ -1,7 +1,7 @@
 import {prevCluster, nextCluster} from './text.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
-import {openSync as openFontSync} from 'fontkit';
 import {firstCascadeItem} from './font.js';
+import {hb} from './deps.js';
 
 import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
@@ -83,17 +83,6 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
   return {startGlyphStart, startGlyphEnd, textStart, textEnd, endGlyphStart, endGlyphEnd};
 }
 
-const fonts = new Map<string, any>();
-
-function getFont(match: FaceMatch) {
-  let font = fonts.get(match.filename);
-  if (!font) {
-    font = openFontSync(match.filename);
-    fonts.set(match.filename, font);
-  }
-  return font;
-}
-
 export default class CanvasPaintBackend implements PaintBackend {
   fillColor: Color;
   strokeColor: Color;
@@ -148,32 +137,28 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   correctText(x: number, y: number, item: ShapedItem, glyphStart: number, glyphEnd: number) {
     const {r, g, b, a} = this.fillColor;
-    const font = getFont(item.match);
-    const scale = 1 / font.unitsPerEm * this.fontSize;
+    const font = hb.createFont(item.face);
+    const scale = 1 / item.face.upem * this.fontSize;
 
     let sx = 0;
     let sy = 0;
 
     this.ctx.save();
     this.ctx.translate(x, y);
-    this.ctx.scale(1, -1);
+    this.ctx.scale(scale, -scale);
     this.ctx.beginPath();
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     for (let i = glyphStart; i < glyphEnd; ++i) {
       const glyph = item.glyphs[i];
-      this.ctx.save();
-      this.ctx.translate((sx + glyph.dx) * scale, (sy + glyph.dy) * scale);
-      const fg = font.getGlyph(glyph.g);
-      if (fg) {
-        this.ctx.scale(scale, scale);
-        fg.path.toFunction()(this.ctx);
-        this.ctx.restore();
-      }
+      this.ctx.translate(sx + glyph.dx, sy + glyph.dy);
+      font.drawGlyph(glyph.g, this.ctx);
       sx += glyph.ax;
       sy += glyph.ay;
     }
     this.ctx.fill();
     this.ctx.restore();
+
+    font.destroy();
   }
 
   text(x: number, y: number, item: ShapedItem, totalTextStart: number, totalTextEnd: number, isColorBoundary: boolean) {

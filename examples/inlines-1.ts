@@ -29,7 +29,7 @@ console.log(blockContainer.repr());
 
 oflo.layout(blockContainer, 300, 200);
 
-oflo.eachRegisteredFont(match => registerFont(match.file, match));
+oflo.eachRegisteredFont(match => registerFont(match.filename, match.toNodeCanvas()));
 const canvas = createCanvas(600, 400);
 const ctx = canvas.getContext('2d');
 ctx.scale(2, 2);

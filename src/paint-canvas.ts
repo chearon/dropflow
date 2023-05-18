@@ -1,11 +1,13 @@
-import type {Color} from './cascade.js';
-import type {PaintBackend} from './paint.js';
-import type {FontConfigCssMatch} from 'fontconfig';
-import type {CanvasRenderingContext2D} from 'canvas';
-import type {ShapedItem} from './text.js';
 import {prevCluster, nextCluster} from './text.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import {openSync as openFontSync} from 'fontkit';
+import {firstCascadeItem} from './font.js';
+
+import type {Color} from './cascade.js';
+import type {PaintBackend} from './paint.js';
+import type {CanvasRenderingContext2D} from 'canvas';
+import type {ShapedItem} from './text.js';
+import type {FaceMatch} from './font.js';
 
 function graphemeBoundaries(text: string, index: number) {
   const graphemeEnd = nextGraphemeBreak(text, index);
@@ -83,11 +85,11 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
 
 const fonts = new Map<string, any>();
 
-function getFont(match: FontConfigCssMatch) {
-  let font = fonts.get(match.file);
+function getFont(match: FaceMatch) {
+  let font = fonts.get(match.filename);
   if (!font) {
-    font = openFontSync(match.file);
-    fonts.set(match.file, font);
+    font = openFontSync(match.filename);
+    fonts.set(match.filename, font);
   }
   return font;
 }
@@ -97,7 +99,7 @@ export default class CanvasPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FontConfigCssMatch;
+  font: FaceMatch;
   fontSize: number;
   ctx: CanvasRenderingContext2D;
 
@@ -106,7 +108,7 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
     this.direction = 'ltr';
-    this.font = {file: '', index: 0, family: '', weight: '', width: '', style: ''};
+    this.font = firstCascadeItem();
     this.fontSize = 8;
     this.ctx = ctx;
   }
@@ -134,12 +136,11 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   fastText(x: number, y: number, text: string) {
     const {r, g, b, a} = this.fillColor;
-    const m = this.font;
     this.ctx.save();
     // TODO: PR to node-canvas to make this the default. I see no issues with
     // drawing glyphs, and it's way way way faster, and the correct way to do it
     this.ctx.textDrawingMode = 'glyph';
-    this.ctx.font = `${m.style} ${m.weight} ${m.width} ${this.fontSize}px ${m.family}`;
+    this.ctx.font = this.font.toFontString(this.fontSize);
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     this.ctx.fillText(text, x, y);
     this.ctx.restore();

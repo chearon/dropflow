@@ -110,7 +110,7 @@ type FontStyle = 'normal' | 'italic' | 'oblique';
 
 type FontVariant = 'normal' | 'small-caps';
 
-type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed'
+export type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed'
                  | 'semi-condensed' | 'semi-expanded' | 'expanded'
                  | 'extra-expanded' | 'ultra-expanded';
 

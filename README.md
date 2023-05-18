@@ -70,7 +70,6 @@ These rules are either working or will be working soon. Shorthand properties are
 
 * [fb55/htmlparser2](https://github.com/fb55/htmlparser2) parses HTML (inlined into source tree)
 * [peggyjs/peggy](https://github.com/peggyjs/peggy) builds the CSS parser
-* [chearon/fontconfigjs](https://github.com/chearon/fontconfigjs) selects font files with the help of [foliojs/fontkit](https://github.com/foliojs/fontkit)
 * [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices (inlined into source tree)
 * [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) provides Unicode grapheme boundaries (inlined into source tree)
 * [chearon/itemizer](https://github.com/chearon/itemizer) produces shaping boundaries with the help of [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) and [google/emoji-segmenter](https://github.com/google/emoji-segmenter)

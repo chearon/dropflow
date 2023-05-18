@@ -1,7 +1,7 @@
 //@ts-check
 import {expect} from 'chai';
 import * as oflo from '../src/api.js';
-import {registerFontAsset} from '../assets/register.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {Run, Collapser} from '../src/text.js';
 import {initialStyle, createComputedStyle} from '../src/cascade.js';
 import paintBlockContainer from '../src/paint.js';
@@ -270,6 +270,20 @@ function setupLayoutTests() {
   };
 }
 
+function teardownLayoutTests() {
+  unregisterFontAsset('Arimo/Arimo-Regular.ttf');
+  unregisterFontAsset('Noto/NotoSansSC-Regular.otf');
+  unregisterFontAsset('Noto/NotoSansJP-Regular.otf');
+  unregisterFontAsset('Noto/NotoSansTC-Regular.otf');
+  unregisterFontAsset('Noto/NotoSansKR-Regular.otf');
+  unregisterFontAsset('Noto/NotoSansHebrew-Regular.ttf');
+  unregisterFontAsset('Noto/NotoSansCherokee-Regular.ttf');
+  unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+  unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+  unregisterFontAsset('Roboto/Roboto-Regular.ttf');
+  unregisterFontAsset('Raleway/Raleway-Regular.ttf');
+}
+
 function logIfFailed() {
   if (this.currentTest.state == 'failed') {
     let indent = 0, t = this.currentTest;
@@ -281,6 +295,7 @@ function logIfFailed() {
 
 describe('Shaping', function () {
   before(setupLayoutTests);
+  after(teardownLayoutTests);
   afterEach(logIfFailed);
 
   it('doesn\'t infinite loop when the last match can\'t shape two parts', function () {
@@ -449,6 +464,7 @@ describe('Shaping', function () {
 
 describe('Lines', function () {
   before(setupLayoutTests);
+  after(teardownLayoutTests);
   afterEach(logIfFailed);
 
   it('always puts one word per line at minimum', function () {

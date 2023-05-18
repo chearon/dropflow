@@ -5,10 +5,10 @@ import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, 
 import LineBreak from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import {itemizer, hb} from './deps.js';
-import {getFace, getCascade, createFontKey} from './font.js';
+import {getCascade, createFontKey} from './font.js';
 
+import type {FaceMatch} from './font.js';
 import type {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
-import type {FontConfigCssMatch} from 'fontconfig';
 
 let debug = true;
 
@@ -342,9 +342,9 @@ function getFontMetrics(inline: Inline) {
   const metricsKey = createMetricsKey(inline);
   const existing = metricsCache.get(metricsKey);
   if (existing) return existing;
-  const strutCascade = getCascade(inline.style, 'Latn');
-  const strutFontMatch = strutCascade.matches[0].toCssMatch();
-  const strutFace = getFace(strutFontMatch.file, strutFontMatch.index);
+  const strutCascade = getCascade(inline.style, 'en');
+  const strutFontMatch = strutCascade.matches[0];
+  const strutFace = strutFontMatch.face;
   const strutFont = hb.createFont(strutFace);
   const metrics = getMetrics(inline.style, strutFont, strutFace.upem);
   strutFont.destroy();
@@ -355,7 +355,7 @@ function getFontMetrics(inline: Inline) {
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
 
 function createHyphenCacheKey(item: ShapedItem) {
-  return item.match.file + item.match.index;
+  return item.match.filename + item.match.index;
 }
 
 function loadHyphen(item: ShapedItem) {
@@ -629,7 +629,7 @@ export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
 export class ShapedItem implements IfcRenderItem {
   paragraph: Paragraph;
   face: HbFace;
-  match: FontConfigCssMatch;
+  match: FaceMatch;
   glyphs: HbGlyphInfo[];
   offset: number;
   length: number;
@@ -640,7 +640,7 @@ export class ShapedItem implements IfcRenderItem {
   constructor(
     paragraph: Paragraph,
     face: HbFace,
-    match: FontConfigCssMatch,
+    match: FaceMatch,
     glyphs: HbGlyphInfo[],
     offset: number,
     length: number,
@@ -1725,18 +1725,18 @@ export class Paragraph {
     for (const {i: itemIndex, attrs} of this.itemize()) {
       const start = lastItemIndex;
       const end = itemIndex;
-      const cascade = getCascade(attrs.style, attrs.script);
+      const cascade = getCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
       const shapeWork = [{offset: start, length: end - start}];
 
       log?.(`  Item ${lastItemIndex}..${itemIndex}:\n`);
       log?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
       log?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
-      log?.(`  cascade=${cascade.matches.map(m => basename(m.file)).join(', ')}\n`);
+      log?.(`  cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
 
       for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
-        const match = cascade.matches[i].toCssMatch();
+        const match = cascade.matches[i];
         const isLastMatch = i === cascade.matches.length - 1;
-        const face = getFace(match.file, match.index);
+        const face = match.face;
         // Allows to tack successive (re)shaping parts onto one larger item
         const parts:ShapingPart[] = [];
 
@@ -1775,7 +1775,7 @@ export class Paragraph {
           const shapedPart = this.shapePart(offset, length, face, attrs);
           let didPushPart = false;
 
-          log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.file}\n`);
+          log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
           log?.('    Shaper returned: ' + logGlyphs(shapedPart) + '\n');
 
           // Grapheme cluster iterator

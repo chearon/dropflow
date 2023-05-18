@@ -1,7 +1,8 @@
 import {BlockContainer, IfcInline, Inline} from './flow.js';
 import {ShapedItem, baselineStep} from './text.js';
 import {Color} from './cascade.js';
-import {FontConfigCssMatch} from 'fontconfig';
+
+import type {FaceMatch} from './font.js';
 import type {HbGlyphInfo} from 'harfbuzzjs';
 
 export interface PaintBackend {
@@ -9,7 +10,7 @@ export interface PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FontConfigCssMatch;
+  font: FaceMatch;
   fontSize: number;
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number, isColorBoundary?: boolean): void;

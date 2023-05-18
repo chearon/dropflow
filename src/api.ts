@@ -7,8 +7,6 @@ import CanvasPaintBackend from './paint-canvas.js';
 import paintBlockContainer from './paint.js';
 import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
-import {fcfg} from './deps.js';
-import {FontConfigCssMatch} from 'fontconfig';
 import type {CanvasRenderingContext2D} from 'canvas';
 
 // required styles that always come last in the cascade
@@ -31,7 +29,7 @@ function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
 // html api is just for development
 // ***
 
-export {registerFont} from './font.js';
+export {registerFont, unregisterFont} from './font.js';
 
 // TODO: remove the style argument. read styles on <html> instead
 export function parse(html: string, style?: DeclaredPlainStyle) {
@@ -72,11 +70,7 @@ export function paintToHtml(root: BlockContainer) {
   return b.s;
 }
 
-export function eachRegisteredFont(cb: (family: FontConfigCssMatch) => void) {
-  for (const match of fcfg.list()) {
-    cb(match.toCssMatch());
-  }
-}
+export {eachRegisteredFont} from './font.js';
 
 export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D) {
   const b = new CanvasPaintBackend(ctx);

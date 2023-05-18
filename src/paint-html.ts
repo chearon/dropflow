@@ -1,9 +1,11 @@
-import type {Color} from './cascade.js';
-import type {PaintBackend} from './paint.js';
-import type {FontConfigCssMatch} from 'fontconfig';
 import {encode} from 'entities';
 import {getMetrics, ShapedItem} from './text.js';
 import {hb} from './deps.js';
+import {firstCascadeItem} from './font.js';
+
+import type {Color} from './cascade.js';
+import type {PaintBackend} from './paint.js';
+import type {FaceMatch} from './font.js';
 
 type StringMap = Record<string, string>;
 
@@ -17,7 +19,7 @@ export default class HtmlPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FontConfigCssMatch;
+  font: FaceMatch;
   fontSize: number;
 
   constructor() {
@@ -26,7 +28,7 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
     this.direction = 'ltr';
-    this.font = {file: '', index: 0, family: '', weight: '', width: '', style: ''};
+    this.font = firstCascadeItem();
     this.fontSize = 0;
   }
 
@@ -63,13 +65,12 @@ export default class HtmlPaintBackend implements PaintBackend {
     const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, hbFont, item.face.upem);
     const text = item.paragraph.string.slice(textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
-    const m = this.font;
     const style = this.style({
       position: 'absolute',
       left: '0',
       top: '0',
       transform: `translate(${x}px, ${y - (ascenderBox - (ascenderBox + descenderBox)/2)}px)`,
-      font: `${m.style} ${m.weight} ${m.width} ${this.fontSize}px ${m.family}`,
+      font: this.font.toFontString(this.fontSize),
       lineHeight: '0',
       whiteSpace: 'pre',
       direction: this.direction,

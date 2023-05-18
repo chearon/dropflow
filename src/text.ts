@@ -1,13 +1,14 @@
-import {binarySearchTuple, binarySearchEndProp, loggableText} from './util.js';
+import {binarySearchTuple, binarySearchEndProp, loggableText, basename, hashMix} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
-import {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
-import {Cascade} from 'fontconfig';
 import LineBreak from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
+import {itemizer, hb} from './deps.js';
+import {getFace, getCascade, createFontKey} from './font.js';
+
+import type {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 import type {FontConfigCssMatch} from 'fontconfig';
-import {fcfg, itemizer, hb} from './deps.js';
 
 let debug = true;
 
@@ -315,69 +316,8 @@ export type ShapingAttrs = {
   style: Style
 };
 
-function basename(p: string) {
-  return p.match(/([^.\/]+)\.[A-z]+$/)?.[1] || p;
-}
-
-// this comes from Firefox source. char should be a 16-bit integer
-function hashMix(hash: number, char: number) {
-  return (hash >> 28) ^ (hash << 4) ^ char;
-}
-
-function createFontKey(s: Style, script: string) {
-  let hash = s.fontWeight;
-
-  for (let i = 0; i < s.fontStyle.length; ++i) {
-    hash = hashMix(hash, s.fontStyle.charCodeAt(i));
-  }
-
-  for (let i = 0; i < s.fontStretch.length; ++i) {
-    hash = hashMix(hash, s.fontStretch.charCodeAt(i));
-  }
-
-  for (const f of s.fontFamily) {
-    for (let i = 0; i < f.length; ++i) {
-      hash = hashMix(hash, f.charCodeAt(i));
-    }
-  }
-
-  for (let i = 0; i < script.length; ++i) {
-    hash = hashMix(hash, script.charCodeAt(i));
-  }
-
-  return hash;
-}
-
-export const fontBufferCache = new Map<string, ArrayBuffer>();
-const hbFaceCache = new Map<string, HbFace>();
-const cascadeCache = new Map<number, Cascade>();
 const hyphenCache = new Map<string, HbGlyphInfo[]>();
 const metricsCache = new Map<number, InlineMetrics>();
-
-function getFontBuffer(filename: string) {
-  const buffer = fontBufferCache.get(filename);
-  if (!buffer) throw new Error(`${filename} not found`);
-  return buffer;
-}
-
-function createFace(filename: string, index: number) {
-  const buffer = getFontBuffer(filename);
-  const blob = hb.createBlob(buffer);
-  const face = hb.createFace(blob, index);
-  face.name = basename(filename); // TODO can it be done in hbjs?
-  // TODO: right now I'm not ever freeing blobs or faces. this is okay for most
-  // usages, but I should implement an LRU or something
-  return face;
-}
-
-function getFace(filename: string, index: number) {
-  let face = hbFaceCache.get(filename + index);
-  if (!face) {
-    face = createFace(filename, index);
-    hbFaceCache.set(filename + index, face);
-  }
-  return face;
-}
 
 const metricsCacheBuffer = new ArrayBuffer(16);
 
@@ -410,21 +350,6 @@ function getFontMetrics(inline: Inline) {
   strutFont.destroy();
   metricsCache.set(metricsKey, metrics);
   return metrics;
-}
-
-function getCascade(style: Style, script: string) {
-  const fontKey = createFontKey(style, script);
-  let cascade = cascadeCache.get(fontKey);
-  if (!cascade) {
-    const family = style.fontFamily;
-    const weight = String(style.fontWeight);
-    const width = style.fontStretch;
-    const slant = style.fontStyle;
-    const lang = langForScript(script);
-    cascade = fcfg.sort({family, weight, width, slant, lang});
-    cascadeCache.set(fontKey, cascade);
-  }
-  return cascade;
 }
 
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
@@ -508,7 +433,7 @@ const LANG_FOR_SCRIPT:{[script: string]: string} = {
   Nko: 'nqo'
 };
 
-function langForScript(script: string) {
+export function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 

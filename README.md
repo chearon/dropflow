@@ -1,14 +1,90 @@
 # overflow
 
-Overflow is a CSS layout engine concerned with exploring the reaches of the foundational W3C standards. It has high quality text layout and is capable of displaying many of the beautiful languages of the world. It is just about as fast as it can be, achieving the 16ms mark for documents that don't have a lot of text.
+Overflow is a CSS layout engine created to explore the reaches of the foundational CSS standards. It has a high quality text layout implementation and is capable of displaying many of the beautiful languages of the world. You can use it to render rich text to a canvas in the browser, or server-side with [node-canvas](https://github.com/Automattic/node-canvas) to generate PDFs or images.
 
-# Usage
+# Features
 
-None yet. Oops!
+* Bidirectional and RTL text
+* Optional hyperscript (`h()`) API with styles as objects in addition to accepting HTML and CSS
+* Any OpenType/TrueType/WOFF buffer can (and must) be registered
+* Font fallbacks, at the grapheme level
+* Colored diacritics
+* Desirable line breaking (e.g. carries starting padding to the next line)
+* Optimized shaping
+* Inherited and cascaded styles are never calculated twice
+* Handles as many CSS layout edge cases as I can find
+* Fully typed
+* Lots of tests
+* Fast
+
+# Performance characteristics
+
+Performance is a top goal and is second only to correctness. Run the performance examples in the `examples` directory to see the numbers for yourself.
+
+* 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in 16ms on a 2012 MacBook Pro (`perf-1.ts`)
+* The Little Prince (over 500 paragraphs) can be turned from HTML to image in just over 300ms on a 2012 MacBook Pro (`perf-2.ts`)
+
+Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can almost achieve the same performance as `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout with `measureText` (such as using a word cache, which is what Google Sheets does) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be done incorrectly).
+
+Faster performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
+
+# HTML API
+
+```ts
+import {parse, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow';
+import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
+import fs from 'node:fs';
+
+const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.url)));
+
+registerFont(font, 'Roboto.ttf' /* must be unique */);
+
+eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toCssSpec()));
+
+const rootElement = parse(`
+  <div style="background-color: gray;">
+    Hello, <span style="font-weight: bold; color: red;">World!</span>
+  </div>
+`);
+
+const blockContainer = generate(rootElement);
+layout(blockContainer, 640 /* width */, 480 /* height */);
+paintToCanvas(blockContainer, ctx);
+
+canvas.createPNGStream().pipe(fs.writeFileSync(new URL('hello_world.png', import.meta.url));
+```
+
+# Hyperscript API
+
+```ts
+import {h, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow';
+import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
+import fs from 'node:fs';
+
+const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.url)));
+
+registerFont(font, 'Roboto.ttf' /* must be unique */);
+
+eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toCssSpec()));
+
+// always save style references and re-use them if you can
+const divStyle = {backgroundColor: {r: 128, g: 128, b: 128, a: 1}};
+const spanStyle = {fontWeight: 700, color: {r: 255, g: 0, b: 0, a: 1}};
+const rootElement = h('div', {style: divStyle}, [
+  'Hello, ',
+  h('span', {style: spanStyle}, ['World!'])
+]);
+
+const blockContainer = generate(rootElement);
+layout(blockContainer, 640 /* width */, 480 /* height */);
+paintToCanvas(blockContainer, ctx);
+
+canvas.createPNGStream().pipe(fs.writeFileSync(new URL('hello_world.png', import.meta.url));
+```
 
 # Supported CSS rules
 
-These rules are either working or will be working soon. Shorthand properties are not listed. If you see all components of a shorthand (for example, `border-style`, `border-width`, `border-color`) then that shorthand is assumed to be supported (for example `border`).
+Following are rules that work or will work soon. Shorthand properties are not listed. If you see all components of a shorthand (for example, `border-style`, `border-width`, `border-color`) then the shorthand is assumed to be supported (for example `border`).
 
 ## Inline formatting
 

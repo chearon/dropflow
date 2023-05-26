@@ -603,6 +603,7 @@ type MeasureState = {
   clusterStart: number;
   clusterEnd: number;
   clusterAdvance: number;
+  isInk: boolean;
   done: boolean;
 };
 
@@ -751,6 +752,7 @@ export class ShapedItem implements IfcRenderItem {
       clusterStart: direction === 1 ? 0 : this.end(),
       clusterEnd: direction === 1 ? 0 : this.end(),
       clusterAdvance: 0,
+      isInk: false,
       done: false
     }
   }
@@ -779,6 +781,7 @@ export class ShapedItem implements IfcRenderItem {
 
       state.glyphIndex = glyphIndex;
       state.clusterAdvance = w;
+      state.isInk = isink(this.paragraph.string[cl]);
     } else {
       state.done = true;
     }
@@ -805,31 +808,35 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   measure(ci = this.end(), direction: 1 | -1 = 1, state = this.createMeasureState(direction)) {
-    let w = 0;
+    const toPx = 1 / this.face.upem * this.attrs.style.fontSize;
+    let advance = 0;
+    let trailingWs = 0;
 
     if (state.characterIndex > state.clusterStart && state.characterIndex < state.clusterEnd) {
-      w += this.measureInsideCluster(state, ci);
+      advance += this.measureInsideCluster(state, ci);
+      trailingWs = state.isInk ? 0 : trailingWs + state.clusterAdvance;
       if (ci > state.clusterStart && ci < state.clusterEnd) {
         state.characterIndex = ci;
-        return w / this.face.upem * this.attrs.style.fontSize;
+        return {advance: advance * toPx, trailingWs: trailingWs * toPx};
       } else {
         this.nextCluster(direction, state);
       }
     }
 
     while (!state.done && (direction === 1 ? ci >= state.clusterEnd : ci <= state.clusterStart)) {
-      w += state.clusterAdvance;
+      advance += state.clusterAdvance;
+      trailingWs = state.isInk ? 0 : trailingWs + state.clusterAdvance;
       this.nextCluster(direction, state);
     }
 
     state.characterIndex = direction === 1 ? state.clusterStart : state.clusterEnd;
 
     if (ci > state.clusterStart && ci < state.clusterEnd) {
-      w += this.measureInsideCluster(state, ci);
+      advance += this.measureInsideCluster(state, ci);
       state.characterIndex = ci;
     }
 
-    return w / this.face.upem * this.attrs.style.fontSize;
+    return {advance: advance * toPx, trailingWs: trailingWs * toPx};
   }
 
   collapseWhitespace(at: 'start' | 'end') {
@@ -1441,13 +1448,13 @@ type IfcMark = {
   position: number,
   isBreak: boolean,
   isBreakForced: boolean,
-  isInk: boolean,
   isItemStart: boolean,
   isItemEnd: boolean,
   inlinePre: Inline | null,
   inlinePost: Inline | null,
   float: BlockContainer | null,
   advance: number,
+  trailingWs: number,
   itemIndex: number,
   metrics: InlineMetrics,
   split: (this: IfcMark, mark: IfcMark) => void
@@ -1882,9 +1889,6 @@ export class Paragraph {
     let emittedItemEnd = false;
     let itemMeasureState: MeasureState | undefined;
     let itemMark = 0;
-    // Ink iterator
-    let isInk = false;
-    let inkMark = 0;
     // Metrics iterator
     let metricsIndex = 0;
     // Other
@@ -1892,16 +1896,16 @@ export class Paragraph {
 
     const next = ():{done: true} | {done: false, value: IfcMark} => {
       const mark:IfcMark = {
-        position: Math.min(inlineMark, itemMark, breakMark, inkMark),
+        position: Math.min(inlineMark, itemMark, breakMark),
         isBreak: false,
         isBreakForced: false,
-        isInk: false,
         isItemStart: false,
         isItemEnd: false,
         inlinePre: null,
         inlinePost: null,
         float: null,
         advance: 0,
+        trailingWs: 0,
         itemIndex,
         metrics: this.metrics[metricsIndex]?.[0] || EmptyInlineMetrics,
         split
@@ -1913,15 +1917,9 @@ export class Paragraph {
 
       if (itemIndex < this.brokenItems.length && itemIndex > -1) {
         const item = this.brokenItems[itemIndex];
-        const advance = item.measure(mark.position, 1, itemMeasureState);
+        const {advance, trailingWs} = item.measure(mark.position, 1, itemMeasureState);
         mark.advance = advance;
-      }
-
-      mark.isInk = isink(this.string[mark.position - 1]);
-
-      if (inkMark === mark.position) {
-        isInk = isink(this.string[inkMark]);
-        while (inkMark < this.length() && isInk === isink(this.string[inkMark])) inkMark++;
+        mark.trailingWs = trailingWs;
       }
 
       if (itemIndex < this.brokenItems.length && itemMark === mark.position && !emittedItemEnd) {
@@ -1985,10 +1983,6 @@ export class Paragraph {
           mark.itemIndex += 1;
           emittedItemEnd = false;
         }
-      }
-
-      if (!linebreak || linebreak.position > -1 && inkMark === mark.position) {
-        inkMark = end + 1;
       }
 
       if (linebreak && breakMark === mark.position) {
@@ -2070,14 +2064,12 @@ export class Paragraph {
 
       const wsCollapsible = isWsCollapsible((parents[parents.length - 1] || this.ifc).style.whiteSpace);
       const nowrap = isNowrap((parents[parents.length - 1] || this.ifc).style.whiteSpace);
+      const inkAdvance = mark.advance - mark.trailingWs;
 
-      if (mark.isInk) {
-        candidates.width.addInk(mark.advance);
-      } else {
-        candidates.width.addWs(mark.advance, !!wsCollapsible);
-      }
+      if (inkAdvance) candidates.width.addInk(inkAdvance);
+      if (mark.trailingWs) candidates.width.addWs(mark.trailingWs, !!wsCollapsible);
 
-      if (mark.isInk || !wsCollapsible) unbreakableMark = mark.position;
+      if (inkAdvance || !wsCollapsible) unbreakableMark = mark.position;
 
       const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
 

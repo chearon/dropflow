@@ -158,19 +158,19 @@ function inlineBackgroundAdvance(state: IfcPaintState, item: ShapedItem, mark: n
   if (mark > item.offset && mark < item.end()) {
     if (direction === 'ltr' && side === 'start' || direction === 'rtl' && side === 'end') {
       const direction = item.attrs.level & 1 ? -1 : 1;
-      state.bgcursor += item instanceof ShapedItem ? item.measure(mark, direction) : 0;
+      state.bgcursor += item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
     }
 
     if (direction === 'rtl' && side === 'start' || direction == 'ltr' && side === 'end') {
       const direction = item.attrs.level & 1 ? 1 : -1;
-      state.bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction) : 0;
+      state.bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
     }
   }
 }
 
 function paintText(state: IfcPaintState, item: ShapedItem, b: PaintBackend) {
   const direction = state.ifc.style.direction;
-  const w = item.measure();
+  const w = item.measure().advance;
   const atLeft = direction === 'ltr' ? state.left : state.left - w;
   const atTop = state.top;
 

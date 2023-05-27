@@ -1421,7 +1421,6 @@ export class Inline extends Box {
 }
 
 export class IfcInline extends Inline {
-  public runs: Run[];
   public children: InlineLevel[];
   public floats: BlockContainer[];
   public text: string;
@@ -1435,7 +1434,6 @@ export class IfcInline extends Inline {
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
 
-    this.runs = [];
     this.children = children;
     this.floats = [];
     this.text = '';
@@ -1498,6 +1496,7 @@ export class IfcInline extends Inline {
 
   private prepare() {
     const stack = this.children.slice();
+    const runs: Run[] = [];
     let i = 0;
 
     if (!isNowrap(this.style.whiteSpace)) {
@@ -1514,7 +1513,7 @@ export class IfcInline extends Inline {
         box.setRange(i, i + box.text.length - 1);
         i += box.text.length;
         this.text += box.text;
-        this.runs.push(box);
+        runs.push(box);
         if (!box.wsCollapsible || !box.allCollapsible()) {
           this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
         }
@@ -1535,7 +1534,7 @@ export class IfcInline extends Inline {
       }
     }
 
-    const collapser = new Collapser(this.text, this.runs);
+    const collapser = new Collapser(this.text, runs);
     collapser.collapse();
     this.text = collapser.buf;
     this.postprepare();

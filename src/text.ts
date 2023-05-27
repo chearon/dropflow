@@ -1881,7 +1881,7 @@ export class Paragraph {
     let inline = inlineIterator.next();
     let inlineMark = 0;
     // Break iterator
-    const breakIterator = new LineBreak(this.string);
+    const breakIterator = new LineBreak(this.string, !this.ifc.wraps());
     let linebreak:{position: number, required: boolean} | null = {position: -1, required: false};
     let breakMark = 0;
     // Item iterator

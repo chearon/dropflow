@@ -4,6 +4,8 @@ import {createStyle, createComputedStyle, Style, EMPTY_STYLE, ComputedPlainStyle
 import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox, InlineMetrics, EmptyInlineMetrics} from './text.js';
 import {Box} from './box.js';
 
+import type {WhiteSpace} from './cascade.js';
+
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
     throw new TypeError(
@@ -20,6 +22,10 @@ function writingModeInlineAxis(el: HTMLElement) {
   } else {
     return 'vertical';
   }
+}
+
+function isNowrap(whiteSpace: WhiteSpace) {
+  return whiteSpace === 'nowrap' || whiteSpace === 'pre';
 }
 
 const reset = '\x1b[0m';
@@ -1421,7 +1427,10 @@ export class IfcInline extends Inline {
   public text: string;
   public paragraph: Paragraph;
   public containingBlock: BlockContainerArea | null;
-  private _hasText: boolean;
+  private analysis: number;
+
+  static ANALYSIS_HAS_TEXT = 0b0001;
+  static ANALYSIS_WRAPS    = 0b0010
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
@@ -1430,7 +1439,7 @@ export class IfcInline extends Inline {
     this.children = children;
     this.floats = [];
     this.text = '';
-    this._hasText = false;
+    this.analysis = 0;
     this.prepare();
     this.paragraph = createEmptyParagraph(this);
     this.containingBlock = null;
@@ -1487,11 +1496,13 @@ export class IfcInline extends Inline {
     }
   }
 
-  // Collect text runs, collapse whitespace, create shaping boundaries, and
-  // assign fonts
   private prepare() {
     const stack = this.children.slice();
     let i = 0;
+
+    if (!isNowrap(this.style.whiteSpace)) {
+      this.analysis |= IfcInline.ANALYSIS_WRAPS;
+    }
 
     // CSS Text Module Level 3, Appendix A, steps 1-4
 
@@ -1505,9 +1516,12 @@ export class IfcInline extends Inline {
         this.text += box.text;
         this.runs.push(box);
         if (!box.wsCollapsible || !box.allCollapsible()) {
-          this._hasText = true;
+          this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
         }
       } else if (box.isInline()) {
+        if (!isNowrap(box.style.whiteSpace)) {
+          this.analysis |= IfcInline.ANALYSIS_WRAPS;
+        }
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
         // ok
@@ -1633,7 +1647,11 @@ export class IfcInline extends Inline {
   }
 
   hasText() {
-    return this._hasText;
+    return this.analysis & IfcInline.ANALYSIS_HAS_TEXT;
+  }
+
+  wraps() {
+    return this.analysis & IfcInline.ANALYSIS_WRAPS;
   }
 
   hasFloats() {

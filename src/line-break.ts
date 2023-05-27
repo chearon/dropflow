@@ -148,8 +148,9 @@ export default class LineBreaker {
   private LB8a: boolean;
   private LB21a: boolean;
   private LB30a: number;
+  private hardBreaksOnly: boolean;
 
-  constructor(string: string) {
+  constructor(string: string, hardBreaksOnly: boolean) {
     this.string = string;
     this.pos = 0;
     this.lastPos = 0;
@@ -158,6 +159,7 @@ export default class LineBreaker {
     this.LB8a = false;
     this.LB21a = false;
     this.LB30a = 0;
+    this.hardBreaksOnly = hardBreaksOnly;
   }
 
   nextCodePoint() {
@@ -276,6 +278,8 @@ export default class LineBreaker {
         bk.position = this.lastPos;
         bk.required = true;
         return bk;
+      } else if (this.hardBreaksOnly) {
+        continue;
       }
 
       let shouldBreak = this.getSimpleBreak();
@@ -294,6 +298,7 @@ export default class LineBreaker {
       }
     }
 
+    // there is always one break at the end of the string
     if (this.lastPos < this.string.length) {
       const required = this.curClass === BK || this.curClass === CR && this.nextClass !== LF;
       this.lastPos = this.string.length;

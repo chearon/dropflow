@@ -85,10 +85,10 @@ type HsAttrs = {
   attrs?: {[k: string]: string}
 };
 
-export function dom(el: HTMLElement | HTMLElement[], style?: DeclaredPlainStyle) {
+export function dom(el: HTMLElement | HTMLElement[] | string, style?: DeclaredPlainStyle) {
   const computedStyle = getRootComputedStyle(style);
   const rootElement = new HTMLElement('', 'root', computedStyle);
-  const stack: (Node | {end: true})[] = Array.isArray(el) ? el.slice() : [el];
+  const stack: (Node | {end: true})[] = Array.isArray(el) ? el.slice() : typeof el === 'string' ? [] : [el];
   const parents: HTMLElement[] = [rootElement];
 
   while (stack.length) {
@@ -116,7 +116,12 @@ export function dom(el: HTMLElement | HTMLElement[], style?: DeclaredPlainStyle)
     }
   }
 
-  rootElement.children = Array.isArray(el) ? el.slice() : [el];
+  if (typeof el === 'string') {
+    const style = createComputedStyle(computedStyle, EMPTY_STYLE);
+    rootElement.children = [new TextNode(id(), el, style)];
+  } else {
+    rootElement.children = Array.isArray(el) ? el.slice() : [el];
+  }
 
   return rootElement;
 }

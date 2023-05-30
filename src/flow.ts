@@ -1469,7 +1469,7 @@ export class IfcInline extends Inline {
     let cursor = 0;
 
     while (stack.length) {
-      const item = stack.shift()!;
+      const item = stack.pop()!;
 
       if (item === END_PARENT) {
         parents.pop()!.end = cursor;
@@ -1490,10 +1490,10 @@ export class IfcInline extends Inline {
           }
         }
 
-        stack.unshift(END_PARENT);
+        stack.push(END_PARENT);
 
         for (let i = item.children.length - 1; i >= 0; --i) {
-          stack.unshift(item.children[i]);
+          stack.push(item.children[i]);
         }
       }
     }

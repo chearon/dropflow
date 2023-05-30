@@ -215,7 +215,7 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
-  finalize(box: BlockContainer, ctx: LayoutContext) {
+  finalize(box: BlockContainer) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
 
     const blockSize = box.style.getBlockSize(box);
@@ -1214,7 +1214,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   }
 
   if (box.isBfcRoot()) {
-    cctx.bfc.finalize(box, cctx);
+    cctx.bfc.finalize(box);
     if (box.loggingEnabled()) {
       console.log('Left floats');
       console.log(cctx.bfc.fctx.leftFloats.repr());
@@ -1264,7 +1264,7 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
   }
 
   if (box.isBfcRoot()) {
-    cctx.bfc.finalize(box, cctx);
+    cctx.bfc.finalize(box);
     if (mode === 'max-content') {
       intrinsicSize += cctx.bfc.fctx.leftFloats.getOverflow();
       intrinsicSize += cctx.bfc.fctx.rightFloats.getOverflow();
@@ -1339,7 +1339,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  cctx.bfc.finalize(box, cctx);
+  cctx.bfc.finalize(box);
 }
 
 // TODO breaks aren't really boxes. If a <br> was positioned or floated, it'd

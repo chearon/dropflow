@@ -9,6 +9,8 @@ import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
 import type {CanvasRenderingContext2D} from 'canvas';
 
+export {cascadeStyles};
+
 // required styles that always come last in the cascade
 const rootDeclaredStyle:DeclaredPlainStyle = {
   display: {

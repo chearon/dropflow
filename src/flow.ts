@@ -28,6 +28,10 @@ function isNowrap(whiteSpace: WhiteSpace) {
   return whiteSpace === 'nowrap' || whiteSpace === 'pre';
 }
 
+function isWsPreserved(whiteSpace: WhiteSpace) {
+  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap';
+}
+
 const reset = '\x1b[0m';
 const dim = '\x1b[2m';
 const underline = '\x1b[4m';
@@ -1428,8 +1432,9 @@ export class IfcInline extends Inline {
   public containingBlock: BlockContainerArea | null;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT = 0b0001;
-  static ANALYSIS_WRAPS    = 0b0010
+  static ANALYSIS_HAS_TEXT     = 0b0001;
+  static ANALYSIS_WRAPS        = 0b0010
+  static ANALYSIS_WS_COLLAPSES = 0b0100;
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
@@ -1503,6 +1508,10 @@ export class IfcInline extends Inline {
       this.analysis |= IfcInline.ANALYSIS_WRAPS;
     }
 
+    if (!isWsPreserved(this.style.whiteSpace)) {
+      this.analysis |= IfcInline.ANALYSIS_WS_COLLAPSES;
+    }
+
     // CSS Text Module Level 3, Appendix A, steps 1-4
 
     // Step 1
@@ -1521,6 +1530,9 @@ export class IfcInline extends Inline {
         if (!isNowrap(box.style.whiteSpace)) {
           this.analysis |= IfcInline.ANALYSIS_WRAPS;
         }
+        if (!isWsPreserved(box.style.whiteSpace)) {
+          this.analysis |= IfcInline.ANALYSIS_WS_COLLAPSES;
+        }
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
         // ok
@@ -1534,9 +1546,12 @@ export class IfcInline extends Inline {
       }
     }
 
-    const collapser = new Collapser(this.text, runs);
-    collapser.collapse();
-    this.text = collapser.buf;
+    if (this.collapses()) {
+      const collapser = new Collapser(this.text, runs);
+      collapser.collapse();
+      this.text = collapser.buf;
+    }
+
     this.postprepare();
 
     // TODO step 2
@@ -1651,6 +1666,10 @@ export class IfcInline extends Inline {
 
   wraps() {
     return this.analysis & IfcInline.ANALYSIS_WRAPS;
+  }
+
+  collapses() {
+    return this.analysis & IfcInline.ANALYSIS_WS_COLLAPSES;
   }
 
   hasFloats() {

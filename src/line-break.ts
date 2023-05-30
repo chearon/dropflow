@@ -278,8 +278,6 @@ export default class LineBreaker {
         bk.position = this.lastPos;
         bk.required = true;
         return bk;
-      } else if (this.hardBreaksOnly) {
-        continue;
       }
 
       let shouldBreak = this.getSimpleBreak();
@@ -291,7 +289,7 @@ export default class LineBreaker {
       // Rule LB8a
       this.LB8a = (this.nextClass === ZWJ);
 
-      if (shouldBreak) {
+      if (shouldBreak && !this.hardBreaksOnly) {
         bk.position = this.lastPos;
         bk.required = false;
         return bk;

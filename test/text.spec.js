@@ -968,6 +968,20 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(59);
   });
 
+  it('follows all hard breaks', function () {
+    this.layout(`
+      <div id="t" style="white-space: pre;">
+      second line
+      third line
+      fourth line
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(5);
+  });
+
   it('breaks ligatures with internal break opportunities', function () {
     this.layout(`
       <div id="t" style="font: 16px/1.4 Raleway; width: 95px;">

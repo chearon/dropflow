@@ -1,6 +1,5 @@
 import {encode} from 'entities';
 import {getMetrics, ShapedItem} from './text.js';
-import {hb} from './deps.js';
 import {firstCascadeItem} from './font.js';
 
 import type {Color} from './cascade.js';
@@ -61,8 +60,7 @@ export default class HtmlPaintBackend implements PaintBackend {
   }
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const hbFont = hb.createFont(item.face);
-    const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, hbFont, item.face.upem);
+    const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, item.face);
     const text = item.paragraph.string.slice(textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const style = this.style({
@@ -77,7 +75,6 @@ export default class HtmlPaintBackend implements PaintBackend {
       unicodeBidi: 'bidi-override',
       color: `rgba(${r}, ${g}, ${b}, ${a})`
     });
-    hbFont.destroy();
     this.s += `<div style="${style}">${encode(text)}</div>`;
   }
 

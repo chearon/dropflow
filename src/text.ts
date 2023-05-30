@@ -8,7 +8,7 @@ import {itemizer, hb} from './deps.js';
 import {getCascade, createFontKey} from './font.js';
 
 import type {FaceMatch} from './font.js';
-import type {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
+import type {HbFace, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 
 let debug = true;
 
@@ -317,39 +317,11 @@ export type ShapingAttrs = {
 };
 
 const hyphenCache = new Map<string, HbGlyphInfo[]>();
-const metricsCache = new Map<number, InlineMetrics>();
-
-const metricsCacheBuffer = new ArrayBuffer(16);
-
-function createMetricsKey(inline: Inline) {
-  let fontKey = createFontKey(inline.style, 'Latn');
-  let len = 4;
-
-  new Float64Array(metricsCacheBuffer)[0] = inline.style.fontSize;
-
-  if (inline.style.lineHeight !== 'normal') {
-    new Float64Array(metricsCacheBuffer)[1] = inline.style.lineHeight;
-    len = 8;
-  }
-  const b = new Uint16Array(metricsCacheBuffer, 0, len);
-  for (let i = 0; i < b.length; ++i) {
-    fontKey = hashMix(fontKey, b[i]);
-  }
-  return fontKey;
-}
 
 function getFontMetrics(inline: Inline) {
-  const metricsKey = createMetricsKey(inline);
-  const existing = metricsCache.get(metricsKey);
-  if (existing) return existing;
   const strutCascade = getCascade(inline.style, 'en');
-  const strutFontMatch = strutCascade.matches[0];
-  const strutFace = strutFontMatch.face;
-  const strutFont = hb.createFont(strutFace);
-  const metrics = getMetrics(inline.style, strutFont, strutFace.upem);
-  strutFont.destroy();
-  metricsCache.set(metricsKey, metrics);
-  return metrics;
+  const [strutFontMatch] = strutCascade.matches;
+  return getMetrics(inline.style, strutFontMatch.face);
 }
 
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
@@ -437,19 +409,45 @@ export function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 
+const metricsCache = new Map<number, InlineMetrics>();
+
+const metricsCacheBuffer = new ArrayBuffer(16);
+
+function createMetricsKey(style: Style, face: HbFace) {
+  let fontKey = hashMix(createFontKey(style, 'Latn'), face.ptr);
+  let len = 4;
+
+  new Float64Array(metricsCacheBuffer)[0] = style.fontSize;
+
+  if (style.lineHeight !== 'normal') {
+    new Float64Array(metricsCacheBuffer)[1] = style.lineHeight;
+    len = 8;
+  }
+  const b = new Uint16Array(metricsCacheBuffer, 0, len);
+  for (let i = 0; i < b.length; ++i) {
+    fontKey = hashMix(fontKey, b[i]);
+  }
+  return fontKey;
+}
+
 // exported because used by html painter
-export function getMetrics(style: Style, font: HbFont, upem: number): InlineMetrics {
+export function getMetrics(style: Style, face: HbFace): InlineMetrics {
+  const metricsKey = createMetricsKey(style, face);
+  const existing = metricsCache.get(metricsKey);
+  if (existing) return existing;
+  const font = hb.createFont(face);
   const {fontSize, lineHeight: cssLineHeight} = style;
   // now do CSS2 §10.8.1
   const {ascender, xHeight, descender, lineGap} = font.getMetrics('ltr'); // TODO vertical text
-  const toPx = 1 / upem * fontSize;
+  const toPx = 1 / face.upem * fontSize;
   const pxHeight = (ascender - descender) * toPx;
   const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap * toPx : cssLineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
   const ascenderPx = ascender * toPx;
   const descenderPx = -descender * toPx;
+  font.destroy();
 
-  return {
+  const metrics = {
     ascenderBox: halfLeading + ascenderPx,
     ascender: ascenderPx,
     superscript: 0.34 * fontSize, // magic numbers come from Searchfox.
@@ -458,6 +456,10 @@ export function getMetrics(style: Style, font: HbFont, upem: number): InlineMetr
     descender: descenderPx,
     descenderBox: halfLeading + descenderPx
   };
+
+  metricsCache.set(metricsKey, metrics);
+
+  return metrics;
 }
 
 export function nextCluster(glyphs: HbGlyphInfo[], index: number) {
@@ -1681,7 +1683,6 @@ export class Paragraph {
 
   createItemMetrics(styles: [Style, number][], faces: [HbFace, number][]) {
     const metrics:[InlineMetrics, number][] = [];
-    const facemap:Map<HbFace, HbFont> = new Map();
     let lastFace = null;
     let lastStyle = null;
     let si = 0;
@@ -1693,11 +1694,8 @@ export class Paragraph {
       const sn = si + 1 < styles.length ? styles[si + 1][1] : this.length();
       const fn = fi + 1 < faces.length ? faces[fi + 1][1] : this.length();
 
-      let font = facemap.get(face);
-      if (!font) facemap.set(face, font = hb.createFont(face));
-
       if (face !== lastFace || !lastStyle || lastStyle.fontSize !== style.fontSize || lastStyle.lineHeight != style.lineHeight) {
-        metrics.push([getMetrics(style, font, face.upem), Math.max(so, fo)]);
+        metrics.push([getMetrics(style, face), Math.max(so, fo)]);
         lastFace = face;
         lastStyle = style;
       }
@@ -1705,8 +1703,6 @@ export class Paragraph {
       if (sn <= fn) si += 1;
       if (fn <= sn) fi += 1;
     }
-
-    for (const font of facemap.values()) font.destroy();
 
     return metrics;
   }

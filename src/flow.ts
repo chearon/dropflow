@@ -1432,9 +1432,11 @@ export class IfcInline extends Inline {
   public containingBlock: BlockContainerArea | null;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT     = 0b0001;
-  static ANALYSIS_WRAPS        = 0b0010
-  static ANALYSIS_WS_COLLAPSES = 0b0100;
+  static ANALYSIS_HAS_TEXT     = 0b00001;
+  static ANALYSIS_WRAPS        = 0b00010
+  static ANALYSIS_WS_COLLAPSES = 0b00100;
+  static ANALYSIS_HAS_INLINES  = 0b01000;
+  static ANALYSIS_HAS_BREAKS   = 0b10000;
 
   constructor(style: Style, children: InlineLevel[]) {
     super(style, children, Box.ATTRS.isAnonymous);
@@ -1527,6 +1529,7 @@ export class IfcInline extends Inline {
           this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
         }
       } else if (box.isInline()) {
+        this.analysis |= IfcInline.ANALYSIS_HAS_INLINES;
         if (!isNowrap(box.style.whiteSpace)) {
           this.analysis |= IfcInline.ANALYSIS_WRAPS;
         }
@@ -1535,6 +1538,7 @@ export class IfcInline extends Inline {
         }
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
+        this.analysis |= IfcInline.ANALYSIS_HAS_BREAKS;
         // ok
       } else if (box.isFloat()) {
         this.floats.push(box);
@@ -1674,6 +1678,14 @@ export class IfcInline extends Inline {
 
   hasFloats() {
     return this.floats.length > 0;
+  }
+
+  hasInlines() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_INLINES;
+  }
+
+  hasBreaks() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_BREAKS;
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

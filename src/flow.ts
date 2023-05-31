@@ -1556,7 +1556,9 @@ export class IfcInline extends Inline {
       this.text = collapser.buf;
     }
 
-    this.postprepare();
+    if (this.hasBreaks() || this.hasInlines() || this.children.length > 1) {
+      this.postprepare();
+    }
 
     // TODO step 2
     // TODO step 3

@@ -1670,9 +1670,7 @@ export class Paragraph {
     const font = hb.createFont(face);
     buf.setClusterLevel(1);
     buf.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
-    buf.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
-    buf.setScript(attrs.script);
-    buf.setLanguage(langForScript(attrs.script)); // TODO support [lang]
+    buf.guessSegmentProperties();
     buf.setFlags(['PRODUCE_UNSAFE_TO_CONCAT']);
     hb.shape(font, buf);
     const json = buf.json();

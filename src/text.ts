@@ -1235,8 +1235,11 @@ class LineHeightTracker {
     this.descender = Math.max(this.descender, height.descender);
   }
 
-  align() {
+  align(): {ascender: number, descender: number} {
     const rootCtx = this.contextRoots.get(this.ifc)!;
+
+    if (this.contextRoots.size === 1) return rootCtx;
+
     const lineHeight = this.total();
     let bottomsHeight = rootCtx.ascender + rootCtx.descender;
 
@@ -1257,7 +1260,7 @@ class LineHeightTracker {
       }
     }
 
-    return [ascender, descender];
+    return {ascender, descender};
   }
 
   total() {
@@ -1428,7 +1431,7 @@ export class Linebox extends LineItemLinkedList {
 
   postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
     const width = this.width.trimmed();
-    const [ascender, descender] = this.height.align();
+    const {ascender, descender} = this.height.align();
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();

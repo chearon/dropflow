@@ -1279,27 +1279,35 @@ class LineHeightTracker {
     this.ascender = 0;
     this.descender = 0;
 
-    for (const ctx of this.contextStack) {
-      ctx.reset();
-
-      while (inline) {
-        if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
-          parent = inline;
-          inline = this.stack[++i];
-          break;
-        } else {
-          ctx.stepIn(parent, inline);
-          ctx.stampMetrics(inline.metrics);
-          parent = inline;
-          inline = this.stack[++i];
-        }
-      }
-
+    if (this.contextStack.length === 1 && this.stack.length === 1) {
+      const [ctx] = this.contextStack;
+      ctx.stampMetrics(inline.metrics);
       this.ascender = Math.max(this.ascender, ctx.ascender);
       this.descender = Math.max(this.descender, ctx.descender);
+    } else {
+      for (const ctx of this.contextStack) {
+        ctx.reset();
+
+        while (inline) {
+          if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
+            parent = inline;
+            inline = this.stack[++i];
+            break;
+          } else {
+            ctx.stepIn(parent, inline);
+            ctx.stampMetrics(inline.metrics);
+            parent = inline;
+            inline = this.stack[++i];
+          }
+        }
+
+        this.ascender = Math.max(this.ascender, ctx.ascender);
+        this.descender = Math.max(this.descender, ctx.descender);
+      }
     }
 
     for (const inline of this.markedContextRoots) this.contextRoots.delete(inline);
+
     this.markedContextRoots = [];
   }
 }

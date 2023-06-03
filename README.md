@@ -1,6 +1,6 @@
 # overflow
 
-Overflow is a CSS layout engine created to explore the reaches of the foundational CSS standards. It has a high quality text layout implementation and is capable of displaying many of the beautiful languages of the world. You can use it to render rich text to a canvas in the browser, or server-side with [node-canvas](https://github.com/Automattic/node-canvas) to generate PDFs or images.
+Overflow is a CSS layout engine created to explore the reaches of the foundational CSS standards. It has a high quality text layout implementation and is capable of displaying many of the languages of the world. You can use it to generate PDFs or images on the backend with Node and [node-canvas](https://github.com/Automattic/node-canvas) or render rich, wrapped text to a canvas in the browser.
 
 # Features
 
@@ -23,8 +23,9 @@ Performance is a top goal and is second only to correctness. Run the performance
 
 * 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in 16ms on a 2012 MacBook Pro (`perf-1.ts`)
 * The Little Prince (over 500 paragraphs) can be turned from HTML to image in under 300ms on a 2012 MacBook Pro (`perf-2.ts`)
+* A 10-letter word can be generated and laid out (not painted) in under 80µs
 
-Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can almost achieve the same performance as `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout with `measureText` (such as using a word cache, which is what Google Sheets does) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be done incorrectly).
+Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout in Javascript that uses `measureText` (such as using a word cache, which is what Google Sheets does) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be chosen incorrectly).
 
 Faster performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
 

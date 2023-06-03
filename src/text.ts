@@ -38,6 +38,22 @@ function isNowrap(whiteSpace: WhiteSpace) {
   return whiteSpace === 'nowrap' || whiteSpace === 'pre';
 }
 
+function graphemeBoundaries(text: string, index: number) {
+  const graphemeEnd = nextGraphemeBreak(text, index);
+  const graphemeStart = previousGraphemeBreak(text, graphemeEnd);
+  return {graphemeStart, graphemeEnd};
+}
+
+export function nextGrapheme(text: string, index: number) {
+  const {graphemeStart, graphemeEnd} = graphemeBoundaries(text, index);
+  return graphemeStart < index ? graphemeEnd : index;
+}
+
+export function prevGrapheme(text: string, index: number) {
+  const {graphemeStart} = graphemeBoundaries(text, index);
+  return graphemeStart < index ? graphemeStart : index;
+}
+
 // TODO runs aren't really boxes per the spec. You can't position them, etc.
 // I wonder if I should create a class like RenderItem (Box extends RenderItem)
 export class Run extends Box {
@@ -476,57 +492,77 @@ export function prevCluster(glyphs: HbGlyphInfo[], index: number) {
   return index;
 }
 
-function createGlyphIterator(shaped: HbGlyphInfo[], dir: 'ltr' | 'rtl') {
-  let i = dir === 'ltr' ? 0 : shaped.length - 1;
-  let coveredIndexStart = i;
-  let coveredIndexEnd = i;
+type GlyphIteratorState = {
+  glyphIndex: number;
+  clusterStart: number;
+  clusterEnd: number;
+  needsReshape: boolean;
+  glyphs: HbGlyphInfo[];
+  level: number;
+  textEnd: number;
+  done: boolean;
+};
 
-  function next() {
-    const done = dir === 'ltr' ? i >= shaped.length : i < 0;
+function createGlyphIteratorState(
+  glyphs: HbGlyphInfo[],
+  level: number,
+  textStart: number,
+  textEnd: number
+) {
+  const glyphIndex = level & 1 ? glyphs.length - 1 : 0;
 
-    coveredIndexEnd = i;
+  return {
+    glyphIndex,
+    clusterStart: textStart,
+    clusterEnd: textStart,
+    needsReshape: false,
+    glyphs,
+    level,
+    textEnd,
+    done: false
+  };
+}
 
-    if (done) return {done};
+function nextGlyph(state: GlyphIteratorState) {
+  state.needsReshape = false;
 
-    const cl = shaped[i].cl;
-    let needsReshape = false;
+  if (state.level & 1) {
+    if (state.glyphIndex < 0) {
+      state.done = true;
+      return;
+    }
 
-    if (dir === 'ltr') {
-      const start = i;
+    state.clusterStart = state.clusterEnd;
 
-      while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
-        needsReshape = needsReshape || shaped[i].g === 0;
-        i += 1;
-      }
+    while (state.glyphIndex >= 0 && state.clusterEnd === state.glyphs[state.glyphIndex].cl) {
+      if (state.glyphs[state.glyphIndex].g === 0) state.needsReshape = true;
+      state.glyphIndex -= 1;
+    }
 
-      const end = i;
-
-      return {value: {start, end, needsReshape}};
+    if (state.glyphIndex < 0) {
+      state.clusterEnd = state.textEnd;
     } else {
-      const end = i + 1;
+      state.clusterEnd = state.glyphs[state.glyphIndex].cl;
+    }
+  } else {
+    if (state.glyphIndex === state.glyphs.length) {
+      state.done = true;
+      return;
+    }
 
-      while (i >= 0 && i < shaped.length && shaped[i].cl === cl) {
-        needsReshape = needsReshape || shaped[i].g === 0;
-        i -= 1;
-      }
+    state.clusterStart = state.clusterEnd;
 
-      const start = i + 1;
+    while (state.glyphIndex < state.glyphs.length && state.clusterEnd === state.glyphs[state.glyphIndex].cl) {
+      if (state.glyphs[state.glyphIndex].g === 0) state.needsReshape = true;
+      state.glyphIndex += 1;
+    }
 
-      return {value: {start, end, needsReshape}};
+    if (state.glyphIndex === state.glyphs.length) {
+      state.clusterEnd = state.textEnd;
+    } else {
+      state.clusterEnd = state.glyphs[state.glyphIndex].cl;
     }
   }
-
-  function pull() {
-    const ret = dir === 'ltr'
-      ? [coveredIndexStart, coveredIndexEnd]
-      : [coveredIndexEnd + 1, coveredIndexStart + 1];
-
-    coveredIndexStart = coveredIndexEnd;
-
-    return ret;
-  }
-
-  return {pull, next};
 }
 
 const reset = '\x1b[0m';
@@ -549,17 +585,6 @@ function logGlyphs(glyphs: HbGlyphInfo[]) {
   }
   return s;
 }
-
-type ShapingPart = {
-  offset: number,
-  length: number,
-  cstart: number,
-  cend: number,
-  gstart: number,
-  gend: number,
-  glyphs: HbGlyphInfo[],
-  reshape: boolean
-};
 
 function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') {
   const rmRange = dir === 'ltr' ? [glyphs.length, glyphs.length] : [0, 0];
@@ -845,15 +870,18 @@ export class ShapedItem implements IfcRenderItem {
     if (!isWsCollapsible(this.attrs.style.whiteSpace)) return true;
 
     const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
-    const glyphIterator = createGlyphIterator(this.glyphs, level & 1 ? 'rtl' : 'ltr');
+    const glyphState = createGlyphIteratorState(this.glyphs, level, this.offset, this.end());
+    let glyphIndex = glyphState.glyphIndex;
+    nextGlyph(glyphState);
 
-    for (let glyph = glyphIterator.next(); !glyph.done; glyph = glyphIterator.next()) {
-      const cl = this.glyphs[glyph.value.start].cl;
-      if (!isink(this.paragraph.string[cl])) {
-        this.glyphs[glyph.value.start].ax = 0;
+    while (!glyphState.done) {
+      if (!isink(this.paragraph.string[glyphState.clusterStart])) {
+        this.glyphs[glyphIndex].ax = 0;
       } else {
         return true;
       }
+      glyphIndex = glyphState.glyphIndex;
+      nextGlyph(glyphState); // TODO: using this is awkward
     }
   }
 
@@ -1738,7 +1766,7 @@ export class Paragraph {
       const start = lastItemIndex;
       const end = itemIndex;
       const cascade = getCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
-      const shapeWork = [{offset: start, length: end - start}];
+      let shapeWork = [{offset: start, length: end - start}];
 
       log?.(`  Item ${lastItemIndex}..${itemIndex}:\n`);
       log?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
@@ -1746,11 +1774,10 @@ export class Paragraph {
       log?.(`  cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
 
       for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
+        const nextShapeWork: {offset: number, length: number}[] = [];
         const match = cascade.matches[i];
         const isLastMatch = i === cascade.matches.length - 1;
         const face = match.face;
-        // Allows to tack successive (re)shaping parts onto one larger item
-        const parts:ShapingPart[] = [];
 
         // note this won't budge for matches i=1, 2, ...
         while (!inline.done && inlineEnd < itemIndex) {
@@ -1785,80 +1812,86 @@ export class Paragraph {
           const {offset, length} = shapeWork.pop()!;
           const end = offset + length;
           const shapedPart = this.shapePart(offset, length, face, attrs);
-          let didPushPart = false;
+          const hbClusterState = createGlyphIteratorState(shapedPart, attrs.level, offset, end);
+          let needsReshape = false;
+          let segmentTextStart = offset;
+          let segmentTextEnd = offset;
+          let segmentGlyphStart = hbClusterState.glyphIndex;
+          let segmentGlyphEnd = hbClusterState.glyphIndex;
 
           log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
           log?.('    Shaper returned: ' + logGlyphs(shapedPart) + '\n');
 
-          // Grapheme cluster iterator
-          let ucClusterStart = offset;
-          let ucClusterEnd = offset;
-          // HB cluster iterator
-          const hbGlyphIterator = createGlyphIterator(shapedPart, attrs.level & 1 ? 'rtl' : 'ltr');
-          let hbIt = hbGlyphIterator.next();
-          let hbClusterEnd = offset;
-          let clusterNeedsReshape = false;
+          while (!hbClusterState.done) {
+            nextGlyph(hbClusterState);
 
-          do {
-            const mark = Math.min(ucClusterEnd, hbClusterEnd);
+            if (needsReshape !== hbClusterState.needsReshape || hbClusterState.done) {
+              // flush the segment
 
-            if (ucClusterEnd < end && mark === ucClusterEnd) {
-              ucClusterStart = ucClusterEnd;
-              ucClusterEnd = nextGraphemeBreak(this.string, ucClusterEnd);
-            }
+              // if we're starting a well-shaped segment (ending a needs-reshape
+              // segment), we have to bump up the boundary to a grapheme boundary
+              if (!hbClusterState.done && needsReshape) {
+                segmentTextEnd = nextGrapheme(this.string, segmentTextEnd);
 
-            if (hbClusterEnd < end && mark === hbClusterEnd) {
-              clusterNeedsReshape = hbIt.done ? /* impossible */ false : hbIt.value.needsReshape;
-              hbIt = hbGlyphIterator.next();
-              hbClusterEnd = hbIt.done ? end : shapedPart[hbIt.value.start].cl;
-            }
-
-            const nextMark = Math.min(ucClusterEnd, hbClusterEnd);
-
-            if (nextMark === ucClusterEnd) {
-              const [glyphStart, glyphEnd] = hbGlyphIterator.pull();
-              if (!didPushPart || clusterNeedsReshape !== parts[parts.length - 1].reshape) {
-                parts.push({
-                  offset,
-                  length,
-                  cstart: ucClusterStart,
-                  cend: ucClusterEnd,
-                  gstart: glyphStart,
-                  gend: glyphEnd,
-                  reshape: clusterNeedsReshape,
-                  glyphs: shapedPart
-                });
-                didPushPart = true;
-              } else {
-                parts[parts.length - 1].cend = ucClusterEnd;
-                parts[parts.length - 1].gstart = Math.min(parts[parts.length - 1].gstart, glyphStart);
-                parts[parts.length - 1].gend = Math.max(glyphEnd, parts[parts.length - 1].gend);
+                while (!hbClusterState.done && hbClusterState.clusterStart < segmentTextEnd) {
+                  segmentGlyphEnd = hbClusterState.glyphIndex;
+                  nextGlyph(hbClusterState);
+                }
               }
+
+              // if we're starting a needs-reshape segment (ending a well-shaped
+              // segment) we have to rewind the boundary to a grapheme boundary
+              if (!hbClusterState.done && !needsReshape) {
+                segmentTextEnd = prevGrapheme(this.string, segmentTextEnd);
+
+                if (attrs.level & 1) {
+                  while (
+                    segmentGlyphEnd + 1 <= segmentGlyphStart &&
+                    shapedPart[segmentGlyphEnd + 1].cl >= segmentTextEnd
+                  ) segmentGlyphEnd += 1;
+                } else {
+                  while (
+                    segmentGlyphEnd - 1 >= segmentGlyphStart &&
+                    shapedPart[segmentGlyphEnd - 1].cl >= segmentTextEnd
+                  ) segmentGlyphEnd -= 1;
+                }
+              }
+
+              const offset = segmentTextStart;
+              const length = segmentTextEnd - segmentTextStart;
+              const glyphStart = attrs.level & 1 ? segmentGlyphEnd + 1 : segmentGlyphStart;
+              const glyphEnd = attrs.level & 1 ? segmentGlyphStart + 1 : segmentGlyphEnd;
+
+              if (needsReshape) {
+                if (isLastMatch) {
+                  const glyphs = shapedPart.slice(glyphStart, glyphEnd);
+                  faces.push([face, offset]);
+                  items.push(new ShapedItem(this, face, match, glyphs, offset, length, {...attrs}));
+                  log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
+                } else {
+                  log?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
+                  nextShapeWork.push({offset, length});
+                }
+              } else if (glyphStart < glyphEnd) {
+                const glyphs = shapedPart.slice(glyphStart, glyphEnd);
+                faces.push([face, offset]);
+                items.push(new ShapedItem(this, face, match, glyphs, offset, length, {...attrs}));
+                log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
+              }
+
+              // start a new segment
+              segmentTextStart = segmentTextEnd;
+              segmentGlyphStart = segmentGlyphEnd;
+              needsReshape = hbClusterState.needsReshape;
             }
-          } while (ucClusterEnd < end || hbClusterEnd < end);
-        }
 
-        for (const part of parts) {
-          const {gstart, gend, cstart, cend, reshape} = part;
-          const offset = cstart;
-          const length = cend - cstart;
-
-          if (reshape && !isLastMatch) {
-            shapeWork.push({offset, length});
-            log?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
-          } else {
-            const glyphs = part.glyphs.slice(gstart, gend);
-
-            faces.push([face, offset]);
-            items.push(new ShapedItem(this, face, match, glyphs, offset, length, {...attrs}));
-
-            if (isLastMatch && reshape) {
-              log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
-            } else {
-              log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
-            }
+            // extend the segment
+            segmentTextEnd = hbClusterState.clusterEnd;
+            segmentGlyphEnd = hbClusterState.glyphIndex;
           }
         }
+
+        shapeWork = nextShapeWork;
       }
 
       lastItemIndex = itemIndex;

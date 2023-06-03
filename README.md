@@ -22,7 +22,7 @@ Overflow is a CSS layout engine created to explore the reaches of the foundation
 Performance is a top goal and is second only to correctness. Run the performance examples in the `examples` directory to see the numbers for yourself.
 
 * 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in 16ms on a 2012 MacBook Pro (`perf-1.ts`)
-* The Little Prince (over 500 paragraphs) can be turned from HTML to image in just over 300ms on a 2012 MacBook Pro (`perf-2.ts`)
+* The Little Prince (over 500 paragraphs) can be turned from HTML to image in under 300ms on a 2012 MacBook Pro (`perf-2.ts`)
 
 Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can almost achieve the same performance as `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout with `measureText` (such as using a word cache, which is what Google Sheets does) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be done incorrectly).
 

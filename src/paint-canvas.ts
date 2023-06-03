@@ -1,5 +1,4 @@
-import {prevCluster, nextCluster} from './text.js';
-import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
+import {prevCluster, nextCluster, nextGrapheme, prevGrapheme} from './text.js';
 import {firstCascadeItem} from './font.js';
 import {hb} from './deps.js';
 
@@ -8,22 +7,6 @@ import type {PaintBackend} from './paint.js';
 import type {CanvasRenderingContext2D} from 'canvas';
 import type {ShapedItem} from './text.js';
 import type {FaceMatch} from './font.js';
-
-function graphemeBoundaries(text: string, index: number) {
-  const graphemeEnd = nextGraphemeBreak(text, index);
-  const graphemeStart = previousGraphemeBreak(text, graphemeEnd);
-  return {graphemeStart, graphemeEnd};
-}
-
-function nextGrapheme(text: string, index: number) {
-  const {graphemeStart, graphemeEnd} = graphemeBoundaries(text, index);
-  return graphemeStart < index ? graphemeEnd : index;
-}
-
-function prevGrapheme(text: string, index: number) {
-  const {graphemeStart} = graphemeBoundaries(text, index);
-  return graphemeStart < index ? graphemeStart : index;
-}
 
 function findGlyph(item: ShapedItem, offset: number) {
   let index = item.attrs.level & 1 ? item.glyphs.length - 1 : 0;

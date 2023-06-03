@@ -375,6 +375,7 @@ class FloatSide {
   }
 
   getOccupiedSpace(blockOffset: number, blockSize: number, inlineOffset: number) {
+    if (this.items.length === 0) return 0;
     const [start, end] = this.getTrackRange(blockOffset, blockSize);
     return this.getSizeOfTracks(start, end, inlineOffset);
   }

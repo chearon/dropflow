@@ -278,7 +278,7 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
         const isFirstOccurance = count === undefined;
         const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
         const mark = isOrthogonal ? inline.end : inline.start;
-        const alignmentContext = linebox.height.contextRoots.get(inline);
+        const alignmentContext = linebox.contextRoots.get(inline);
 
         state.bgcursor = state.left;
 

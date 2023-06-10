@@ -680,7 +680,7 @@ export class FloatContext {
 
   postLine(line: Linebox, didBreak: boolean) {
     if (didBreak || this.misfits.length) {
-      this.dropShelf(this.bfc.cbBlockStart + line.blockOffset + line.height.total());
+      this.dropShelf(this.bfc.cbBlockStart + line.blockOffset + line.height());
     }
 
     this.consumeMisfits();
@@ -1254,7 +1254,7 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
     const [ifc] = box.children;
     box.doTextLayout(cctx);
     for (const line of ifc.paragraph.lineboxes) {
-      intrinsicSize = Math.max(intrinsicSize, line.width.trimmed());
+      intrinsicSize = Math.max(intrinsicSize, line.width);
     }
   } else if (box.isBlockContainerOfBlockContainers()) {
     for (const child of box.children) {

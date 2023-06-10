@@ -1157,9 +1157,9 @@ class LineCandidates extends LineItemLinkedList {
     this.height = new LineHeightTracker(ifc);
   }
 
-  reset() {
+  clearContents() {
     this.width.reset();
-    this.height.reset();
+    this.height.clearContents();
     this.clear();
   }
 };
@@ -1275,6 +1275,16 @@ class LineHeightTracker {
   }
 
   reset() {
+    const ctx = new AlignmentContext(this.ifc.metrics);
+    this.stack = [];
+    this.contextStack = [ctx];
+    this.contextRoots = new Map([[this.ifc, ctx]]);
+    this.markedContextRoots = [];
+    this.ascender = ctx.ascender;
+    this.descender = ctx.descender;
+  }
+
+  clearContents() {
     let parent: Inline = this.ifc;
     let inline = this.stack[0];
     let i = 0;
@@ -1322,10 +1332,10 @@ export class Linebox extends LineItemLinkedList {
   ascender: number;
   descender: number;
   endOffset: number;
-  width: LineWidthTracker;
-  height: LineHeightTracker;
   blockOffset: number;
   inlineOffset: number;
+  width: number;
+  contextRoots: Map<Inline, AlignmentContext>;
 
   constructor(dir: Linebox['dir'], start: number, paragraph: Paragraph) {
     super();
@@ -1334,16 +1344,14 @@ export class Linebox extends LineItemLinkedList {
     this.paragraph = paragraph;
     this.ascender = 0;
     this.descender = 0;
-    this.width = new LineWidthTracker();
-    this.height = new LineHeightTracker(paragraph.ifc);
     this.blockOffset = 0;
     this.inlineOffset = 0;
+    this.width = 0;
+    this.contextRoots = new Map();
   }
 
   addCandidates(candidates: LineCandidates, endOffset: number) {
     this.concat(candidates);
-    this.width.concat(candidates.width);
-    this.height.concat(candidates.height);
     this.endOffset = endOffset;
   }
 
@@ -1357,6 +1365,10 @@ export class Linebox extends LineItemLinkedList {
 
   end() {
     return this.endOffset;
+  }
+
+  height() {
+    return this.ascender + this.descender;
   }
 
   trimStart() {
@@ -1440,9 +1452,11 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  postprocess(vacancy: IfcVacancy, textAlign: TextAlign) {
-    const width = this.width.trimmed();
-    const {ascender, descender} = this.height.align();
+  postprocess(width: LineWidthTracker, height: LineHeightTracker, vacancy: IfcVacancy, textAlign: TextAlign) {
+    const w = width.trimmed();
+    const {ascender, descender} = height.align();
+    this.width = w;
+    this.contextRoots = new Map(height.contextRoots);
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();
@@ -1450,11 +1464,11 @@ export class Linebox extends LineItemLinkedList {
     this.ascender = ascender;
     this.descender = descender;
     this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
-    if (width < vacancy.inlineSize) {
+    if (w < vacancy.inlineSize) {
       if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
-        this.inlineOffset += vacancy.inlineSize - width;
+        this.inlineOffset += vacancy.inlineSize - w;
       } else if (textAlign === 'center') {
-        this.inlineOffset += (vacancy.inlineSize - width) / 2;
+        this.inlineOffset += (vacancy.inlineSize - w) / 2;
       }
     }
   }
@@ -2046,6 +2060,8 @@ export class Paragraph {
     const bfc = ctx.bfc;
     const fctx = bfc.fctx;
     const candidates = new LineCandidates(this.ifc);
+    const width = new LineWidthTracker();
+    const height = new LineHeightTracker(this.ifc);
     const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
     const basedir = this.ifc.style.direction;
     const parents:Inline[] = [];
@@ -2087,7 +2103,7 @@ export class Paragraph {
 
       if (mark.float) {
         if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
-          const lineWidth = line ? line.width.forFloat() : 0;
+          const lineWidth = line ? width.forFloat() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
           layoutFloatBox(mark.float, ctx);
           fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
@@ -2127,7 +2143,7 @@ export class Paragraph {
           fctx.preTextContent();
         }
 
-        const blockSize = line.height.totalWith(candidates.height);
+        const blockSize = height.totalWith(candidates.height);
         fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
@@ -2136,7 +2152,7 @@ export class Paragraph {
           if (glyphs?.length) candidates.width.addHyphen(glyphs.reduce((s, g) => s + g.ax / upem * fontSize, 0));
         }
 
-        if (line.hasText() && line.width.forWord() + candidates.width.asWord() > vacancy.inlineSize) {
+        if (line.hasText() && width.forWord() + candidates.width.asWord() > vacancy.inlineSize) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(basedir, lastBreakMark.position, this));
@@ -2150,9 +2166,11 @@ export class Paragraph {
             lastBreakMark.split(mark);
             candidates.unshift(this.brokenItems[lastBreakMark.itemIndex]);
           }
-          lastLine.postprocess(vacancy, this.ifc.style.textAlign);
+          lastLine.postprocess(width, height, vacancy, this.ifc.style.textAlign);
+          width.reset();
+          height.reset();
           fctx.postLine(lastLine, true);
-          blockOffset += lastLine.height.total();
+          blockOffset += lastLine.height();
         }
 
         if (!line.hasText() /* line was just added */) {
@@ -2165,21 +2183,25 @@ export class Paragraph {
         }
 
         line.addCandidates(candidates, mark.position);
+        width.concat(candidates.width);
+        height.concat(candidates.height);
 
-        candidates.reset();
+        candidates.clearContents();
         lastBreakMark = mark;
 
         for (const float of floats) {
           layoutFloatBox(float, ctx);
-          fctx.placeFloat(line.width.forFloat(), false, float);
+          fctx.placeFloat(width.forFloat(), false, float);
         }
         floats = [];
 
         if (mark.isBreakForced) {
           fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-          line.postprocess(vacancy, this.ifc.style.textAlign);
+          line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
           fctx.postLine(line, true);
-          blockOffset += line.height.total();
+          blockOffset += line.height();
+          width.reset();
+          height.reset();
           lines.push(line = new Linebox(basedir, mark.position, this));
         }
       }
@@ -2205,14 +2227,14 @@ export class Paragraph {
 
     for (const float of floats) {
       layoutFloatBox(float, ctx);
-      fctx.placeFloat(line ? line.width.forFloat() : 0, line ? !line.head : true, float);
+      fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);
     }
 
     if (line) {
-      const blockSize = line.height.total();
+      const blockSize = height.total();
       fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-      line.postprocess(vacancy, this.ifc.style.textAlign);
-      blockOffset += line.height.total();
+      line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
+      blockOffset += line.height();
       fctx.postLine(line, false);
     } else {
       fctx.consumeMisfits();
@@ -2222,7 +2244,7 @@ export class Paragraph {
       console.log(`Paragraph ${this.ifc.id}:`);
       logParagraph(this.brokenItems);
       for (const [i, line] of lines.entries()) {
-        const W = line.width.trimmed().toFixed(2);
+        const W = line.width.toFixed(2);
         const A = line.ascender.toFixed(2);
         const D = line.descender.toFixed(2);
         const B = line.blockOffset.toFixed(2);

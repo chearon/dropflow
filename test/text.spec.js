@@ -1207,7 +1207,7 @@ describe('Lines', function () {
       expect(b.called('middle').y).to.be.approximately(14.094, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(20);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
     });
 
     it('aligns sub', function () {
@@ -1222,7 +1222,7 @@ describe('Lines', function () {
       expect(b.called('sub').y).to.be.approximately(18.747, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(23.2);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(23.2);
     });
 
     it('aligns super', function () {
@@ -1237,7 +1237,7 @@ describe('Lines', function () {
       expect(b.called('super').y).to.be.approximately(15.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(25.44, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.44, 0.001);
     });
 
     it('aligns text-top', function () {
@@ -1252,7 +1252,7 @@ describe('Lines', function () {
       expect(b.called('text-top').y).to.be.approximately(16.609, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(21.063, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
     });
 
     it('aligns text-bottom', function () {
@@ -1267,7 +1267,7 @@ describe('Lines', function () {
       expect(b.called('text-bottom').y).to.be.approximately(15.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(21.063, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
     });
 
     it('aligns px', function () {
@@ -1282,7 +1282,7 @@ describe('Lines', function () {
       expect(b.called('30px').y).to.be.approximately(15.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(50, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(50, 0.001);
     });
 
     it('aligns percentage', function () {
@@ -1297,7 +1297,7 @@ describe('Lines', function () {
       expect(b.called('percentage').y).to.be.approximately(10.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(20);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
     });
 
     it('aligns top', function () {
@@ -1314,7 +1314,7 @@ describe('Lines', function () {
       expect(b.called('top').y).to.be.approximately(25.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(45.44);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(45.44);
     });
 
     it('aligns bottom', function () {
@@ -1331,7 +1331,7 @@ describe('Lines', function () {
       expect(b.called('bottom').y).to.be.approximately(28.747, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(43.2);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(43.2);
     });
 
     it('aligns strut with the bottom when there are tops and bottoms', function () {
@@ -1349,7 +1349,7 @@ describe('Lines', function () {
       expect(b.called('b').y).to.be.approximately(65.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(80);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
     });
 
     it('changes line height for shifted empty spans', function () {
@@ -1362,7 +1362,7 @@ describe('Lines', function () {
 
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(25.44);
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(25.44);
     });
 
     it('changes line height for shifted fallback glyphs', function () {
@@ -1375,7 +1375,7 @@ describe('Lines', function () {
 
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(25.749, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.749, 0.001);
     });
 
     it('affects line height on the second line', function () {
@@ -1389,8 +1389,8 @@ describe('Lines', function () {
 
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(25.749, 0.001);
-      expect(ifc.paragraph.lineboxes[1].height.total()).to.be.approximately(25.749, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.749, 0.001);
+      expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(25.749, 0.001);
     });
 
     it('does not carry fallback height to the second line', function () {
@@ -1403,10 +1403,10 @@ describe('Lines', function () {
 
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.ascender).to.be.approximately(26.288, 0.001);
-      expect(ifc.paragraph.lineboxes[0].height.descender).to.be.approximately(9.136, 0.001);
-      expect(ifc.paragraph.lineboxes[1].height.ascender).to.be.approximately(20.186, 0.001);
-      expect(ifc.paragraph.lineboxes[1].height.descender).to.be.approximately(3.652, 0.001);
+      expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(26.288, 0.001);
+      expect(ifc.paragraph.lineboxes[0].descender).to.be.approximately(9.136, 0.001);
+      expect(ifc.paragraph.lineboxes[1].ascender).to.be.approximately(20.186, 0.001);
+      expect(ifc.paragraph.lineboxes[1].descender).to.be.approximately(3.652, 0.001);
     });
 
     it('correctly resets separate alignment contexts for the second line', function () {
@@ -1433,8 +1433,8 @@ describe('Lines', function () {
       expect(b.called('4a').y).to.be.approximately(75.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height.total()).to.be.approximately(40, 0.001);
-      expect(ifc.paragraph.lineboxes[1].height.total()).to.be.approximately(40, 0.001);
+      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(40, 0.001);
+      expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(40, 0.001);
     });
 
     it('correctly splits out nested top and bottoms', function () {
@@ -1456,7 +1456,7 @@ describe('Lines', function () {
         expect(b.called('b').y).to.be.approximately(20.547, 0.001);
         /** @type import('../src/flow').IfcInline[] */
         const [ifc] = this.get('div').children;
-        expect(ifc.paragraph.lineboxes[0].height.total()).to.equal(20);
+        expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
     });
   });
 });

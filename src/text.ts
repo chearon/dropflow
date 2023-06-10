@@ -354,7 +354,7 @@ function loadHyphen(item: ShapedItem) {
 
     for (const hyphen of HyphenCodepointsToTry) {
       const buf = hb.createBuffer();
-      const font = hb.createFont(item.face);
+      const font = hb.createFont(item.match.face);
       buf.setClusterLevel(1);
       buf.addText(hyphen);
       buf.setScript('Latin');
@@ -639,7 +639,6 @@ export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
 
 export class ShapedItem implements IfcRenderItem {
   paragraph: Paragraph;
-  face: HbFace;
   match: FaceMatch;
   glyphs: HbGlyphInfo[];
   offset: number;
@@ -650,7 +649,6 @@ export class ShapedItem implements IfcRenderItem {
 
   constructor(
     paragraph: Paragraph,
-    face: HbFace,
     match: FaceMatch,
     glyphs: HbGlyphInfo[],
     offset: number,
@@ -658,7 +656,6 @@ export class ShapedItem implements IfcRenderItem {
     attrs: ShapingAttrs
   ) {
     this.paragraph = paragraph;
-    this.face = face;
     this.match = match;
     this.glyphs = glyphs;
     this.offset = offset;
@@ -671,7 +668,6 @@ export class ShapedItem implements IfcRenderItem {
   clone() {
     return new ShapedItem(
       this.paragraph,
-      this.face,
       this.match,
       this.glyphs.map(glyph => ({...glyph})),
       this.offset,
@@ -690,7 +686,6 @@ export class ShapedItem implements IfcRenderItem {
     const inlines = this.inlines;
     const right = new ShapedItem(
       this.paragraph,
-      this.face,
       this.match,
       glyphs,
       this.offset + offset,
@@ -721,7 +716,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i].flags & 2) && !(this.glyphs[i + 1].flags & 2)) {
           const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + 1].cl;
           const length = this.attrs.level & 1 ? this.glyphs[i].cl - offset : this.end() - offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.face, this.attrs);
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.face, this.attrs);
           if (!(newGlyphs[0].flags & 2)) {
             this.glyphs.splice(i + 1);
             this.glyphs = this.glyphs.concat(newGlyphs);
@@ -735,7 +730,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i - 1].flags & 2) && !(this.glyphs[i].flags & 2)) {
           const offset = this.attrs.level & 1 ? this.glyphs[i].cl : this.offset;
           const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i].cl - this.offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.face, this.attrs);
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.face, this.attrs);
           if (!(newGlyphs.at(-1)!.flags & 2)) {
             this.glyphs.splice(0, i);
             this.glyphs = newGlyphs.concat(this.glyphs);
@@ -744,7 +739,7 @@ export class ShapedItem implements IfcRenderItem {
         }
       }
     }
-    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.face, this.attrs);
+    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.match.face, this.attrs);
   }
 
   createMeasureState(direction: 1 | -1 = 1) {
@@ -818,7 +813,7 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   measure(ci = this.end(), direction: 1 | -1 = 1, state = this.createMeasureState(direction)) {
-    const toPx = 1 / this.face.upem * this.attrs.style.fontSize;
+    const toPx = 1 / this.match.face.upem * this.attrs.style.fontSize;
     let advance = 0;
     let trailingWs = 0;
 
@@ -898,7 +893,7 @@ function logParagraph(paragraph: ShapedItem[]) {
   for (const item of paragraph) {
     const lead = `  @${item.offset} `;
     const leadsp = ' '.repeat(lead.length);
-    console.log(`${lead}F:${basename(item.face.name)}`);
+    console.log(`${lead}F:${basename(item.match.face.name)}`);
     console.log(`${leadsp}T:"${item.text()}"`);
     console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
   }
@@ -1849,7 +1844,7 @@ export class Paragraph {
                 if (isLastMatch) {
                   const glyphs = shapedPart.slice(glyphStart, glyphEnd);
                   faces.push([face, offset]);
-                  items.push(new ShapedItem(this, face, match, glyphs, offset, length, {...attrs}));
+                  items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
                   log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
                 } else {
                   log?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
@@ -1858,7 +1853,7 @@ export class Paragraph {
               } else if (glyphStart < glyphEnd) {
                 const glyphs = shapedPart.slice(glyphStart, glyphEnd);
                 faces.push([face, offset]);
-                items.push(new ShapedItem(this, face, match, glyphs, offset, length, {...attrs}));
+                items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
                 log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
               }
 
@@ -2141,7 +2136,7 @@ export class Paragraph {
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
           const glyphs = getHyphen(item);
-          const {face: {upem}, attrs: {style: {fontSize}}} = item;
+          const {match: {face: {upem}}, attrs: {style: {fontSize}}} = item;
           if (glyphs?.length) candidates.width.addHyphen(glyphs.reduce((s, g) => s + g.ax / upem * fontSize, 0));
         }
 

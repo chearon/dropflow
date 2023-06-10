@@ -19,7 +19,7 @@ function findGlyph(item: ShapedItem, offset: number) {
 function glyphsWidth(item: ShapedItem, glyphStart: number, glyphEnd: number) {
   let ax = 0;
   for (let i = glyphStart; i < glyphEnd; ++i) ax += item.glyphs[i].ax;
-  return ax / item.face.upem * item.attrs.style.fontSize;
+  return ax / item.match.face.upem * item.attrs.style.fontSize;
 }
 
 // Solve for:
@@ -120,8 +120,8 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   correctText(x: number, y: number, item: ShapedItem, glyphStart: number, glyphEnd: number) {
     const {r, g, b, a} = this.fillColor;
-    const font = hb.createFont(item.face);
-    const scale = 1 / item.face.upem * this.fontSize;
+    const font = hb.createFont(item.match.face);
+    const scale = 1 / item.match.face.upem * this.fontSize;
 
     let sx = 0;
     let sy = 0;

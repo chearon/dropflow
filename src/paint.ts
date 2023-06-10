@@ -75,7 +75,7 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
     b.text(tx, y, item, start, end, isColorBoundary);
 
-    tx += ax / item.face.upem * style.fontSize;
+    tx += ax / item.match.face.upem * style.fontSize;
 
     if (item.attrs.level & 1) {
       i -= 1;

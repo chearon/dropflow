@@ -2,7 +2,7 @@ import {hb} from './deps.js';
 import {basename} from './util.js';
 import {languageCoverage} from '../gen/lang-script-database.js';
 
-import type {HbFace, HbBlob} from 'harfbuzzjs';
+import type {HbBlob, HbFace, HbFont} from 'harfbuzzjs';
 import type {Style, FontStretch} from './cascade.js';
 
 // See FcStrContainsIgnoreCase in fcstr.c
@@ -76,6 +76,7 @@ type FaceNames = {
 
 export class FaceMatch {
   face: HbFace;
+  font: HbFont;
   filename: string;
   index: number;
   languages: Set<string>;
@@ -86,8 +87,9 @@ export class FaceMatch {
   italic: boolean;
   oblique: boolean;
 
-  constructor(face: HbFace, filename: string, index: number) {
+  constructor(face: HbFace, font: HbFont, filename: string, index: number) {
     this.face = face;
+    this.font = font;
     this.filename = filename;
     this.index = index;
     this.languages = this.getLanguages();
@@ -211,6 +213,7 @@ export class FaceMatch {
 
 const hbBlobs = new Map<string, HbBlob>();
 const hbFaces = new Map<string, HbFace>();
+const hbFonts = new Map<string, HbFont>();
 const faces = new Map<string, FaceMatch>();
 
 export function registerFont(buffer: Uint8Array, filename: string) {
@@ -220,9 +223,11 @@ export function registerFont(buffer: Uint8Array, filename: string) {
 
     for (let i = 0, l = blob.countFaces(); i < l; ++i) {
       const face = hb.createFace(blob, i);
+      const font = hb.createFont(face);
       hbFaces.set(filename + i, face);
+      hbFonts.set(filename + i, font);
       face.name = basename(filename); // TODO can it be done in hbjs?
-      faces.set(filename + i, new FaceMatch(face, filename, i));
+      faces.set(filename + i, new FaceMatch(face, font, filename, i));
     }
   }
 }
@@ -232,8 +237,10 @@ export function unregisterFont(filename: string) {
   if (blob) {
     for (let i = 0, l = blob.countFaces(); i < l; i++) {
       const face = hbFaces.get(filename + i)!;
+      const font = hbFonts.get(filename + i)!;
       blob.destroy();
       face.destroy();
+      font.destroy();
       hbFaces.delete(filename + i);
       faces.delete(filename + i);
     }

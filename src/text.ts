@@ -8,7 +8,7 @@ import {itemizer, hb} from './deps.js';
 import {getCascade} from './font.js';
 
 import type {FaceMatch} from './font.js';
-import type {HbFace, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
+import type {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
 
 let debug = true;
 
@@ -337,7 +337,7 @@ const hyphenCache = new Map<string, HbGlyphInfo[]>();
 function getFontMetrics(inline: Inline) {
   const strutCascade = getCascade(inline.style, 'en');
   const [strutFontMatch] = strutCascade.matches;
-  return getMetrics(inline.style, strutFontMatch.face);
+  return getMetrics(inline.style, strutFontMatch);
 }
 
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
@@ -354,13 +354,12 @@ function loadHyphen(item: ShapedItem) {
 
     for (const hyphen of HyphenCodepointsToTry) {
       const buf = hb.createBuffer();
-      const font = hb.createFont(item.match.face);
       buf.setClusterLevel(1);
       buf.addText(hyphen);
       buf.setScript('Latin');
       buf.setDirection('ltr');
       buf.setLanguage('en');
-      hb.shape(font, buf);
+      hb.shape(item.match.font, buf);
       const glyphs = buf.json();
       buf.destroy();
       if (glyphs[0]?.g) {
@@ -428,20 +427,18 @@ export function langForScript(script: string) {
 const metricsCache = new WeakMap<Style, WeakMap<HbFace, InlineMetrics>>();
 
 // exported because used by html painter
-export function getMetrics(style: Style, face: HbFace): InlineMetrics {
-  let metrics = metricsCache.get(style)?.get(face);
+export function getMetrics(style: Style, match: FaceMatch): InlineMetrics {
+  let metrics = metricsCache.get(style)?.get(match.face);
   if (metrics) return metrics;
-  const font = hb.createFont(face);
   const {fontSize, lineHeight: cssLineHeight} = style;
   // now do CSS2 §10.8.1
-  const {ascender, xHeight, descender, lineGap} = font.getMetrics('ltr'); // TODO vertical text
-  const toPx = 1 / face.upem * fontSize;
+  const {ascender, xHeight, descender, lineGap} = match.font.getMetrics('ltr'); // TODO vertical text
+  const toPx = 1 / match.face.upem * fontSize;
   const pxHeight = (ascender - descender) * toPx;
   const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap * toPx : cssLineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
   const ascenderPx = ascender * toPx;
   const descenderPx = -descender * toPx;
-  font.destroy();
 
   metrics = {
     ascenderBox: halfLeading + ascenderPx,
@@ -456,7 +453,7 @@ export function getMetrics(style: Style, face: HbFace): InlineMetrics {
   let map1 = metricsCache.get(style);
   if (!map1) metricsCache.set(style, map1 = new WeakMap());
 
-  map1.set(face, metrics);
+  map1.set(match.face, metrics);
 
   return metrics;
 }
@@ -716,7 +713,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i].flags & 2) && !(this.glyphs[i + 1].flags & 2)) {
           const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + 1].cl;
           const length = this.attrs.level & 1 ? this.glyphs[i].cl - offset : this.end() - offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.face, this.attrs);
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
           if (!(newGlyphs[0].flags & 2)) {
             this.glyphs.splice(i + 1);
             this.glyphs = this.glyphs.concat(newGlyphs);
@@ -730,7 +727,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i - 1].flags & 2) && !(this.glyphs[i].flags & 2)) {
           const offset = this.attrs.level & 1 ? this.glyphs[i].cl : this.offset;
           const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i].cl - this.offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.face, this.attrs);
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
           if (!(newGlyphs.at(-1)!.flags & 2)) {
             this.glyphs.splice(0, i);
             this.glyphs = newGlyphs.concat(this.glyphs);
@@ -739,7 +736,7 @@ export class ShapedItem implements IfcRenderItem {
         }
       }
     }
-    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.match.face, this.attrs);
+    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.match.font, this.attrs);
   }
 
   createMeasureState(direction: 1 | -1 = 1) {
@@ -1682,9 +1679,8 @@ export class Paragraph {
     }
   }
 
-  shapePart(offset: number, length: number, face: HbFace, attrs: ShapingAttrs) {
+  shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const buf = hb.createBuffer();
-    const font = hb.createFont(face);
     buf.setClusterLevel(1);
     buf.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
     buf.guessSegmentProperties();
@@ -1692,31 +1688,35 @@ export class Paragraph {
     hb.shape(font, buf);
     const json = buf.json();
     buf.destroy();
-    font.destroy();
     return json;
   }
 
-  createItemMetrics(styles: [Style, number][], faces: [HbFace, number][]) {
+  createItemMetrics(styles: [Style, number][]) {
     const metrics:[InlineMetrics, number][] = [];
-    let lastFace = null;
+    let lastItem = null;
     let lastStyle = null;
-    let si = 0;
-    let fi = 0;
+    let styleIndex = 0;
+    let itemIndex = 0;
 
-    while (si < styles.length && fi < faces.length) {
-      const [style, so] = styles[si];
-      const [face, fo] = faces[fi];
-      const sn = si + 1 < styles.length ? styles[si + 1][1] : this.length();
-      const fn = fi + 1 < faces.length ? faces[fi + 1][1] : this.length();
+    while (styleIndex < styles.length && itemIndex < this.wholeItems.length) {
+      const [style, styleOffset] = styles[styleIndex];
+      const item = this.wholeItems[itemIndex];
+      const itemOffset = item.offset;
+      const nextStyleOffset = styleIndex + 1 < styles.length ? styles[styleIndex + 1][1] : this.length();
+      const nextItemOffset = this.wholeItems[itemIndex].end();
 
-      if (face !== lastFace || !lastStyle || lastStyle.fontSize !== style.fontSize || lastStyle.lineHeight != style.lineHeight) {
-        metrics.push([getMetrics(style, face), Math.max(so, fo)]);
-        lastFace = face;
+      if (
+        item.match !== lastItem?.match ||
+        lastStyle?.fontSize !== style.fontSize ||
+        lastStyle.lineHeight !== style.lineHeight
+      ) {
+        metrics.push([getMetrics(style, item.match), Math.max(styleOffset, itemOffset)]);
+        lastItem = item;
         lastStyle = style;
       }
 
-      if (sn <= fn) si += 1;
-      if (fn <= sn) fi += 1;
+      if (nextStyleOffset <= nextItemOffset) styleIndex += 1;
+      if (nextItemOffset <= nextStyleOffset) itemIndex += 1;
     }
 
     return metrics;
@@ -1727,7 +1727,6 @@ export class Paragraph {
     const items:ShapedItem[] = [];
     const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
-    const faces:[HbFace, number][] = [];
     const log = this.enableLogging ? (s: string) => logstr += s : null;
     let inline = inlineIterator.next();
     let inlineEnd = 0;
@@ -1755,7 +1754,6 @@ export class Paragraph {
         const nextShapeWork: {offset: number, length: number}[] = [];
         const match = cascade.matches[i];
         const isLastMatch = i === cascade.matches.length - 1;
-        const face = match.face;
 
         // note this won't budge for matches i=1, 2, ...
         while (!inline.done && inlineEnd < itemIndex) {
@@ -1789,7 +1787,7 @@ export class Paragraph {
         while (shapeWork.length) {
           const {offset, length} = shapeWork.pop()!;
           const end = offset + length;
-          const shapedPart = this.shapePart(offset, length, face, attrs);
+          const shapedPart = this.shapePart(offset, length, match.font, attrs);
           const hbClusterState = createGlyphIteratorState(shapedPart, attrs.level, offset, end);
           let needsReshape = false;
           let segmentTextStart = offset;
@@ -1843,7 +1841,6 @@ export class Paragraph {
               if (needsReshape) {
                 if (isLastMatch) {
                   const glyphs = shapedPart.slice(glyphStart, glyphEnd);
-                  faces.push([face, offset]);
                   items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
                   log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
                 } else {
@@ -1852,7 +1849,6 @@ export class Paragraph {
                 }
               } else if (glyphStart < glyphEnd) {
                 const glyphs = shapedPart.slice(glyphStart, glyphEnd);
-                faces.push([face, offset]);
                 items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
                 log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
               }
@@ -1881,8 +1877,8 @@ export class Paragraph {
     }
 
     this.colors = colors;
-    this.metrics = this.createItemMetrics(styles, faces.sort((a, b) => a[1] - b[1]));
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
+    this.metrics = this.createItemMetrics(styles);
 
     let j = 0;
     for (const i of this.analysis.hyphens) {

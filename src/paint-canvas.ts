@@ -1,6 +1,5 @@
 import {prevCluster, nextCluster, nextGrapheme, prevGrapheme} from './text.js';
 import {firstCascadeItem} from './font.js';
-import {hb} from './deps.js';
 
 import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
@@ -120,7 +119,6 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   correctText(x: number, y: number, item: ShapedItem, glyphStart: number, glyphEnd: number) {
     const {r, g, b, a} = this.fillColor;
-    const font = hb.createFont(item.match.face);
     const scale = 1 / item.match.face.upem * this.fontSize;
 
     let sx = 0;
@@ -134,14 +132,12 @@ export default class CanvasPaintBackend implements PaintBackend {
     for (let i = glyphStart; i < glyphEnd; ++i) {
       const glyph = item.glyphs[i];
       this.ctx.translate(sx + glyph.dx, sy + glyph.dy);
-      font.drawGlyph(glyph.g, this.ctx);
+      item.match.font.drawGlyph(glyph.g, this.ctx);
       sx += glyph.ax;
       sy += glyph.ay;
     }
     this.ctx.fill();
     this.ctx.restore();
-
-    font.destroy();
   }
 
   text(x: number, y: number, item: ShapedItem, totalTextStart: number, totalTextEnd: number, isColorBoundary: boolean) {

@@ -1,5 +1,5 @@
 import {hb} from './deps.js';
-import {basename, hashMix} from './util.js';
+import {basename} from './util.js';
 import {languageCoverage} from '../gen/lang-script-database.js';
 
 import type {HbFace, HbBlob} from 'harfbuzzjs';
@@ -239,7 +239,7 @@ export function unregisterFont(filename: string) {
     }
     hbBlobs.delete(filename);
   }
-  cascades.clear();
+  cascades = new WeakMap();
 }
 
 class FontCascade {
@@ -446,39 +446,16 @@ class FontCascade {
   }
 }
 
-export function createFontKey(s: Style, lang: string) {
-  let hash = s.fontWeight;
-
-  for (let i = 0; i < s.fontStyle.length; ++i) {
-    hash = hashMix(hash, s.fontStyle.charCodeAt(i));
-  }
-
-  for (let i = 0; i < s.fontStretch.length; ++i) {
-    hash = hashMix(hash, s.fontStretch.charCodeAt(i));
-  }
-
-  for (const f of s.fontFamily) {
-    for (let i = 0; i < f.length; ++i) {
-      hash = hashMix(hash, f.charCodeAt(i));
-    }
-  }
-
-  for (let i = 0; i < lang.length; ++i) {
-    hash = hashMix(hash, lang.charCodeAt(i));
-  }
-
-  return hash;
-}
-
-const cascades = new Map<number, FontCascade>();
+let cascades = new WeakMap<Style, Map<string, FontCascade>>();
 
 export function getCascade(style: Style, lang: string) {
-  const fontKey = createFontKey(style, lang);
-  let cascade = cascades.get(fontKey);
+  let cascade = cascades.get(style)?.get(lang);
   if (!cascade) {
+    let map1 = cascades.get(style);
+    if (!map1) cascades.set(style, map1 = new Map());
     cascade = FontCascade.fromSet(faces, style);
     cascade.sort(style, lang);
-    cascades.set(fontKey, cascade);
+    map1.set(lang, cascade);
   }
   return cascade;
 }

@@ -1,11 +1,11 @@
-import {binarySearchTuple, binarySearchEndProp, loggableText, basename, hashMix} from './util.js';
+import {binarySearchTuple, binarySearchEndProp, loggableText, basename} from './util.js';
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import LineBreak from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import {itemizer, hb} from './deps.js';
-import {getCascade, createFontKey} from './font.js';
+import {getCascade} from './font.js';
 
 import type {FaceMatch} from './font.js';
 import type {HbFace, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
@@ -425,32 +425,12 @@ export function langForScript(script: string) {
   return LANG_FOR_SCRIPT[script] || 'xx';
 }
 
-const metricsCache = new Map<number, InlineMetrics>();
-
-const metricsCacheBuffer = new ArrayBuffer(16);
-
-function createMetricsKey(style: Style, face: HbFace) {
-  let fontKey = hashMix(createFontKey(style, 'Latn'), face.ptr);
-  let len = 4;
-
-  new Float64Array(metricsCacheBuffer)[0] = style.fontSize;
-
-  if (style.lineHeight !== 'normal') {
-    new Float64Array(metricsCacheBuffer)[1] = style.lineHeight;
-    len = 8;
-  }
-  const b = new Uint16Array(metricsCacheBuffer, 0, len);
-  for (let i = 0; i < b.length; ++i) {
-    fontKey = hashMix(fontKey, b[i]);
-  }
-  return fontKey;
-}
+const metricsCache = new WeakMap<Style, WeakMap<HbFace, InlineMetrics>>();
 
 // exported because used by html painter
 export function getMetrics(style: Style, face: HbFace): InlineMetrics {
-  const metricsKey = createMetricsKey(style, face);
-  const existing = metricsCache.get(metricsKey);
-  if (existing) return existing;
+  let metrics = metricsCache.get(style)?.get(face);
+  if (metrics) return metrics;
   const font = hb.createFont(face);
   const {fontSize, lineHeight: cssLineHeight} = style;
   // now do CSS2 §10.8.1
@@ -463,7 +443,7 @@ export function getMetrics(style: Style, face: HbFace): InlineMetrics {
   const descenderPx = -descender * toPx;
   font.destroy();
 
-  const metrics = {
+  metrics = {
     ascenderBox: halfLeading + ascenderPx,
     ascender: ascenderPx,
     superscript: 0.34 * fontSize, // magic numbers come from Searchfox.
@@ -473,7 +453,10 @@ export function getMetrics(style: Style, face: HbFace): InlineMetrics {
     descenderBox: halfLeading + descenderPx
   };
 
-  metricsCache.set(metricsKey, metrics);
+  let map1 = metricsCache.get(style);
+  if (!map1) metricsCache.set(style, map1 = new WeakMap());
+
+  map1.set(face, metrics);
 
   return metrics;
 }

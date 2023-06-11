@@ -1,6 +1,6 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
-import {createStyle, createComputedStyle, Style, EMPTY_STYLE, ComputedPlainStyle, WritingMode, Direction} from './cascade.js';
+import {createStyle, createComputedStyle, Style, EMPTY_STYLE, WritingMode} from './cascade.js';
 import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox, InlineMetrics, EmptyInlineMetrics} from './text.js';
 import {Box} from './box.js';
 
@@ -225,7 +225,7 @@ export class BlockFormattingContext {
     if (blockSize === 'auto') {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
-        const blockSize = box.contentArea.getBlockSize(box.writingMode);
+        const blockSize = box.contentArea.blockSizeForWritingMode(box.writingMode);
         lineboxHeight = blockSize;
       }
       box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx.getBothBottom()));
@@ -255,7 +255,7 @@ export class BlockFormattingContext {
           box.setBlockSize(childSize);
         }
 
-        const blockSize = box.borderArea.getBlockSize(box.writingMode);
+        const blockSize = box.borderArea.blockSizeForWritingMode(box.writingMode);
 
         sizeStack[level] += blockSize;
         this.cbBlockStart = offset + blockSize;
@@ -459,8 +459,8 @@ class FloatSide {
       box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
     } else {
       if (!box.containingBlock) throw new Error(`${box.id} has no containing block`);
-      const inlineSize = box.containingBlock.getInlineSize(box.containingBlock.writingMode);
-      const size = box.borderArea.getInlineSize(box.containingBlock.writingMode);
+      const inlineSize = box.containingBlock.inlineSizeForWritingMode(box.containingBlock.writingMode);
+      const size = box.borderArea.inlineSizeForWritingMode(box.containingBlock.writingMode);
       box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
     }
 
@@ -693,120 +693,104 @@ export class FloatContext {
   }
 }
 
-const LogicalMaps = Object.freeze({
-  'horizontal-tb': Object.freeze({
-    blockStart: 'top',
-    lineLeft: 'left',
-    blockSize: 'height',
-    inlineSize: 'width'
-  }),
-  'vertical-lr': Object.freeze({
-    blockStart: 'left',
-    lineLeft: 'top',
-    blockSize: 'width',
-    inlineSize: 'height'
-  }),
-  'vertical-rl': Object.freeze({
-    blockStart: 'right',
-    lineLeft: 'top',
-    blockSize: 'width',
-    inlineSize: 'height'
-  })
-});
-
 export class BlockContainerArea {
-  id: string;
-  writingMode: WritingMode;
-  direction: Direction;
-  x: number;
-  y: number;
   parent: BlockContainerArea | null;
-  top: number;
-  right: number;
-  left: number;
-  lrside: 'left' | 'right';
-  width: number;
-  height: number;
+  blockContainer: BlockContainer;
+  blockStart: number;
+  blockSize: number;
+  lineLeft: number;
+  inlineSize: number;
 
-  constructor(id: string, style: ComputedPlainStyle, x?: number, y?: number, w?: number, h?: number) {
-    this.id = id;
-    this.writingMode = style.writingMode;
-    this.direction = style.direction;
-    this.x = x || 0;
-    this.y = y || 0;
+  constructor(blockContainer: BlockContainer, x?: number, y?: number, w?: number, h?: number) {
     this.parent = null;
-    this.top = 0;
-    this.right = 0;
-    this.left = 0;
-    this.lrside = 'left';
-    this.width = w || 0;
-    this.height = h || 0;
+    this.blockContainer = blockContainer;
+    this.blockStart = y || 0;
+    this.blockSize = h || 0;
+    this.lineLeft = x || 0;
+    this.inlineSize = w || 0;
+  }
+
+  get writingMode() {
+    return this.blockContainer.style.writingMode;
+  }
+
+  get direction() {
+    return this.blockContainer.style.direction;
+  }
+
+  get x() {
+    return this.lineLeft;
+  }
+
+  get y() {
+    return this.blockStart;
+  }
+
+  get width() {
+    return this.inlineSize;
+  }
+
+  get height() {
+    return this.blockSize;
   }
 
   setParent(p: BlockContainerArea) {
     this.parent = p;
   }
 
-  // TODO: I could remove the writingMode arguments and use parent.writingMode
-  // which would simplify the calling side. or is that what I did originally?
-
-  setBlockStart(writingMode: WritingMode, v: number) {
-    const blockStart = LogicalMaps[writingMode].blockStart;
-    this[blockStart] = v;
-    if (blockStart === 'left' || blockStart === 'right') this.lrside = blockStart;
+  blockSizeForWritingMode(writingMode: WritingMode) {
+    if (!this.blockContainer) return this.blockSize; // root area
+    if ((this.blockContainer.writingMode === 'horizontal-tb') !== (writingMode === 'horizontal-tb')) {
+      return this.inlineSize;
+    } else {
+      return this.blockSize;
+    }
   }
 
-  getBlockStart(writingMode: WritingMode) {
-    return this[LogicalMaps[writingMode].blockStart];
-  }
-
-  setLineLeft(writingMode: WritingMode, v: number) {
-    const lineLeft = LogicalMaps[writingMode].lineLeft;
-    this[lineLeft] = v;
-    if (lineLeft === 'left') this.lrside = lineLeft;
-  }
-
-  getLineLeft(writingMode: WritingMode) {
-    return this[LogicalMaps[writingMode].lineLeft];
-  }
-
-  setBlockSize(writingMode: WritingMode, v: number) {
-    this[LogicalMaps[writingMode].blockSize] = v;
-  }
-
-  getBlockSize(writingMode: WritingMode) {
-    return this[LogicalMaps[writingMode].blockSize];
-  }
-
-  setInlineSize(writingMode: WritingMode, v: number) {
-    this[LogicalMaps[writingMode].inlineSize] = v;
-  }
-
-  getInlineSize(writingMode: WritingMode) {
-    return this[LogicalMaps[writingMode].inlineSize];
+  inlineSizeForWritingMode(writingMode: WritingMode) {
+    if (!this.blockContainer) return this.inlineSize; // root area
+    if ((this.blockContainer.writingMode === 'horizontal-tb') !== (writingMode === 'horizontal-tb')) {
+      return this.blockSize;
+    } else {
+      return this.inlineSize;
+    }
   }
 
   absolutify() {
+    let x, y, width, height;
+
     if (!this.parent) {
-      throw new Error(`Cannot absolutify area ${this.id}, parent was never set`);
+      throw new Error(`Cannot absolutify area for ${this.blockContainer.id}, parent was never set`);
     }
 
-    const {width: pwidth, x: px, y: py} = this.parent;
-
-    if (this.lrside === 'left') {
-      this.x = px + this.left;
+    if (this.parent.writingMode === 'vertical-lr') {
+      x = this.blockStart;
+      y = this.lineLeft;
+      width = this.blockSize;
+      height = this.inlineSize;
+    } else if (this.parent.writingMode === 'vertical-rl') {
+      x = this.parent.width - this.blockStart - this.blockSize;
+      y = this.lineLeft;
+      width = this.blockSize;
+      height = this.inlineSize;
+    } else if (this.parent.writingMode === 'horizontal-tb') {
+      x = this.lineLeft;
+      y = this.blockStart;
+      width = this.inlineSize;
+      height = this.blockSize;
     } else {
-      this.x = px + pwidth - this.right - this.width;
+      return;
     }
 
-    this.y = py + this.top;
+    this.lineLeft = this.parent.x + x;
+    this.blockStart = this.parent.y + y;
+    this.inlineSize = width;
+    this.blockSize = height;
   }
 
   repr(indent = 0) {
     const {width: w, height: h, x, y} = this;
-    const {top: t, left: l} = this;
-    const p1 = `${t ?? '-'},${l ?? '-'}`;
-    return '  '.repeat(indent) + `⚃ Area ${this.id}: inset: ${p1} → ${w}⨯${h} @${x},${y}`;
+    return '  '.repeat(indent) + `⚃ Area ${this.blockContainer.id}: ${w}⨯${h} @${x},${y}`;
   }
 }
 
@@ -830,9 +814,9 @@ export class BlockContainer extends Box {
     super(style, children, attrs);
     this.children = children;
 
-    this.borderArea = new BlockContainerArea(this.id + 'b', style);
-    this.paddingArea = new BlockContainerArea(this.id + 'p', style);
-    this.contentArea = new BlockContainerArea(this.id + 'c', style);
+    this.borderArea = new BlockContainerArea(this);
+    this.paddingArea = new BlockContainerArea(this);
+    this.contentArea = new BlockContainerArea(this);
     this.paddingArea.setParent(this.borderArea);
     this.contentArea.setParent(this.paddingArea);
   }
@@ -873,9 +857,9 @@ export class BlockContainer extends Box {
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
 
-    this.borderArea.setBlockStart(this.writingMode, position);
-    this.paddingArea.setBlockStart(this.writingMode, borderBlockStartWidth);
-    this.contentArea.setBlockStart(this.writingMode, paddingBlockStart);
+    this.borderArea.blockStart = position;
+    this.paddingArea.blockStart = borderBlockStartWidth;
+    this.contentArea.blockStart = paddingBlockStart;
   }
 
   setBlockSize(size: number) {
@@ -883,19 +867,18 @@ export class BlockContainer extends Box {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
     }
 
-    const writingMode = this.containingBlock.writingMode;
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
     const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
     const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
 
-    this.contentArea.setBlockSize(writingMode, size);
+    this.contentArea.blockSize = size;
 
     const paddingSize = size + paddingBlockStart + paddingBlockEnd
-    this.paddingArea.setBlockSize(writingMode, paddingSize);
+    this.paddingArea.blockSize = paddingSize;
 
     const borderSize = paddingSize + borderBlockStartWidth + borderBlockEndWidth;
-    this.borderArea.setBlockSize(writingMode, borderSize);
+    this.borderArea.blockSize = borderSize;
   }
 
   setInlinePosition(lineLeft: number) {
@@ -906,9 +889,9 @@ export class BlockContainer extends Box {
     const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
     const paddingLineLeft = this.style.getPaddingLineLeft(this);
 
-    this.borderArea.setLineLeft(this.writingMode, lineLeft);
-    this.paddingArea.setLineLeft(this.writingMode, borderLineLeftWidth);
-    this.contentArea.setLineLeft(this.writingMode, paddingLineLeft);
+    this.borderArea.lineLeft = lineLeft;
+    this.paddingArea.lineLeft = borderLineLeftWidth;
+    this.contentArea.lineLeft = paddingLineLeft;
   }
 
   setInlineOuterSize(size: number) {
@@ -921,13 +904,13 @@ export class BlockContainer extends Box {
     const paddingLineRight = this.style.getPaddingLineRight(this);
     const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
 
-    this.borderArea.setInlineSize(this.writingMode, size);
+    this.borderArea.inlineSize = size;
 
     const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
-    this.paddingArea.setInlineSize(this.writingMode, paddingSize);
+    this.paddingArea.inlineSize = paddingSize;
 
     const contentSize = paddingSize - paddingLineLeft - paddingLineRight;
-    this.contentArea.setInlineSize(this.writingMode, contentSize);
+    this.contentArea.inlineSize = contentSize;
   }
 
   getContainingBlockToContent() {
@@ -935,12 +918,12 @@ export class BlockContainer extends Box {
       throw new Error(`Box ${this.id} has no containing block`);
     }
 
-    const inlineSize = this.containingBlock.getInlineSize(this.writingMode);
+    const inlineSize = this.containingBlock.inlineSizeForWritingMode(this.writingMode);
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
-    const bLineLeft = this.borderArea.getLineLeft(this.writingMode);
+    const bLineLeft = this.borderArea.lineLeft;
     const blockStart = borderBlockStartWidth + paddingBlockStart;
-    const cInlineSize = this.contentArea.getInlineSize(this.writingMode);
+    const cInlineSize = this.contentArea.inlineSizeForWritingMode(this.writingMode);
     const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
     const paddingLineLeft = this.style.getPaddingLineLeft(this);
     const lineLeft = bLineLeft + borderLineLeftWidth + paddingLineLeft;
@@ -1098,7 +1081,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
     throw new Error('doInlineBoxModelForBlockBox called with inline or float');
   }
 
-  const cInlineSize = box.containingBlock.getInlineSize(box.writingMode);
+  const cInlineSize = box.containingBlock.inlineSizeForWritingMode(box.writingMode);
   const inlineSize = box.style.getInlineSize(box);
   let marginLineLeft = box.style.getMarginLineLeft(box);
   let marginLineRight = box.style.getMarginLineRight(box);
@@ -1197,7 +1180,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   doBlockBoxModelForBlockBox(box);
 
   if (box.isBfcRoot()) {
-    const inlineSize = box.contentArea.getInlineSize(box.writingMode);
+    const inlineSize = box.contentArea.inlineSizeForWritingMode(box.writingMode);
     cctx.bfc = new BlockFormattingContext(inlineSize);
   }
 
@@ -1319,7 +1302,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
     } else {
       const minContent = layoutContribution(box, ctx, 'min-content');
       const maxContent = layoutContribution(box, ctx, 'max-content');
-      const availableSpace = box.containingBlock.getInlineSize(box.writingMode);
+      const availableSpace = box.containingBlock.inlineSizeForWritingMode(box.writingMode);
       inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
     }
   }
@@ -1327,7 +1310,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   doInlineBoxModelForFloatBox(box, inlineSize);
   doBlockBoxModelForBlockBox(box);
 
-  const cInlineSize = box.contentArea.getInlineSize(box.writingMode);
+  const cInlineSize = box.contentArea.inlineSizeForWritingMode(box.writingMode);
   cctx.bfc = new BlockFormattingContext(cInlineSize);
 
   if (box.isBlockContainerOfInlines()) {

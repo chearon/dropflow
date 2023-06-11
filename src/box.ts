@@ -89,7 +89,7 @@ export class Box {
     let extra = '';
 
     if (options && options.containingBlocks && this.isBlockContainer()) {
-      extra += ` (cb = ${this.containingBlock ? this.containingBlock.id : '(null)'})`;
+      extra += ` (cb = ${this.containingBlock ? this.containingBlock.blockContainer.id : '(null)'})`;
     }
 
     if (options && options.css) {

@@ -53,7 +53,7 @@ export function generate(rootElement: HTMLElement) {
 }
 
 export function layout(root: BlockContainer, width = 640, height = 480) {
-  const initialContainingBlock = new BlockContainerArea('', root.style, 0, 0, width, height);
+  const initialContainingBlock = new BlockContainerArea(root, 0, 0, width, height);
   root.containingBlock = initialContainingBlock;
   root.setBlockPosition(0);
   root.preprocess();

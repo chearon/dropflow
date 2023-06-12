@@ -225,6 +225,10 @@ function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value
   return cssVal;
 }
 
+function percentNonzero(cssVal: number | {value: number, unit: '%'}) {
+  return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
+}
+
 export class Style implements ComputedPlainStyle {
   whiteSpace: ComputedPlainStyle['whiteSpace'];
   color: ComputedPlainStyle['color'];
@@ -352,6 +356,20 @@ export class Style implements ComputedPlainStyle {
     }
 
     return this.s.textAlign;
+  }
+
+  hasPadding() {
+    return percentNonzero(this.paddingTop)
+      || percentNonzero(this.paddingRight)
+      || percentNonzero(this.paddingBottom)
+      || percentNonzero(this.paddingLeft);
+  }
+
+  hasBorder() {
+    return this.borderTopWidth > 0
+      || this.borderRightWidth > 0
+      || this.borderBottomWidth > 0
+      || this.borderLeftWidth > 0;
   }
 
   getMarginBlockStart(box: BlockContainer | IfcInline) {

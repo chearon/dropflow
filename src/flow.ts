@@ -710,6 +710,16 @@ export class BlockContainerArea {
     this.inlineSize = w || 0;
   }
 
+  clone() {
+    return new BlockContainerArea(
+      this.blockContainer,
+      this.lineLeft,
+      this.blockStart,
+      this.inlineSize,
+      this.blockSize
+    );
+  }
+
   get writingMode() {
     return this.blockContainer.style.writingMode;
   }
@@ -814,11 +824,30 @@ export class BlockContainer extends Box {
     super(style, children, attrs);
     this.children = children;
 
-    this.borderArea = new BlockContainerArea(this);
-    this.paddingArea = new BlockContainerArea(this);
-    this.contentArea = new BlockContainerArea(this);
-    this.paddingArea.setParent(this.borderArea);
-    this.contentArea.setParent(this.paddingArea);
+    const area = new BlockContainerArea(this);
+    this.borderArea = area;
+    this.paddingArea = area;
+    this.contentArea = area;
+  }
+
+  fillAreas() {
+    if (this.style.hasBorder()) {
+      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+      this.contentArea = this.paddingArea = this.borderArea.clone();
+      this.paddingArea.blockStart = borderBlockStartWidth;
+      this.paddingArea.lineLeft = borderLineLeftWidth;
+      this.paddingArea.setParent(this.borderArea);
+    }
+
+    if (this.style.hasPadding()) {
+      const paddingBlockStart = this.style.getPaddingBlockStart(this);
+      const paddingLineLeft = this.style.getPaddingLineLeft(this);
+      this.contentArea = this.paddingArea.clone();
+      this.contentArea.blockStart = paddingBlockStart;
+      this.contentArea.lineLeft = paddingLineLeft;
+      this.contentArea.setParent(this.paddingArea);
+    }
   }
 
   get sym() {
@@ -854,12 +883,7 @@ export class BlockContainer extends Box {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
     }
 
-    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
-    const paddingBlockStart = this.style.getPaddingBlockStart(this);
-
     this.borderArea.blockStart = position;
-    this.paddingArea.blockStart = borderBlockStartWidth;
-    this.contentArea.blockStart = paddingBlockStart;
   }
 
   setBlockSize(size: number) {
@@ -867,18 +891,21 @@ export class BlockContainer extends Box {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
     }
 
-    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
-    const paddingBlockStart = this.style.getPaddingBlockStart(this);
-    const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
-    const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
-
     this.contentArea.blockSize = size;
 
-    const paddingSize = size + paddingBlockStart + paddingBlockEnd
-    this.paddingArea.blockSize = paddingSize;
+    if (this.contentArea !== this.paddingArea) {
+      const paddingBlockStart = this.style.getPaddingBlockStart(this);
+      const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
+      const paddingSize = size + paddingBlockStart + paddingBlockEnd
+      this.paddingArea.blockSize = paddingSize;
+    }
 
-    const borderSize = paddingSize + borderBlockStartWidth + borderBlockEndWidth;
-    this.borderArea.blockSize = borderSize;
+    if (this.paddingArea !== this.borderArea) {
+      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
+      const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
+      const borderSize = this.paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
+      this.borderArea.blockSize = borderSize;
+    }
   }
 
   setInlinePosition(lineLeft: number) {
@@ -886,12 +913,7 @@ export class BlockContainer extends Box {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
     }
 
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
-
     this.borderArea.lineLeft = lineLeft;
-    this.paddingArea.lineLeft = borderLineLeftWidth;
-    this.contentArea.lineLeft = paddingLineLeft;
   }
 
   setInlineOuterSize(size: number) {
@@ -899,18 +921,21 @@ export class BlockContainer extends Box {
       throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
     }
 
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
-    const paddingLineRight = this.style.getPaddingLineRight(this);
-    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-
     this.borderArea.inlineSize = size;
 
-    const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
-    this.paddingArea.inlineSize = paddingSize;
+    if (this.paddingArea !== this.borderArea) {
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+      const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
+      this.paddingArea.inlineSize = paddingSize;
+    }
 
-    const contentSize = paddingSize - paddingLineLeft - paddingLineRight;
-    this.contentArea.inlineSize = contentSize;
+    if (this.contentArea !== this.paddingArea) {
+      const paddingLineLeft = this.style.getPaddingLineLeft(this);
+      const paddingLineRight = this.style.getPaddingLineRight(this);
+      const contentSize = this.paddingArea.inlineSize - paddingLineLeft - paddingLineRight;
+      this.contentArea.inlineSize = contentSize;
+    }
   }
 
   getContainingBlockToContent() {
@@ -983,6 +1008,7 @@ export class BlockContainer extends Box {
       throw new Error(`Could not assign a containing block to box ${this.id}`);
     }
 
+    this.fillAreas();
     this.borderArea.setParent(this.containingBlock);
 
     ctx.lastBlockContainerArea = this.contentArea;
@@ -1045,8 +1071,8 @@ export class BlockContainer extends Box {
 
   postprocess() {
     this.borderArea.absolutify();
-    this.paddingArea.absolutify();
-    this.contentArea.absolutify();
+    if (this.paddingArea !== this.borderArea) this.paddingArea.absolutify();
+    if (this.contentArea !== this.paddingArea) this.contentArea.absolutify();
     for (const c of this.children) {
       c.postprocess();
     }

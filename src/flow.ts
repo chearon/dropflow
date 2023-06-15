@@ -1,7 +1,7 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, createComputedStyle, Style, EMPTY_STYLE, WritingMode} from './cascade.js';
-import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox, InlineMetrics, EmptyInlineMetrics} from './text.js';
+import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox, InlineMetrics, EmptyInlineMetrics, getFontMetrics} from './text.js';
 import {Box} from './box.js';
 
 import type {WhiteSpace} from './cascade.js';
@@ -1391,6 +1391,19 @@ export class Inline extends Box {
     this.end = 0;
   }
 
+  preprocess() {
+    this.metrics = getFontMetrics(this);
+    for (const child of this.children) {
+      if (child.isInline() || child.isBlockContainer()) child.preprocess();
+    }
+  }
+
+  postprocess() {
+    for (const child of this.children) {
+      if (child.isInline() || child.isBlockContainer()) child.postprocess();
+    }
+  }
+
   hasLineLeftGap(ifc: IfcInline) {
     return this.style.hasLineLeftGap(ifc);
   }
@@ -1655,18 +1668,17 @@ export class IfcInline extends Inline {
     }
   }
 
-  preprocess(enableLogging: boolean) {
+  preprocess(enableLogging = false) {
+    super.preprocess();
     if (this.hasText() || this.hasFloats()) {
       this.paragraph.destroy();
       this.paragraph = createParagraph(this, enableLogging);
       this.paragraph.shape();
     }
-
-    for (const box of this.floats) box.preprocess();
   }
 
   postprocess() {
-    for (const box of this.floats) box.postprocess();
+    super.postprocess();
     this.paragraph.destroy();
   }
 

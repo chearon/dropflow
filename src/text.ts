@@ -334,7 +334,7 @@ export type ShapingAttrs = {
 
 const hyphenCache = new Map<string, HbGlyphInfo[]>();
 
-function getFontMetrics(inline: Inline) {
+export function getFontMetrics(inline: Inline) {
   const strutCascade = getCascade(inline.style, 'en');
   const [strutFontMatch] = strutCascade.matches;
   return getMetrics(inline.style, strutFontMatch);
@@ -1486,7 +1486,6 @@ type IfcMark = {
   advance: number,
   trailingWs: number,
   itemIndex: number,
-  metrics: InlineMetrics,
   split: (this: IfcMark, mark: IfcMark) => void
 };
 
@@ -1549,7 +1548,6 @@ export class Paragraph {
   string: string;
   buffer: AllocatedUint16Array;
   enableLogging: boolean;
-  metrics: [InlineMetrics, number][];
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
@@ -1561,7 +1559,6 @@ export class Paragraph {
     this.string = ifc.text;
     this.buffer = buffer;
     this.enableLogging = enableLogging;
-    this.metrics = [];
     this.brokenItems = [];
     this.wholeItems = [];
     this.lineboxes = [];
@@ -1703,37 +1700,6 @@ export class Paragraph {
     return json;
   }
 
-  createItemMetrics(styles: [Style, number][]) {
-    const metrics:[InlineMetrics, number][] = [];
-    let lastItem = null;
-    let lastStyle = null;
-    let styleIndex = 0;
-    let itemIndex = 0;
-
-    while (styleIndex < styles.length && itemIndex < this.wholeItems.length) {
-      const [style, styleOffset] = styles[styleIndex];
-      const item = this.wholeItems[itemIndex];
-      const itemOffset = item.offset;
-      const nextStyleOffset = styleIndex + 1 < styles.length ? styles[styleIndex + 1][1] : this.length();
-      const nextItemOffset = this.wholeItems[itemIndex].end();
-
-      if (
-        item.match !== lastItem?.match ||
-        lastStyle?.fontSize !== style.fontSize ||
-        lastStyle.lineHeight !== style.lineHeight
-      ) {
-        metrics.push([getMetrics(style, item.match), Math.max(styleOffset, itemOffset)]);
-        lastItem = item;
-        lastStyle = style;
-      }
-
-      if (nextStyleOffset <= nextItemOffset) styleIndex += 1;
-      if (nextItemOffset <= nextStyleOffset) itemIndex += 1;
-    }
-
-    return metrics;
-  }
-
   getColors() {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const colors: [Color, number][] = [[this.ifc.style.color, 0]];
@@ -1758,20 +1724,14 @@ export class Paragraph {
   }
 
   shape() {
-    const inlineIterator = createPreorderInlineIterator(this.ifc);
     const items:ShapedItem[] = [];
-    const styles:[Style, number][] = [[this.ifc.style, 0]];
     const log = this.enableLogging ? (s: string) => logstr += s : null;
-    let inline = inlineIterator.next();
-    let inlineEnd = 0;
     let logstr = '';
     let lastItemIndex = 0;
 
     log?.(`Preprocess ${this.ifc.id}\n`);
     log?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
     log?.(`Full text: "${this.string}"\n`);
-
-    this.ifc.metrics = getFontMetrics(this.ifc);
 
     for (const {i: itemIndex, attrs} of this.itemize()) {
       const start = lastItemIndex;
@@ -1788,28 +1748,6 @@ export class Paragraph {
         const nextShapeWork: {offset: number, length: number}[] = [];
         const match = cascade.matches[i];
         const isLastMatch = i === cascade.matches.length - 1;
-
-        // note this won't budge for matches i=1, 2, ...
-        while (!inline.done && inlineEnd < itemIndex) {
-          const style = inline.value.style;
-
-          if (inline.value.isInline()) {
-            inline.value.metrics = getFontMetrics(inline.value);
-          }
-
-          if (inline.value.isRun()) {
-            const [, lastStyleOffset] = styles[styles.length - 1];
-            if (lastStyleOffset === inline.value.start) {
-              styles[styles.length - 1][0] = style;
-            } else {
-              styles.push([style, inline.value.start]);
-            }
-
-            inlineEnd += inline.value.text.length;
-          }
-
-          inline = inlineIterator.next();
-        }
 
         while (shapeWork.length) {
           const {offset, length} = shapeWork.pop()!;
@@ -1904,7 +1842,6 @@ export class Paragraph {
     }
 
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
-    this.metrics = this.createItemMetrics(styles);
 
     let j = 0;
     for (const i of this.analysis.hyphens) {
@@ -1927,13 +1864,11 @@ export class Paragraph {
     let emittedItemEnd = false;
     let itemMeasureState: MeasureState | undefined;
     let itemMark = 0;
-    // Metrics iterator
-    let metricsIndex = 0;
     // Other
     const end = this.length();
 
     const next = ():{done: true} | {done: false, value: IfcMark} => {
-      const mark:IfcMark = {
+      const mark: IfcMark = {
         position: Math.min(inlineMark, itemMark, breakMark),
         isBreak: false,
         isBreakForced: false,
@@ -1945,7 +1880,6 @@ export class Paragraph {
         advance: 0,
         trailingWs: 0,
         itemIndex,
-        metrics: this.metrics[metricsIndex]?.[0] || EmptyInlineMetrics,
         split
       };
 
@@ -2000,12 +1934,6 @@ export class Paragraph {
           mark.isBreakForced = true;
           inline = inlineIterator.next();
         }
-      }
-
-      // Metrics change at inline start or item start, are emitted with inlinePre
-      if (metricsIndex + 1 < this.metrics.length && this.metrics[metricsIndex + 1][1] === mark.position) {
-        metricsIndex += 1;
-        mark.metrics = this.metrics[metricsIndex][0];
       }
 
       if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
@@ -2083,6 +2011,7 @@ export class Paragraph {
     let floats = [];
     let unbreakableMark = 0;
     let blockOffset = bfc.cbBlockStart;
+    let itemInMark: ShapedItem | undefined; // TODO: merge with item?
 
     // Optimization: here we assume that (1) doTextLayout will never be called
     // on the same ifc with a 'normal' mode twice and (2) that when the mode is
@@ -2094,16 +2023,19 @@ export class Paragraph {
     }
 
     for (const mark of {[Symbol.iterator]: () => this.createMarkIterator()}) {
+      const parent = parents[parents.length - 1] || this.ifc;
       const item = this.brokenItems[mark.itemIndex];
+
+      if (mark.isItemEnd) itemInMark = undefined;
 
       if (mark.inlinePre) {
         candidates.height.pushInline(mark.inlinePre);
-        candidates.height.stampMetrics(mark.metrics);
+        if (itemInMark) candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, itemInMark.match));
         parents.push(mark.inlinePre);
       }
 
-      const wsCollapsible = isWsCollapsible((parents[parents.length - 1] || this.ifc).style.whiteSpace);
-      const nowrap = isNowrap((parents[parents.length - 1] || this.ifc).style.whiteSpace);
+      const wsCollapsible = isWsCollapsible(parent.style.whiteSpace);
+      const nowrap = isNowrap(parent.style.whiteSpace);
       const inkAdvance = mark.advance - mark.trailingWs;
 
       if (inkAdvance) candidates.width.addInk(inkAdvance);
@@ -2222,7 +2154,8 @@ export class Paragraph {
         item.inlines = parents.slice();
         for (const p of parents) p.nshaped += 1;
         candidates.push(item);
-        candidates.height.stampMetrics(mark.metrics);
+        itemInMark = item;
+        candidates.height.stampMetrics(getMetrics(parent.style, itemInMark.match));
       }
 
       // Handle a span that starts inside a shaped item

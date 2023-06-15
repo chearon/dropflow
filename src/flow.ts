@@ -1447,6 +1447,8 @@ export class Inline extends Box {
   }
 }
 
+const NON_ASCII_MASK = 0b1111_1111_1000_0000;
+
 export class IfcInline extends Inline {
   public children: InlineLevel[];
   public floats: BlockContainer[];
@@ -1455,11 +1457,13 @@ export class IfcInline extends Inline {
   public containingBlock: BlockContainerArea | null;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT     = 0b00001;
-  static ANALYSIS_WRAPS        = 0b00010
-  static ANALYSIS_WS_COLLAPSES = 0b00100;
-  static ANALYSIS_HAS_INLINES  = 0b01000;
-  static ANALYSIS_HAS_BREAKS   = 0b10000;
+  static ANALYSIS_HAS_TEXT        = 0b0000001;
+  static ANALYSIS_WRAPS           = 0b0000010
+  static ANALYSIS_WS_COLLAPSES    = 0b0000100;
+  static ANALYSIS_HAS_INLINES     = 0b0001000;
+  static ANALYSIS_HAS_BREAKS      = 0b0010000;
+  static ANALYSIS_IS_COMPLEX_TEXT = 0b0100000;
+  static ANALYSIS_HAS_SOFT_HYPHEN = 0b1000000;
 
   constructor(style: Style, children: InlineLevel[], attrs: number) {
     super(style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1581,6 +1585,15 @@ export class IfcInline extends Inline {
       const collapser = new Collapser(this.text, runs);
       collapser.collapse();
       this.text = collapser.buf;
+    }
+
+    for (let i = 0; i < this.text.length; i++) {
+      if (this.text.charCodeAt(i) & NON_ASCII_MASK) {
+        this.analysis |= IfcInline.ANALYSIS_IS_COMPLEX_TEXT;
+      }
+      if (this.text.charCodeAt(i) === 0xad) {
+        this.analysis |= IfcInline.ANALYSIS_HAS_SOFT_HYPHEN;
+      }
     }
 
     if (this.hasBreaks() || this.hasInlines() || this.children.length > 1) {
@@ -1714,6 +1727,14 @@ export class IfcInline extends Inline {
 
   hasBreaks() {
     return this.analysis & IfcInline.ANALYSIS_HAS_BREAKS;
+  }
+
+  isComplexText() {
+    return this.analysis & IfcInline.ANALYSIS_IS_COMPLEX_TEXT;
+  }
+
+  hasSoftHyphen() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_SOFT_HYPHEN;
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

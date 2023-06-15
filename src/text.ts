@@ -1526,23 +1526,6 @@ function createIfcBuffer(text: string) {
   return allocation;
 }
 
-const NON_ASCII_MASK = 0b1111_1111_1000_0000;
-
-class TextAnalysis {
-  isSimple: boolean;
-  hyphens: number[];
-
-  constructor(string: string) {
-    this.isSimple = true;
-    this.hyphens = [];
-
-    for (let i = 0; i < string.length; ++i) {
-      if (string.charCodeAt(i) & NON_ASCII_MASK) this.isSimple = false;
-      if (string[i] === '\u00ad' /* softHyphenCharacter */) this.hyphens.push(i);
-    }
-  }
-}
-
 export class Paragraph {
   ifc: IfcInline;
   string: string;
@@ -1551,7 +1534,6 @@ export class Paragraph {
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
-  analysis: TextAnalysis;
 
   constructor(ifc: IfcInline, buffer: AllocatedUint16Array) {
     this.ifc = ifc;
@@ -1561,7 +1543,6 @@ export class Paragraph {
     this.wholeItems = [];
     this.lineboxes = [];
     this.height = 0;
-    this.analysis = new TextAnalysis(ifc.text);
   }
 
   destroy() {
@@ -1630,7 +1611,7 @@ export class Paragraph {
       iStyle = this.ifc.itemizeInlines();
     }
 
-    if (!this.analysis.isSimple) {
+    if (this.ifc.isComplexText()) {
       iEmoji = itemizer.emoji(this.string);
       iBidi = itemizer.bidi(this.string, this.ifc.style.direction === 'ltr' ? 0 : 1);
       iScript = itemizer.script(this.string);
@@ -1841,10 +1822,14 @@ export class Paragraph {
 
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
 
-    let j = 0;
-    for (const i of this.analysis.hyphens) {
-      while (j + 1 < items.length && items[j + 1].offset <= i) ++j;
-      if (this.string[i] === '\u00ad' /* softHyphenCharacter */) loadHyphen(items[j]);
+    if (this.ifc.hasSoftHyphen()) {
+      let j = 0;
+      for (let i = 0; i < this.string.length; i++) {
+        if (this.string[i] === '\u00ad' /* softHyphenCharacter */) {
+          while (j + 1 < items.length && items[j + 1].offset <= i) j++;
+          loadHyphen(items[j]);
+        }
+      }
     }
   }
 

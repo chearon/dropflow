@@ -1065,7 +1065,7 @@ export class BlockContainer extends Box {
 
   preprocess() {
     for (const child of this.children) {
-      child.isIfcInline() ? child.preprocess(this.loggingEnabled()) : child.preprocess();
+      child.isIfcInline() ? child.preprocess() : child.preprocess();
     }
   }
 
@@ -1461,8 +1461,8 @@ export class IfcInline extends Inline {
   static ANALYSIS_HAS_INLINES  = 0b01000;
   static ANALYSIS_HAS_BREAKS   = 0b10000;
 
-  constructor(style: Style, children: InlineLevel[]) {
-    super(style, children, Box.ATTRS.isAnonymous);
+  constructor(style: Style, children: InlineLevel[], attrs: number) {
+    super(style, children, Box.ATTRS.isAnonymous | attrs);
 
     this.children = children;
     this.floats = [];
@@ -1483,6 +1483,10 @@ export class IfcInline extends Inline {
     }
 
     return this.containingBlock.writingMode;
+  }
+
+  loggingEnabled() {
+    return Boolean(this.attrs & Box.ATTRS.enableLogging);
   }
 
   // TODO this would be unnecessary (both removing collapsed runs but also
@@ -1668,11 +1672,11 @@ export class IfcInline extends Inline {
     }
   }
 
-  preprocess(enableLogging = false) {
+  preprocess() {
     super.preprocess();
     if (this.hasText() || this.hasFloats()) {
       this.paragraph.destroy();
-      this.paragraph = createParagraph(this, enableLogging);
+      this.paragraph = createParagraph(this);
       this.paragraph.shape();
     }
   }
@@ -1901,9 +1905,9 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
     if (inlines.length > 0) {
       const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);
       const anonStyle = createStyle(anonComputedStyle);
-      const ifc = new IfcInline(anonStyle, inlines);
       let attrs = Box.ATTRS.isAnonymous;
       if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
+      const ifc = new IfcInline(anonStyle, inlines, attrs);
       blocks.push(new BlockContainer(anonStyle, [ifc], attrs));
     }
 
@@ -1919,6 +1923,7 @@ function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
 
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement): BlockContainer {
+  const enableLogging = 'x-overflow-log' in el.attrs;
   let boxes: Box[] = [], hasInline = false, hasBlock = false, attrs = 0;
   
   // TODO: it's time to start moving some of this type of logic to HTMLElement.
@@ -1934,7 +1939,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     throw Error('Only flow layout supported');
   }
 
-  if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
+  if (enableLogging) attrs |= Box.ATTRS.enableLogging;
 
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
@@ -1971,7 +1976,8 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   if (hasInline && !hasBlock) {
     const anonComputedStyle = createComputedStyle(el.style, EMPTY_STYLE);
     const anonStyle = createStyle(anonComputedStyle);
-    const inline = new IfcInline(anonStyle, boxes as InlineLevel[]);
+    const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
+    const inline = new IfcInline(anonStyle, boxes as InlineLevel[], ifcAttrs);
     const box = new BlockContainer(style, [inline], attrs);
     el.boxes.push(box);
     return box;

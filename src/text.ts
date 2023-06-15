@@ -1547,18 +1547,16 @@ export class Paragraph {
   ifc: IfcInline;
   string: string;
   buffer: AllocatedUint16Array;
-  enableLogging: boolean;
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
   height: number;
   analysis: TextAnalysis;
 
-  constructor(ifc: IfcInline, buffer: AllocatedUint16Array, enableLogging: boolean) {
+  constructor(ifc: IfcInline, buffer: AllocatedUint16Array) {
     this.ifc = ifc;
     this.string = ifc.text;
     this.buffer = buffer;
-    this.enableLogging = enableLogging;
     this.brokenItems = [];
     this.wholeItems = [];
     this.lineboxes = [];
@@ -1725,7 +1723,7 @@ export class Paragraph {
 
   shape() {
     const items:ShapedItem[] = [];
-    const log = this.enableLogging ? (s: string) => logstr += s : null;
+    const log = this.ifc.loggingEnabled() ? (s: string) => logstr += s : null;
     let logstr = '';
     let lastItemIndex = 0;
 
@@ -2185,7 +2183,7 @@ export class Paragraph {
       fctx.consumeMisfits();
     }
 
-    if (this.enableLogging) {
+    if (this.ifc.loggingEnabled()) {
       console.log(`Paragraph ${this.ifc.id}:`);
       logParagraph(this.brokenItems);
       for (const [i, line] of lines.entries()) {
@@ -2210,9 +2208,9 @@ export class Paragraph {
   }
 }
 
-export function createParagraph(ifc: IfcInline, enableLogging: boolean) {
+export function createParagraph(ifc: IfcInline) {
   const buffer = createIfcBuffer(ifc.text)
-  return new Paragraph(ifc, buffer, enableLogging);
+  return new Paragraph(ifc, buffer);
 }
 
 const EmptyBuffer = {
@@ -2221,5 +2219,5 @@ const EmptyBuffer = {
 };
 
 export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, EmptyBuffer, false);
+  return new Paragraph(ifc, EmptyBuffer);
 }

@@ -840,16 +840,17 @@ describe('Lines', function () {
 
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get(1).children;
+    const colors = ifc.paragraph.getColors();
 
-    expect(ifc.paragraph.colors).to.deep.equal([
+    expect(colors).to.deep.equal([
       [{r: 0, g: 0, b: 0, a: 1}, 0],
       [{r: 255, g: 0, b: 0, a: 1}, 10],
       [{r: 0, g: 0, b: 0, a: 1}, 14]
     ]);
 
-    expect(ifc.paragraph.lineboxes[0].head.value.colorsStart()).to.deep.equal(0);
-    expect(ifc.paragraph.lineboxes[1].head.value.colorsStart()).to.deep.equal(0);
-    expect(ifc.paragraph.lineboxes[2].head.value.colorsStart()).to.deep.equal(1);
+    expect(ifc.paragraph.lineboxes[0].head.value.colorsStart(colors)).to.deep.equal(0);
+    expect(ifc.paragraph.lineboxes[1].head.value.colorsStart(colors)).to.deep.equal(0);
+    expect(ifc.paragraph.lineboxes[2].head.value.colorsStart(colors)).to.deep.equal(1);
   });
 
   it('takes strut into account', function () {

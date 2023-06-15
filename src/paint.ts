@@ -33,8 +33,7 @@ function getTextOffsetsForUncollapsedGlyphs(glyphs: HbGlyphInfo[]) {
   }
 }
 
-function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
-  const colors = item.paragraph.colors;
+function drawTextAt(item: ShapedItem, colors: [Color, number][], x: number, y: number, b: PaintBackend) {
   const match = item.match;
   const style = item.attrs.style;
   const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item.glyphs);
@@ -42,8 +41,8 @@ function drawTextAt(item: ShapedItem, x: number, y: number, b: PaintBackend) {
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  const end = item.attrs.level & 1 ? item.colorsStart() - 1 : item.colorsEnd();
-  let i = item.attrs.level & 1 ? item.colorsEnd() - 1 : item.colorsStart();
+  const end = item.attrs.level & 1 ? item.colorsStart(colors) - 1 : item.colorsEnd(colors);
+  let i = item.attrs.level & 1 ? item.colorsEnd(colors) - 1 : item.colorsStart(colors);
   let glyphIndex = 0;
   let tx = x;
 
@@ -173,11 +172,12 @@ function paintText(state: IfcPaintState, item: ShapedItem, b: PaintBackend) {
   const w = item.measure().advance;
   const atLeft = direction === 'ltr' ? state.left : state.left - w;
   const atTop = state.top;
+  const colors = state.colors;
 
   state.left = direction === 'ltr' ? state.left + w : state.left - w;
   state.bgcursor = state.left;
 
-  return () => drawTextAt(item, atLeft, atTop, b);
+  return () => drawTextAt(item, colors, atLeft, atTop, b);
 }
 
 type BackgroundBox = {
@@ -234,6 +234,7 @@ class ContiguousBoxBuilder {
 
 type IfcPaintState = {
   ifc: IfcInline,
+  colors: [Color, number][];
   left: number,
   top: number,
   bgcursor: number
@@ -244,8 +245,9 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
 
   const [ifc] = blockContainer.children;
   const direction = ifc.style.direction;
-  const counts:Map<Inline, number> = new Map();
-  const state:IfcPaintState = {ifc, left: 0, top: 0, bgcursor: 0};
+  const counts: Map<Inline, number> = new Map();
+  const colors = ifc.paragraph.getColors();
+  const state: IfcPaintState = {ifc, colors, left: 0, top: 0, bgcursor: 0};
   const contentBlockOffset = blockContainer.contentArea.y;
 
   for (const float of ifc.floats) {

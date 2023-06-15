@@ -861,18 +861,18 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   // used in shaping
-  colorsStart() {
-    const s = binarySearchTuple(this.paragraph.colors, this.offset);
-    if (s === this.paragraph.colors.length) return s - 1;
-    if (this.paragraph.colors[s][1] !== this.offset) return s - 1;
+  colorsStart(colors: [Color, number][]) {
+    const s = binarySearchTuple(colors, this.offset);
+    if (s === colors.length) return s - 1;
+    if (colors[s][1] !== this.offset) return s - 1;
     return s;
   }
 
   // used in shaping
-  colorsEnd() {
-    const s = binarySearchTuple(this.paragraph.colors, this.end() - 1);
-    if (s === this.paragraph.colors.length) return s;
-    if (this.paragraph.colors[s][1] !== this.end() - 1) return s;
+  colorsEnd(colors: [Color, number][]) {
+    const s = binarySearchTuple(colors, this.end() - 1);
+    if (s === colors.length) return s;
+    if (colors[s][1] !== this.end() - 1) return s;
     return s + 1;
   }
 
@@ -1549,7 +1549,6 @@ export class Paragraph {
   string: string;
   buffer: AllocatedUint16Array;
   enableLogging: boolean;
-  colors: [Color, number][];
   metrics: [InlineMetrics, number][];
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
@@ -1562,7 +1561,6 @@ export class Paragraph {
     this.string = ifc.text;
     this.buffer = buffer;
     this.enableLogging = enableLogging;
-    this.colors = [];
     this.metrics = [];
     this.brokenItems = [];
     this.wholeItems = [];
@@ -1736,10 +1734,32 @@ export class Paragraph {
     return metrics;
   }
 
+  getColors() {
+    const inlineIterator = createPreorderInlineIterator(this.ifc);
+    const colors: [Color, number][] = [[this.ifc.style.color, 0]];
+    let inline = inlineIterator.next();
+
+    while (!inline.done) {
+      const [, lastColorOffset] = colors[colors.length - 1];
+      if (inline.value.isRun()) {
+        const style = inline.value.style;
+
+        if (lastColorOffset === inline.value.start) {
+          colors[colors.length - 1][0] = style.color;
+        } else {
+          colors.push([style.color, inline.value.start]);
+        }
+      }
+
+      inline = inlineIterator.next();
+    }
+
+    return colors;
+  }
+
   shape() {
     const inlineIterator = createPreorderInlineIterator(this.ifc);
     const items:ShapedItem[] = [];
-    const colors:[Color, number][] = [[this.ifc.style.color, 0]];
     const styles:[Style, number][] = [[this.ifc.style, 0]];
     const log = this.enableLogging ? (s: string) => logstr += s : null;
     let inline = inlineIterator.next();
@@ -1778,13 +1798,6 @@ export class Paragraph {
           }
 
           if (inline.value.isRun()) {
-            const [, lastColorOffset] = colors[colors.length - 1];
-            if (lastColorOffset === inline.value.start) {
-              colors[colors.length - 1][0] = style.color;
-            } else {
-              colors.push([style.color, inline.value.start]);
-            }
-
             const [, lastStyleOffset] = styles[styles.length - 1];
             if (lastStyleOffset === inline.value.start) {
               styles[styles.length - 1][0] = style;
@@ -1890,7 +1903,6 @@ export class Paragraph {
       console.log();
     }
 
-    this.colors = colors;
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
     this.metrics = this.createItemMetrics(styles);
 

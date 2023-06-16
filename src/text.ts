@@ -1164,6 +1164,8 @@ class LineCandidates extends LineItemLinkedList {
   }
 };
 
+const EMPTY_MAP = Object.freeze(new Map());
+
 class LineHeightTracker {
   ifc: IfcInline;
   stack: Inline[];
@@ -1179,7 +1181,7 @@ class LineHeightTracker {
     this.ifc = ifc;
     this.stack = [];
     this.contextStack = [ctx];
-    this.contextRoots = new Map([[ifc, ctx]]);
+    this.contextRoots = EMPTY_MAP;
     this.markedContextRoots = [];
     this.ascender = ctx.ascender;
     this.descender = ctx.descender;
@@ -1199,6 +1201,7 @@ class LineHeightTracker {
     this.stack.push(inline);
 
     if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
+      if (this.contextRoots === EMPTY_MAP) this.contextRoots = new Map();
       ctx = new AlignmentContext(inline.metrics);
       this.contextStack.push(ctx);
       this.contextRoots.set(inline, ctx);
@@ -1225,12 +1228,20 @@ class LineHeightTracker {
   }
 
   concat(height: LineHeightTracker) {
-    for (const [inline, ctx] of height.contextRoots) {
-      const thisCtx = this.contextRoots.get(inline);
-      if (thisCtx) {
-        thisCtx.extend(ctx);
-      } else {
-        this.contextRoots.set(inline, new AlignmentContext(ctx));
+    const thisCtx = this.contextStack[0];
+    const otherCtx = height.contextStack[0];
+
+    thisCtx.extend(otherCtx);
+
+    if (height.contextRoots.size) {
+      for (const [inline, ctx] of height.contextRoots) {
+        const thisCtx = this.contextRoots.get(inline);
+        if (thisCtx) {
+          thisCtx.extend(ctx);
+        } else {
+          if (this.contextRoots === EMPTY_MAP) this.contextRoots = new Map();
+          this.contextRoots.set(inline, new AlignmentContext(ctx));
+        }
       }
     }
 
@@ -1239,9 +1250,9 @@ class LineHeightTracker {
   }
 
   align(): {ascender: number, descender: number} {
-    const rootCtx = this.contextRoots.get(this.ifc)!;
+    const rootCtx = this.contextStack[0];
 
-    if (this.contextRoots.size === 1) return rootCtx;
+    if (this.contextRoots.size === 0) return rootCtx;
 
     const lineHeight = this.total();
     let bottomsHeight = rootCtx.ascender + rootCtx.descender;
@@ -1278,7 +1289,7 @@ class LineHeightTracker {
     const ctx = new AlignmentContext(this.ifc.metrics);
     this.stack = [];
     this.contextStack = [ctx];
-    this.contextRoots = new Map([[this.ifc, ctx]]);
+    this.contextRoots = EMPTY_MAP;
     this.markedContextRoots = [];
     this.ascender = ctx.ascender;
     this.descender = ctx.descender;
@@ -1345,7 +1356,7 @@ export class Linebox extends LineItemLinkedList {
     this.blockOffset = 0;
     this.inlineOffset = 0;
     this.width = 0;
-    this.contextRoots = new Map();
+    this.contextRoots = EMPTY_MAP;
   }
 
   addCandidates(candidates: LineCandidates, endOffset: number) {
@@ -1455,7 +1466,7 @@ export class Linebox extends LineItemLinkedList {
     const w = width.trimmed();
     const {ascender, descender} = height.align();
     this.width = w;
-    this.contextRoots = new Map(height.contextRoots);
+    if (height.contextRoots.size) this.contextRoots = new Map(height.contextRoots);
     this.blockOffset = vacancy.blockOffset;
     this.trimStart();
     this.trimEnd();

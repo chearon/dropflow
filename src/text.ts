@@ -1326,7 +1326,6 @@ class LineHeightTracker {
 }
 
 export class Linebox extends LineItemLinkedList {
-  dir: 'ltr' | 'rtl';
   startOffset: number;
   paragraph: Paragraph;
   ascender: number;
@@ -1337,9 +1336,8 @@ export class Linebox extends LineItemLinkedList {
   width: number;
   contextRoots: Map<Inline, AlignmentContext>;
 
-  constructor(dir: Linebox['dir'], start: number, paragraph: Paragraph) {
+  constructor(start: number, paragraph: Paragraph) {
     super();
-    this.dir = dir;
     this.startOffset = this.endOffset = start;
     this.paragraph = paragraph;
     this.ascender = 0;
@@ -1453,6 +1451,7 @@ export class Linebox extends LineItemLinkedList {
   }
 
   postprocess(width: LineWidthTracker, height: LineHeightTracker, vacancy: IfcVacancy, textAlign: TextAlign) {
+    const dir = this.paragraph.ifc.style.direction;
     const w = width.trimmed();
     const {ascender, descender} = height.align();
     this.width = w;
@@ -1463,9 +1462,9 @@ export class Linebox extends LineItemLinkedList {
     this.reorder();
     this.ascender = ascender;
     this.descender = descender;
-    this.inlineOffset = this.dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
+    this.inlineOffset = dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
     if (w < vacancy.inlineSize) {
-      if (textAlign === 'right' && this.dir === 'ltr' || textAlign === 'left' && this.dir === 'rtl') {
+      if (textAlign === 'right' && dir === 'ltr' || textAlign === 'left' && dir === 'rtl') {
         this.inlineOffset += vacancy.inlineSize - w;
       } else if (textAlign === 'center') {
         this.inlineOffset += (vacancy.inlineSize - w) / 2;
@@ -2066,7 +2065,7 @@ export class Paragraph {
 
       if (mark.isBreak && (lineHasInk && !nowrap || mark.isBreakForced || mark.position === this.length())) {
         if (!line) {
-          lines.push(line = new Linebox(basedir, 0, this));
+          lines.push(line = new Linebox(0, this));
           fctx.preTextContent();
         }
 
@@ -2082,7 +2081,7 @@ export class Paragraph {
         if (line.hasText() && width.forWord() + candidates.width.asWord() > vacancy.inlineSize) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
-          lines.push(line = new Linebox(basedir, lastBreakMark.position, this));
+          lines.push(line = new Linebox(lastBreakMark.position, this));
           const lastBreakMarkItem = this.brokenItems[lastBreakMark.itemIndex];
           if (
             lastBreakMarkItem &&
@@ -2129,7 +2128,7 @@ export class Paragraph {
           blockOffset += line.height();
           width.reset();
           height.reset();
-          lines.push(line = new Linebox(basedir, mark.position, this));
+          lines.push(line = new Linebox(mark.position, this));
         }
       }
 

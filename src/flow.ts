@@ -74,6 +74,8 @@ class MarginCollapseCollection {
   }
 }
 
+const EMPTY_MAP = new Map();
+
 export class BlockFormattingContext {
   public inlineSize: number;
   public fctx: FloatContext;
@@ -104,7 +106,7 @@ export class BlockFormattingContext {
     this.last = null;
     this.level = 0;
     this.margin = {level: 0, collection: new MarginCollapseCollection()};
-    this.hypotheticals = new Map();
+    this.hypotheticals = EMPTY_MAP;
   }
 
   boxStart(box: BlockContainer, ctx: LayoutContext) {
@@ -203,6 +205,7 @@ export class BlockFormattingContext {
 
     // Collapsing through - need to find the hypothetical position
     if (this.last === 'start') {
+      if (this.hypotheticals === EMPTY_MAP) this.hypotheticals = new Map();
       this.hypotheticals.set(box, this.margin.collection.get());
     }
 

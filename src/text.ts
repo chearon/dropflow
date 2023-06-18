@@ -641,7 +641,6 @@ export class ShapedItem implements IfcRenderItem {
   offset: number;
   length: number;
   attrs: ShapingAttrs;
-  needsReshape: boolean;
   inlines: Inline[];
 
   constructor(
@@ -658,7 +657,6 @@ export class ShapedItem implements IfcRenderItem {
     this.offset = offset;
     this.length = length;
     this.attrs = attrs;
-    this.needsReshape = false;
     this.inlines = [];
   }
 
@@ -691,19 +689,16 @@ export class ShapedItem implements IfcRenderItem {
     );
 
     this.length = offset;
-    this.needsReshape = needsReshape;
     this.inlines = inlines.filter(inline => {
       return inline.start < this.end() && inline.end > this.offset;
     });
-
-    right.needsReshape = needsReshape;
     right.inlines = inlines.filter(inline => {
       return inline.start < right.end() && inline.end > right.offset;
     });
 
     for (const i of right.inlines) i.nshaped += 1;
 
-    return right;
+    return {needsReshape, right};
   }
 
   reshape(walkBackwards: boolean) {
@@ -1566,9 +1561,13 @@ export class Paragraph {
 
   split(itemIndex: number, offset: number) {
     const left = this.brokenItems[itemIndex];
-    const right = left.split(offset - left.offset);
-    if (left.needsReshape) left.reshape(true);
-    if (right.needsReshape) right.reshape(false);
+    const {needsReshape, right} = left.split(offset - left.offset);
+
+    if (needsReshape) {
+      left.reshape(true);
+      right.reshape(false);
+    }
+
     this.brokenItems.splice(itemIndex + 1, 0, right);
     if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
       const glyphs = getHyphen(left);

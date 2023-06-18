@@ -1454,25 +1454,24 @@ const NON_ASCII_MASK = 0b1111_1111_1000_0000;
 
 export class IfcInline extends Inline {
   public children: InlineLevel[];
-  public floats: BlockContainer[];
   public text: string;
   public paragraph: Paragraph;
   public containingBlock: BlockContainerArea | null;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT        = 0b0000001;
-  static ANALYSIS_WRAPS           = 0b0000010
-  static ANALYSIS_WS_COLLAPSES    = 0b0000100;
-  static ANALYSIS_HAS_INLINES     = 0b0001000;
-  static ANALYSIS_HAS_BREAKS      = 0b0010000;
-  static ANALYSIS_IS_COMPLEX_TEXT = 0b0100000;
-  static ANALYSIS_HAS_SOFT_HYPHEN = 0b1000000;
+  static ANALYSIS_HAS_TEXT        = 0b00000001;
+  static ANALYSIS_WRAPS           = 0b00000010
+  static ANALYSIS_WS_COLLAPSES    = 0b00000100;
+  static ANALYSIS_HAS_INLINES     = 0b00001000;
+  static ANALYSIS_HAS_BREAKS      = 0b00010000;
+  static ANALYSIS_IS_COMPLEX_TEXT = 0b00100000;
+  static ANALYSIS_HAS_SOFT_HYPHEN = 0b01000000;
+  static ANALYSIS_HAS_FLOATS      = 0b10000000;
 
   constructor(style: Style, children: InlineLevel[], attrs: number) {
     super(style, children, Box.ATTRS.isAnonymous | attrs);
 
     this.children = children;
-    this.floats = [];
     this.text = '';
     this.analysis = 0;
     this.prepare();
@@ -1575,7 +1574,7 @@ export class IfcInline extends Inline {
         this.analysis |= IfcInline.ANALYSIS_HAS_BREAKS;
         // ok
       } else if (box.isFloat()) {
-        this.floats.push(box);
+        this.analysis |= IfcInline.ANALYSIS_HAS_FLOATS;
       } else {
         // TODO: this is e.g. a block container. store it somewhere for future
         // layout here
@@ -1721,7 +1720,7 @@ export class IfcInline extends Inline {
   }
 
   hasFloats() {
-    return this.floats.length > 0;
+    return this.analysis & IfcInline.ANALYSIS_HAS_FLOATS;
   }
 
   hasInlines() {

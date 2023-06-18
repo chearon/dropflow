@@ -1,4 +1,4 @@
-import {BlockContainer, IfcInline, Inline} from './flow.js';
+import {BlockContainer, IfcInline, Inline, createInlineIterator} from './flow.js';
 import {ShapedItem, baselineStep} from './text.js';
 import {Color} from './cascade.js';
 
@@ -250,8 +250,11 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
   const state: IfcPaintState = {ifc, colors, left: 0, top: 0, bgcursor: 0};
   const contentBlockOffset = blockContainer.contentArea.y;
 
-  for (const float of ifc.floats) {
-    paintBlockContainer(float, b);
+  if (ifc.hasFloats()) {
+    const iterator = createInlineIterator(ifc);
+    for (let item = iterator.next(); !item.done; item = iterator.next()) {
+      if (item.value.state === 'float') paintBlockContainer(item.value.item, b);
+    }
   }
 
   for (const linebox of ifc.paragraph.lineboxes) {

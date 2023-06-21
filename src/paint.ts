@@ -1,9 +1,8 @@
 import {BlockContainer, IfcInline, Inline, createInlineIterator} from './flow.js';
-import {ShapedItem, baselineStep} from './text.js';
+import {ShapedItem, baselineStep, G_CL, G_AX, G_SZ} from './text.js';
 import {Color} from './cascade.js';
 
 import type {FaceMatch} from './font.js';
-import type {HbGlyphInfo} from 'harfbuzzjs';
 
 export interface PaintBackend {
   fillColor: Color;
@@ -17,16 +16,16 @@ export interface PaintBackend {
   rect(x: number, y: number, w: number, h: number): void;
 }
 
-function getTextOffsetsForUncollapsedGlyphs(glyphs: HbGlyphInfo[]) {
+function getTextOffsetsForUncollapsedGlyphs(glyphs: Int32Array) {
   let glyphStart = 0;
-  let glyphEnd = glyphs.length - 1;
+  let glyphEnd = glyphs.length - G_SZ;
 
-  while (glyphStart < glyphs.length && glyphs[glyphStart].ax === 0) glyphStart += 1;
-  while (glyphEnd >= 0 && glyphs[glyphEnd].ax === 0) glyphEnd -= 1;
+  while (glyphStart < glyphs.length && glyphs[glyphStart + G_AX] === 0) glyphStart += G_SZ;
+  while (glyphEnd >= 0 && glyphs[glyphEnd + G_AX] === 0) glyphEnd -= G_SZ;
 
   if (glyphs[glyphStart] && glyphs[glyphEnd]) {
-    const textStart = Math.min(glyphs[glyphStart].cl, glyphs[glyphEnd].cl);
-    const textEnd = Math.max(glyphs[glyphStart].cl, glyphs[glyphEnd].cl) + 1;
+    const textStart = Math.min(glyphs[glyphStart + G_CL], glyphs[glyphEnd + G_CL]);
+    const textEnd = Math.max(glyphs[glyphStart + G_CL], glyphs[glyphEnd + G_CL]) + 1;
     return {textStart, textEnd};
   } else {
     return {textStart: 0, textEnd: 0};
@@ -57,14 +56,14 @@ function drawTextAt(item: ShapedItem, colors: [Color, number][], x: number, y: n
     let ax = 0;
 
     if (item.attrs.level & 1) {
-      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex].cl >= start) {
-        ax += item.glyphs[glyphIndex].ax;
-        glyphIndex += 1;
+      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] >= start) {
+        ax += item.glyphs[glyphIndex + G_AX];
+        glyphIndex += G_SZ;
       }
     } else {
-      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex].cl < end) {
-        ax += item.glyphs[glyphIndex].ax;
-        glyphIndex += 1;
+      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] < end) {
+        ax += item.glyphs[glyphIndex + G_AX];
+        glyphIndex += G_SZ;
       }
     }
 

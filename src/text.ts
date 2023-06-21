@@ -8,7 +8,7 @@ import {itemizer, hb} from './deps.js';
 import {getCascade} from './font.js';
 
 import type {FaceMatch} from './font.js';
-import type {HbFace, HbFont, HbGlyphInfo, AllocatedUint16Array} from 'harfbuzzjs';
+import type {HbBuffer, HbFace, HbFont, AllocatedUint16Array} from 'harfbuzzjs';
 
 let debug = true;
 
@@ -332,12 +332,39 @@ export type ShapingAttrs = {
   style: Style
 };
 
-const hyphenCache = new Map<string, HbGlyphInfo[]>();
+const hyphenCache = new Map<string, Int32Array>();
 
 export function getFontMetrics(inline: Inline) {
   const strutCascade = getCascade(inline.style, 'en');
   const [strutFontMatch] = strutCascade.matches;
   return getMetrics(inline.style, strutFontMatch);
+}
+
+export const G_ID = 0;
+export const G_CL = 1;
+export const G_AX = 2;
+export const G_AY = 3;
+export const G_DX = 4;
+export const G_DY = 5;
+export const G_FL = 6;
+export const G_SZ = 7;
+
+function extractHbBufferGlyphs(buf: HbBuffer) {
+  const bufferLength = buf.getLength();
+  const infos = buf.getGlyphInfos();
+  const positions = buf.getGlyphPositions();
+  const i32array = new Int32Array(bufferLength * 7);
+  const u32array = new Uint32Array(i32array.buffer);
+  for (let i = 0; i < bufferLength; i++) {
+    u32array[i * 7 + G_ID] = infos[i * 5 + 0];
+    u32array[i * 7 + G_CL] = infos[i * 5 + 2];
+    i32array[i * 7 + G_AX] = positions[i * 5 + 0];
+    i32array[i * 7 + G_AY] = positions[i * 5 + 1];
+    i32array[i * 7 + G_DX] = positions[i * 5 + 2];
+    i32array[i * 7 + G_DY] = positions[i * 5 + 3];
+    i32array[i * 7 + G_FL] = buf.getGlyphFlags(i);
+  }
+  return i32array;
 }
 
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
@@ -350,7 +377,7 @@ function loadHyphen(item: ShapedItem) {
   const key = createHyphenCacheKey(item);
 
   if (!hyphenCache.has(key)) {
-    hyphenCache.set(key, []);
+    hyphenCache.set(key, new Int32Array(0));
 
     for (const hyphen of HyphenCodepointsToTry) {
       const buf = hb.createBuffer();
@@ -360,9 +387,9 @@ function loadHyphen(item: ShapedItem) {
       buf.setDirection('ltr');
       buf.setLanguage('en');
       hb.shape(item.match.font, buf);
-      const glyphs = buf.json();
+      const glyphs = extractHbBufferGlyphs(buf);
       buf.destroy();
-      if (glyphs[0]?.g) {
+      if (glyphs[G_ID]) {
         hyphenCache.set(key, glyphs);
         break;
       }
@@ -458,16 +485,16 @@ export function getMetrics(style: Style, match: FaceMatch): InlineMetrics {
   return metrics;
 }
 
-export function nextCluster(glyphs: HbGlyphInfo[], index: number) {
-  const cl = glyphs[index].cl;
-  while (++index < glyphs.length && cl == glyphs[index].cl)
+export function nextCluster(glyphs: Int32Array, index: number) {
+  const cl = glyphs[index + G_CL];
+  while ((index += G_SZ) < glyphs.length && cl == glyphs[index + G_CL])
     ;
   return index;
 }
 
-export function prevCluster(glyphs: HbGlyphInfo[], index: number) {
-  const cl = glyphs[index].cl;
-  while (--index >= 0 && cl == glyphs[index].cl)
+export function prevCluster(glyphs: Int32Array, index: number) {
+  const cl = glyphs[index + G_CL];
+  while ((index -= G_SZ) >= 0 && cl == glyphs[index + G_CL])
     ;
   return index;
 }
@@ -477,19 +504,19 @@ type GlyphIteratorState = {
   clusterStart: number;
   clusterEnd: number;
   needsReshape: boolean;
-  glyphs: HbGlyphInfo[];
+  glyphs: Int32Array;
   level: number;
   textEnd: number;
   done: boolean;
 };
 
 function createGlyphIteratorState(
-  glyphs: HbGlyphInfo[],
+  glyphs: Int32Array,
   level: number,
   textStart: number,
   textEnd: number
 ) {
-  const glyphIndex = level & 1 ? glyphs.length - 1 : 0;
+  const glyphIndex = level & 1 ? glyphs.length - G_SZ : 0;
 
   return {
     glyphIndex,
@@ -514,15 +541,15 @@ function nextGlyph(state: GlyphIteratorState) {
 
     state.clusterStart = state.clusterEnd;
 
-    while (state.glyphIndex >= 0 && state.clusterEnd === state.glyphs[state.glyphIndex].cl) {
-      if (state.glyphs[state.glyphIndex].g === 0) state.needsReshape = true;
-      state.glyphIndex -= 1;
+    while (state.glyphIndex >= 0 && state.clusterEnd === state.glyphs[state.glyphIndex + G_CL]) {
+      if (state.glyphs[state.glyphIndex + G_ID] === 0) state.needsReshape = true;
+      state.glyphIndex -= G_SZ;
     }
 
     if (state.glyphIndex < 0) {
       state.clusterEnd = state.textEnd;
     } else {
-      state.clusterEnd = state.glyphs[state.glyphIndex].cl;
+      state.clusterEnd = state.glyphs[state.glyphIndex + G_CL];
     }
   } else {
     if (state.glyphIndex === state.glyphs.length) {
@@ -532,15 +559,15 @@ function nextGlyph(state: GlyphIteratorState) {
 
     state.clusterStart = state.clusterEnd;
 
-    while (state.glyphIndex < state.glyphs.length && state.clusterEnd === state.glyphs[state.glyphIndex].cl) {
-      if (state.glyphs[state.glyphIndex].g === 0) state.needsReshape = true;
-      state.glyphIndex += 1;
+    while (state.glyphIndex < state.glyphs.length && state.clusterEnd === state.glyphs[state.glyphIndex + G_CL]) {
+      if (state.glyphs[state.glyphIndex + G_ID] === 0) state.needsReshape = true;
+      state.glyphIndex += G_SZ;
     }
 
     if (state.glyphIndex === state.glyphs.length) {
       state.clusterEnd = state.textEnd;
     } else {
-      state.clusterEnd = state.glyphs[state.glyphIndex].cl;
+      state.clusterEnd = state.glyphs[state.glyphIndex + G_CL];
     }
   }
 }
@@ -548,17 +575,15 @@ function nextGlyph(state: GlyphIteratorState) {
 const reset = '\x1b[0m';
 const bold = '\x1b[1m';
 
-function logGlyphs(glyphs: HbGlyphInfo[]) {
+function logGlyphs(glyphs: Int32Array) {
   let s = '';
-  for (let i = 0; i < glyphs.length; ++i) {
-    const g = glyphs[i];
-    const pg = glyphs[i - 1];
-    const ng = glyphs[i + 1];
-    const isp = pg && pg.cl === g.cl;
-    const isn = ng && ng.cl === g.cl;
+  for (let i = 0; i < glyphs.length; i += G_SZ) {
+    const cl = glyphs[i + G_CL];
+    const isp = i - G_SZ >= 0 && glyphs[i - G_SZ + G_CL] === cl;
+    const isn = i + G_SZ < glyphs.length && glyphs[i + G_SZ + G_CL] === cl;
     if (isp || isn) s += bold;
     if (isn && !isp) s += '(';
-    s += g.g;
+    s += glyphs[i + G_ID];
     if (!isn && isp) s += ')';
     s += ' ';
     if (isp || isn) s += reset;
@@ -566,20 +591,22 @@ function logGlyphs(glyphs: HbGlyphInfo[]) {
   return s;
 }
 
-function shiftGlyphs(glyphs: HbGlyphInfo[], offset: number, dir: 'ltr' | 'rtl') {
-  const rmRange = dir === 'ltr' ? [glyphs.length, glyphs.length] : [0, 0];
-
-  for (let i = 0; i < glyphs.length; ++i) {
-    if (glyphs[i].cl >= offset) {
-      if (dir === 'ltr') {
-        if (i < rmRange[0]) rmRange[0] = i;
-      } else {
-        rmRange[1] = i + 1;
+function shiftGlyphs(glyphs: Int32Array, offset: number, dir: 'ltr' | 'rtl') {
+  if (dir === 'ltr') {
+    for (let i = 0; i < glyphs.length; i += G_SZ) {
+      if (glyphs[i + G_CL] >= offset) {
+        return {leftGlyphs: glyphs.subarray(0, i), rightGlyphs: glyphs.subarray(i)};
+      }
+    }
+  } else {
+    for (let i = glyphs.length - G_SZ; i >= 0; i -= G_SZ) {
+      if (glyphs[i + G_CL] >= offset) {
+        return {leftGlyphs: glyphs.subarray(i + G_SZ), rightGlyphs: glyphs.subarray(0, i + G_SZ)};
       }
     }
   }
 
-  return glyphs.splice(rmRange[0], rmRange[1] - rmRange[0]);
+  return {leftGlyphs: glyphs, rightGlyphs: new Int32Array(0)};
 }
 
 interface IfcRenderItem {
@@ -637,7 +664,7 @@ export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
 export class ShapedItem implements IfcRenderItem {
   paragraph: Paragraph;
   match: FaceMatch;
-  glyphs: HbGlyphInfo[];
+  glyphs: Int32Array;
   offset: number;
   length: number;
   attrs: ShapingAttrs;
@@ -646,7 +673,7 @@ export class ShapedItem implements IfcRenderItem {
   constructor(
     paragraph: Paragraph,
     match: FaceMatch,
-    glyphs: HbGlyphInfo[],
+    glyphs: Int32Array,
     offset: number,
     length: number,
     attrs: ShapingAttrs
@@ -664,7 +691,7 @@ export class ShapedItem implements IfcRenderItem {
     return new ShapedItem(
       this.paragraph,
       this.match,
-      this.glyphs.map(glyph => ({...glyph})),
+      this.glyphs.slice(),
       this.offset,
       this.length,
       this.attrs
@@ -673,21 +700,21 @@ export class ShapedItem implements IfcRenderItem {
 
   split(offset: number) {
     const dir = this.attrs.level & 1 ? 'rtl' : 'ltr';
-    const glyphs = shiftGlyphs(this.glyphs, this.offset + offset, dir);
-    const firstGlyph = dir === 'ltr' ? glyphs[0] : glyphs.at(-1)!;
-    const needsReshape = Boolean(firstGlyph.flags & 1)
-      || firstGlyph.cl !== this.offset + offset // cluster break
+    const {leftGlyphs, rightGlyphs} = shiftGlyphs(this.glyphs, this.offset + offset, dir);
+    const needsReshape = Boolean(rightGlyphs[G_FL] & 1)
+      || rightGlyphs[G_CL] !== this.offset + offset // cluster break
       || this.paragraph.isInsideGraphemeBoundary(this.offset + offset);
     const inlines = this.inlines;
     const right = new ShapedItem(
       this.paragraph,
       this.match,
-      glyphs,
+      rightGlyphs,
       this.offset + offset,
       this.length - offset,
       this.attrs
     );
 
+    this.glyphs = leftGlyphs;
     this.length = offset;
     this.inlines = inlines.filter(inline => {
       return inline.start < this.end() && inline.end > this.offset;
@@ -703,15 +730,17 @@ export class ShapedItem implements IfcRenderItem {
 
   reshape(walkBackwards: boolean) {
     if (walkBackwards && !(this.attrs.level & 1) || !walkBackwards && this.attrs.level & 1) {
-      let i = this.glyphs.length - 1;
+      let i = this.glyphs.length - G_SZ;
       while ((i = prevCluster(this.glyphs, i)) >= 0) {
-        if (!(this.glyphs[i].flags & 2) && !(this.glyphs[i + 1].flags & 2)) {
-          const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + 1].cl;
-          const length = this.attrs.level & 1 ? this.glyphs[i].cl - offset : this.end() - offset;
+        if (!(this.glyphs[i + G_FL] & 2) && !(this.glyphs[i + G_SZ + G_FL] & 2)) {
+          const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + G_SZ + G_CL];
+          const length = this.attrs.level & 1 ? this.glyphs[i + G_CL] - offset : this.end() - offset;
           const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
-          if (!(newGlyphs[0].flags & 2)) {
-            this.glyphs.splice(i + 1);
-            this.glyphs = this.glyphs.concat(newGlyphs);
+          if (!(newGlyphs[G_FL] & 2)) {
+            const glyphs = new Int32Array(i + newGlyphs.length);
+            glyphs.set(this.glyphs.subarray(0, i), 0);
+            glyphs.set(newGlyphs, i);
+            this.glyphs = glyphs;
             return;
           }
         }
@@ -719,18 +748,21 @@ export class ShapedItem implements IfcRenderItem {
     } else {
       let i = 0;
       while ((i = nextCluster(this.glyphs, i)) < this.glyphs.length) {
-        if (!(this.glyphs[i - 1].flags & 2) && !(this.glyphs[i].flags & 2)) {
-          const offset = this.attrs.level & 1 ? this.glyphs[i].cl : this.offset;
-          const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i].cl - this.offset;
+        if (!(this.glyphs[i - G_SZ + G_FL] & 2) && !(this.glyphs[i + G_FL] & 2)) {
+          const offset = this.attrs.level & 1 ? this.glyphs[i + G_CL] : this.offset;
+          const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i + G_CL] - this.offset;
           const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
-          if (!(newGlyphs.at(-1)!.flags & 2)) {
-            this.glyphs.splice(0, i);
-            this.glyphs = newGlyphs.concat(this.glyphs);
+          if (!(newGlyphs.at(-G_SZ + G_FL)! & 2)) {
+            const glyphs = new Int32Array(this.glyphs.length - i + newGlyphs.length);
+            glyphs.set(newGlyphs, 0);
+            glyphs.set(this.glyphs.subarray(i), newGlyphs.length);
+            this.glyphs = glyphs;
             return;
           }
         }
       }
     }
+
     this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.match.font, this.attrs);
   }
 
@@ -738,9 +770,9 @@ export class ShapedItem implements IfcRenderItem {
     let glyphIndex;
 
     if (this.attrs.level & 1) {
-      glyphIndex = direction === 1 ? this.glyphs.length - 1 : 0;
+      glyphIndex = direction === 1 ? this.glyphs.length - G_SZ : 0;
     } else {
-      glyphIndex = direction === 1 ? 0 : this.glyphs.length - 1;
+      glyphIndex = direction === 1 ? 0 : this.glyphs.length - G_SZ;
     }
 
     return {
@@ -755,22 +787,22 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   nextCluster(direction: 1 | -1, state: MeasureState) {
-    const inc = this.attrs.level & 1 ? direction === 1 ? -1 : 1 : direction === 1 ? 1 : -1;
+    const inc = this.attrs.level & 1 ? direction === 1 ? -G_SZ : G_SZ : direction === 1 ? G_SZ : -G_SZ;
     const g = this.glyphs;
     let glyphIndex = state.glyphIndex;
 
-    if (g[glyphIndex]) {
-      const cl = g[glyphIndex].cl;
+    if (glyphIndex < g.length) {
+      const cl = g[glyphIndex + G_CL];
       let w = 0;
 
-      while (g[glyphIndex] && cl == g[glyphIndex].cl) {
-        w += g[glyphIndex].ax;
+      while (glyphIndex < g.length && cl == g[glyphIndex + G_CL]) {
+        w += g[glyphIndex + G_AX];
         glyphIndex += inc;
       }
 
       if (direction === 1) {
         state.clusterStart = state.clusterEnd;
-        state.clusterEnd = g[glyphIndex] ? g[glyphIndex].cl : this.end();
+        state.clusterEnd = glyphIndex < g.length ? g[glyphIndex + G_CL] : this.end();
       } else {
         state.clusterEnd = state.clusterStart;
         state.clusterStart = cl;
@@ -846,7 +878,7 @@ export class ShapedItem implements IfcRenderItem {
 
     while (!glyphState.done) {
       if (!isink(this.paragraph.string[glyphState.clusterStart])) {
-        this.glyphs[glyphIndex].ax = 0;
+        this.glyphs[glyphIndex + G_AX] = 0;
       } else {
         return true;
       }
@@ -1570,10 +1602,23 @@ export class Paragraph {
 
     this.brokenItems.splice(itemIndex + 1, 0, right);
     if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
-      const glyphs = getHyphen(left);
-      if (glyphs?.length) {
-        const hyphen = glyphs.map(g => ({...g, cl: offset - 1}));
-        left.glyphs[left.attrs.level & 1 ? 'unshift' : 'push'](...hyphen);
+      const hyphen = getHyphen(left);
+      if (hyphen?.length) {
+        const glyphs = new Int32Array(left.glyphs.length + hyphen.length);
+        if (left.attrs.level & 1) {
+          glyphs.set(hyphen, 0);
+          glyphs.set(left.glyphs, hyphen.length);
+          for (let i = G_CL; i < hyphen.length; i += G_SZ) {
+            glyphs[i] = offset - 1;
+          }
+        } else {
+          glyphs.set(left.glyphs, 0);
+          glyphs.set(hyphen, left.glyphs.length);
+          for (let i = left.glyphs.length + G_CL; i < glyphs.length; i += G_SZ) {
+            glyphs[i] = offset - 1;
+          }
+        }
+        left.glyphs = glyphs;
       }
       // TODO 1: this sucks, but it's probably still better than using a Uint16Array
       // and having to convert back to strings for the browser canvas backend
@@ -1683,9 +1728,9 @@ export class Paragraph {
     buf.guessSegmentProperties();
     buf.setFlags(['PRODUCE_UNSAFE_TO_CONCAT']);
     hb.shape(font, buf);
-    const json = buf.json();
+    const array = extractHbBufferGlyphs(buf);
     buf.destroy();
-    return json;
+    return array;
   }
 
   getColors() {
@@ -1775,21 +1820,21 @@ export class Paragraph {
 
                 if (attrs.level & 1) {
                   while (
-                    segmentGlyphEnd + 1 <= segmentGlyphStart &&
-                    shapedPart[segmentGlyphEnd + 1].cl >= segmentTextEnd
-                  ) segmentGlyphEnd += 1;
+                    segmentGlyphEnd + G_SZ <= segmentGlyphStart &&
+                    shapedPart[segmentGlyphEnd + G_SZ + G_CL] >= segmentTextEnd
+                  ) segmentGlyphEnd += G_SZ;
                 } else {
                   while (
-                    segmentGlyphEnd - 1 >= segmentGlyphStart &&
-                    shapedPart[segmentGlyphEnd - 1].cl >= segmentTextEnd
-                  ) segmentGlyphEnd -= 1;
+                    segmentGlyphEnd - G_SZ >= segmentGlyphStart &&
+                    shapedPart[segmentGlyphEnd - G_SZ + G_CL] >= segmentTextEnd
+                  ) segmentGlyphEnd -= G_SZ;
                 }
               }
 
               const offset = segmentTextStart;
               const length = segmentTextEnd - segmentTextStart;
-              const glyphStart = attrs.level & 1 ? segmentGlyphEnd + 1 : segmentGlyphStart;
-              const glyphEnd = attrs.level & 1 ? segmentGlyphStart + 1 : segmentGlyphEnd;
+              const glyphStart = attrs.level & 1 ? segmentGlyphEnd + G_SZ : segmentGlyphStart;
+              const glyphEnd = attrs.level & 1 ? segmentGlyphStart + G_SZ : segmentGlyphEnd;
 
               if (needsReshape) {
                 if (isLastMatch) {
@@ -2085,7 +2130,11 @@ export class Paragraph {
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
           const glyphs = getHyphen(item);
           const {match: {face: {upem}}, attrs: {style: {fontSize}}} = item;
-          if (glyphs?.length) candidates.width.addHyphen(glyphs.reduce((s, g) => s + g.ax / upem * fontSize, 0));
+          if (glyphs?.length) {
+            let w = 0;
+            for (let i = 0; i < glyphs.length; i += G_SZ) w += glyphs[i + G_AX];
+            candidates.width.addHyphen(w / upem * fontSize);
+          }
         }
 
         if (line.hasText() && width.forWord() + candidates.width.asWord() > vacancy.inlineSize) {

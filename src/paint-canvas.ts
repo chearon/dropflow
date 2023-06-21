@@ -1,5 +1,18 @@
-import {prevCluster, nextCluster, nextGrapheme, prevGrapheme} from './text.js';
 import {firstCascadeItem} from './font.js';
+import {
+  prevCluster,
+  nextCluster,
+  nextGrapheme,
+  prevGrapheme,
+  G_ID,
+  G_CL,
+  G_AX,
+  G_AY,
+  G_DX,
+  G_DY,
+  G_FL,
+  G_SZ
+} from './text.js';
 
 import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
@@ -8,16 +21,16 @@ import type {ShapedItem} from './text.js';
 import type {FaceMatch} from './font.js';
 
 function findGlyph(item: ShapedItem, offset: number) {
-  let index = item.attrs.level & 1 ? item.glyphs.length - 1 : 0;
-  while (index >= 0 && index < item.glyphs.length && item.glyphs[index].cl < offset) {
-    index += item.attrs.level & 1 ? -1 : 1;
+  let index = item.attrs.level & 1 ? item.glyphs.length - G_SZ : 0;
+  while (index >= 0 && index < item.glyphs.length && item.glyphs[index + G_CL] < offset) {
+    index += item.attrs.level & 1 ? -G_SZ : G_SZ;
   }
   return index;
 }
 
 function glyphsWidth(item: ShapedItem, glyphStart: number, glyphEnd: number) {
   let ax = 0;
-  for (let i = glyphStart; i < glyphEnd; ++i) ax += item.glyphs[i].ax;
+  for (let i = glyphStart; i < glyphEnd; i += G_SZ) ax += item.glyphs[i + G_AX];
   return ax / item.match.face.upem * item.attrs.style.fontSize;
 }
 
@@ -36,30 +49,30 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
   let endGlyphStart = findGlyph(item, textEnd);
 
   if (item.attrs.level & 1) {
-    while (startGlyphEnd > endGlyphStart && glyphs[startGlyphEnd]?.flags & 1) {
+    while (startGlyphEnd > endGlyphStart && glyphs[startGlyphEnd + G_FL] & 1) {
       startGlyphEnd = prevCluster(glyphs, startGlyphEnd);
     }
-    textStart = glyphs[startGlyphEnd]?.cl ?? textEnd;
+    textStart = glyphs[startGlyphEnd + G_CL] ?? textEnd;
 
-    while (endGlyphStart < startGlyphEnd && glyphs[endGlyphStart]?.flags & 1) {
+    while (endGlyphStart < startGlyphEnd && glyphs[endGlyphStart + G_FL] & 1) {
       endGlyphStart = nextCluster(glyphs, endGlyphStart);
     }
-    textEnd = glyphs[endGlyphStart]?.cl ?? textEnd;
+    textEnd = glyphs[endGlyphStart + G_CL] ?? textEnd;
   } else {
-    while (startGlyphEnd < endGlyphStart && glyphs[startGlyphEnd]?.flags & 1) {
+    while (startGlyphEnd < endGlyphStart && glyphs[startGlyphEnd + G_FL] & 1) {
       startGlyphEnd = nextCluster(glyphs, startGlyphEnd);
     }
-    textStart = glyphs[startGlyphEnd]?.cl ?? textEnd;
+    textStart = glyphs[startGlyphEnd + G_CL] ?? textEnd;
 
-    while (endGlyphStart > startGlyphEnd && glyphs[endGlyphStart]?.flags & 1) {
+    while (endGlyphStart > startGlyphEnd && glyphs[endGlyphStart + G_FL] & 1) {
       endGlyphStart = prevCluster(glyphs, endGlyphStart);
     }
-    textEnd = glyphs[endGlyphStart]?.cl ?? textEnd;
+    textEnd = glyphs[endGlyphStart + G_CL] ?? textEnd;
   }
 
   if (item.attrs.level & 1) {
-    [startGlyphStart, startGlyphEnd] = [startGlyphEnd + 1, startGlyphStart + 1];
-    [endGlyphStart, endGlyphEnd] = [endGlyphEnd + 1, endGlyphStart + 1];
+    [startGlyphStart, startGlyphEnd] = [startGlyphEnd + G_SZ, startGlyphStart + G_SZ];
+    [endGlyphStart, endGlyphEnd] = [endGlyphEnd + G_SZ, endGlyphStart + G_SZ];
   }
 
   return {startGlyphStart, startGlyphEnd, textStart, textEnd, endGlyphStart, endGlyphEnd};
@@ -129,12 +142,11 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.scale(scale, -scale);
     this.ctx.beginPath();
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-    for (let i = glyphStart; i < glyphEnd; ++i) {
-      const glyph = item.glyphs[i];
-      this.ctx.translate(sx + glyph.dx, sy + glyph.dy);
-      item.match.font.drawGlyph(glyph.g, this.ctx);
-      sx += glyph.ax;
-      sy += glyph.ay;
+    for (let i = glyphStart; i < glyphEnd; i += G_SZ) {
+      this.ctx.translate(sx + item.glyphs[i + G_DX], sy + item.glyphs[i + G_DY]);
+      item.match.font.drawGlyph(item.glyphs[i + G_ID], this.ctx);
+      sx += item.glyphs[i + G_AX];
+      sy += item.glyphs[i + G_AY];
     }
     this.ctx.fill();
     this.ctx.restore();

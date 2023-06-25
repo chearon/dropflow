@@ -28,7 +28,6 @@ import {createComputedStyle, uaDeclaredStyles} from './cascade.js';
 import {id} from './util.js';
 import {
   htmlDecodeTree,
-  xmlDecodeTree,
   BinTrieFlags,
   determineBranch,
   decodeCodePoint
@@ -198,21 +197,7 @@ class Tokenizer {
   /** The offset of the current buffer. */
   private offset = 0;
 
-  private readonly xmlMode: boolean;
-  private readonly decodeEntities: boolean;
-  private readonly entityTrie: Uint16Array;
-
-  constructor(
-    {
-      xmlMode = false,
-      decodeEntities = true,
-    }: { xmlMode?: boolean; decodeEntities?: boolean },
-    private readonly cbs: Callbacks
-  ) {
-    this.xmlMode = xmlMode;
-    this.decodeEntities = decodeEntities;
-    this.entityTrie = xmlMode ? xmlDecodeTree : htmlDecodeTree;
-  }
+  constructor(private readonly cbs: Callbacks) {}
 
   public reset(): void {
     this.state = State.Text;
@@ -261,16 +246,13 @@ class Tokenizer {
   }
 
   private stateText(c: number): void {
-    if (
-      c === CharCodes.Lt ||
-      (!this.decodeEntities && this.fastForwardTo(CharCodes.Lt))
-    ) {
+    if (c === CharCodes.Lt) {
       if (this.index > this.sectionStart) {
         this.cbs.ontext(this.sectionStart, this.index);
       }
       this.state = State.BeforeTagName;
       this.sectionStart = this.index;
-    } else if (this.decodeEntities && c === CharCodes.Amp) {
+    } else if (c === CharCodes.Amp) {
       this.state = State.BeforeEntity;
     }
   }
@@ -325,7 +307,7 @@ class Tokenizer {
     } else if (this.sequenceIndex === 0) {
       if (this.currentSequence === Sequences.TitleEnd) {
         // We have to parse entities in <title> tags.
-        if (this.decodeEntities && c === CharCodes.Amp) {
+        if (c === CharCodes.Amp) {
           this.state = State.BeforeEntity;
         }
       } else if (this.fastForwardTo(CharCodes.Lt)) {
@@ -411,12 +393,9 @@ class Tokenizer {
 
   /**
    * HTML only allows ASCII alpha characters (a-z and A-Z) at the beginning of a tag name.
-   *
-   * XML allows a lot more characters here (@see https://www.w3.org/TR/REC-xml/#NT-NameStartChar).
-   * We allow anything that wouldn't end the tag.
    */
   private isTagStartChar(c: number) {
-    return this.xmlMode ? !isEndOfTagSection(c) : isASCIIAlpha(c);
+    return isASCIIAlpha(c);
   }
 
   private startSpecial(sequence: Uint8Array, offset: number) {
@@ -436,11 +415,11 @@ class Tokenizer {
     } else if (this.isTagStartChar(c)) {
       const lower = c | 0x20;
       this.sectionStart = this.index;
-      if (!this.xmlMode && lower === Sequences.TitleEnd[2]) {
+      if (lower === Sequences.TitleEnd[2]) {
         this.startSpecial(Sequences.TitleEnd, 3);
       } else {
         this.state =
-          !this.xmlMode && lower === Sequences.ScriptEnd[2]
+          lower === Sequences.ScriptEnd[2]
             ? State.BeforeSpecialS
             : State.InTagName;
       }
@@ -551,10 +530,7 @@ class Tokenizer {
     }
   }
   private handleInAttributeValue(c: number, quote: number) {
-    if (
-      c === quote ||
-      (!this.decodeEntities && this.fastForwardTo(quote))
-    ) {
+    if (c === quote) {
       this.cbs.onattribdata(this.sectionStart, this.index);
       this.sectionStart = -1;
       this.cbs.onattribend(
@@ -564,7 +540,7 @@ class Tokenizer {
         this.index
       );
       this.state = State.BeforeAttributeName;
-    } else if (this.decodeEntities && c === CharCodes.Amp) {
+    } else if (c === CharCodes.Amp) {
       this.baseState = this.state;
       this.state = State.BeforeEntity;
     }
@@ -582,7 +558,7 @@ class Tokenizer {
       this.cbs.onattribend(QuoteType.Unquoted, this.index);
       this.state = State.BeforeAttributeName;
       this.stateBeforeAttributeName(c);
-    } else if (this.decodeEntities && c === CharCodes.Amp) {
+    } else if (c === CharCodes.Amp) {
       this.baseState = this.state;
       this.state = State.BeforeEntity;
     }
@@ -659,7 +635,7 @@ class Tokenizer {
       // We have two `&` characters in a row. Stay in the current state.
     } else {
       this.trieIndex = 0;
-      this.trieCurrent = this.entityTrie[0];
+      this.trieCurrent = htmlDecodeTree[0];
       this.state = State.InNamedEntity;
       this.stateInNamedEntity(c);
     }
@@ -669,7 +645,7 @@ class Tokenizer {
     this.entityExcess += 1;
 
     this.trieIndex = determineBranch(
-      this.entityTrie,
+      htmlDecodeTree,
       this.trieCurrent,
       this.trieIndex + 1,
       c
@@ -681,7 +657,7 @@ class Tokenizer {
       return;
     }
 
-    this.trieCurrent = this.entityTrie[this.trieIndex];
+    this.trieCurrent = htmlDecodeTree[this.trieIndex];
 
     const masked = this.trieCurrent & BinTrieFlags.VALUE_LENGTH;
 
@@ -722,22 +698,22 @@ class Tokenizer {
     }
 
     const valueLength =
-      (this.entityTrie[this.entityResult] & BinTrieFlags.VALUE_LENGTH) >>
+      (htmlDecodeTree[this.entityResult] & BinTrieFlags.VALUE_LENGTH) >>
     14;
 
     switch (valueLength) {
       case 1:
         this.emitCodePoint(
-          this.entityTrie[this.entityResult] &
+          htmlDecodeTree[this.entityResult] &
             ~BinTrieFlags.VALUE_LENGTH
       );
       break;
       case 2:
-        this.emitCodePoint(this.entityTrie[this.entityResult + 1]);
+        this.emitCodePoint(htmlDecodeTree[this.entityResult + 1]);
       break;
       case 3: {
-        const first = this.entityTrie[this.entityResult + 1];
-        const second = this.entityTrie[this.entityResult + 2];
+        const first = htmlDecodeTree[this.entityResult + 1];
+        const second = htmlDecodeTree[this.entityResult + 2];
 
         // If this is a surrogate pair, combine the code points.
         if (first >= 0xd8_00 && first <= 0xdf_ff) {
@@ -815,11 +791,7 @@ class Tokenizer {
   }
 
   private allowLegacyEntity() {
-    return (
-      !this.xmlMode &&
-            (this.baseState === State.Text ||
-                this.baseState === State.InSpecialTag)
-    );
+    return this.baseState === State.Text || this.baseState === State.InSpecialTag;
   }
 
   /**
@@ -1099,53 +1071,6 @@ const htmlIntegrationElements = new Set([
 
 export interface ParserOptions {
   /**
-   * Indicates whether special tags (`<script>`, `<style>`, and `<title>`) should get special treatment
-   * and if "empty" tags (eg. `<br>`) can have children.  If `false`, the content of special tags
-   * will be text only. For feeds and other XML content (documents that don't consist of HTML),
-   * set this to `true`.
-   *
-   * @default false
-   */
-  xmlMode?: boolean;
-
-  /**
-   * Decode entities within the document.
-   *
-   * @default true
-   */
-  decodeEntities?: boolean;
-
-  /**
-   * If set to true, all tags will be lowercased.
-   *
-   * @default !xmlMode
-   */
-  lowerCaseTags?: boolean;
-
-  /**
-   * If set to `true`, all attribute names will be lowercased. This has noticeable impact on speed.
-   *
-   * @default !xmlMode
-   */
-  lowerCaseAttributeNames?: boolean;
-
-  /**
-   * If set to true, CDATA sections will be recognized as text even if the xmlMode option is not enabled.
-   * NOTE: If xmlMode is set to `true` then CDATA sections will always be recognized as text.
-   *
-   * @default xmlMode
-   */
-  recognizeCDATA?: boolean;
-
-  /**
-   * If set to `true`, self-closing tags will trigger the onclosetag event even if xmlMode is not set to `true`.
-   * NOTE: If xmlMode is set to `true` then self-closing tags will always be recognized.
-   *
-   * @default xmlMode
-   */
-  recognizeSelfClosing?: boolean;
-
-  /**
    * Allows the default tokenizer to be overwritten.
    */
   Tokenizer?: typeof Tokenizer;
@@ -1210,8 +1135,6 @@ export class Parser implements Callbacks {
   private stack: string[] = [];
   private readonly foreignContext: boolean[] = [];
   private readonly cbs: Partial<Handler>;
-  private readonly lowerCaseTagNames: boolean;
-  private readonly lowerCaseAttributeNames: boolean;
   private readonly tokenizer: Tokenizer;
 
   private readonly buffers: string[] = [];
@@ -1223,16 +1146,10 @@ export class Parser implements Callbacks {
 
   constructor(
     cbs?: Partial<Handler> | null,
-    private readonly options: ParserOptions = {}
+    options: ParserOptions = {}
   ) {
     this.cbs = cbs ?? {};
-    this.lowerCaseTagNames = options.lowerCaseTags ?? !options.xmlMode;
-    this.lowerCaseAttributeNames =
-            options.lowerCaseAttributeNames ?? !options.xmlMode;
-    this.tokenizer = new (options.Tokenizer ?? Tokenizer)(
-      this.options,
-      this
-    );
+    this.tokenizer = new (options.Tokenizer ?? Tokenizer)(this);
     this.cbs.onparserinit?.(this);
   }
 
@@ -1259,18 +1176,14 @@ export class Parser implements Callbacks {
   }
 
   protected isVoidElement(name: string): boolean {
-    return !this.options.xmlMode && voidElements.has(name);
+    return voidElements.has(name);
   }
 
   /** @internal */
   onopentagname(start: number, endIndex: number): void {
     this.endIndex = endIndex;
 
-    let name = this.getSlice(start, endIndex);
-
-    if (this.lowerCaseTagNames) {
-      name = name.toLowerCase();
-    }
+    const name = this.getSlice(start, endIndex).toLowerCase();
 
     this.emitOpenTag(name);
   }
@@ -1279,8 +1192,7 @@ export class Parser implements Callbacks {
     this.openTagStart = this.startIndex;
     this.tagname = name;
 
-    const impliesClose =
-      !this.options.xmlMode && openImpliesClose.get(name);
+    const impliesClose = openImpliesClose.get(name);
 
     if (impliesClose) {
       while (
@@ -1330,11 +1242,7 @@ export class Parser implements Callbacks {
   onclosetag(start: number, endIndex: number): void {
     this.endIndex = endIndex;
 
-    let name = this.getSlice(start, endIndex);
-
-    if (this.lowerCaseTagNames) {
-      name = name.toLowerCase();
-    }
+    const name = this.getSlice(start, endIndex).toLowerCase();
 
     if (
       foreignContextElements.has(name) ||
@@ -1353,12 +1261,12 @@ export class Parser implements Callbacks {
             this.cbs.onclosetag(this.stack.pop()!, count !== 0);
           }
         } else this.stack.length = pos;
-      } else if (!this.options.xmlMode && name === 'p') {
+      } else if (name === 'p') {
         // Implicit open before close
         this.emitOpenTag('p');
         this.closeCurrentTag(true);
       }
-    } else if (!this.options.xmlMode && name === 'br') {
+    } else if (name === 'br') {
       // We can't use `emitOpenTag` for implicit open, as `br` would be implicitly closed.
       this.cbs.onopentagname?.('br');
       this.cbs.onopentag?.('br', {}, true);
@@ -1372,11 +1280,7 @@ export class Parser implements Callbacks {
   /** @internal */
   onselfclosingtag(endIndex: number): void {
     this.endIndex = endIndex;
-    if (
-      this.options.xmlMode ||
-      this.options.recognizeSelfClosing ||
-      this.foreignContext[this.foreignContext.length - 1]
-    ) {
+    if (this.foreignContext[this.foreignContext.length - 1]) {
       this.closeCurrentTag(false);
 
       // Set `startIndex` for next node
@@ -1403,10 +1307,7 @@ export class Parser implements Callbacks {
   onattribname(start: number, endIndex: number): void {
     this.startIndex = start;
     const name = this.getSlice(start, endIndex);
-
-    this.attribname = this.lowerCaseAttributeNames
-      ? name.toLowerCase()
-      : name;
+    this.attribname = name.toLowerCase();
   }
 
   /** @internal */
@@ -1448,12 +1349,7 @@ export class Parser implements Callbacks {
   private getInstructionName(value: string) {
     const idx = value.search(reNameEnd);
     let name = idx < 0 ? value : value.substr(0, idx);
-
-    if (this.lowerCaseTagNames) {
-      name = name.toLowerCase();
-    }
-
-    return name;
+    return name.toLowerCase();
   }
 
   /** @internal */
@@ -1500,14 +1396,8 @@ export class Parser implements Callbacks {
     this.endIndex = endIndex;
     const value = this.getSlice(start, endIndex - offset);
 
-    if (this.options.xmlMode || this.options.recognizeCDATA) {
-      this.cbs.oncdatastart?.();
-      this.cbs.ontext?.(value);
-      this.cbs.oncdataend?.();
-    } else {
-      this.cbs.oncomment?.(`[CDATA[${value}]]`);
-      this.cbs.oncommentend?.();
-    }
+    this.cbs.oncomment?.(`[CDATA[${value}]]`);
+    this.cbs.oncommentend?.();
 
     // Set `startIndex` for next node
     this.startIndex = endIndex + 1;

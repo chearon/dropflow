@@ -3,6 +3,7 @@ import path from 'path';
 import * as lbClasses from './src/line-break.js';
 import * as gbClasses from './src/grapheme-break.js';
 import UnicodeTrieBuilder from 'unicode-trie/builder.js';
+import {getTrie, encodeTrie} from './src/trie.js';
 import {URL} from 'url';
 
 const __dirname = new URL('.', import.meta.url).pathname;
@@ -231,15 +232,46 @@ async function generateLangScriptDatabase() {
   fs.writeFileSync(path.join(__dirname, 'gen/lang-script-database.ts'), scriptDatabaseTs);
 }
 
+async function generateEntityTrie() {
+  const res = await fetch('https://html.spec.whatwg.org/entities.json');
+  if (res.status !== 200) throw new Error(res.status);
+  const resMap = JSON.parse(await res.text());
+  const map = {};
+  for (const key in resMap) map[key.slice(1)] = resMap[key].characters;
+  console.log(`Generating ${Object.keys(map).length} entities...`);
+  const encoded = encodeTrie(getTrie(map));
+  const stringified = JSON.stringify(String.fromCharCode(...encoded))
+    .replace(
+        /[^\x20-\x7e]/g,
+        (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`
+    )
+    .replace(/\\u0000/g, "\\0")
+    .replace(/\\u00([\da-f]{2})/g, "\\x$1");
+
+  // Write the encoded trie to disk
+  fs.writeFileSync(
+  path.join(__dirname, `gen/entity-trie.ts`),
+  `// Generated using gen/entity-decode-map.ts
+
+export default new Uint16Array(
+    ${stringified}
+        .split("")
+        .map((c) => c.charCodeAt(0))
+);
+`);
+}
+
 const fns = process.argv.slice(2).map(command => {
   if (command === 'line-break-trie') return generateLineBreakTrie;
   if (command === 'grapheme-break-trie') return generateGraphemeBreakTrie;
   if (command === 'lang-script-database') return generateLangScriptDatabase;
+  if (command === 'entity-trie') return generateEntityTrie;
   console.error(`Usage: node gen.js (cmd )+
 Available commands:
   line-break-trie
   grapheme-break-trie
-  lang-script-database`);
+  lang-script-database
+  entity-trie`);
   process.exit(1);
 });
 

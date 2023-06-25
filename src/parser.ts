@@ -26,12 +26,53 @@ import {TextNode, HTMLElement} from './dom.js';
 import {parse as StyleParser} from './css.js';
 import {createComputedStyle, uaDeclaredStyles} from './cascade.js';
 import {id} from './util.js';
-import {
-  htmlDecodeTree,
-  BinTrieFlags,
-  determineBranch,
-  decodeCodePoint
-} from 'entities/lib/decode.js';
+import {determineBranch, BinTrieFlags} from './html-trie.js';
+import entityTrie from '../gen/entity-trie.js';
+
+const decodeMap = new Map([
+  [0, 65533],
+  // C1 Unicode control character reference replacements
+  [128, 8364],
+  [130, 8218],
+  [131, 402],
+  [132, 8222],
+  [133, 8230],
+  [134, 8224],
+  [135, 8225],
+  [136, 710],
+  [137, 8240],
+  [138, 352],
+  [139, 8249],
+  [140, 338],
+  [142, 381],
+  [145, 8216],
+  [146, 8217],
+  [147, 8220],
+  [148, 8221],
+  [149, 8226],
+  [150, 8211],
+  [151, 8212],
+  [152, 732],
+  [153, 8482],
+  [154, 353],
+  [155, 8250],
+  [156, 339],
+  [158, 382],
+  [159, 376]
+]);
+
+/**
+ * Replace the given code point with a replacement character if it is a
+ * surrogate or is outside the valid range. Otherwise return the code
+ * point unchanged.
+ */
+function replaceCodePoint(codePoint: number) {
+  if ((codePoint >= 0xd800 && codePoint <= 0xdfff) || codePoint > 0x10ffff) {
+    return 0xfffd;
+  }
+
+  return decodeMap.get(codePoint) ?? codePoint;
+}
 
 const enum CharCodes {
   Tab = 0x9, // "\t"
@@ -635,7 +676,7 @@ class Tokenizer {
       // We have two `&` characters in a row. Stay in the current state.
     } else {
       this.trieIndex = 0;
-      this.trieCurrent = htmlDecodeTree[0];
+      this.trieCurrent = entityTrie[0];
       this.state = State.InNamedEntity;
       this.stateInNamedEntity(c);
     }
@@ -645,7 +686,7 @@ class Tokenizer {
     this.entityExcess += 1;
 
     this.trieIndex = determineBranch(
-      htmlDecodeTree,
+      entityTrie,
       this.trieCurrent,
       this.trieIndex + 1,
       c
@@ -657,7 +698,7 @@ class Tokenizer {
       return;
     }
 
-    this.trieCurrent = htmlDecodeTree[this.trieIndex];
+    this.trieCurrent = entityTrie[this.trieIndex];
 
     const masked = this.trieCurrent & BinTrieFlags.VALUE_LENGTH;
 
@@ -698,22 +739,22 @@ class Tokenizer {
     }
 
     const valueLength =
-      (htmlDecodeTree[this.entityResult] & BinTrieFlags.VALUE_LENGTH) >>
+      (entityTrie[this.entityResult] & BinTrieFlags.VALUE_LENGTH) >>
     14;
 
     switch (valueLength) {
       case 1:
         this.emitCodePoint(
-          htmlDecodeTree[this.entityResult] &
+          entityTrie[this.entityResult] &
             ~BinTrieFlags.VALUE_LENGTH
       );
       break;
       case 2:
-        this.emitCodePoint(htmlDecodeTree[this.entityResult + 1]);
+        this.emitCodePoint(entityTrie[this.entityResult + 1]);
       break;
       case 3: {
-        const first = htmlDecodeTree[this.entityResult + 1];
-        const second = htmlDecodeTree[this.entityResult + 2];
+        const first = entityTrie[this.entityResult + 1];
+        const second = entityTrie[this.entityResult + 2];
 
         // If this is a surrogate pair, combine the code points.
         if (first >= 0xd8_00 && first <= 0xdf_ff) {
@@ -1171,7 +1212,7 @@ export class Parser implements Callbacks {
      */
     const idx = this.tokenizer.getSectionStart();
     this.endIndex = idx - 1;
-    this.cbs.ontext?.(decodeCodePoint(cp));
+    this.cbs.ontext?.(String.fromCodePoint(replaceCodePoint(cp)));
     this.startIndex = idx;
   }
 
@@ -1317,7 +1358,7 @@ export class Parser implements Callbacks {
 
   /** @internal */
   onattribentity(cp: number): void {
-    this.attribvalue += decodeCodePoint(cp);
+    this.attribvalue += String.fromCodePoint(replaceCodePoint(cp));
   }
 
   /** @internal */

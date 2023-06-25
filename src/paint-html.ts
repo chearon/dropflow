@@ -1,10 +1,13 @@
-import {encode} from 'entities';
 import {getMetrics, ShapedItem} from './text.js';
 import {firstCascadeItem} from './font.js';
 
 import type {Color} from './cascade.js';
 import type {PaintBackend} from './paint.js';
 import type {FaceMatch} from './font.js';
+
+function encode(s: string) {
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+}
 
 type StringMap = Record<string, string>;
 

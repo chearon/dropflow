@@ -36,7 +36,7 @@ import {
   SelectorType,
   PseudoSelector,
   Traversal
-} from 'css-what';
+} from './selector.js';
 
 type Predicate<Value> = (v: Value) => boolean;
 

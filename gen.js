@@ -3,7 +3,7 @@ import path from 'path';
 import * as lbClasses from './src/line-break.js';
 import * as gbClasses from './src/grapheme-break.js';
 import UnicodeTrieBuilder from 'unicode-trie/builder.js';
-import {getTrie, encodeTrie} from './src/trie.js';
+import {getTrie, encodeTrie} from './src/html-trie-encode.js';
 import {URL} from 'url';
 
 const __dirname = new URL('.', import.meta.url).pathname;

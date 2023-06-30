@@ -25,9 +25,34 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+//
+// fb55/nth-check by Felix Böhm
+//
+// Copyright (c) Felix Böhm
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// Redistributions of source code must retain the above copyright notice, this
+// list of conditions and the following disclaimer.
+//
+// Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation
+// and/or other materials provided with the distribution.
+//
+// THIS IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+// OUT OF THE USE OF THIS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import * as boolbase from 'boolbase';
-import getNCheck from 'nth-check';
 import {
   parse,
   Selector,
@@ -37,6 +62,157 @@ import {
   PseudoSelector,
   Traversal
 } from './selector.js';
+
+/**
+ * Returns a function that checks if an elements index matches the given rule
+ * highly optimized to return the fastest solution.
+ *
+ * @param parsed A tuple [a, b], as returned by `parse`.
+ * @returns A highly optimized function that returns whether an index matches the nth-check.
+ * @example
+ *
+ * ```js
+ * const check = nthCheck.compile([2, 3]);
+ *
+ * check(0); // `false`
+ * check(1); // `false`
+ * check(2); // `true`
+ * check(3); // `false`
+ * check(4); // `true`
+ * check(5); // `false`
+ * check(6); // `true`
+ * ```
+ */
+function compileNcheck(parsed: [a: number, b: number]): (index: number) => boolean {
+  const a = parsed[0];
+  // Subtract 1 from `b`, to convert from one- to zero-indexed.
+  const b = parsed[1] - 1;
+
+  /*
+   * When `b <= 0`, `a * n` won't be lead to any matches for `a < 0`.
+   * Besides, the specification states that no elements are
+   * matched when `a` and `b` are 0.
+   *
+   * `b < 0` here as we subtracted 1 from `b` above.
+   */
+  if (b < 0 && a <= 0) return boolbase.falseFunc;
+
+  // When `a` is in the range -1..1, it matches any element (so only `b` is checked).
+  if (a === -1) return index => index <= b;
+  if (a === 0) return index => index === b;
+  // When `b <= 0` and `a === 1`, they match any element.
+  if (a === 1) return b < 0 ? boolbase.trueFunc : (index) => index >= b;
+
+  /*
+   * Otherwise, modulo can be used to check if there is a match.
+   *
+   * Modulo doesn't care about the sign, so let's use `a`s absolute value.
+   */
+  const absA = Math.abs(a);
+  // Get `b mod a`, + a if this is negative.
+  const bMod = ((b % absA) + absA) % absA;
+
+  return a > 1
+    ? index => index >= b && index % absA === bMod
+    : index => index <= b && index % absA === bMod;
+}
+
+// Following http://www.w3.org/TR/css3-selectors/#nth-child-pseudo
+
+// Whitespace as per https://www.w3.org/TR/selectors-3/#lex is " \t\r\n\f"
+const whitespace = new Set([9, 10, 12, 13, 32]);
+const ZERO = '0'.charCodeAt(0);
+const NINE = '9'.charCodeAt(0);
+
+/**
+ * Parses an expression.
+ *
+ * @throws An `Error` if parsing fails.
+ * @returns An array containing the integer step size and the integer offset of the nth rule.
+ * @example nthCheck.parse('2n+3'); // returns [2, 3]
+ */
+function parseNCheck(formula: string): [a: number, b: number] {
+  formula = formula.trim().toLowerCase();
+
+  if (formula === 'even') {
+    return [2, 0];
+  } else if (formula === 'odd') {
+    return [2, 1];
+  }
+
+  // Parse [ ['-'|'+']? INTEGER? {N} [ S* ['-'|'+'] S* INTEGER ]?
+
+  let idx = 0;
+
+  let a = 0;
+  let sign = readSign();
+  let number = readNumber();
+
+  if (idx < formula.length && formula.charAt(idx) === 'n') {
+    idx++;
+    a = sign * (number ?? 1);
+
+    skipWhitespace();
+
+    if (idx < formula.length) {
+      sign = readSign();
+      skipWhitespace();
+      number = readNumber();
+    } else {
+      sign = number = 0;
+    }
+  }
+
+  // Throw if there is anything else
+  if (number === null || idx < formula.length) {
+    throw new Error(`n-th rule couldn't be parsed ('${formula}')`);
+  }
+
+  return [a, sign * number];
+
+  function readSign() {
+    if (formula.charAt(idx) === '-') {
+      idx++;
+      return -1;
+    }
+
+    if (formula.charAt(idx) === '+') {
+      idx++;
+    }
+
+    return 1;
+  }
+
+  function readNumber() {
+    const start = idx;
+    let value = 0;
+
+    while (
+      idx < formula.length &&
+      formula.charCodeAt(idx) >= ZERO &&
+      formula.charCodeAt(idx) <= NINE
+    ) {
+      value = value * 10 + (formula.charCodeAt(idx) - ZERO);
+      idx++;
+    }
+
+    // Return `null` if we didn't read anything.
+    return idx === start ? null : value;
+  }
+
+  function skipWhitespace() {
+    while (
+      idx < formula.length &&
+      whitespace.has(formula.charCodeAt(idx))
+    ) {
+      idx++;
+    }
+  }
+}
+
+function getNCheck(formula: string): (index: number) => boolean {
+  return compileNcheck(parseNCheck(formula));
+}
 
 type Predicate<Value> = (v: Value) => boolean;
 

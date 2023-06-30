@@ -52,7 +52,6 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 // OUT OF THE USE OF THIS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import * as boolbase from 'boolbase';
 import {
   parse,
   Selector,
@@ -62,6 +61,14 @@ import {
   PseudoSelector,
   Traversal
 } from './selector.js';
+
+function trueFunc() {
+  return true;
+}
+
+function falseFunc() {
+  return false;
+}
 
 /**
  * Returns a function that checks if an elements index matches the given rule
@@ -95,13 +102,13 @@ function compileNcheck(parsed: [a: number, b: number]): (index: number) => boole
    *
    * `b < 0` here as we subtracted 1 from `b` above.
    */
-  if (b < 0 && a <= 0) return boolbase.falseFunc;
+  if (b < 0 && a <= 0) return falseFunc;
 
   // When `a` is in the range -1..1, it matches any element (so only `b` is checked).
   if (a === -1) return index => index <= b;
   if (a === 0) return index => index === b;
   // When `b <= 0` and `a === 1`, they match any element.
-  if (a === 1) return b < 0 ? boolbase.trueFunc : (index) => index >= b;
+  if (a === 1) return b < 0 ? trueFunc : (index) => index >= b;
 
   /*
    * Otherwise, modulo can be used to check if there is a match.
@@ -762,7 +769,7 @@ const attributeRules: Record<
     const { adapter } = options;
     const { name, value } = data;
     if (/\s/.test(value)) {
-      return boolbase.falseFunc;
+      return falseFunc;
     }
 
     const regex = new RegExp(
@@ -790,7 +797,7 @@ const attributeRules: Record<
     const len = value.length;
 
     if (len === 0) {
-      return boolbase.falseFunc;
+      return falseFunc;
     }
 
     if (shouldIgnoreCase(data, options)) {
@@ -818,7 +825,7 @@ const attributeRules: Record<
     const len = -value.length;
 
     if (len === 0) {
-      return boolbase.falseFunc;
+      return falseFunc;
     }
 
     if (shouldIgnoreCase(data, options)) {
@@ -840,7 +847,7 @@ const attributeRules: Record<
     const { name, value } = data;
 
     if (value === '') {
-      return boolbase.falseFunc;
+      return falseFunc;
     }
 
     if (shouldIgnoreCase(data, options)) {
@@ -915,10 +922,10 @@ function copyOptions<Node, ElementNode extends Node>(
 const is: Subselect = (next, token, options, context, compileToken) => {
   const func = compileToken(token, copyOptions(options), context);
 
-  return func === boolbase.trueFunc
+  return func === trueFunc
     ? next
-    : func === boolbase.falseFunc
-    ? boolbase.falseFunc
+    : func === falseFunc
+    ? falseFunc
     : (elem) => func(elem) && next(elem);
 };
 
@@ -926,7 +933,7 @@ function ensureIsTag<Node, ElementNode extends Node>(
   next: CompiledQuery<ElementNode>,
   adapter: Adapter<Node, ElementNode>
 ): CompiledQuery<Node> {
-  if (next === boolbase.falseFunc) return boolbase.falseFunc;
+  if (next === falseFunc) return falseFunc;
   return (elem: Node) => adapter.isTag(elem) && next(elem);
 }
 
@@ -945,10 +952,10 @@ const subselects: Record<string, Subselect> = {
   not(next, token, options, context, compileToken) {
     const func = compileToken(token, copyOptions(options), context);
 
-    return func === boolbase.falseFunc
+    return func === falseFunc
       ? next
-      : func === boolbase.trueFunc
-      ? boolbase.falseFunc
+      : func === trueFunc
+      ? falseFunc
       : (elem) => !func(elem) && next(elem);
   },
   has<Node, ElementNode extends Node>(
@@ -970,12 +977,12 @@ const subselects: Record<string, Subselect> = {
 
     const compiled = compileToken(subselect, opts, context);
 
-    if (compiled === boolbase.falseFunc) return boolbase.falseFunc;
+    if (compiled === falseFunc) return falseFunc;
 
     const hasElement = ensureIsTag(compiled, adapter);
 
-    // If `compiled` is `boolbase.trueFunc`, we can skip this.
-    if (context && compiled !== boolbase.trueFunc) {
+    // If `compiled` is `trueFunc`, we can skip this.
+    if (context && compiled !== trueFunc) {
       /*
        * `shouldTestNextSiblings` will only be true if the query starts with
        * a traversal (sibling or adjacent). That means we will always have a context.
@@ -1076,7 +1083,7 @@ function dynamicStatePseudo(
     const func = adapter[name];
 
     if (typeof func !== 'function') {
-      return boolbase.falseFunc;
+      return falseFunc;
     }
 
     return function active(elem) {
@@ -1106,8 +1113,8 @@ const filters: Record<string, Filter> = {
   'nth-child'(next, rule, { adapter, equals }) {
     const func = getNCheck(rule);
 
-    if (func === boolbase.falseFunc) return boolbase.falseFunc;
-    if (func === boolbase.trueFunc) return getChildFunc(next, adapter);
+    if (func === falseFunc) return falseFunc;
+    if (func === trueFunc) return getChildFunc(next, adapter);
 
     return function nthChild(elem) {
       const siblings = adapter.getSiblings(elem);
@@ -1126,8 +1133,8 @@ const filters: Record<string, Filter> = {
   'nth-last-child'(next, rule, { adapter, equals }) {
     const func = getNCheck(rule);
 
-    if (func === boolbase.falseFunc) return boolbase.falseFunc;
-    if (func === boolbase.trueFunc) return getChildFunc(next, adapter);
+    if (func === falseFunc) return falseFunc;
+    if (func === trueFunc) return getChildFunc(next, adapter);
 
     return function nthLastChild(elem) {
       const siblings = adapter.getSiblings(elem);
@@ -1146,8 +1153,8 @@ const filters: Record<string, Filter> = {
   'nth-of-type'(next, rule, { adapter, equals }) {
     const func = getNCheck(rule);
 
-    if (func === boolbase.falseFunc) return boolbase.falseFunc;
-    if (func === boolbase.trueFunc) return getChildFunc(next, adapter);
+    if (func === falseFunc) return falseFunc;
+    if (func === trueFunc) return getChildFunc(next, adapter);
 
     return function nthOfType(elem) {
       const siblings = adapter.getSiblings(elem);
@@ -1170,8 +1177,8 @@ const filters: Record<string, Filter> = {
   'nth-last-of-type'(next, rule, { adapter, equals }) {
     const func = getNCheck(rule);
 
-    if (func === boolbase.falseFunc) return boolbase.falseFunc;
-    if (func === boolbase.trueFunc) return getChildFunc(next, adapter);
+    if (func === falseFunc) return falseFunc;
+    if (func === trueFunc) return getChildFunc(next, adapter);
 
     return function nthLastOfType(elem) {
       const siblings = adapter.getSiblings(elem);
@@ -1586,8 +1593,8 @@ function compileRules<Node, ElementNode extends Node>(
 ): CompiledQuery<ElementNode> {
   return rules.reduce<CompiledQuery<ElementNode>>(
     (previous, rule) =>
-      previous === boolbase.falseFunc
-        ? boolbase.falseFunc
+      previous === falseFunc
+        ? falseFunc
         : compileGeneralSelector(
             previous,
             rule,
@@ -1606,7 +1613,7 @@ function compileToken<Node, ElementNode extends Node>(
 ): CompiledQuery<ElementNode> {
   token.forEach(sortByProcedure);
 
-  const { context = ctx, rootFunc = boolbase.trueFunc } = options;
+  const { context = ctx, rootFunc = trueFunc } = options;
 
   const isArrayContext = Array.isArray(context);
 
@@ -1656,14 +1663,14 @@ function compileToken<Node, ElementNode extends Node>(
     })
     .reduce<CompiledQuery<ElementNode>>(
       (a, b) =>
-        b === boolbase.falseFunc || a === rootFunc
+        b === falseFunc || a === rootFunc
           ? a
-          : a === boolbase.falseFunc || b === rootFunc
+          : a === falseFunc || b === rootFunc
           ? b
           : function combine(elem) {
               return a(elem) || b(elem);
             },
-      boolbase.falseFunc
+      falseFunc
     );
 
   query.shouldTestNextSiblings = shouldTestNextSiblings;
@@ -1723,7 +1730,7 @@ const selectAll = getSelectorFunc(
     elems: Node[] | null,
     options: InternalOptions<Node, ElementNode>
   ): ElementNode[] =>
-    query === boolbase.falseFunc || !elems || elems.length === 0
+    query === falseFunc || !elems || elems.length === 0
       ? []
       : options.adapter.findAll(query, elems)
 );

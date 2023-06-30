@@ -33,7 +33,6 @@
   "author": "Caleb Hearon <caleb@chearon.net>",
   "license": "MIT",
   "dependencies": {
-    "boolbase": "^1.0.0",
     "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",
     "itemizer": "^1.0.6",
     "unicode-trie": "^2.0.0"

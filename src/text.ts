@@ -917,7 +917,7 @@ function logParagraph(paragraph: ShapedItem[]) {
   for (const item of paragraph) {
     const lead = `  @${item.offset} `;
     const leadsp = ' '.repeat(lead.length);
-    console.log(`${lead}F:${basename(item.match.face.name)}`);
+    console.log(`${lead}F:${basename(item.match.filename)}`);
     console.log(`${leadsp}T:"${item.text()}"`);
     console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
   }

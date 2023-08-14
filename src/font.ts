@@ -1,5 +1,4 @@
 import {hb} from './deps.js';
-import {basename} from './util.js';
 import {languageCoverage} from '../gen/lang-script-database.js';
 
 import type {HbBlob, HbFace, HbFont} from 'harfbuzzjs';
@@ -226,7 +225,6 @@ export function registerFont(buffer: Uint8Array, filename: string) {
       const font = hb.createFont(face);
       hbFaces.set(filename + i, face);
       hbFonts.set(filename + i, font);
-      face.name = basename(filename); // TODO can it be done in hbjs?
       faces.set(filename + i, new FaceMatch(face, font, filename, i));
     }
   }

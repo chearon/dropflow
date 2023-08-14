@@ -1,7 +1,7 @@
-import {hb} from './deps.js';
+import * as hb from './harfbuzz.js';
 import {languageCoverage} from '../gen/lang-script-database.js';
 
-import type {HbBlob, HbFace, HbFont} from 'harfbuzzjs';
+import type {HbBlob, HbFace, HbFont} from './harfbuzz.js';
 import type {Style, FontStretch} from './cascade.js';
 
 // See FcStrContainsIgnoreCase in fcstr.c
@@ -103,16 +103,18 @@ export class FaceMatch {
 
   getExclusiveLanguage() {
     const os2 = this.face.reference_table('OS/2');
-    const words = new Uint16Array(os2);
-    const [version] = words;
+    if (os2) {
+      const words = new Uint16Array(os2);
+      const [version] = words;
 
-    if (version === 1 || version === 2 || version === 3 || version == 4 || version === 5) {
-      const codePageRange1 = os2[78 /* bytes */ / 2];
-      const bits17to20 = codePageRange1 & 0x1E0000;
-      if ((codePageRange1 & (1 << 17)) === bits17to20) return 'ja';
-      if ((codePageRange1 & (1 << 18)) === bits17to20) return 'zh-cn';
-      if ((codePageRange1 & (1 << 19)) === bits17to20) return 'ko';
-      if ((codePageRange1 & (1 << 20)) === bits17to20) return 'zh-tw';
+      if (version === 1 || version === 2 || version === 3 || version == 4 || version === 5) {
+        const codePageRange1 = os2[78 /* bytes */ / 2];
+        const bits17to20 = codePageRange1 & 0x1E0000;
+        if ((codePageRange1 & (1 << 17)) === bits17to20) return 'ja';
+        if ((codePageRange1 & (1 << 18)) === bits17to20) return 'zh-cn';
+        if ((codePageRange1 & (1 << 19)) === bits17to20) return 'ko';
+        if ((codePageRange1 & (1 << 20)) === bits17to20) return 'zh-tw';
+      }
     }
   }
 

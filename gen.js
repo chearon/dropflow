@@ -188,8 +188,8 @@ async function generateLangScriptDatabase() {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  let scriptDatabaseTs = `import {hb} from '../src/deps.js';\n`;
-  scriptDatabaseTs += `import type {HbSet} from 'harfbuzzjs';\n\n`;
+  let scriptDatabaseTs = `import * as hb from '../src/harfbuzz.js';\n`;
+  scriptDatabaseTs += `import type {HbSet} from '../src/harfbuzz.js';\n\n`;
   scriptDatabaseTs += `const langs = new Map(${JSON.stringify([...orths.entries()])})\n`;
   scriptDatabaseTs += `const dependencies = new Map(${JSON.stringify([...dependencies.entries()])});\n\n`;
   scriptDatabaseTs += `export const languageCoverage: Record<string, HbSet> = {};\n`;

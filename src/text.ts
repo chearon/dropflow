@@ -4,11 +4,12 @@ import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} 
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import LineBreak from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
-import {itemizer, hb} from './deps.js';
+import {itemizer} from './deps.js';
+import * as hb from './harfbuzz.js';
 import {getCascade} from './font.js';
 
 import type {FaceMatch} from './font.js';
-import type {HbBuffer, HbFace, HbFont, AllocatedUint16Array} from 'harfbuzzjs';
+import type {HbBuffer, HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
 
 let debug = true;
 

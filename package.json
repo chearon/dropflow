@@ -19,7 +19,7 @@
   "type": "module",
   "main": "src/api.js",
   "scripts": {
-    "test": "mocha test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js test/font.spec.js",
+    "test": "mocha test/grow-memory.js test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js test/font.spec.js",
     "buildcssparser": "peggy --format es src/css.pegjs",
     "build": "concurrently tsc npm:buildcssparser"
   },
@@ -33,7 +33,6 @@
   "author": "Caleb Hearon <caleb@chearon.net>",
   "license": "MIT",
   "dependencies": {
-    "harfbuzzjs": "chearon/harfbuzzjs.git#chearon-patches",
     "itemizer": "^1.0.6",
     "unicode-trie": "^2.0.0"
   }

@@ -430,10 +430,6 @@ glob@^7.1.3:
     once "^1.3.0"
     path-is-absolute "^1.0.0"
 
-harfbuzzjs@chearon/harfbuzzjs.git#chearon-patches:
-  version "0.3.0"
-  resolved "https://codeload.github.com/chearon/harfbuzzjs/tar.gz/6cca65bb6bd250d55afc36d57bb982ba9bc95217"
-
 has-flag@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/has-flag/-/has-flag-4.0.0.tgz#944771fd9c81c81265c4d6941860da06bb59479b"

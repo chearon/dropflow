@@ -280,7 +280,8 @@ font_style
   = 'normal' / 'italic' / 'oblique'
 
 font_weight
-  = 'normal' / 'bolder' / 'lighter'
+  = 'bolder' / 'lighter'
+  / 'normal' { return 400; }
   / 'bold' { return 700; }
   / [0-9]+ { return +text() >= 1 && +text() <= 1000 ? +text() : undefined; }
 
@@ -361,7 +362,7 @@ font
 
     const ret = Object.assign({
       fontStyle: 'normal',
-      fontWeight: 'normal',
+      fontWeight: 400,
       fontVariant: 'normal',
       fontStretch: 'normal'
     }, x[0]);

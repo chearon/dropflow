@@ -16,7 +16,7 @@ describe('CSS Parser', function () {
 
   it('parses font shorthand with style', function () {
     expect(parse('font: italic 24px arial')).to.deep.equal({
-      fontWeight: 'normal',
+      fontWeight: 400,
       fontStyle: 'italic',
       fontStretch: 'normal',
       fontVariant: 'normal',
@@ -28,7 +28,7 @@ describe('CSS Parser', function () {
 
   it('parses font shorthand with stretch', function () {
     expect(parse('font: condensed 24px arial')).to.deep.equal({
-      fontWeight: 'normal',
+      fontWeight: 400,
       fontStyle: 'normal',
       fontStretch: 'condensed',
       fontVariant: 'normal',
@@ -40,7 +40,7 @@ describe('CSS Parser', function () {
 
   it('parses font shorthand with variant', function () {
     expect(parse('font: small-caps 24px arial')).to.deep.equal({
-      fontWeight: 'normal',
+      fontWeight: 400,
       fontStyle: 'normal',
       fontStretch: 'normal',
       fontVariant: 'small-caps',
@@ -64,7 +64,7 @@ describe('CSS Parser', function () {
 
   it('parses font shorthand with line height', function () {
     expect(parse('font: 16px/1.4 arial')).to.deep.equal({
-      fontWeight: 'normal',
+      fontWeight: 400,
       fontStyle: 'normal',
       fontStretch: 'normal',
       fontVariant: 'normal',
@@ -76,7 +76,7 @@ describe('CSS Parser', function () {
 
   it('parses font shorthand with no weight, style, variant or stretch', function () {
     expect(parse('font: 24px arial')).to.deep.equal({
-      fontWeight: 'normal',
+      fontWeight: 400,
       fontStyle: 'normal',
       fontStretch: 'normal',
       fontVariant: 'normal',

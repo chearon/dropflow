@@ -3,7 +3,7 @@ import path from 'path';
 import * as lbClasses from './src/line-break.js';
 import * as gbClasses from './src/grapheme-break.js';
 import UnicodeTrieBuilder from 'unicode-trie/builder.js';
-import {getTrie, encodeTrie} from './src/html-trie-encode.js';
+import {getTrie, encodeTrie} from './src/string-trie-encode.js';
 import {URL} from 'url';
 
 const __dirname = new URL('.', import.meta.url).pathname;
@@ -188,8 +188,8 @@ async function generateLangScriptDatabase() {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  let scriptDatabaseTs = `import * as hb from '../src/harfbuzz.js';\n`;
-  scriptDatabaseTs += `import type {HbSet} from '../src/harfbuzz.js';\n\n`;
+  let scriptDatabaseTs = `import {hb} from '../src/deps.js';\n`;
+  scriptDatabaseTs += `import type {HbSet} from 'harfbuzzjs';\n\n`;
   scriptDatabaseTs += `const langs = new Map(${JSON.stringify([...orths.entries()])})\n`;
   scriptDatabaseTs += `const dependencies = new Map(${JSON.stringify([...dependencies.entries()])});\n\n`;
   scriptDatabaseTs += `export const languageCoverage: Record<string, HbSet> = {};\n`;
@@ -276,3 +276,5 @@ Available commands:
 });
 
 for (const fn of fns) await fn();
+
+

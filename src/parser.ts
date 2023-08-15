@@ -26,7 +26,7 @@ import {TextNode, HTMLElement} from './dom.js';
 import {parse as StyleParser} from './css.js';
 import {createComputedStyle, uaDeclaredStyles} from './cascade.js';
 import {id} from './util.js';
-import {determineBranch, BinTrieFlags} from './html-trie.js';
+import {determineBranch, BinTrieFlags} from './string-trie.js';
 import entityTrie from '../gen/entity-trie.js';
 
 const decodeMap = new Map([

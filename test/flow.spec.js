@@ -1,7 +1,7 @@
 //@ts-check
 
 import {expect} from 'chai';
-import * as oflo from '../src/api.js';
+import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset} from '../assets/register.js';
 
 describe('Flow', function () {

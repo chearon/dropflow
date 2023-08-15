@@ -1,5 +1,4 @@
 import {HTMLElement, TextNode} from './dom.js';
-import {parseNodes} from './parser.js';
 import {cascadeStyles, createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles, EMPTY_STYLE} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
 import HtmlPaintBackend from './paint-html.js';
@@ -19,7 +18,7 @@ const rootDeclaredStyle:DeclaredPlainStyle = {
   }
 };
 
-function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
+export function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
   return createComputedStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
 }
 
@@ -32,14 +31,6 @@ function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
 // ***
 
 export {registerFont, unregisterFont} from './font.js';
-
-// TODO: remove the style argument. read styles on <html> instead
-export function parse(html: string, style?: DeclaredPlainStyle) {
-  const computedStyle = getRootComputedStyle(style);
-  const rootElement = new HTMLElement('', 'root', computedStyle);
-  parseNodes(rootElement, html);
-  return rootElement;
-}
 
 export function generate(rootElement: HTMLElement) {
   if (rootElement.declaredStyle) {

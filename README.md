@@ -32,7 +32,7 @@ The fastest performance can be achieved by using the hyperscript API, which crea
 # HTML API
 
 ```ts
-import {parse, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow';
+import {parse, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow/with-parse';
 import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
 import fs from 'node:fs';
 

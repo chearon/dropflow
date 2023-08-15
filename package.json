@@ -17,7 +17,10 @@
   "version": "0.0.0",
   "description": "A small CSS2 document renderer built from specifications for learning purposes",
   "type": "module",
-  "main": "src/api.js",
+  "exports": {
+    ".": "./src/api.js",
+    "./with-parse.js": "./src/api-with-parse.js"
+  },
   "scripts": {
     "test": "mocha test/grow-memory.js test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js test/font.spec.js",
     "buildcssparser": "peggy --format es src/css.pegjs",

@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {registerFontAsset} from '../assets/register.js';
-import {h, dom, generate, layout} from '../src/api.js';
+import {h, dom, generate, layout} from '../src/api-with-parse.js';
 
 describe('Hyperscript API', function () {
   it('accepts children argument', function () {

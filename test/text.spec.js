@@ -1,6 +1,6 @@
 //@ts-check
 import {expect} from 'chai';
-import * as oflo from '../src/api.js';
+import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {
   Run,

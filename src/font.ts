@@ -1,5 +1,7 @@
 import * as hb from './harfbuzz.js';
-import {languageCoverage} from '../gen/lang-script-database.js';
+import langCoverage from '../gen/lang-script-coverage.js';
+import wasm from './wasm.js';
+import {HbSet} from './harfbuzz.js';
 
 import type {HbBlob, HbFace, HbFont} from './harfbuzz.js';
 import type {Style, FontStretch} from './cascade.js';
@@ -131,14 +133,16 @@ export class FaceMatch {
 
     if (exclusiveLang) langs.add(exclusiveLang);
 
-    for (const lang in languageCoverage) {
+    for (const lang of langCoverage) {
       // Fontconfig says: Check for Han charsets to make fonts which advertise
       // support for a single language not support other Han languages
       if (exclusiveLang && FaceMatch.isExclusiveLang(lang) && lang !== exclusiveLang) {
         continue;
       }
 
-      const testSet = languageCoverage[lang].copy();
+      const heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
+      const setPtr = heapu32[wasm.instance.exports[lang + '_coverage'].value / 4];
+      const testSet = new HbSet(setPtr).copy();
       testSet.subtract(fontCoverage);
       if (testSet.getPopulation() === 0) langs.add(lang);
       testSet.destroy();

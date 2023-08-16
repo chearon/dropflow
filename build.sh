@@ -70,4 +70,5 @@ em++ \
   -s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=4MB \
 	-o overflow.wasm \
-	src/harfbuzz.cc
+	src/overflow.cc \
+	gen/lang-script-database.cc

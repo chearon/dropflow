@@ -1,5 +1,13 @@
 // All code based on foliojs/grapheme-breaker at time of writing
-import graphemeBreakTrie from '../gen/grapheme-break-trie.js';
+import UnicodeTrie from './unicode-trie.js';
+import wasm from './wasm.js';
+
+const heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
+const len = heapu32[wasm.instance.exports.grapheme_break_trie_len.value >> 2];
+// I don't know why the pointer value is stored directly in the .value here.
+// It must be an emscripten weirdness, so watch out in the future
+const ptr = wasm.instance.exports.grapheme_break_trie.value >> 2;
+const trie = new UnicodeTrie(heapu32.subarray(ptr, ptr + len));
 
 // Gets a code point from a UTF-16 string
 // handling surrogate pairs appropriately
@@ -120,7 +128,7 @@ export function nextGraphemeBreak(string: string, index: number) {
     return string.length;
   }
 
-  let prev = graphemeBreakTrie.get(codePointAt(string, index));
+  let prev = trie.get(codePointAt(string, index));
   for (let i = index + 1; i < string.length; i++) {
     // check for already processed low surrogates
     let middle, middle1;
@@ -129,7 +137,7 @@ export function nextGraphemeBreak(string: string, index: number) {
       continue;
     }
 
-    const next = graphemeBreakTrie.get(codePointAt(string, i));
+    const next = trie.get(codePointAt(string, i));
     if (shouldBreak(prev, next)) {
       return i;
     }
@@ -153,7 +161,7 @@ export function previousGraphemeBreak(string: string, index: number) {
   }
 
   index--;
-  let next = graphemeBreakTrie.get(codePointAt(string, index));
+  let next = trie.get(codePointAt(string, index));
   for (let i = index - 1; i >= 0; i--) {
     // check for already processed high surrogates
     var middle, middle1;
@@ -162,7 +170,7 @@ export function previousGraphemeBreak(string: string, index: number) {
       continue;
     }
 
-    const prev = graphemeBreakTrie.get(codePointAt(string, i));
+    const prev = trie.get(codePointAt(string, i));
     if (shouldBreak(prev, next)) {
       return i + 1;
     }

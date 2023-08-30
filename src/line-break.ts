@@ -1,5 +1,13 @@
 // All code based on foliojs/linebreak at time of writing
-import lineBreakTrie from '../gen/line-break-trie.js';
+import UnicodeTrie from './unicode-trie.js';
+import wasm from './wasm.js';
+
+const heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
+const len = heapu32[wasm.instance.exports.line_break_trie_len.value >> 2];
+// I don't know why the pointer value is stored directly in the .value here.
+// It must be an emscripten weirdness, so watch out in the future
+const ptr = wasm.instance.exports.line_break_trie.value >> 2;
+const trie = new UnicodeTrie(heapu32.subarray(ptr, ptr + len));
 
 const DI_BRK = 0; // Direct break opportunity
 const IN_BRK = 1; // Indirect break opportunity
@@ -176,7 +184,7 @@ export default class LineBreaker {
   }
 
   nextCharClass() {
-    return mapClass(lineBreakTrie.get(this.nextCodePoint()));
+    return mapClass(trie.get(this.nextCodePoint()));
   }
 
   getSimpleBreak() {

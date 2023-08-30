@@ -36,7 +36,6 @@
   "author": "Caleb Hearon <caleb@chearon.net>",
   "license": "MIT",
   "dependencies": {
-    "itemizer": "^1.0.6",
-    "unicode-trie": "^2.0.0"
+    "itemizer": "^1.0.6"
   }
 }

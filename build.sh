@@ -71,4 +71,6 @@ em++ \
 	-s INITIAL_MEMORY=4MB \
 	-o overflow.wasm \
 	src/overflow.cc \
-	gen/lang-script-database.cc
+	gen/lang-script-database.cc \
+	gen/grapheme-break-trie.cc \
+	gen/line-break-trie.cc

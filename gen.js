@@ -2,22 +2,21 @@ import fs from 'fs';
 import path from 'path';
 import * as lbClasses from './src/line-break.js';
 import * as gbClasses from './src/grapheme-break.js';
-import UnicodeTrieBuilder from 'unicode-trie/builder.js';
+import UnicodeTrieBuilder from './src/unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './src/string-trie-encode.js';
 import {URL} from 'url';
 
 const __dirname = new URL('.', import.meta.url).pathname;
 
-function writeTrie(filename, trie) {
+function writeTrie(filename, varname, trie) {
   const buffer = trie.toBuffer();
-  let src = '// generated from gen.js\n'
-    + 'import UnicodeTrie from \'unicode-trie\';\n'
-    + 'export default new UnicodeTrie(new Uint8Array([';
-  for (let i = 0; i < buffer.length; ++i) {
-    src += i > 0 ? ',' + buffer[i] : buffer[i];
-  }
-  src += ']));';
-  fs.writeFileSync(filename, src);
+  fs.writeFileSync(filename, `// generated from gen.js
+#include <stdint.h>
+__attribute__((used))
+uint32_t ${varname}[] = {${buffer.join(', ')}};
+__attribute__((used))
+uint32_t ${varname}_len = ${buffer.length};
+`);
 }
 
 async function generateLineBreakTrie() {
@@ -64,7 +63,7 @@ async function generateLineBreakTrie() {
 
   trie.setRange(parseInt(start, 16), parseInt(end, 16), lbClasses[type], true);
   
-  writeTrie(path.join(__dirname, 'gen/line-break-trie.ts'), trie);
+  writeTrie(path.join(__dirname, 'gen/line-break-trie.cc'), 'line_break_trie', trie);
 }
 
 async function generateGraphemeBreakTrie() {
@@ -89,7 +88,7 @@ async function generateGraphemeBreakTrie() {
     trie.setRange(parseInt(start, 16), parseInt(end, 16), gbClasses[type]);
   }
 
-  writeTrie(path.join(__dirname, 'gen/grapheme-break-trie.ts'), trie);
+  writeTrie(path.join(__dirname, 'gen/grapheme-break-trie.cc'), 'grapheme_break_trie', trie);
 }
 
 async function generateLangScriptDatabase() {

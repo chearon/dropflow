@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+emcc \
+  -DSB_CONFIG_UNITY \
+  -I../SheenBidi/Headers \
+  -c \
+  -o sheenbidi.o \
+  ../SheenBidi/Source/SheenBidi.c
+
 em++ \
 	-std=c++11 \
 	-fno-exceptions \
@@ -62,6 +69,12 @@ em++ \
   -Wl,--export -Wl,hb_set_subtract \
   -Wl,--export -Wl,hb_shape \
   -Wl,--export -Wl,hbjs_glyph_draw \
+  -Wl,--export -Wl,SBAlgorithmCreate \
+  -Wl,--export -Wl,SBAlgorithmRelease \
+  -Wl,--export -Wl,SBAlgorithmGetParagraphBoundary \
+  -Wl,--export -Wl,SBAlgorithmCreateParagraph \
+  -Wl,--export -Wl,SBParagraphRelease \
+  -Wl,--export -Wl,SBParagraphGetLevelsPtr \
   -Wl,--export -Wl,malloc \
   -Wl,--export -Wl,free \
   -Wl,--export -Wl,free_ptr \
@@ -70,6 +83,7 @@ em++ \
   -s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=4MB \
 	-o overflow.wasm \
+	sheenbidi.o \
 	src/overflow.cc \
 	gen/lang-script-database.cc \
 	gen/grapheme-break-trie.cc \

@@ -7,6 +7,8 @@ import UnicodeTrieBuilder from './src/unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './src/string-trie-encode.js';
 import {URL} from 'url';
 
+// TODO: common function for unicode data file parsing
+
 const __dirname = new URL('.', import.meta.url).pathname;
 
 function writeTrie(filename, varname, trie) {

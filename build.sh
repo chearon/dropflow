@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: turn this into a proper makefile, maybe even cmake or meson
 set -e
 
 ragel src/emoji-scan.rl -o gen/emoji-scan.c

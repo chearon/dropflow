@@ -1,13 +1,13 @@
 // All code based on foliojs/grapheme-breaker at time of writing
-import UnicodeTrie from './unicode-trie.js';
+import {createTrie} from './unicode-trie.js';
 import wasm from './wasm.js';
 
-const heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
-const len = heapu32[wasm.instance.exports.grapheme_break_trie_len.value >> 2];
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
-const ptr = wasm.instance.exports.grapheme_break_trie.value >> 2;
-const trie = new UnicodeTrie(heapu32.subarray(ptr, ptr + len));
+const trie = createTrie(
+  wasm.instance.exports.memory.buffer,
+  wasm.instance.exports.grapheme_break_trie.value
+);
 
 // Gets a code point from a UTF-16 string
 // handling surrogate pairs appropriately

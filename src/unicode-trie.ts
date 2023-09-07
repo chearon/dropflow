@@ -106,9 +106,9 @@ export default class UnicodeTrie {
   data: Uint32Array;
 
   constructor(data: Uint32Array) {
-    this.highStart = data[0];
-    this.errorValue = data[1];
-    this.data = data.subarray(2);
+    this.highStart = data[1];
+    this.errorValue = data[2];
+    this.data = data.subarray(3);
   }
 
   get(codePoint: number) {
@@ -138,3 +138,9 @@ export default class UnicodeTrie {
   }
 }
 
+export function createTrie(memory: ArrayBuffer, ptr: number) {
+  const ptr32 = ptr >> 2;
+  const heapu32 = new Uint32Array(memory);
+  const len = heapu32[ptr32];
+  return new UnicodeTrie(heapu32.subarray(ptr32, ptr32 + len));
+}

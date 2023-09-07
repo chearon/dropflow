@@ -1,12 +1,12 @@
-import UnicodeTrie from './unicode-trie.js';
+import {createTrie} from './unicode-trie.js';
 import wasm from './wasm.js';
 
-const heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
-const len = heapu32[wasm.instance.exports.emoji_trie_len.value >> 2];
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
-const ptr = wasm.instance.exports.emoji_trie.value >> 2;
-const emojiTrie = new UnicodeTrie(heapu32.subarray(ptr, ptr + len));
+const emojiTrie = createTrie(
+  wasm.instance.exports.memory.buffer,
+  wasm.instance.exports.emoji_trie.value
+);
 
 const {
   // SheenBidi

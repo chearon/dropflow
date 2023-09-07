@@ -17,8 +17,6 @@ function writeTrie(filename, varname, trie) {
 #include <stdint.h>
 __attribute__((used))
 uint32_t ${varname}[] = {${buffer.join(', ')}};
-__attribute__((used))
-uint32_t ${varname}_len = ${buffer.length};
 `);
 }
 

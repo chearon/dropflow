@@ -816,9 +816,10 @@ export default class UnicodeTrieBuilder {
 
     // calculate the sizes of, and allocate, the index and data arrays
     const indexLength = allIndexesLength + this.dataLength;
-    const data = new Uint32Array(indexLength + 2);
+    const data = new Uint32Array(indexLength + 3);
     let destIdx = 0;
 
+    data[destIdx++] = indexLength + 3;
     data[destIdx++] = this.highStart;
     data[destIdx++] = this.errorValue;
 

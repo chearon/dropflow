@@ -17,32 +17,15 @@
     semver "^7.3.5"
     tar "^6.1.11"
 
-"@types/boolbase@^1.0.1":
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@types/boolbase/-/boolbase-1.0.1.tgz#ad97ac70cdf3d2a405ddfd352e4fc251f69a2071"
-  integrity sha512-ulr2ZqSiEEwtehELPYJjIleXEebz101NzmGn0CWg19+Ud8OoEnJOUJRnfo5F6KUV+x+Pngz1uaesjhINx6mwlQ==
-
 "@types/mocha@^8.0.3":
   version "8.2.3"
   resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-8.2.3.tgz#bbeb55fbc73f28ea6de601fbfa4613f58d785323"
   integrity sha512-ekGvFhFgrc2zYQoX4JeZPmVzZxw6Dtllga7iGHzfbYIYkAMUx/sAFP2GdFpLff+vdHXu5fl7WX9AT+TtqYcsyw==
 
-"@types/node@*":
-  version "18.7.18"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-18.7.18.tgz#633184f55c322e4fb08612307c274ee6d5ed3154"
-  integrity sha512-m+6nTEOadJZuTPkKR/SYK3A2d7FZrgElol9UP1Kae90VVU4a6mxnPuLiIW1m4Cq4gZ/nWb9GrdVXJCoCazDAbg==
-
 "@types/node@^14.14.21":
   version "14.18.29"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-14.18.29.tgz#a0c58d67a42f8953c13d32f0acda47ed26dfce40"
   integrity sha512-LhF+9fbIX4iPzhsRLpK5H7iPdvW8L4IwGciXQIOEcuF62+9nw/VQVsOViAOOGxY3OlOKGLFv0sWwJXdwQeTn6A==
-
-"@types/unicode-trie@^2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@types/unicode-trie/-/unicode-trie-2.0.0.tgz#7062781118c6a7a22ac1e32028429c9e885cef05"
-  integrity sha512-gTmYFWe9oQgL9/r1t2DU+skY+PGlR+7sWzPud4bC74Hr2rmr9K5QRAodwiQMMBHM8cWUr3edrhLkkmhYvYo4GQ==
-  dependencies:
-    "@types/node" "*"
 
 "@ungap/promise-all-settled@1.1.2":
   version "1.1.2"

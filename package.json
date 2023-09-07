@@ -1,9 +1,7 @@
 {
   "devDependencies": {
-    "@types/boolbase": "^1.0.1",
     "@types/mocha": "^8.0.3",
     "@types/node": "^14.14.21",
-    "@types/unicode-trie": "^2.0.0",
     "canvas": "^2.11.0",
     "chai": "^4.2.0",
     "concurrently": "^7.6.0",

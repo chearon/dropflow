@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import * as lbClasses from './src/line-break.js';
 import * as gbClasses from './src/grapheme-break.js';
+import * as mjClasses from './src/itemize.js';
 import UnicodeTrieBuilder from './src/unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './src/string-trie-encode.js';
 import {URL} from 'url';
@@ -351,17 +352,41 @@ export default new Uint16Array(
 `);
 }
 
+async function generateEmojiTrie() {
+  const res = await fetch('https://www.unicode.org/Public/15.0.0/ucd/emoji/emoji-data.txt');
+  const re = /^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Za-z_]+)/gm;
+  const trie = new UnicodeTrieBuilder();
+
+  if (res.status !== 200) throw new Error(res.status);
+
+  const text = await res.text();
+
+  let match;
+
+  while ((match = re.exec(text))) {
+    const start = match[1];
+    const end = match[2] != null ? match[2] : start;
+    const type = match[3];
+    if (typeof mjClasses[type] !== 'number') continue;
+    trie.setRange(parseInt(start, 16), parseInt(end, 16), mjClasses[type]);
+  }
+
+  writeTrie(path.join(__dirname, 'gen/emoji-trie.cc'), 'emoji_trie', trie);
+}
+
 const fns = process.argv.slice(2).map(command => {
   if (command === 'line-break-trie') return generateLineBreakTrie;
   if (command === 'grapheme-break-trie') return generateGraphemeBreakTrie;
   if (command === 'lang-script-database') return generateLangScriptDatabase;
   if (command === 'entity-trie') return generateEntityTrie;
+  if (command === 'emoji-trie') return generateEmojiTrie;
   console.error(`Usage: node gen.js (cmd )+
 Available commands:
   line-break-trie
   grapheme-break-trie
   lang-script-database
-  entity-trie`);
+  entity-trie
+  emoji-trie`);
   process.exit(1);
 });
 

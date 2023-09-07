@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+ragel src/emoji-scan.rl -o gen/emoji-scan.c
+
+emcc \
+  -c \
+  -o emoji-scan.o \
+  gen/emoji-scan.c
+
 emcc \
   -DSB_CONFIG_UNITY \
   -I../SheenBidi/Headers \
@@ -84,7 +91,9 @@ em++ \
 	-s INITIAL_MEMORY=4MB \
 	-o overflow.wasm \
 	sheenbidi.o \
+	emoji_scan.o \
 	src/overflow.cc \
 	gen/lang-script-database.cc \
 	gen/grapheme-break-trie.cc \
-	gen/line-break-trie.cc
+	gen/line-break-trie.cc \
+	gen/emoji-trie.cc

@@ -29,32 +29,6 @@ Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github
 
 The fastest performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
 
-# HTML API
-
-```ts
-import {parse, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow/with-parse';
-import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
-import fs from 'node:fs';
-
-const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.url)));
-
-registerFont(font, 'Roboto.ttf' /* must be unique */);
-
-eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toCssSpec()));
-
-const rootElement = parse(`
-  <div style="background-color: gray;">
-    Hello, <span style="font-weight: bold; color: red;">World!</span>
-  </div>
-`);
-
-const blockContainer = generate(rootElement);
-layout(blockContainer, 640 /* width */, 480 /* height */);
-paintToCanvas(blockContainer, ctx);
-
-canvas.createPNGStream().pipe(fs.writeFileSync(new URL('hello_world.png', import.meta.url));
-```
-
 # Hyperscript API
 
 ```ts
@@ -66,7 +40,7 @@ const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.ur
 
 registerFont(font, 'Roboto.ttf' /* must be unique */);
 
-eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toCssSpec()));
+eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toNodeCanvas()));
 
 // always save style references and re-use them if you can
 const divStyle = {backgroundColor: {r: 128, g: 128, b: 128, a: 1}};
@@ -75,6 +49,32 @@ const rootElement = h('div', {style: divStyle}, [
   'Hello, ',
   h('span', {style: spanStyle}, ['World!'])
 ]);
+
+const blockContainer = generate(rootElement);
+layout(blockContainer, 640 /* width */, 480 /* height */);
+paintToCanvas(blockContainer, ctx);
+
+canvas.createPNGStream().pipe(fs.writeFileSync(new URL('hello_world.png', import.meta.url));
+```
+
+# HTML API
+
+```ts
+import {parse, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow/with-parse';
+import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
+import fs from 'node:fs';
+
+const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.url)));
+
+registerFont(font, 'Roboto.ttf' /* must be unique */);
+
+eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toNodeCanvas()));
+
+const rootElement = parse(`
+  <div style="background-color: gray;">
+    Hello, <span style="font-weight: bold; color: red;">World!</span>
+  </div>
+`);
 
 const blockContainer = generate(rootElement);
 layout(blockContainer, 640 /* width */, 480 /* height */);

@@ -221,17 +221,42 @@ const hbFaces = new Map<string, HbFace>();
 const hbFonts = new Map<string, HbFont>();
 const faces = new Map<string, FaceMatch>();
 
-export function registerFont(buffer: Uint8Array, filename: string) {
+try {
+  var {registerFont: canvasRegisterFont} = await import('canvas');
+} catch (e) {
+  // who knows if they even have canvas
+}
+
+export function registerFont(
+  buffer: Uint8Array,
+  filename: string,
+  options = {canvas: true}
+) {
   if (!hbBlobs.has(filename)) {
     const blob = hb.createBlob(buffer);
+    let family;
+
     hbBlobs.set(filename, blob);
 
     for (let i = 0, l = blob.countFaces(); i < l; ++i) {
       const face = hb.createFace(blob, i);
       const font = hb.createFont(face);
+      const match = new FaceMatch(face, font, filename, i);
       hbFaces.set(filename + i, face);
       hbFonts.set(filename + i, font);
-      faces.set(filename + i, new FaceMatch(face, font, filename, i));
+      faces.set(filename + i, match);
+
+      if (family === undefined) family = match.family;
+    }
+
+    // TODO: this is a little bit hacky
+    // node-canvas doesn't support font collections
+    if (canvasRegisterFont && family && options.canvas) {
+      try {
+        canvasRegisterFont(filename, {family});
+      } catch (e) {
+        // we tried
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 import * as oflo from '../src/api-with-parse.js';
 import fs from 'fs';
-import {createCanvas, registerFont} from 'canvas';
+import {createCanvas} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';
 
 registerFontAsset('Arimo/Arimo-Bold.ttf');
@@ -29,7 +29,6 @@ console.log(blockContainer.repr());
 
 oflo.layout(blockContainer, 300, 200);
 
-oflo.eachRegisteredFont(match => registerFont(match.filename, match.toNodeCanvas()));
 const canvas = createCanvas(600, 400);
 const ctx = canvas.getContext('2d');
 ctx.scale(2, 2);

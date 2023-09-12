@@ -1,6 +1,6 @@
 import * as oflo from '../src/api-with-parse.js';
 import fs from 'fs';
-import {createCanvas, registerFont} from 'canvas';
+import {createCanvas} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';
 
 registerFontAsset('Cairo/Cairo-Regular.ttf');
@@ -22,7 +22,6 @@ console.log(blockContainer.repr());
 
 oflo.layout(blockContainer, 200, 50);
 
-oflo.eachRegisteredFont(match => registerFont(match.filename, match.toNodeCanvas()));
 const canvas = createCanvas(400, 150);
 const ctx = canvas.getContext('2d');
 ctx.scale(2, 2);

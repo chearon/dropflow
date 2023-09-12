@@ -1,7 +1,7 @@
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
-import {createCanvas, registerFont} from 'canvas';
+import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
 
 console.time('Add fonts');
@@ -9,7 +9,6 @@ registerFontAsset('Arimo/Arimo-Bold.ttf');
 registerFontAsset('Arimo/Arimo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Italic.ttf');
 registerFontAsset('Cousine/Cousine-Regular.ttf');
-oflo.eachRegisteredFont(match => registerFont(match.filename, match.toNodeCanvas()));
 console.timeEnd('Add fonts');
 console.log();
 

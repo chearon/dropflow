@@ -17,7 +17,8 @@
   "type": "module",
   "exports": {
     ".": "./src/api.js",
-    "./with-parse.js": "./src/api-with-parse.js"
+    "./with-parse.js": "./src/api-with-parse.js",
+    "./wasm-locator.js": "./src/api-wasm-locator.js"
   },
   "scripts": {
     "test": "mocha test/grow-memory.js test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js test/font.spec.js",

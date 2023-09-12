@@ -1,7 +1,7 @@
-import fs from 'node:fs';
 import env from './wasm-env.js';
+import {locatorFunction} from './api-wasm-locator.js';
 
-const buffer = fs.readFileSync(new URL('../overflow.wasm', import.meta.url));
+const buffer = await locatorFunction.value();
 
 declare const WebAssembly: any;
 

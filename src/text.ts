@@ -4,8 +4,7 @@ import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} 
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import LineBreak from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
-import {itemizer} from './deps.js';
-import {bidiIterator, emojiIterator} from './itemize.js';
+import {bidiIterator, emojiIterator, scriptIterator} from './itemize.js';
 import * as hb from './harfbuzz.js';
 import {getCascade} from './font.js';
 
@@ -1661,7 +1660,7 @@ export class Paragraph {
     let iStyle: ReturnType<IfcInline['itemizeInlines']> | undefined;
     let iEmoji: ReturnType<typeof emojiIterator> | undefined;
     let iBidi: ReturnType<typeof bidiIterator> | undefined;
-    let iScript: ReturnType<typeof itemizer.script> | undefined;
+    let iScript: ReturnType<typeof scriptIterator> | undefined;
     let free = () => {};
 
     if (this.ifc.hasInlines() || this.ifc.hasBreaks()) {
@@ -1675,7 +1674,7 @@ export class Paragraph {
       for (let i = 0; i < this.string.length; i++) buf[i] = this.string.charCodeAt(i);
       iEmoji = emojiIterator(buf);
       iBidi = bidiIterator(buf, this.ifc.style.direction === 'ltr' ? 0 : 1);
-      iScript = itemizer.script(this.string);
+      iScript = scriptIterator(this.string);
     }
 
     let emoji = iEmoji?.next();

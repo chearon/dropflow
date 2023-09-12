@@ -32,8 +32,5 @@
     "ua"
   ],
   "author": "Caleb Hearon <caleb@chearon.net>",
-  "license": "MIT",
-  "dependencies": {
-    "itemizer": "^1.0.6"
-  }
+  "license": "MIT"
 }

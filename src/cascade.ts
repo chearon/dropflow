@@ -473,8 +473,10 @@ export class Style implements ComputedPlainStyle {
     const cssVal = this[LogicalMaps[writingMode].marginLineLeft];
     if (cssVal === 'auto') return false;
     if (typeof cssVal === 'object' && cssVal.value > 0) return true;
-    if (cssVal > 0) return true;
-    if (this[LogicalMaps[writingMode].paddingLineLeft] > 0) return true;
+    if (typeof cssVal !== 'object' && cssVal > 0) return true;
+    const paddingLineLeft = this[LogicalMaps[writingMode].paddingLineLeft];
+    if (typeof paddingLineLeft === 'object' && paddingLineLeft.value > 0) return true;
+    if (typeof paddingLineLeft !== 'object' && paddingLineLeft> 0) return true;
     if (this[LogicalMaps[writingMode].borderLineLeftStyle] === 'none') return false;
     if (this[LogicalMaps[writingMode].borderLineLeftWidth] > 0) return true;
   }
@@ -485,8 +487,10 @@ export class Style implements ComputedPlainStyle {
     const cssVal = this[LogicalMaps[writingMode].marginLineRight];
     if (cssVal === 'auto') return false;
     if (typeof cssVal === 'object' && cssVal.value > 0) return true;
-    if (cssVal > 0) return true;
-    if (this[LogicalMaps[writingMode].paddingLineRight] > 0) return true;
+    if (typeof cssVal !== 'object' && cssVal > 0) return true;
+    const paddingLineRight = this[LogicalMaps[writingMode].paddingLineRight];
+    if (typeof paddingLineRight === 'object' && paddingLineRight.value > 0) return true;
+    if (typeof paddingLineRight !== 'object' && paddingLineRight> 0) return true;
     if (this[LogicalMaps[writingMode].borderLineRightStyle] === 'none') return false;
     if (this[LogicalMaps[writingMode].borderLineRightWidth] > 0) return true;
   }

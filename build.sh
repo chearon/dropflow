@@ -92,7 +92,7 @@ em++ \
 	-s INITIAL_MEMORY=4MB \
 	-o overflow.wasm \
 	sheenbidi.o \
-	emoji_scan.o \
+	emoji-scan.o \
 	src/overflow.cc \
 	gen/lang-script-database.cc \
 	gen/grapheme-break-trie.cc \

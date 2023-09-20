@@ -1,6 +1,11 @@
+# yarn.
 node_modules/
+
+# dist. track wasm since it changes so infrequently and is complicated to build
+dist/
+!dist/overflow.wasm
+
+# js. tests and gen script aren't typed for convenience
 *.js
-*.o
 !gen.js
 !test/*.js
-examples/*.png

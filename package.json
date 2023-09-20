@@ -5,6 +5,7 @@
     "canvas": "^2.11.0",
     "chai": "^4.2.0",
     "concurrently": "^7.6.0",
+    "copyfiles": "^2.4.1",
     "mitata": "^0.1.6",
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
@@ -16,14 +17,37 @@
   "description": "A small CSS2 document renderer built from specifications for learning purposes",
   "type": "module",
   "exports": {
-    ".": "./src/api.js",
-    "./with-parse.js": "./src/api-with-parse.js",
-    "./wasm-locator.js": "./src/api-wasm-locator.js"
+    ".": {
+      "buildtime": "./src/api.js",
+      "default": "./dist/src/api.js"
+    },
+    "./with-parse.js": {
+      "buildtime": "./src/api-with-parse.js",
+      "default": "./dist/src/api-with-parse.js"
+    },
+    "./wasm-locator.js": {
+      "buildtime": "./src/api-wasm-locator-browser.js",
+      "browser": "./dist/src/api-wasm-locator-browser.js",
+      "default": "./dist/src/api-wasm-locator-node.js"
+    }
+  },
+  "imports": {
+    "#wasm-locator": {
+      "buildtime": "./src/api-wasm-locator-node.js",
+      "browser": "./dist/src/api-wasm-locator-browser.js",
+      "default": "./dist/src/api-wasm-locator-node.js"
+    },
+    "#register-paint-font": {
+      "buildtime": "./src/register-paint-font-node.js",
+      "browser": "./dist/src/register-paint-font-browser.js",
+      "default": "./dist/src/register-paint-font-node.js"
+    }
   },
   "scripts": {
-    "test": "mocha test/grow-memory.js test/api.spec.js test/cascade.spec.js test/css.spec.js test/flow.spec.js test/text.spec.js test/font.spec.js",
+    "test": "mocha dist/test/ci.js",
     "buildcssparser": "peggy --format es src/css.pegjs",
-    "build": "concurrently tsc npm:buildcssparser"
+    "build": "concurrently tsc npm:buildcssparser",
+    "postbuild": "copyfiles src/\\*.js assets/\\*\\* test/\\*\\* -e assets/register\\* dist"
   },
   "keywords": [
     "css2",

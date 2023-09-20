@@ -2,6 +2,10 @@
   "include": ["*.ts", "src/**/*", "*.d.ts", "examples/*.ts", "assets/register.ts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true,
+    "customConditions": ["buildtime"],
     "lib": ["esnext"],
     "target": "esnext",
     "module": "node16",

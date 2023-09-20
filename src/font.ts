@@ -2,6 +2,7 @@ import * as hb from './harfbuzz.js';
 import langCoverage from '../gen/lang-script-coverage.js';
 import wasm from './wasm.js';
 import {HbSet} from './harfbuzz.js';
+import registerPaintFont from '#register-paint-font';
 
 import type {HbBlob, HbFace, HbFont} from './harfbuzz.js';
 import type {Style, FontStretch} from './cascade.js';
@@ -206,7 +207,7 @@ export class FaceMatch {
     return `${style} ${this.weight} ${this.stretch} ${size}px ${this.family}`;
   }
 
-  toNodeCanvas() {
+  toCssDescriptor() {
     return {
       family: this.family,
       weight: String(this.weight),
@@ -221,20 +222,13 @@ const hbFaces = new Map<string, HbFace>();
 const hbFonts = new Map<string, HbFont>();
 const faces = new Map<string, FaceMatch>();
 
-try {
-  var {registerFont: canvasRegisterFont} = await import('canvas');
-} catch (e) {
-  // who knows if they even have canvas
-}
-
 export function registerFont(
   buffer: Uint8Array,
   filename: string,
-  options = {canvas: true}
+  options = {paint: true}
 ) {
   if (!hbBlobs.has(filename)) {
     const blob = hb.createBlob(buffer);
-    let family;
 
     hbBlobs.set(filename, blob);
 
@@ -246,16 +240,11 @@ export function registerFont(
       hbFonts.set(filename + i, font);
       faces.set(filename + i, match);
 
-      if (family === undefined) family = match.family;
-    }
-
-    // TODO: this is a little bit hacky
-    // node-canvas doesn't support font collections
-    if (canvasRegisterFont && family && options.canvas) {
-      try {
-        canvasRegisterFont(filename, {family});
-      } catch (e) {
-        // we tried
+      // Browsers don't support registering collections because there would be
+      // no way to clearly associate one description with one buffer. I suppose
+      // this should be enforced elsewhere too...
+      if (options.paint && i === 0 && l === 1) {
+        registerPaintFont(match, buffer, filename);
       }
     }
   }

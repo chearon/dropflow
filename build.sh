@@ -2,18 +2,20 @@
 # TODO: turn this into a proper makefile, maybe even cmake or meson
 set -e
 
+mkdir -p dist
+
 ragel src/emoji-scan.rl -o gen/emoji-scan.c
 
 emcc \
   -c \
-  -o emoji-scan.o \
+  -o dist/emoji-scan.o \
   gen/emoji-scan.c
 
 emcc \
   -DSB_CONFIG_UNITY \
   -I../SheenBidi/Headers \
   -c \
-  -o sheenbidi.o \
+  -o dist/sheenbidi.o \
   ../SheenBidi/Source/SheenBidi.c
 
 em++ \
@@ -90,9 +92,9 @@ em++ \
 	-s WARN_ON_UNDEFINED_SYMBOLS=0 \
   -s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=4MB \
-	-o overflow.wasm \
-	sheenbidi.o \
-	emoji-scan.o \
+	-o dist/overflow.wasm \
+	dist/sheenbidi.o \
+	dist/emoji-scan.o \
 	src/overflow.cc \
 	gen/lang-script-database.cc \
 	gen/grapheme-break-trie.cc \

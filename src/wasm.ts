@@ -1,5 +1,5 @@
 import env from './wasm-env.js';
-import {locatorFunction} from './api-wasm-locator.js';
+import {locatorFunction} from '#wasm-locator';
 
 const buffer = await locatorFunction.value();
 

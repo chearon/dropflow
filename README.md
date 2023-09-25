@@ -1,6 +1,6 @@
 # overflow
 
-Overflow is a CSS layout engine created to explore the reaches of the foundational CSS standards (that is, inlines, blocks, floats, positioning and eventually tables, but not flexbox or grid). It has a high quality text layout implementation and is capable of displaying many of the languages of the world. You can use it to generate PDFs or images on the backend with Node and [node-canvas](https://github.com/Automattic/node-canvas) or render rich, wrapped text to a canvas in the browser.
+Overflow is a CSS layout engine created to explore the reaches of the foundational CSS standards (that is: inlines, blocks, floats, positioning and eventually tables, but not flexbox or grid). It has a high quality text layout implementation and is capable of displaying many of the languages of the world. You can use it to generate PDFs or images on the backend with Node and [node-canvas](https://github.com/Automattic/node-canvas) or render rich, wrapped text to a canvas in the browser.
 
 # Features
 
@@ -167,9 +167,13 @@ Following are rules that work or will work soon. Shorthand properties are not li
 
 # Third party components
 
-* [fb55/htmlparser2](https://github.com/fb55/htmlparser2) parses HTML (inlined into source tree)
+overflow doesn't have any `package.json` dependencies. External Javascript has instead been checked in and modified to varying degrees to fit this project. It's also a way to rebel against `node_modules` insanity. These are the repos that have been used:
+
+* [harfbuzz](https://github.com/harfbuzz/harfbuzz) does font shaping
+* [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) is used for bidi
+* [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices
+* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) provides Unicode grapheme boundaries
 * [peggyjs/peggy](https://github.com/peggyjs/peggy) builds the CSS parser
-* [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices (inlined into source tree)
-* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) provides Unicode grapheme boundaries (inlined into source tree)
-* [chearon/itemizer](https://github.com/chearon/itemizer) produces shaping boundaries with the help of [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) and [google/emoji-segmenter](https://github.com/google/emoji-segmenter)
-* [harfbuzz/harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs) does font shaping
+* [fb55/htmlparser2](https://github.com/fb55/htmlparser2) parses HTML
+* [google/emoji-segmenter](https://github.com/google/emoji-segmenter) segments emoji
+* [foliojs/unicode-trie](https://github.com/foliojs/unicode-trie) is used for fast unicode data (heavily modified to remove unused parts)

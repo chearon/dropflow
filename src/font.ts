@@ -2,7 +2,7 @@ import * as hb from './harfbuzz.js';
 import langCoverage from '../gen/lang-script-coverage.js';
 import wasm from './wasm.js';
 import {HbSet} from './harfbuzz.js';
-import registerPaintFont from '#register-paint-font';
+import {registerPaintFont, loadBuffer} from '#backend';
 
 import type {HbBlob, HbFace, HbFont} from './harfbuzz.js';
 import type {Style, FontStretch} from './cascade.js';
@@ -222,47 +222,66 @@ const hbFaces = new Map<string, HbFace>();
 const hbFonts = new Map<string, HbFont>();
 const faces = new Map<string, FaceMatch>();
 
-export function registerFont(
-  buffer: Uint8Array,
-  filename: string,
-  options = {paint: true}
+export async function registerFont(url: URL, options?: {paint: boolean}): Promise<void>;
+export async function registerFont(buffer: ArrayBuffer, url: URL, options?: {paint: boolean}): Promise<void>;
+export async function registerFont(
+  arg1: URL | ArrayBuffer,
+  arg2?: {paint: boolean} | URL,
+  arg3?: {paint: boolean}
 ) {
-  if (!hbBlobs.has(filename)) {
+  let buffer: Uint8Array;
+  let url: URL;
+  let options: {paint: boolean};
+
+  if (arg1 instanceof ArrayBuffer) {
+    buffer = new Uint8Array(arg1);
+    url = arg2 as any;
+    options = arg3 || {paint: true};
+  } else {
+    url = arg1 as any;
+    buffer = new Uint8Array(await loadBuffer(url));
+    options = arg2 as any || {paint: true};
+  }
+
+  const stringUrl = String(url);
+
+  if (!hbBlobs.has(stringUrl)) {
     const blob = hb.createBlob(buffer);
 
-    hbBlobs.set(filename, blob);
+    hbBlobs.set(stringUrl, blob);
 
     for (let i = 0, l = blob.countFaces(); i < l; ++i) {
       const face = hb.createFace(blob, i);
       const font = hb.createFont(face);
-      const match = new FaceMatch(face, font, filename, i);
-      hbFaces.set(filename + i, face);
-      hbFonts.set(filename + i, font);
-      faces.set(filename + i, match);
+      const match = new FaceMatch(face, font, stringUrl, i);
+      hbFaces.set(stringUrl + i, face);
+      hbFonts.set(stringUrl + i, font);
+      faces.set(stringUrl + i, match);
 
       // Browsers don't support registering collections because there would be
       // no way to clearly associate one description with one buffer. I suppose
       // this should be enforced elsewhere too...
       if (options.paint && i === 0 && l === 1) {
-        registerPaintFont(match, buffer, filename);
+        registerPaintFont(match, buffer, url);
       }
     }
   }
 }
 
-export function unregisterFont(filename: string) {
-  const blob = hbBlobs.get(filename);
+export function unregisterFont(url: URL) {
+  const stringUrl = String(url);
+  const blob = hbBlobs.get(stringUrl);
   if (blob) {
     for (let i = 0, l = blob.countFaces(); i < l; i++) {
-      const face = hbFaces.get(filename + i)!;
-      const font = hbFonts.get(filename + i)!;
+      const face = hbFaces.get(stringUrl + i)!;
+      const font = hbFonts.get(stringUrl + i)!;
       blob.destroy();
       face.destroy();
       font.destroy();
-      hbFaces.delete(filename + i);
-      faces.delete(filename + i);
+      hbFaces.delete(stringUrl + i);
+      faces.delete(stringUrl + i);
     }
-    hbBlobs.delete(filename);
+    hbBlobs.delete(stringUrl);
   }
   cascades = new WeakMap();
 }

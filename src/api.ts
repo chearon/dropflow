@@ -6,7 +6,7 @@ import CanvasPaintBackend from './paint-canvas.js';
 import paintBlockContainer from './paint.js';
 import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
-import type {CanvasRenderingContext2D} from 'canvas';
+import type {Canvas, CanvasRenderingContext2D} from 'canvas';
 
 export {cascadeStyles};
 
@@ -78,6 +78,23 @@ export {eachRegisteredFont} from './font.js';
 export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D) {
   const b = new CanvasPaintBackend(ctx);
   paintBlockContainer(root, b);
+}
+
+export function renderToCanvasContext(
+  rootElement: HTMLElement,
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number
+) {
+  const root = generate(dom(rootElement));
+  layout(root, width, height);
+  paintToCanvas(root, ctx);
+}
+
+export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density = 1) {
+  const ctx = canvas.getContext('2d');
+  ctx.scale(density, density);
+  renderToCanvasContext(rootElement, ctx, canvas.width / density, canvas.height / density);
 }
 
 type Node = HTMLElement | TextNode;

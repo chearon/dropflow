@@ -29,58 +29,80 @@ Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github
 
 The fastest performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
 
-# Hyperscript API
+# Fast hyperscript API
+
+Overflow works off of a DOM with inherited and calculated styles, the same way
+that browsers do. You create the DOM with the familiar `h()` function, and
+specify styles as plain objects.
 
 ```ts
-import {h, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow';
-import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
+import {h, renderToCanvas, registerFont} from 'overflow';
+import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.url)));
+// Register fonts before layout. This is a required step.
+// It is only async when you don't pass an ArrayBuffer
+await registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
+await registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 
-registerFont(font, 'Roboto.ttf' /* must be unique */);
+// Always create styles at the top-level of your module if you can
+const divStyle = {
+  backgroundColor: {r: 28, g: 10, b: 0, a: 1},
+  color: {r: 179, g: 200, b: 144, a: 1},
+  textAlign: 'center'
+};
 
-eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toNodeCanvas()));
+// Since we're creating styles directly, colors have to be defined numerically
+const spanStyle = {
+  color: {r: 115, g: 169, b: 173, a: 1},
+  fontWeight: 700
+};
 
-// always save style references and re-use them if you can
-const divStyle = {backgroundColor: {r: 128, g: 128, b: 128, a: 1}};
-const spanStyle = {fontWeight: 700, color: {r: 255, g: 0, b: 0, a: 1}};
+// Create a DOM
 const rootElement = h('div', {style: divStyle}, [
   'Hello, ',
   h('span', {style: spanStyle}, ['World!'])
 ]);
 
-const blockContainer = generate(rootElement);
-layout(blockContainer, 640 /* width */, 480 /* height */);
-paintToCanvas(blockContainer, ctx);
+// Layout and paint into the entire canvas (see also renderToCanvasContext)
+const canvas = createCanvas(250, 50);
+renderToCanvas(rootElement, canvas, /* optional density: */ 2);
 
-canvas.createPNGStream().pipe(fs.writeFileSync(new URL('hello_world.png', import.meta.url));
+// Save your image
+canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
+
 ```
+
+<div align="center">
+
+![Hello world against a dark background, with "world" bolded and colored differently](assets/images/hello.png)
+
+</div>
 
 # HTML API
 
+This API is only recommended if performance is not a concern, or for learning
+purposes. Parsing adds extra time (though it is fast) and increases bundle size
+significantly.
+
 ```ts
-import {parse, layout, paintToCanvas, registerFont, eachRegisteredFont} from 'overflow/with-parse';
-import {createCanvas, registerFont as canvasRegisterFont} from 'canvas';
+import {parse, renderToCanvas, registerFont} from 'overflow/with-parse.js';
+import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-const font = new Uint8Array(fs.readFileSync(new URL('Roboto.ttf', import.meta.url)));
-
-registerFont(font, 'Roboto.ttf' /* must be unique */);
-
-eachRegisteredFont(match => canvasRegisterFont(match.filename, match.toNodeCanvas()));
+await registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
+await registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 
 const rootElement = parse(`
-  <div style="background-color: gray;">
-    Hello, <span style="font-weight: bold; color: red;">World!</span>
+  <div style="background-color: #1c0a00; color: #b3c890; text-align: center;">
+    Hello, <span style="color: #73a9ad; font-weight: bold;">World!</span>
   </div>
 `);
 
-const blockContainer = generate(rootElement);
-layout(blockContainer, 640 /* width */, 480 /* height */);
-paintToCanvas(blockContainer, ctx);
+const canvas = createCanvas(250, 50);
+renderToCanvas(rootElement, canvas, 2);
 
-canvas.createPNGStream().pipe(fs.writeFileSync(new URL('hello_world.png', import.meta.url));
+canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
 ```
 
 # Supported CSS rules

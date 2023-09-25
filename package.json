@@ -37,10 +37,10 @@
       "browser": "./dist/src/api-wasm-locator-browser.js",
       "default": "./dist/src/api-wasm-locator-node.js"
     },
-    "#register-paint-font": {
-      "buildtime": "./src/register-paint-font-node.js",
-      "browser": "./dist/src/register-paint-font-browser.js",
-      "default": "./dist/src/register-paint-font-node.js"
+    "#backend": {
+      "buildtime": "./src/backend-node.js",
+      "browser": "./dist/src/backend-browser.js",
+      "default": "./dist/src/backend-node.js"
     }
   },
   "scripts": {

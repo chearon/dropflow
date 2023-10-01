@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import * as lbClasses from './src/line-break.js';
-import * as gbClasses from './src/grapheme-break.js';
-import * as mjClasses from './src/itemize.js';
-import UnicodeTrieBuilder from './src/unicode-trie-builder.js';
-import {getTrie, encodeTrie} from './src/string-trie-encode.js';
+import * as lbClasses from './dist/src/line-break.js';
+import * as gbClasses from './dist/src/grapheme-break.js';
+import * as mjClasses from './dist/src/itemize.js';
+import UnicodeTrieBuilder from './dist/src/unicode-trie-builder.js';
+import {getTrie, encodeTrie} from './dist/src/string-trie-encode.js';
 import {URL} from 'url';
 
 // TODO: common function for unicode data file parsing

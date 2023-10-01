@@ -4,10 +4,10 @@ jobs:
   node:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: oven-sh/setup-bun@v1
     - name: Node.js v20
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: 20
     - run: bun install --frozen-lockfile
@@ -16,11 +16,11 @@ jobs:
   bun:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Bun v1
       uses: oven-sh/setup-bun@v1
       with:
-        node-version: 1
+        bun-version: 1
     - run: bun install --frozen-lockfile
     - run: bun run build
     - run: bun run test

@@ -374,14 +374,43 @@ async function generateEmojiTrie() {
   writeTrie(path.join(__dirname, 'gen/emoji-trie.cc'), 'emoji_trie', trie);
 }
 
+async function getScriptNames() {
+  const res = await fetch('https://www.unicode.org/iso15924/iso15924.txt');
+  if (res.status !== 200) throw new Error(res.statusText);
+  const text = await res.text();
+  /** @type {Map<string, number>} */
+  const pvaToNo = new Map();
+  /** @type {Map<string, string>} */
+  const pvaToCode = new Map();
+  /** @type {Map<number, string>} */
+  const noToPva = new Map();
+
+  for (const line of text.split('\n')) {
+    if (line.startsWith('#') || !line.trim().length) continue;
+    const [code, no, /*en*/, /*fr*/, pva, /*ver*/, /*date*/] = line.split(';');
+    pvaToNo.set(pva, +no);
+    pvaToCode.set(pva, code);
+    noToPva.set(+no, pva);
+  }
+
+  return {pvaToNo, pvaToCode, noToPva};
+}
+
+async function generateScriptNames() {
+  const {pvaToNo, pvaToCode, noToPva} = await getScriptNames();
+  fs.writeFileSync(path.join(__dirname, 'gen/script-names.ts'), `// generated from gen.js
+export const pvaToNo = new Map(${JSON.stringify([...pvaToNo.entries()])});
+export const pvaToCode = new Map(${JSON.stringify([...pvaToCode.entries()])});
+export const noToPva = new Map(${JSON.stringify([...noToPva.entries()])});
+`);
+}
+
 async function generateScriptTrie() {
   const res = await fetch('https://www.unicode.org/Public/15.0.0/ucd/Scripts.txt');
   const re = /^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Za-z_]+)/gm;
   const trie = new UnicodeTrieBuilder();
   /** @type {Map<string, number>} */
-  const names = new Map();
-  let js = '// generated from gen.js\nexport default [\n  undefined,\n';
-  let nextId = 1;
+  const {pvaToNo} = await getScriptNames();
 
   if (res.status !== 200) throw new Error(res.status);
 
@@ -392,19 +421,13 @@ async function generateScriptTrie() {
   while ((match = re.exec(text))) {
     const start = match[1];
     const end = match[2] != null ? match[2] : start;
-    const name = match[3];
-    if (!names.has(name)) {
-      const id = nextId++;
-      js += `  '${name}',\n`
-      names.set(name, id);
-    }
-    const id = names.get(name);
-    trie.setRange(parseInt(start, 16), parseInt(end, 16), id);
+    const pva = match[3];
+    const no = pvaToNo.get(pva);
+    if (no === undefined) throw new Error(`PVA ${pva} not found in iso15924.txt`);
+    trie.setRange(parseInt(start, 16), parseInt(end, 16), no);
   }
 
   writeTrie(path.join(__dirname, 'gen/script-trie.cc'), 'script_trie', trie);
-  js += '];';
-  fs.writeFileSync(path.join(__dirname, 'gen/script-names.ts'), js);
 }
 
 const fns = process.argv.slice(2).map(command => {
@@ -414,6 +437,7 @@ const fns = process.argv.slice(2).map(command => {
   if (command === 'entity-trie') return generateEntityTrie;
   if (command === 'emoji-trie') return generateEmojiTrie;
   if (command === 'script-trie') return generateScriptTrie;
+  if (command === 'script-names') return generateScriptNames;
   console.error(`Usage: node gen.js (cmd )+
 Available commands:
   line-break-trie
@@ -421,7 +445,8 @@ Available commands:
   lang-script-database
   entity-trie
   emoji-trie
-  script-trie`);
+  script-trie
+  script-names`);
   process.exit(1);
 });
 

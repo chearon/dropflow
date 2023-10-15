@@ -5,6 +5,7 @@ import * as gbClasses from './dist/src/grapheme-break.js';
 import * as mjClasses from './dist/src/itemize.js';
 import UnicodeTrieBuilder from './dist/src/unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './dist/src/string-trie-encode.js';
+import {hb_tag} from './dist/src/harfbuzz.js';
 import {URL} from 'url';
 
 // TODO: common function for unicode data file parsing
@@ -379,29 +380,32 @@ async function getScriptNames() {
   if (res.status !== 200) throw new Error(res.statusText);
   const text = await res.text();
   /** @type {Map<string, number>} */
-  const pvaToNo = new Map();
-  /** @type {Map<string, string>} */
-  const pvaToCode = new Map();
+  const nameToCode = new Map([['Common', 0]]);
   /** @type {Map<number, string>} */
-  const noToPva = new Map();
+  const codeToName = new Map([[0, 'Common']]);
+  /** @type {Map<number, number>} */
+  const tagToCode = new Map([[hb_tag('dflt'), 0]]);
+  let code = 1;
 
   for (const line of text.split('\n')) {
     if (line.startsWith('#') || !line.trim().length) continue;
-    const [code, no, /*en*/, /*fr*/, pva, /*ver*/, /*date*/] = line.split(';');
-    pvaToNo.set(pva, +no);
-    pvaToCode.set(pva, code);
-    noToPva.set(+no, pva);
+    const [tag, /*no*/, /*en*/, /*fr*/, name, /*ver*/, /*date*/] = line.split(';');
+    if (nameToCode.has(name)) continue; // Common
+    nameToCode.set(name, code);
+    codeToName.set(code, name);
+    tagToCode.set(hb_tag(tag), code);
+    code += 1;
   }
 
-  return {pvaToNo, pvaToCode, noToPva};
+  return {nameToCode, codeToName, tagToCode};
 }
 
 async function generateScriptNames() {
-  const {pvaToNo, pvaToCode, noToPva} = await getScriptNames();
+  const {nameToCode, codeToName, tagToCode} = await getScriptNames();
   fs.writeFileSync(path.join(__dirname, 'gen/script-names.ts'), `// generated from gen.js
-export const pvaToNo = new Map(${JSON.stringify([...pvaToNo.entries()])});
-export const pvaToCode = new Map(${JSON.stringify([...pvaToCode.entries()])});
-export const noToPva = new Map(${JSON.stringify([...noToPva.entries()])});
+export const nameToCode = new Map(${JSON.stringify([...nameToCode.entries()])});
+export const codeToName = new Map(${JSON.stringify([...codeToName.entries()])});
+export const tagToCode = new Map(${JSON.stringify([...tagToCode.entries()])});
 `);
 }
 
@@ -410,7 +414,7 @@ async function generateScriptTrie() {
   const re = /^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Za-z_]+)/gm;
   const trie = new UnicodeTrieBuilder();
   /** @type {Map<string, number>} */
-  const {pvaToNo} = await getScriptNames();
+  const {nameToCode} = await getScriptNames();
 
   if (res.status !== 200) throw new Error(res.status);
 
@@ -421,10 +425,10 @@ async function generateScriptTrie() {
   while ((match = re.exec(text))) {
     const start = match[1];
     const end = match[2] != null ? match[2] : start;
-    const pva = match[3];
-    const no = pvaToNo.get(pva);
-    if (no === undefined) throw new Error(`PVA ${pva} not found in iso15924.txt`);
-    trie.setRange(parseInt(start, 16), parseInt(end, 16), no);
+    const name = match[3];
+    const code = nameToCode.get(name);
+    if (code === undefined) throw new Error(`PVA ${name} not found in iso15924.txt`);
+    trie.setRange(parseInt(start, 16), parseInt(end, 16), code);
   }
 
   writeTrie(path.join(__dirname, 'gen/script-trie.cc'), 'script_trie', trie);

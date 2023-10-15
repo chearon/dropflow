@@ -23,7 +23,7 @@ const utf16Decoder = new TextDecoder('utf-16');
 
 const HB_MEMORY_MODE_WRITABLE = 2;
 
-function hb_tag(s: string) {
+export function hb_tag(s: string) {
   return (
     (s.charCodeAt(0) & 0xFF) << 24 |
     (s.charCodeAt(1) & 0xFF) << 16 |

@@ -1,6 +1,6 @@
 import {createTrie} from './unicode-trie.js';
 import wasm from './wasm.js';
-import {noToPva} from '../gen/script-names.js';
+import {codeToName} from '../gen/script-names.js';
 
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
@@ -283,7 +283,7 @@ export function* scriptIterator(text: string) {
       code = ((code - 0xd800) * 0xd400) + (next - 0xdc00) + 0x10000;
     }
 
-    let script = noToPva.get(scriptTrie.get(code)) || 'Common';
+    let script = codeToName.get(scriptTrie.get(code)) || 'Common';
     const pairIndex = script !== 'Common' ? -1 : getPairIndex(code);
 
     // Paired character handling:

@@ -301,6 +301,8 @@ function createJsString(text: string) {
   };
 }
 
+const langPtr = exports.malloc(3);
+
 export class HbBuffer {
   ptr: number;
 
@@ -310,6 +312,10 @@ export class HbBuffer {
 
   getLength(): number {
     return exports.hb_buffer_get_length(this.ptr);
+  }
+
+  setLength(length: number) {
+    exports.hb_buffer_set_length(this.ptr, length);
   }
 
   addText(text: string) {
@@ -346,15 +352,14 @@ export class HbBuffer {
   }
 
   setLanguage(language: string) {
-    const str = createAsciiString(language);
-    exports.hb_buffer_set_language(this.ptr, exports.hb_language_from_string(str.ptr, -1));
-    str.free();
+    const len = Math.min(3, language.length);
+    const a = heapu8();
+    for (let i = 0; i < len; i++) a[langPtr + i] = language.codePointAt(i)!;
+    exports.hb_buffer_set_language(this.ptr, exports.hb_language_from_string(langPtr, len));
   }
 
-  setScript(script: string) {
-    const str = createAsciiString(script);
-    exports.hb_buffer_set_script(this.ptr, exports.hb_script_from_string(str.ptr, -1));
-    str.free();
+  setScript(script: number) {
+    exports.hb_buffer_set_script(this.ptr, script);
   }
 
   setClusterLevel(level: number) {

@@ -43,6 +43,7 @@ em++ \
   -Wl,--export -Wl,hb_buffer_get_glyph_infos \
   -Wl,--export -Wl,hb_buffer_get_glyph_positions \
   -Wl,--export -Wl,hb_buffer_get_length \
+  -Wl,--export -Wl,hb_buffer_set_length \
   -Wl,--export -Wl,hb_buffer_guess_segment_properties \
   -Wl,--export -Wl,hb_buffer_set_cluster_level \
   -Wl,--export -Wl,hb_buffer_set_direction \

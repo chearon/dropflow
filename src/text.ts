@@ -7,6 +7,7 @@ import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import {bidiIterator, emojiIterator, scriptIterator} from './itemize.js';
 import * as hb from './harfbuzz.js';
 import {getCascade} from './font.js';
+import {nameToTag} from '../gen/script-names.js';
 
 import type {FaceMatch} from './font.js';
 import type {HbBuffer, HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
@@ -384,9 +385,7 @@ function loadHyphen(item: ShapedItem) {
       const buf = hb.createBuffer();
       buf.setClusterLevel(1);
       buf.addText(hyphen);
-      buf.setScript('Latin');
-      buf.setDirection('ltr');
-      buf.setLanguage('en');
+      buf.guessSegmentProperties();
       hb.shape(item.match.font, buf);
       const glyphs = extractHbBufferGlyphs(buf);
       buf.destroy();
@@ -1564,6 +1563,10 @@ function createIfcBuffer(text: string) {
   return allocation;
 }
 
+const hbBuffer = hb.createBuffer();
+hbBuffer.setClusterLevel(1);
+hbBuffer.setFlags(['PRODUCE_UNSAFE_TO_CONCAT']);
+
 export class Paragraph {
   ifc: IfcInline;
   string: string;
@@ -1730,14 +1733,13 @@ export class Paragraph {
   }
 
   shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
-    const buf = hb.createBuffer();
-    buf.setClusterLevel(1);
-    buf.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
-    buf.guessSegmentProperties();
-    buf.setFlags(['PRODUCE_UNSAFE_TO_CONCAT']);
-    hb.shape(font, buf);
-    const array = extractHbBufferGlyphs(buf);
-    buf.destroy();
+    hbBuffer.setLength(0);
+    hbBuffer.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
+    hbBuffer.setScript(nameToTag.get(attrs.script)!);
+    hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
+    hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
+    hb.shape(font, hbBuffer);
+    const array = extractHbBufferGlyphs(hbBuffer);
     return array;
   }
 

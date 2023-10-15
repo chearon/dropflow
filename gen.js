@@ -381,6 +381,8 @@ async function getScriptNames() {
   const text = await res.text();
   /** @type {Map<string, number>} */
   const nameToCode = new Map([['Common', 0]]);
+  /** @type {Map<string, number>} */
+  const nameToTag = new Map([['Common', hb_tag('dflt')]]);
   /** @type {Map<number, string>} */
   const codeToName = new Map([[0, 'Common']]);
   /** @type {Map<number, number>} */
@@ -392,18 +394,20 @@ async function getScriptNames() {
     const [tag, /*no*/, /*en*/, /*fr*/, name, /*ver*/, /*date*/] = line.split(';');
     if (nameToCode.has(name)) continue; // Common
     nameToCode.set(name, code);
+    nameToTag.set(name, hb_tag(tag));
     codeToName.set(code, name);
     tagToCode.set(hb_tag(tag), code);
     code += 1;
   }
 
-  return {nameToCode, codeToName, tagToCode};
+  return {nameToCode, nameToTag, codeToName, tagToCode};
 }
 
 async function generateScriptNames() {
-  const {nameToCode, codeToName, tagToCode} = await getScriptNames();
+  const {nameToCode, nameToTag, codeToName, tagToCode} = await getScriptNames();
   fs.writeFileSync(path.join(__dirname, 'gen/script-names.ts'), `// generated from gen.js
 export const nameToCode = new Map(${JSON.stringify([...nameToCode.entries()])});
+export const nameToTag = new Map(${JSON.stringify([...nameToTag.entries()])});
 export const codeToName = new Map(${JSON.stringify([...codeToName.entries()])});
 export const tagToCode = new Map(${JSON.stringify([...tagToCode.entries()])});
 `);

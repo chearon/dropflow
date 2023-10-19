@@ -737,9 +737,9 @@ export class ShapedItem implements IfcRenderItem {
           const length = this.attrs.level & 1 ? this.glyphs[i + G_CL] - offset : this.end() - offset;
           const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
           if (!(newGlyphs[G_FL] & 2)) {
-            const glyphs = new Int32Array(i + newGlyphs.length);
-            glyphs.set(this.glyphs.subarray(0, i), 0);
-            glyphs.set(newGlyphs, i);
+            const glyphs = new Int32Array(i + G_SZ + newGlyphs.length);
+            glyphs.set(this.glyphs.subarray(0, i + G_SZ), 0);
+            glyphs.set(newGlyphs, i + G_SZ);
             this.glyphs = glyphs;
             return;
           }

@@ -251,6 +251,7 @@ function setupLayoutTests() {
   registerFontAsset('Cairo/Cairo-Regular.ttf');
   registerFontAsset('Roboto/Roboto-Regular.ttf');
   registerFontAsset('Raleway/Raleway-Regular.ttf');
+  registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
 
   this.layout = function (html) {
     this.rootElement = oflo.parse(html);
@@ -288,6 +289,7 @@ function teardownLayoutTests() {
   unregisterFontAsset('Cairo/Cairo-Regular.ttf');
   unregisterFontAsset('Roboto/Roboto-Regular.ttf');
   unregisterFontAsset('Raleway/Raleway-Regular.ttf');
+  unregisterFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
 }
 
 function logIfFailed() {
@@ -1025,6 +1027,19 @@ describe('Lines', function () {
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes.length).to.equal(2);
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(9);
+  });
+
+  it('remembers in-ligature measure state when carried to next line', function () {
+    this.layout(`
+      <div style="font: 24px LigatureSymbolsWithSpaces; width: 100px;">
+        Ligature symbols
+        daily calendar calendar align left align center align right
+      </div>
+    `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [inline] = this.get('div').children;
+    expect(inline.paragraph.lineboxes.length).to.equal(4);
+    expect(inline.paragraph.lineboxes[3].head.value.offset).to.equal(66);
   });
 
   it('adds a soft hyphen if one fits after a &shy', function () {

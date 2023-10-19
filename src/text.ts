@@ -778,8 +778,8 @@ export class ShapedItem implements IfcRenderItem {
     return {
       glyphIndex,
       characterIndex: direction === 1 ? -1 : this.end(),
-      clusterStart: direction === 1 ? 0 : this.end(),
-      clusterEnd: direction === 1 ? 0 : this.end(),
+      clusterStart: this.glyphs[glyphIndex + G_CL],
+      clusterEnd: this.glyphs[glyphIndex + G_CL],
       clusterAdvance: 0,
       isInk: false,
       done: false

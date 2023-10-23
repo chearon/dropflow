@@ -41,15 +41,12 @@ function _hb_untag(tag: number) {
   ].join('');
 }
 
-function _buffer_flag(s: string) {
-  if (s == 'BOT') { return 0x1; }
-  if (s == 'EOT') { return 0x2; }
-  if (s == 'PRESERVE_DEFAULT_IGNORABLES') { return 0x4; }
-  if (s == 'REMOVE_DEFAULT_IGNORABLES') { return 0x8; }
-  if (s == 'DO_NOT_INSERT_DOTTED_CIRCLE') { return 0x10; }
-  if (s == 'PRODUCE_UNSAFE_TO_CONCAT') { return 0x40; }
-  return 0x0;
-}
+export const HB_BUFFER_FLAG_BOT = 0x1
+export const HB_BUFFER_FLAG_EOT = 0x2
+export const HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES = 0x4;
+export const HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES = 0x8
+export const HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE = 0x10;
+export const HB_BUFFER_FLAG_PRODUCE_UNSAFE_TO_CONCAT = 0x40;
 
 export class HbSet {
   ptr: number;
@@ -341,14 +338,8 @@ export class HbBuffer {
     }[dir] || 0);
   }
 
-  setFlags(flags: string[]) {
-    let flagValue = 0
-
-    flags.forEach(function (s) {
-      flagValue |= _buffer_flag(s);
-    })
-
-    exports.hb_buffer_set_flags(this.ptr, flagValue);
+  setFlags(flags: number) {
+    exports.hb_buffer_set_flags(this.ptr, flags);
   }
 
   setLanguage(language: string) {

@@ -1565,7 +1565,7 @@ function createIfcBuffer(text: string) {
 
 const hbBuffer = hb.createBuffer();
 hbBuffer.setClusterLevel(1);
-hbBuffer.setFlags(['PRODUCE_UNSAFE_TO_CONCAT']);
+hbBuffer.setFlags(hb.HB_BUFFER_FLAG_PRODUCE_UNSAFE_TO_CONCAT);
 
 export class Paragraph {
   ifc: IfcInline;

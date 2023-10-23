@@ -375,6 +375,14 @@ export class HbBuffer {
     return exports.hb_glyph_info_get_glyph_flags(infosPtr + glyphIndex * 20);
   }
 
+  extractGlyphs() {
+    const glyphsPtr = exports.hbjs_extract_glyphs(this.ptr);
+    const glyphsPtr32 = glyphsPtr >>> 2;
+    const ret = heapi32().slice(glyphsPtr32, glyphsPtr32 + this.getLength() * 7);
+    exports.free(glyphsPtr);
+    return ret;
+  }
+
   destroy() {
     exports.hb_buffer_destroy(this.ptr);
   }

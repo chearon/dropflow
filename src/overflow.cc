@@ -3,6 +3,15 @@
 
 HB_BEGIN_DECLS
 
+typedef struct hbjs_glyph {
+  uint32_t id;
+  uint32_t cl;
+  int32_t ax;
+  int32_t ay;
+  int32_t dx;
+  int32_t dy;
+  int32_t fl;
+} hbjs_glyph;
 
 /* imports */
 void hbjs_glyph_draw_move_to(float to_x, float to_y);
@@ -15,6 +24,7 @@ void hbjs_glyph_draw_cubic_to(
 );
 void hbjs_glyph_draw_close_path();
 void hbjs_glyph_draw(hb_font_t *font, hb_codepoint_t glyph);
+hbjs_glyph* hbjs_extract_glyphs(hb_buffer_t* buf);
 
 void *free_ptr(void);
 
@@ -79,4 +89,25 @@ hbjs_glyph_draw(hb_font_t *font, hb_codepoint_t glyph)
   }
 
   hb_font_draw_glyph (font, glyph, glyph_draw_funcs, nullptr);
+}
+
+__attribute__((export_name("hbjs_extract_glyphs")))
+hbjs_glyph*
+hbjs_extract_glyphs(hb_buffer_t* buf) {
+  unsigned int len = 0;
+  hb_glyph_info_t* infos = hb_buffer_get_glyph_infos(buf, &len);
+  hb_glyph_position_t* positions = hb_buffer_get_glyph_positions(buf, &len);
+  hbjs_glyph* ret = (hbjs_glyph*) malloc(sizeof(hbjs_glyph) * len);
+
+  for (unsigned int i = 0; i < len; i++) {
+    ret[i].id = infos[i].codepoint;
+    ret[i].cl = infos[i].cluster;
+    ret[i].ax = positions[i].x_advance;
+    ret[i].ay = positions[i].y_advance;
+    ret[i].dx = positions[i].x_offset;
+    ret[i].dy = positions[i].y_offset;
+    ret[i].fl = hb_glyph_info_get_glyph_flags(infos + i);
+  }
+
+  return ret;
 }

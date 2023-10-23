@@ -10,7 +10,7 @@ import {getCascade} from './font.js';
 import {nameToTag} from '../gen/script-names.js';
 
 import type {FaceMatch} from './font.js';
-import type {HbBuffer, HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
+import type {HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
 
 let debug = true;
 
@@ -351,24 +351,6 @@ export const G_DY = 5;
 export const G_FL = 6;
 export const G_SZ = 7;
 
-function extractHbBufferGlyphs(buf: HbBuffer) {
-  const bufferLength = buf.getLength();
-  const infos = buf.getGlyphInfos();
-  const positions = buf.getGlyphPositions();
-  const i32array = new Int32Array(bufferLength * 7);
-  const u32array = new Uint32Array(i32array.buffer);
-  for (let i = 0; i < bufferLength; i++) {
-    u32array[i * 7 + G_ID] = infos[i * 5 + 0];
-    u32array[i * 7 + G_CL] = infos[i * 5 + 2];
-    i32array[i * 7 + G_AX] = positions[i * 5 + 0];
-    i32array[i * 7 + G_AY] = positions[i * 5 + 1];
-    i32array[i * 7 + G_DX] = positions[i * 5 + 2];
-    i32array[i * 7 + G_DY] = positions[i * 5 + 3];
-    i32array[i * 7 + G_FL] = buf.getGlyphFlags(i);
-  }
-  return i32array;
-}
-
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
 
 function createHyphenCacheKey(item: ShapedItem) {
@@ -387,7 +369,7 @@ function loadHyphen(item: ShapedItem) {
       buf.addText(hyphen);
       buf.guessSegmentProperties();
       hb.shape(item.match.font, buf);
-      const glyphs = extractHbBufferGlyphs(buf);
+      const glyphs = buf.extractGlyphs();
       buf.destroy();
       if (glyphs[G_ID]) {
         hyphenCache.set(key, glyphs);
@@ -1739,8 +1721,7 @@ export class Paragraph {
     hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
     hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
     hb.shape(font, hbBuffer);
-    const array = extractHbBufferGlyphs(hbBuffer);
-    return array;
+    return hbBuffer.extractGlyphs();
   }
 
   getColors() {

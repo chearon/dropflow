@@ -247,6 +247,7 @@ function setupLayoutTests() {
   registerFontAsset('Noto/NotoSansKR-Regular.otf');
   registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
   registerFontAsset('Noto/NotoSansCherokee-Regular.ttf');
+  registerFontAsset('Noto/NotoEmoji-Regular.ttf');
   registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
   registerFontAsset('Cairo/Cairo-Regular.ttf');
   registerFontAsset('Roboto/Roboto-Regular.ttf');
@@ -285,6 +286,7 @@ function teardownLayoutTests() {
   unregisterFontAsset('Noto/NotoSansKR-Regular.otf');
   unregisterFontAsset('Noto/NotoSansHebrew-Regular.ttf');
   unregisterFontAsset('Noto/NotoSansCherokee-Regular.ttf');
+  unregisterFontAsset('Noto/NotoEmoji-Regular.ttf');
   unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
   unregisterFontAsset('Cairo/Cairo-Regular.ttf');
   unregisterFontAsset('Roboto/Roboto-Regular.ttf');
@@ -415,6 +417,16 @@ describe('Shaping', function () {
       expect(inline.paragraph.brokenItems[2].attrs.level).to.equal(2); // intruding english
       expect(inline.paragraph.brokenItems[3].attrs.level).to.equal(1); // !
       expect(inline.paragraph.brokenItems[4].attrs.level).to.equal(1); // الجديدة
+    });
+
+    it('chooses the correct text boundaries when painting emoji', function () {
+      this.layout('paint 😑 this!');
+      /** @type import('../src/flow').IfcInline[] */
+      const [inline] = this.get().children;
+      const b = this.paint();
+      b.called('paint ');
+      b.called('😑');
+      b.called(' this!');
     });
   });
 

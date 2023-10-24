@@ -16,16 +16,33 @@ export interface PaintBackend {
   rect(x: number, y: number, w: number, h: number): void;
 }
 
-function getTextOffsetsForUncollapsedGlyphs(glyphs: Int32Array) {
+function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
+  const glyphs = item.glyphs;
   let glyphStart = 0;
   let glyphEnd = glyphs.length - G_SZ;
 
   while (glyphStart < glyphs.length && glyphs[glyphStart + G_AX] === 0) glyphStart += G_SZ;
   while (glyphEnd >= 0 && glyphs[glyphEnd + G_AX] === 0) glyphEnd -= G_SZ;
 
-  if (glyphs[glyphStart] && glyphs[glyphEnd]) {
-    const textStart = Math.min(glyphs[glyphStart + G_CL], glyphs[glyphEnd + G_CL]);
-    const textEnd = Math.max(glyphs[glyphStart + G_CL], glyphs[glyphEnd + G_CL]) + 1;
+  if (glyphStart in glyphs && glyphEnd in glyphs) {
+    let textStart, textEnd;
+
+    if (item.attrs.level & 1) {
+      textStart = glyphs[glyphEnd + G_CL];
+      if (glyphStart - G_SZ >= 0) {
+        textEnd = glyphs[glyphStart - G_SZ + G_CL];
+      } else {
+        textEnd = item.end();
+      }
+    } else {
+      textStart = glyphs[glyphStart + G_CL];
+      if (glyphEnd + G_SZ < glyphs.length) {
+        textEnd = glyphs[glyphEnd + G_SZ + G_CL];
+      } else {
+        textEnd = item.end();
+      }
+    }
+
     return {textStart, textEnd};
   } else {
     return {textStart: 0, textEnd: 0};
@@ -35,7 +52,7 @@ function getTextOffsetsForUncollapsedGlyphs(glyphs: Int32Array) {
 function drawTextAt(item: ShapedItem, colors: [Color, number][], x: number, y: number, b: PaintBackend) {
   const match = item.match;
   const style = item.attrs.style;
-  const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item.glyphs);
+  const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item);
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it

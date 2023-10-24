@@ -853,19 +853,24 @@ export class ShapedItem implements IfcRenderItem {
   collapseWhitespace(at: 'start' | 'end') {
     if (!isWsCollapsible(this.attrs.style.whiteSpace)) return true;
 
-    const level = at === 'start' ? this.attrs.level : this.attrs.level + 1;
-    const glyphState = createGlyphIteratorState(this.glyphs, level, this.offset, this.end());
-    let glyphIndex = glyphState.glyphIndex;
-    nextGlyph(glyphState);
-
-    while (!glyphState.done) {
-      if (!isink(this.paragraph.string[glyphState.clusterStart])) {
-        this.glyphs[glyphIndex + G_AX] = 0;
-      } else {
-        return true;
-      }
-      glyphIndex = glyphState.glyphIndex;
-      nextGlyph(glyphState); // TODO: using this is awkward
+    if (at === 'start') {
+      let index = 0;
+      do {
+        if (!isink(this.paragraph.string[this.glyphs[index + G_CL]])) {
+          this.glyphs[index + G_AX] = 0;
+        } else {
+          return true;
+        }
+      } while ((index = nextCluster(this.glyphs, index)) < this.glyphs.length);
+    } else {
+      let index = this.glyphs.length - G_SZ;
+      do {
+        if (!isink(this.paragraph.string[this.glyphs[index + G_CL]])) {
+          this.glyphs[index + G_AX] = 0;
+        } else {
+          return true;
+        }
+      } while ((index = prevCluster(this.glyphs, index)) >= 0);
     }
   }
 

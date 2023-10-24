@@ -1216,6 +1216,18 @@ describe('Lines', function () {
       expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
       expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(24);
     });
+
+    it('correctly collapses end-of-line whitespace in glyphs', function () {
+      this.layout(`
+        <div style="width: 300px; font: 16px Arimo, Cairo;">
+           hello السلام عليكم (as-salām 'alaykum)
+        </div>
+      `);
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.brokenItems.at(-1).glyphs.at(-G_SZ + G_ID)).to.equal(3);
+      expect(ifc.paragraph.brokenItems.at(-1).glyphs.at(-G_SZ + G_AX)).to.equal(0);
+      expect(ifc.paragraph.brokenItems.at(0).glyphs.at(G_AX)).to.equal(0);
+    });
   });
 
   describe('Vertical Align', function () {

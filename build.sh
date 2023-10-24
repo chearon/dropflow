@@ -62,12 +62,22 @@ em++ \
   -Wl,--export -Wl,hb_font_glyph_to_string \
   -Wl,--export -Wl,hb_font_set_scale \
   -Wl,--export -Wl,hb_font_set_variations \
+  -Wl,--export -Wl,hb_font_get_nominal_glyph \
   -Wl,--export -Wl,hb_style_get_value \
   -Wl,--export -Wl,hb_ot_name_get_utf16 \
   -Wl,--export -Wl,hb_glyph_info_get_glyph_flags \
   -Wl,--export -Wl,hb_language_from_string \
   -Wl,--export -Wl,hb_ot_var_get_axis_infos \
   -Wl,--export -Wl,hb_ot_metrics_get_position_with_fallback \
+  -Wl,--export -Wl,hb_ot_layout_has_substitution \
+  -Wl,--export -Wl,hb_ot_layout_has_positioning \
+  -Wl,--export -Wl,hb_ot_layout_table_get_script_tags \
+  -Wl,--export -Wl,hb_ot_layout_feature_get_lookups \
+  -Wl,--export -Wl,hb_ot_layout_language_get_feature_indexes \
+  -Wl,--export -Wl,hb_ot_layout_language_get_feature_tags \
+  -Wl,--export -Wl,hb_ot_layout_script_get_language_tags \
+  -Wl,--export -Wl,hb_ot_layout_lookup_collect_glyphs \
+  -Wl,--export -Wl,hb_ot_layout_language_get_required_feature_index \
   -Wl,--export -Wl,hb_script_from_string \
   -Wl,--export -Wl,hb_set_create \
   -Wl,--export -Wl,hb_set_destroy \
@@ -78,6 +88,9 @@ em++ \
   -Wl,--export -Wl,hb_set_union \
   -Wl,--export -Wl,hb_set_copy \
   -Wl,--export -Wl,hb_set_subtract \
+  -Wl,--export -Wl,hb_set_clear \
+  -Wl,--export -Wl,hb_set_next \
+  -Wl,--export -Wl,hb_set_has \
   -Wl,--export -Wl,hb_shape \
   -Wl,--export -Wl,hbjs_glyph_draw \
   -Wl,--export -Wl,SBAlgorithmCreate \

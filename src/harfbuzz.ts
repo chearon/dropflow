@@ -22,6 +22,7 @@ const utf8Decoder = new TextDecoder('utf8');
 const utf16Decoder = new TextDecoder('utf-16');
 
 const HB_MEMORY_MODE_WRITABLE = 2;
+const bytes4 = exports.malloc(4);
 
 export function hb_tag(s: string) {
   return (
@@ -32,7 +33,7 @@ export function hb_tag(s: string) {
   );
 }
 
-function _hb_untag(tag: number) {
+export function _hb_untag(tag: number) {
   return [
     String.fromCharCode((tag >> 24) & 0xFF),
     String.fromCharCode((tag >> 16) & 0xFF),
@@ -63,6 +64,10 @@ export class HbSet {
     exports.hb_set_add_range(this.ptr, start, end);
   }
 
+  has(value: number): boolean {
+    return exports.hb_set_has(this.ptr, value);
+  }
+
   union(set: HbSet) {
     exports.hb_set_union(this.ptr, set.ptr);
   }
@@ -79,8 +84,33 @@ export class HbSet {
     return exports.hb_set_get_population(this.ptr);
   }
 
+  clear() {
+    exports.hb_set_clear(this.ptr);
+  }
+
   destroy() {
     exports.hb_set_destroy(this.ptr);
+  }
+
+  [Symbol.iterator]() {
+    const valuePtr = exports.malloc(4);
+
+    heapu32()[valuePtr >>> 2] = -1;
+
+    const next = () => {
+      if (exports.hb_set_next(this.ptr, valuePtr)) {
+        return {value: heapu32()[valuePtr >>> 2], done: false} as const;
+      } else {
+        return {done: true} as const;
+      }
+    };
+
+    const return_ = (value: number) => {
+      exports.free(valuePtr);
+      return {value, done: true};
+    };
+
+    return {next, return: return_};
   }
 }
 
@@ -133,6 +163,10 @@ function createAsciiString(text: string) {
     free: function () { exports.free(ptr); }
   };
 }
+
+export const HB_OT_TAG_GSUB = hb_tag('GSUB');
+export const HB_OT_TAG_GPOS = hb_tag('GPOS');
+export const HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX = 0xffff;
 
 export class HbFace {
   ptr: number;
@@ -191,6 +225,189 @@ export class HbFace {
     return str;
   }
 
+  hasSubstitution(): boolean {
+    return exports.hb_ot_layout_has_substitution(this.ptr);
+  }
+
+  hasPositioning(): boolean {
+    return exports.hb_ot_layout_has_positioning(this.ptr);
+  }
+
+  getScripts() {
+    const lengthPtr = bytes4;
+    const maxLength = 8;
+    const tagsPtr = exports.malloc(maxLength * 4);
+    const tags: number[] = [];
+    let offset = 0;
+    let length: number;
+
+    heapu32()[lengthPtr >> 2] = maxLength;
+
+    do {
+      exports.hb_ot_layout_table_get_script_tags(
+        this.ptr,
+        HB_OT_TAG_GSUB,
+        offset,
+        lengthPtr,
+        tagsPtr
+      );
+
+      length = heapu32()[lengthPtr >> 2];
+
+      for (let i = 0; i < length; i++) {
+        tags.push(heapu32()[(tagsPtr >> 2) + i]);
+      }
+
+      offset += length;
+    } while (length === maxLength);
+
+    exports.free(tagsPtr);
+
+    return tags;
+  }
+
+  getNumLangsForScript(table: number, scriptIndex: number) {
+    return exports.hb_ot_layout_script_get_language_tags(this.ptr, table, scriptIndex, 0, 0, 0);
+  }
+
+  getFeatureIndexes(table: number, scriptIndex: number, langIndex: number) {
+    const lengthPtr = bytes4;
+    const maxLength = 32;
+    const featureIndexesPtr = exports.malloc(maxLength * 4);
+    const indexes: number[] = [];
+    let offset = 0;
+    let length: number;
+
+    heapu32()[lengthPtr >> 2] = maxLength;
+
+    do {
+      exports.hb_ot_layout_language_get_feature_indexes(
+        this.ptr,
+        table,
+        scriptIndex,
+        langIndex,
+        offset,
+        lengthPtr,
+        featureIndexesPtr
+      );
+
+      length = heapu32()[lengthPtr >> 2];
+
+      for (let i = 0; i < length; i++) {
+        indexes.push(heapu32()[(featureIndexesPtr >> 2) + i]);
+      }
+
+      offset += length;
+    } while (length === maxLength);
+
+    exports.free(featureIndexesPtr);
+
+    return indexes;
+  }
+
+  getRequiredFeatureIndex(table: number, scriptIndex: number, langIndex: number) {
+    const featurePtr = bytes4;
+
+    if (
+      exports.hb_ot_layout_language_get_required_feature_index(
+        this.ptr,
+        table,
+        scriptIndex,
+        langIndex,
+        featurePtr
+      )
+    ) {
+      return heapu32()[featurePtr >> 2];
+    } else {
+      return -1;
+    }
+  }
+
+  getFeatureTags(table: number, scriptIndex: number, langIndex: number) {
+    const lengthPtr = bytes4;
+    const maxLength = 32;
+    const featureTagsPtr = exports.malloc(maxLength * 4);
+    const tags: number[] = [];
+    let offset = 0;
+    let length: number;
+
+    heapu32()[lengthPtr >> 2] = maxLength;
+
+    do {
+      exports.hb_ot_layout_language_get_feature_tags(
+        this.ptr,
+        table,
+        scriptIndex,
+        langIndex,
+        offset,
+        lengthPtr,
+        featureTagsPtr
+      );
+
+      length = heapu32()[lengthPtr >> 2];
+
+      for (let i = 0; i < length; i++) {
+        tags.push(heapu32()[(featureTagsPtr >> 2) + i]);
+      }
+
+      offset += length;
+    } while (length === maxLength);
+
+    exports.free(featureTagsPtr);
+
+    return tags;
+  }
+
+  getLookupsByFeature(table: number, featureIndex: number, lookups: HbSet) {
+    const lengthPtr = bytes4;
+    const maxLength = 32;
+    const lookupsPtr = exports.malloc(maxLength * 4);
+    let offset = 0;
+    let length: number;
+
+    heapu32()[lengthPtr >> 2] = maxLength;
+
+    do {
+      exports.hb_ot_layout_feature_get_lookups(
+        this.ptr,
+        table,
+        featureIndex,
+        offset,
+        lengthPtr,
+        lookupsPtr
+      );
+
+      length = heapu32()[lengthPtr >> 2];
+
+      for (let i = 0; i < length; i++) {
+        lookups.add(heapu32()[(lookupsPtr >> 2) + i]);
+      }
+
+      offset += length;
+    } while (length === maxLength);
+
+    exports.free(lookupsPtr);
+  }
+
+  collectGlyphs(
+    table: number,
+    lookupIndex: number,
+    beforeGlyphs?: HbSet,
+    inputGlyphs?: HbSet,
+    afterGlyphs?: HbSet,
+    outputGlyphs?: HbSet
+  ) {
+    exports.hb_ot_layout_lookup_collect_glyphs(
+      this.ptr,
+      table,
+      lookupIndex,
+      beforeGlyphs?.ptr ?? 0,
+      inputGlyphs?.ptr ?? 0,
+      afterGlyphs?.ptr ?? 0,
+      outputGlyphs?.ptr ?? 0
+    );
+  }
+
   destroy() {
     exports.hb_face_destroy(this.ptr);
   }
@@ -219,6 +436,11 @@ export class HbFont {
     );
     const array = heapu8().subarray(nameBuffer, nameBuffer + nameBufferSize);
     return utf8Decoder.decode(array.slice(0, array.indexOf(0)));
+  }
+
+  getNominalGlyph(codepoint: number) {
+    exports.hb_font_get_nominal_glyph(this.ptr, codepoint, bytes4);
+    return heapu32()[bytes4 >>> 2];
   }
 
   drawGlyph(glyphId: number, ctx: CanvasContext) {

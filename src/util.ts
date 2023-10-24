@@ -79,8 +79,3 @@ export function loggableText(text: string): string {
 export function basename(p: string) {
   return p.match(/([^.\/]+)\.[A-z]+$/)?.[1] || p;
 }
-
-// this comes from Firefox source. char should be a 16-bit integer
-export function hashMix(hash: number, char: number) {
-  return (hash >> 28) ^ (hash << 4) ^ char;
-}

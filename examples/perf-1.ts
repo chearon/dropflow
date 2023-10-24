@@ -3,6 +3,7 @@ import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
+import {clearWordCache} from '../src/text.js';
 
 console.time('Add fonts');
 registerFontAsset('Arimo/Arimo-Bold.ttf');
@@ -57,6 +58,7 @@ canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-1.png', import.
 
 bench('10 paragraphs generate, layout, and paint', () => {
   const blockContainer = oflo.generate(rootElement);
+  clearWordCache();
   oflo.layout(blockContainer, 800, 800);
   ctx.clearRect(0, 0, 1600, 1600);
   oflo.paintToCanvas(blockContainer, ctx);

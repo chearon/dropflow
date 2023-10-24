@@ -1,8 +1,9 @@
 import * as hb from './harfbuzz.js';
 import langCoverage from '../gen/lang-script-coverage.js';
 import wasm from './wasm.js';
-import {HbSet} from './harfbuzz.js';
+import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './harfbuzz.js';
 import {registerPaintFont, loadBuffer} from '#backend';
+import {nameToCode, tagToCode} from '../gen/script-names.js';
 
 import type {HbBlob, HbFace, HbFont} from './harfbuzz.js';
 import type {Style, FontStretch} from './cascade.js';
@@ -76,6 +77,59 @@ type FaceNames = {
   preferredSubfamily: string;
 };
 
+const defaultFeatures = new Set([
+  hb_tag('abvf'),
+  hb_tag('abvs'),
+  hb_tag('akhn'),
+  hb_tag('blwf'),
+  hb_tag('blws'),
+  hb_tag('calt'),
+  hb_tag('ccmp'),
+  hb_tag('cfar'),
+  hb_tag('cjct'),
+  hb_tag('clig'),
+  hb_tag('fin2'),
+  hb_tag('fin3'),
+  hb_tag('fina'),
+  hb_tag('half'),
+  hb_tag('haln'),
+  hb_tag('init'),
+  hb_tag('isol'),
+  hb_tag('liga'),
+  hb_tag('ljmo'),
+  hb_tag('locl'),
+  hb_tag('ltra'),
+  hb_tag('ltrm'),
+  hb_tag('med2'),
+  hb_tag('medi'),
+  hb_tag('mset'),
+  hb_tag('nukt'),
+  hb_tag('pref'),
+  hb_tag('pres'),
+  hb_tag('pstf'),
+  hb_tag('psts'),
+  hb_tag('rclt'),
+  hb_tag('rlig'),
+  hb_tag('rkrf'),
+  hb_tag('rphf'),
+  hb_tag('rtla'),
+  hb_tag('rtlm'),
+  hb_tag('tjmo'),
+  hb_tag('vatu'),
+  hb_tag('vert'),
+  hb_tag('vjmo')
+]);
+
+const kerningFeatures = new Set([
+  hb_tag('kern')
+]);
+
+const UninitializedSpaceFeatures = 0xff;
+const NoSpaceFeatures = 0;
+const HasSpaceFeatures = 1 << 0;
+const KerningSpaceFeatures = 1 << 1;
+const NonKerningSpaceFeatures = 1 << 2;
+
 export class FaceMatch {
   face: HbFace;
   font: HbFont;
@@ -88,6 +142,9 @@ export class FaceMatch {
   stretch: FontStretch;
   italic: boolean;
   oblique: boolean;
+  spaceFeatures: number;
+  defaultSubSpaceFeatures: Uint32Array;
+  nonDefaultSubSpaceFeatures: Uint32Array;
 
   constructor(face: HbFace, font: HbFont, filename: string, index: number) {
     this.face = face;
@@ -102,6 +159,9 @@ export class FaceMatch {
     this.stretch = stretch;
     this.italic = italic;
     this.oblique = oblique;
+    this.spaceFeatures = UninitializedSpaceFeatures;
+    this.defaultSubSpaceFeatures = new Uint32Array(Math.ceil(nameToCode.size / 32));
+    this.nonDefaultSubSpaceFeatures = new Uint32Array(Math.ceil(nameToCode.size / 32));
   }
 
   getExclusiveLanguage() {
@@ -200,6 +260,182 @@ export class FaceMatch {
     font.destroy();
 
     return {families, family, weight, stretch, italic, oblique};
+  }
+
+  private getLookupsByLangScript(
+    table: number,
+    scriptIndex: number,
+    langIndex: number,
+    specificFeatures: Set<number>,
+    specificLookups: HbSet,
+    otherLookups: HbSet
+  ) {
+    const featureIndexes = this.face.getFeatureIndexes(table, scriptIndex, langIndex);
+    const featureTags = this.face.getFeatureTags(table, scriptIndex, langIndex);
+
+    // TODO a quick look at the HarfBuzz source makes me think this is already
+    // returned in hb_ot_layout_language_get_feature_indexes, but Firefox makes
+    // this call
+    const requiredIndex = this.face.getRequiredFeatureIndex(table, scriptIndex, langIndex);
+    if (requiredIndex > -1) featureIndexes.push(requiredIndex);
+
+    for (let i = 0; i < featureIndexes.length; i++) {
+      const set = specificFeatures.has(featureTags[i]) ? specificLookups : otherLookups;
+      this.face.getLookupsByFeature(table, featureIndexes[i], set);
+    }
+  }
+
+  private hasLookupRuleWithGlyphByScript(
+    table: number,
+    scriptIndex: number,
+    glyph: number,
+    specificFeatures: Set<number>,
+    stopAfterSpecificFound = true
+  ) {
+    const numLangs = this.face.getNumLangsForScript(table, scriptIndex);
+    const specificLookups = hb.createSet();
+    const otherLookups = hb.createSet();
+    const glyphs = hb.createSet();
+    let inSpecific = false;
+    let inNonSpecific = false;
+
+    this.getLookupsByLangScript(
+      table,
+      scriptIndex,
+      HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX,
+      specificFeatures,
+      specificLookups,
+      otherLookups
+    );
+
+    for (let langIndex = 0; langIndex < numLangs; langIndex++) {
+      this.getLookupsByLangScript(
+        table,
+        scriptIndex,
+        langIndex,
+        specificFeatures,
+        specificLookups,
+        otherLookups
+      );
+    }
+
+    for (const lookupIndex of specificLookups) {
+      this.face.collectGlyphs(table, lookupIndex, glyphs, glyphs, glyphs);
+      if (glyphs.has(glyph)) {
+        inSpecific = true;
+        break;
+      }
+    }
+
+    if (!stopAfterSpecificFound || !inSpecific) {
+      glyphs.clear();
+      for (const lookupIndex of otherLookups) {
+        this.face.collectGlyphs(table, lookupIndex, glyphs, glyphs, glyphs);
+        if (glyphs.has(glyph)) {
+          inNonSpecific = true;
+          break;
+        }
+      }
+    }
+
+    return {inSpecific, inNonSpecific};
+  }
+
+  private checkForFeaturesInvolvingSpace() {
+    this.spaceFeatures = NoSpaceFeatures;
+
+    if (this.font.getNominalGlyph(32)) {
+      const spaceGlyph = this.font.getNominalGlyph(32);
+      const scripts = this.face.getScripts();
+
+      if (this.face.hasSubstitution()) {
+        for (let scriptIndex = 0; scriptIndex < scripts.length; scriptIndex++) {
+          const {inSpecific, inNonSpecific} = this.hasLookupRuleWithGlyphByScript(
+            HB_OT_TAG_GSUB,
+            scriptIndex,
+            spaceGlyph,
+            defaultFeatures
+          );
+
+          if (inSpecific || inNonSpecific) {
+            const scriptCode = tagToCode.get(scripts[scriptIndex]) || 0;
+            const map = inSpecific
+              ? this.defaultSubSpaceFeatures
+              : this.nonDefaultSubSpaceFeatures;
+
+            this.spaceFeatures |= HasSpaceFeatures;
+            map[scriptCode >>> 5] |= (1 << (scriptCode & 31))
+          }
+        }
+      }
+
+      if (
+        this.face.hasPositioning() &&
+        !this.hasSubstitution(this.defaultSubSpaceFeatures, 0)
+      ) {
+        let inKerning = false;
+        let inNonKerning = false;
+
+        for (let scriptIndex = 0; scriptIndex < scripts.length; scriptIndex++) {
+          const {inSpecific, inNonSpecific} = this.hasLookupRuleWithGlyphByScript(
+            HB_OT_TAG_GPOS,
+            scriptIndex,
+            spaceGlyph,
+            kerningFeatures,
+            false
+          );
+
+          inKerning = inKerning || inSpecific;
+          inNonKerning = inNonKerning || inNonSpecific;
+
+          if (inKerning && inNonKerning) break;
+        }
+
+        if (inKerning) {
+          this.spaceFeatures |= HasSpaceFeatures | KerningSpaceFeatures;
+        }
+
+        if (inNonKerning) {
+          this.spaceFeatures |= HasSpaceFeatures | NonKerningSpaceFeatures;
+        }
+      }
+    }
+  }
+
+  private hasSubstitution(map: Uint32Array, scriptCode: number) {
+    return map[scriptCode >>> 5] & (1 << (scriptCode & 31));
+  }
+
+  private hasSubstitutionRulesWithSpaceLookups(scriptCode: number) {
+    if (
+      this.hasSubstitution(this.defaultSubSpaceFeatures, scriptCode) ||
+      this.hasSubstitution(this.defaultSubSpaceFeatures, 0)
+    ) return true;
+
+    // TODO also check nonDefaultSubSpaceFeatures, but only when non-default
+    // font features are set, which isn't yet possible
+
+    return false;
+  }
+
+  spaceMayParticipateInShaping(script: string) {
+    const scriptCode = nameToCode.get(script) || 0;
+
+    if (this.spaceFeatures === UninitializedSpaceFeatures) {
+      this.checkForFeaturesInvolvingSpace();
+    }
+
+    if (!(this.spaceFeatures & HasSpaceFeatures)) return false;
+
+    if (
+      this.hasSubstitutionRulesWithSpaceLookups(scriptCode) ||
+      (this.spaceFeatures & NonKerningSpaceFeatures)
+    ) return true;
+
+    // TOOD: return this.spaceFeatures & KerningSpaceFeatures if kerning is
+    // explicitly enabled, which isn't yet possible
+
+    return false;
   }
 
   toFontString(size: number) {

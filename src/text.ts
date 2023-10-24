@@ -717,7 +717,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i + G_FL] & 2) && !(this.glyphs[i + G_SZ + G_FL] & 2)) {
           const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + G_SZ + G_CL];
           const length = this.attrs.level & 1 ? this.glyphs[i + G_CL] - offset : this.end() - offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.match, this.attrs);
           if (!(newGlyphs[G_FL] & 2)) {
             const glyphs = new Int32Array(i + G_SZ + newGlyphs.length);
             glyphs.set(this.glyphs.subarray(0, i + G_SZ), 0);
@@ -733,7 +733,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i - G_SZ + G_FL] & 2) && !(this.glyphs[i + G_FL] & 2)) {
           const offset = this.attrs.level & 1 ? this.glyphs[i + G_CL] : this.offset;
           const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i + G_CL] - this.offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.match.font, this.attrs);
+          const newGlyphs = this.paragraph.shapePart(offset, length, this.match, this.attrs);
           if (!(newGlyphs.at(-G_SZ + G_FL)! & 2)) {
             const glyphs = new Int32Array(this.glyphs.length - i + newGlyphs.length);
             glyphs.set(newGlyphs, 0);
@@ -745,7 +745,7 @@ export class ShapedItem implements IfcRenderItem {
       }
     }
 
-    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.match.font, this.attrs);
+    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.match, this.attrs);
   }
 
   createMeasureState(direction: 1 | -1 = 1) {
@@ -1554,6 +1554,26 @@ const hbBuffer = hb.createBuffer();
 hbBuffer.setClusterLevel(1);
 hbBuffer.setFlags(hb.HB_BUFFER_FLAG_PRODUCE_UNSAFE_TO_CONCAT);
 
+const wordCache = new Map<number, Map<string, Int32Array>>();
+let wordCacheSize = 0;
+
+// exported for testing, which should not measure with a prefilled cache
+export function clearWordCache() {
+  wordCache.clear();
+  wordCacheSize = 0;
+}
+
+function wordCacheAdd(font: HbFont, string: string, glyphs: Int32Array) {
+  let stringCache = wordCache.get(font.ptr);
+  if (!stringCache) wordCache.set(font.ptr, stringCache = new Map());
+  stringCache.set(string, glyphs);
+  wordCacheSize += 1;
+}
+
+function wordCacheGet(font: HbFont, string: string) {
+  return wordCache.get(font.ptr)?.get(string);
+}
+
 export class Paragraph {
   ifc: IfcInline;
   string: string;
@@ -1719,7 +1739,67 @@ export class Paragraph {
     free();
   }
 
-  shapePart(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+  shapePartWithWordCache(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
+    const end = offset + length;
+    const words: {wordGlyphs: Int32Array, wordStart: number}[] = [];
+    let size = 0;
+    let wordLen = 0;
+    let wordStart = offset;
+
+    hbBuffer.setScript(nameToTag.get(attrs.script)!);
+    hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
+    hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
+
+    // Important note: this implementation includes the leading space as a part
+    // of the word. That means kerning that happens after a space is obeyed, but
+    // not before. I think it would be better to not have kerning around spaces
+    // at all (ie: shape sequences of spaces and non-spaces separately) and that
+    // may be what Firefox is doing, but doing that efficently is harder.
+    for (let i = offset; i <= end; i++) {
+      if ((this.string[i] === ' ' || i === end) && wordLen > 0) {
+        const word = this.string.slice(wordStart, wordStart + wordLen);
+        let wordGlyphs = wordCacheGet(font, word);
+
+        if (!wordGlyphs) {
+          if (wordCacheSize > 10_000) wordCache.clear();
+          hbBuffer.setLength(0);
+          hbBuffer.addUtf16(
+            this.buffer.array.byteOffset + wordStart * 2,
+            wordLen,
+            0,
+            wordLen
+          );
+          hb.shape(font, hbBuffer);
+          wordGlyphs = hbBuffer.extractGlyphs();
+          wordCacheAdd(font, word, wordGlyphs);
+        }
+
+        words.push({wordStart, wordGlyphs});
+        size += wordGlyphs.length;
+
+        wordStart = i;
+        wordLen = 0;
+      }
+
+      wordLen += 1;
+    }
+
+    const glyphs = new Int32Array(size);
+
+    let i = attrs.level & 1 ? glyphs.length : 0;
+    for (const {wordStart, wordGlyphs} of words) {
+      if (attrs.level & 1) i -= wordGlyphs.length;
+      glyphs.set(wordGlyphs, i);
+      for (let j = 1; j < wordGlyphs.length; j += 7) {
+        glyphs[i + j] = wordStart + wordGlyphs[j];
+      }
+      if (!(attrs.level & 1)) i += wordGlyphs.length;
+    }
+
+    return glyphs;
+  }
+
+  shapePartWithoutWordCache(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     hbBuffer.setLength(0);
     hbBuffer.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
     hbBuffer.setScript(nameToTag.get(attrs.script)!);
@@ -1727,6 +1807,14 @@ export class Paragraph {
     hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
     hb.shape(font, hbBuffer);
     return hbBuffer.extractGlyphs();
+  }
+
+  shapePart(offset: number, length: number, match: FaceMatch, attrs: ShapingAttrs) {
+    if (match.spaceMayParticipateInShaping(attrs.script)) {
+      return this.shapePartWithoutWordCache(offset, length, match.font, attrs);
+    } else {
+      return this.shapePartWithWordCache(offset, length, match.font, attrs);
+    }
   }
 
   getColors() {
@@ -1781,7 +1869,7 @@ export class Paragraph {
         while (shapeWork.length) {
           const {offset, length} = shapeWork.pop()!;
           const end = offset + length;
-          const shapedPart = this.shapePart(offset, length, match.font, attrs);
+          const shapedPart = this.shapePart(offset, length, match, attrs);
           const hbClusterState = createGlyphIteratorState(shapedPart, attrs.level, offset, end);
           let needsReshape = false;
           let segmentTextStart = offset;

@@ -1922,7 +1922,7 @@ export class Paragraph {
 
               if (needsReshape) {
                 if (isLastMatch) {
-                  const glyphs = shapedPart.slice(glyphStart, glyphEnd);
+                  const glyphs = shapedPart.subarray(glyphStart, glyphEnd);
                   items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
                   log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
                 } else {
@@ -1932,7 +1932,7 @@ export class Paragraph {
               } else if (glyphStart < glyphEnd) {
                 const glyphs = glyphStart === 0 && glyphEnd === shapedPart.length
                   ? shapedPart
-                  : shapedPart.slice(glyphStart, glyphEnd);
+                  : shapedPart.subarray(glyphStart, glyphEnd);
 
                 items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
                 log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');

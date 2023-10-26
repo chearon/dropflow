@@ -42,10 +42,10 @@ export function _hb_untag(tag: number) {
   ].join('');
 }
 
-export const HB_BUFFER_FLAG_BOT = 0x1
-export const HB_BUFFER_FLAG_EOT = 0x2
+export const HB_BUFFER_FLAG_BOT = 0x1;
+export const HB_BUFFER_FLAG_EOT = 0x2;
 export const HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES = 0x4;
-export const HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES = 0x8
+export const HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES = 0x8;
 export const HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE = 0x10;
 export const HB_BUFFER_FLAG_PRODUCE_UNSAFE_TO_CONCAT = 0x40;
 

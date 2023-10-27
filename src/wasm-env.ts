@@ -1,5 +1,11 @@
 import {CanvasContext} from './harfbuzz.js';
 
+const resizeCallbacks: (() => void)[] = [];
+
+export function onWasmMemoryResized(fn: () => void) {
+  resizeCallbacks.push(fn);
+}
+
 let ctx: CanvasContext | undefined;
 
 export function setCtx(uctx: CanvasContext) {
@@ -26,6 +32,6 @@ export default {
     if (ctx) ctx.closePath();
   },
   emscripten_notify_memory_growth() {
-    // noop
+    for (const cb of resizeCallbacks) cb();
   }
 };

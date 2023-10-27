@@ -1,5 +1,5 @@
 import wasm from './wasm.js';
-import {setCtx} from './wasm-env.js';
+import {setCtx, onWasmMemoryResized} from './wasm-env.js';
 
 export interface CanvasContext {
   moveTo(x: number, y: number): void;
@@ -14,10 +14,18 @@ const exports = wasm.instance.exports;
 // no idea why this isn't in @types/node (also see WebAssembly)
 declare const TextDecoder: any;
 
-const heapu8 = () => new Uint8Array(exports.memory.buffer);
-const heapu32 = () => new Uint32Array(exports.memory.buffer);
-const heapi32 = () => new Int32Array(exports.memory.buffer);
-const heapf32 = () => new Float32Array(exports.memory.buffer);
+let heapu8 = new Uint8Array(exports.memory.buffer);
+let heapu32 = new Uint32Array(exports.memory.buffer);
+let heapi32 = new Int32Array(exports.memory.buffer);
+let heapf32 = new Float32Array(exports.memory.buffer);
+
+onWasmMemoryResized(() => {
+  heapu8 = new Uint8Array(exports.memory.buffer);
+  heapu32 = new Uint32Array(exports.memory.buffer);
+  heapi32 = new Int32Array(exports.memory.buffer);
+  heapf32 = new Float32Array(exports.memory.buffer);
+});
+
 const utf8Decoder = new TextDecoder('utf8');
 const utf16Decoder = new TextDecoder('utf-16');
 
@@ -95,11 +103,11 @@ export class HbSet {
   [Symbol.iterator]() {
     const valuePtr = exports.malloc(4);
 
-    heapu32()[valuePtr >>> 2] = -1;
+    heapu32[valuePtr >>> 2] = -1;
 
     const next = () => {
       if (exports.hb_set_next(this.ptr, valuePtr)) {
-        return {value: heapu32()[valuePtr >>> 2], done: false} as const;
+        return {value: heapu32[valuePtr >>> 2], done: false} as const;
       } else {
         return {done: true} as const;
       }
@@ -140,7 +148,7 @@ export class HbBlob {
 
 export function createBlob(blob: Uint8Array) {
   const blobPtr = exports.malloc(blob.byteLength);
-  heapu8().set(blob, blobPtr);
+  heapu8.set(blob, blobPtr);
   return new HbBlob(
     exports.hb_blob_create(blobPtr, blob.byteLength, HB_MEMORY_MODE_WRITABLE, blobPtr, exports.free_ptr())
   );
@@ -154,9 +162,9 @@ function createAsciiString(text: string) {
   for (let i = 0; i < text.length; ++i) {
     const char = text.charCodeAt(i);
     if (char > 127) throw new Error('Expected ASCII text');
-    heapu8()[ptr + i] = char;
+    heapu8[ptr + i] = char;
   }
-  heapu8()[ptr + text.length] = 0;
+  heapu8[ptr + text.length] = 0;
   return {
     ptr: ptr,
     length: text.length,
@@ -182,20 +190,20 @@ export class HbFace {
     const length = exports.hb_blob_get_length(blob);
     if (!length) return;
     const blobptr = exports.hb_blob_get_data(blob, null);
-    return heapu8().subarray(blobptr, blobptr + length);
+    return heapu8.subarray(blobptr, blobptr + length);
   }
 
   getAxisInfos() {
     const axis = exports.malloc(64 * 32);
     const c = exports.malloc(4);
-    heapu32()[c / 4] = 64;
+    heapu32[c / 4] = 64;
     exports.hb_ot_var_get_axis_infos(this.ptr, 0, c, axis);
     const result: Record<string, {min: number, default: number, max: number}> = {};
-    Array.from({length: heapu32()[c / 4]}).forEach(function (_, i) {
-      result[_hb_untag(heapu32()[axis / 4 + i * 8 + 1])] = {
-        min: heapf32()[axis / 4 + i * 8 + 4],
-        default: heapf32()[axis / 4 + i * 8 + 5],
-        max: heapf32()[axis / 4 + i * 8 + 6]
+    Array.from({length: heapu32[c / 4]}).forEach(function (_, i) {
+      result[_hb_untag(heapu32[axis / 4 + i * 8 + 1])] = {
+        min: heapf32[axis / 4 + i * 8 + 4],
+        default: heapf32[axis / 4 + i * 8 + 5],
+        max: heapf32[axis / 4 + i * 8 + 6]
       };
     });
     exports.free(c);
@@ -241,7 +249,7 @@ export class HbFace {
     let offset = 0;
     let length: number;
 
-    heapu32()[lengthPtr >> 2] = maxLength;
+    heapu32[lengthPtr >> 2] = maxLength;
 
     do {
       exports.hb_ot_layout_table_get_script_tags(
@@ -252,10 +260,10 @@ export class HbFace {
         tagsPtr
       );
 
-      length = heapu32()[lengthPtr >> 2];
+      length = heapu32[lengthPtr >> 2];
 
       for (let i = 0; i < length; i++) {
-        tags.push(heapu32()[(tagsPtr >> 2) + i]);
+        tags.push(heapu32[(tagsPtr >> 2) + i]);
       }
 
       offset += length;
@@ -278,7 +286,7 @@ export class HbFace {
     let offset = 0;
     let length: number;
 
-    heapu32()[lengthPtr >> 2] = maxLength;
+    heapu32[lengthPtr >> 2] = maxLength;
 
     do {
       exports.hb_ot_layout_language_get_feature_indexes(
@@ -291,10 +299,10 @@ export class HbFace {
         featureIndexesPtr
       );
 
-      length = heapu32()[lengthPtr >> 2];
+      length = heapu32[lengthPtr >> 2];
 
       for (let i = 0; i < length; i++) {
-        indexes.push(heapu32()[(featureIndexesPtr >> 2) + i]);
+        indexes.push(heapu32[(featureIndexesPtr >> 2) + i]);
       }
 
       offset += length;
@@ -317,7 +325,7 @@ export class HbFace {
         featurePtr
       )
     ) {
-      return heapu32()[featurePtr >> 2];
+      return heapu32[featurePtr >> 2];
     } else {
       return -1;
     }
@@ -331,7 +339,7 @@ export class HbFace {
     let offset = 0;
     let length: number;
 
-    heapu32()[lengthPtr >> 2] = maxLength;
+    heapu32[lengthPtr >> 2] = maxLength;
 
     do {
       exports.hb_ot_layout_language_get_feature_tags(
@@ -344,10 +352,10 @@ export class HbFace {
         featureTagsPtr
       );
 
-      length = heapu32()[lengthPtr >> 2];
+      length = heapu32[lengthPtr >> 2];
 
       for (let i = 0; i < length; i++) {
-        tags.push(heapu32()[(featureTagsPtr >> 2) + i]);
+        tags.push(heapu32[(featureTagsPtr >> 2) + i]);
       }
 
       offset += length;
@@ -365,7 +373,7 @@ export class HbFace {
     let offset = 0;
     let length: number;
 
-    heapu32()[lengthPtr >> 2] = maxLength;
+    heapu32[lengthPtr >> 2] = maxLength;
 
     do {
       exports.hb_ot_layout_feature_get_lookups(
@@ -377,10 +385,10 @@ export class HbFace {
         lookupsPtr
       );
 
-      length = heapu32()[lengthPtr >> 2];
+      length = heapu32[lengthPtr >> 2];
 
       for (let i = 0; i < length; i++) {
-        lookups.add(heapu32()[(lookupsPtr >> 2) + i]);
+        lookups.add(heapu32[(lookupsPtr >> 2) + i]);
       }
 
       offset += length;
@@ -434,13 +442,13 @@ export class HbFont {
       nameBuffer,
       nameBufferSize
     );
-    const array = heapu8().subarray(nameBuffer, nameBuffer + nameBufferSize);
+    const array = heapu8.subarray(nameBuffer, nameBuffer + nameBufferSize);
     return utf8Decoder.decode(array.slice(0, array.indexOf(0)));
   }
 
   getNominalGlyph(codepoint: number) {
     exports.hb_font_get_nominal_glyph(this.ptr, codepoint, bytes4);
-    return heapu32()[bytes4 >>> 2];
+    return heapu32[bytes4 >>> 2];
   }
 
   drawGlyph(glyphId: number, ctx: CanvasContext) {
@@ -460,8 +468,8 @@ export class HbFont {
     const entries = Object.entries(variations);
     const vars = exports.malloc(8 * entries.length);
     entries.forEach(function (entry, i) {
-      heapu32()[vars / 4 + i * 2 + 0] = hb_tag(entry[0]);
-      heapf32()[vars / 4 + i * 2 + 1] = entry[1];
+      heapu32[vars / 4 + i * 2 + 0] = hb_tag(entry[0]);
+      heapf32[vars / 4 + i * 2 + 1] = entry[1];
     });
     exports.hb_font_set_variations(this.ptr, vars, entries.length);
     exports.free(vars);
@@ -474,26 +482,26 @@ export class HbFont {
 
     if (dir === 'ltr' || dir === 'rtl') {
       exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('hasc'), extentsPtr);
-      ascender = heapi32()[extentsOffset];
+      ascender = heapi32[extentsOffset];
       exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('hdsc'), extentsPtr);
-      descender = heapi32()[extentsOffset];
+      descender = heapi32[extentsOffset];
       exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('hlgp'), extentsPtr);
-      lineGap = heapi32()[extentsOffset];
+      lineGap = heapi32[extentsOffset];
     } else {
       exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('vasc'), extentsPtr);
-      ascender = heapi32()[extentsOffset];
+      ascender = heapi32[extentsOffset];
       exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('vdsc'), extentsPtr);
-      descender = heapi32()[extentsOffset];
+      descender = heapi32[extentsOffset];
       exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('vlgp'), extentsPtr);
-      lineGap = heapi32()[extentsOffset];
+      lineGap = heapi32[extentsOffset];
     }
 
     exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('spyo'), extentsPtr);
-    const superscript = heapi32()[extentsOffset];
+    const superscript = heapi32[extentsOffset];
     exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('sbyo'), extentsPtr);
-    const subscript = heapi32()[extentsOffset];
+    const subscript = heapi32[extentsOffset];
     exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('xhgt'), extentsPtr);
-    const xHeight = heapi32()[extentsOffset];
+    const xHeight = heapi32[extentsOffset];
 
     exports.free(extentsPtr);
 
@@ -566,8 +574,7 @@ export class HbBuffer {
 
   setLanguage(language: string) {
     const len = Math.min(3, language.length);
-    const a = heapu8();
-    for (let i = 0; i < len; i++) a[langPtr + i] = language.codePointAt(i)!;
+    for (let i = 0; i < len; i++) heapu8[langPtr + i] = language.codePointAt(i)!;
     exports.hb_buffer_set_language(this.ptr, exports.hb_language_from_string(langPtr, len));
   }
 
@@ -583,13 +590,13 @@ export class HbBuffer {
     const length = exports.hb_buffer_get_length(this.ptr);
     const infosPtr = exports.hb_buffer_get_glyph_infos(this.ptr, 0);
     const infosPtr32 = infosPtr / 4;
-    return heapu32().subarray(infosPtr32, infosPtr32 + 5 * length);
+    return heapu32.subarray(infosPtr32, infosPtr32 + 5 * length);
   }
 
   getGlyphPositions() {
     const length = exports.hb_buffer_get_length(this.ptr);
     const positionsPtr32 = exports.hb_buffer_get_glyph_positions(this.ptr, 0) / 4;
-    return heapi32().subarray(positionsPtr32, positionsPtr32 + 5 * length);
+    return heapi32.subarray(positionsPtr32, positionsPtr32 + 5 * length);
   }
 
   getGlyphFlags(glyphIndex: number): number {
@@ -600,7 +607,7 @@ export class HbBuffer {
   extractGlyphs() {
     const glyphsPtr = exports.hbjs_extract_glyphs(this.ptr);
     const glyphsPtr32 = glyphsPtr >>> 2;
-    const ret = heapi32().slice(glyphsPtr32, glyphsPtr32 + this.getLength() * 7);
+    const ret = heapi32.slice(glyphsPtr32, glyphsPtr32 + this.getLength() * 7);
     exports.free(glyphsPtr);
     return ret;
   }

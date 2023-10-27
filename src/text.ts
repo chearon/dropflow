@@ -1761,7 +1761,7 @@ export class Paragraph {
         let wordGlyphs = wordCacheGet(font, word);
 
         if (!wordGlyphs) {
-          if (wordCacheSize > 10_000) wordCache.clear();
+          if (wordCacheSize > 10_000) clearWordCache();
           hbBuffer.setLength(0);
           hbBuffer.addUtf16(
             this.buffer.array.byteOffset + wordStart * 2,

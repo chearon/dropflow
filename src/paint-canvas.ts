@@ -123,7 +123,9 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.save();
     // TODO: PR to node-canvas to make this the default. I see no issues with
     // drawing glyphs, and it's way way way faster, and the correct way to do it
-    this.ctx.textDrawingMode = 'glyph';
+    if ('textDrawingMode' in this.ctx) {
+      this.ctx.textDrawingMode = 'glyph';
+    }
     this.ctx.font = this.font.toFontString(this.fontSize);
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     this.ctx.fillText(text, x, y);

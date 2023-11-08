@@ -318,37 +318,45 @@ describe('Shaping', function () {
     expect(inline.paragraph.brokenItems[2].glyphs[G_ID]).to.equal(0);
   });
 
-  it('doesn\'t use a word cache when the font has ligatures that use spaces', function () {
-    this.layout(`
-      <div id="t" style="font: 12px LigatureSymbolsWithSpaces;">
-        daily calendar calendar align left
-      </div>
-    `);
+  describe('Word cache', function () {
+    it('doesn\'t use a word cache when the font has ligatures that use spaces', function () {
+      this.layout(`
+        <div id="t" style="font: 12px LigatureSymbolsWithSpaces;">
+          daily calendar calendar align left
+        </div>
+      `);
 
-    /** @type import('../src/flow').IfcInline[] */
-    const [inline] = this.get('#t').children;
+      /** @type import('../src/flow').IfcInline[] */
+      const [inline] = this.get('#t').children;
 
-    // 3 137 3 328 3 114 3
-    expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_ID]).to.equal(3);
-    expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_ID]).to.equal(137);
-    expect(inline.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_ID]).to.equal(3);
-    expect(inline.paragraph.brokenItems[0].glyphs[3 * G_SZ + G_ID]).to.equal(328);
-    expect(inline.paragraph.brokenItems[0].glyphs[4 * G_SZ + G_ID]).to.equal(3);
-    expect(inline.paragraph.brokenItems[0].glyphs[5 * G_SZ + G_ID]).to.equal(114);
-    expect(inline.paragraph.brokenItems[0].glyphs[6 * G_SZ + G_ID]).to.equal(3);
+      // 3 137 3 328 3 114 3
+      expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_ID]).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_ID]).to.equal(137);
+      expect(inline.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_ID]).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs[3 * G_SZ + G_ID]).to.equal(328);
+      expect(inline.paragraph.brokenItems[0].glyphs[4 * G_SZ + G_ID]).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs[5 * G_SZ + G_ID]).to.equal(114);
+      expect(inline.paragraph.brokenItems[0].glyphs[6 * G_SZ + G_ID]).to.equal(3);
+    });
+
+    it('uses a non-kerned space in "T " without kerning explicitly set', function () {
+      this.layout('<div id="t" style="font: 12px Roboto;">T M</div>');
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [inline] = this.get('#t').children;
+      expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_AX]).to.equal(1222);
+      expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_AX]).to.equal(507);
+    });
+
+    it('uses a non-kerned T in " T" without kerning explicitly set', function () {
+      this.layout('<div id="t" style="font: 12px Roboto;">M T</div>');
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [i5] = this.get('#t').children;
+      expect(i5.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_AX]).to.equal(507);
+      expect(i5.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_AX]).to.equal(1222);
+    });
   });
-
-  it('uses a non-kerned space with Roboto and without kerning explicitly set', function () {
-    // See note in text.ts: this test verifies kerning before, but not after, the T
-    this.layout('<div id="t" style="font: 12px Roboto;"> T M</div>');
-
-    /** @type import('../src/flow').IfcInline[] */
-    const [inline] = this.get('#t').children;
-    expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_AX]).to.equal(1222);
-    expect(inline.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_AX]).to.equal(507);
-    expect(inline.paragraph.brokenItems[0].glyphs[3 * G_SZ + G_AX]).to.equal(1788);
-  });
-
 
   describe('Boundaries', function () {
     it('splits shaping boundaries on fonts', function () {
@@ -1051,8 +1059,9 @@ describe('Lines', function () {
   });
 
   it('breaks after ligature when it fits', function () {
+    // Note: with word cache, glyphs sum to 100.176. Without, it's 99.728
     this.layout(`
-      <div id="t" style="font: 16px/1.4 Raleway; width: 100px;">
+      <div id="t" style="font: 16px/1.4 Raleway; width: 101px;">
         Affable waf&ZeroWidthSpace;fle
       </div>
     `);

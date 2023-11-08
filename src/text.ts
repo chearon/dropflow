@@ -1755,8 +1755,13 @@ export class Paragraph {
     // not before. I think it would be better to not have kerning around spaces
     // at all (ie: shape sequences of spaces and non-spaces separately) and that
     // may be what Firefox is doing, but doing that efficently is harder.
-    for (let i = offset; i <= end; i++) {
-      if ((this.string[i] === ' ' || i === end) && wordLen > 0) {
+    for (let i = offset; i < end; i++) {
+      const leftInSpaceSegment = this.string[i] === ' ';
+      const rightInSpaceSegment = this.string[i + 1] === ' ';
+
+      wordLen += 1;
+
+      if (leftInSpaceSegment !== rightInSpaceSegment || i === end - 1) {
         const word = this.string.slice(wordStart, wordStart + wordLen);
         let wordGlyphs = wordCacheGet(font, word);
 
@@ -1777,11 +1782,9 @@ export class Paragraph {
         words.push({wordStart, wordGlyphs});
         size += wordGlyphs.length;
 
-        wordStart = i;
+        wordStart = i + 1;
         wordLen = 0;
       }
-
-      wordLen += 1;
     }
 
     const glyphs = new Int32Array(size);

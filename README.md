@@ -6,7 +6,7 @@ Overflow is a CSS layout engine created to explore the reaches of the foundation
 
 * Bidirectional and RTL text
 * Hyperscript (`h()`) API with styles as objects in addition to accepting HTML and CSS
-* Any OpenType/TrueType/WOFF buffer can (and must) be registered
+* Any OpenType/TrueType buffer can (and must) be registered
 * Font fallbacks at the grapheme level
 * Colored diacritics
 * Desirable line breaking (e.g. carries starting padding to the next line)

@@ -70,8 +70,8 @@ canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.m
 ## HTML
 
 This API is only recommended if performance is not a concern, or for learning
-purposes. Parsing adds extra time (though it is fast) and increases bundle size
-significantly.
+purposes. Parsing adds extra time (though it is fast thanks to @fb55) and
+increases bundle size significantly.
 
 ```ts
 import {parse, renderToCanvas, registerFont} from 'overflow/with-parse.js';
@@ -101,7 +101,7 @@ Performance is a top goal and is second only to correctness. Run the performance
 * The Little Prince (over 500 paragraphs) can be turned from HTML to image in under 150ms on a 2019 MacBook Pro and under 300ms on a 2012 MacBook Pro (`perf-2.ts`) 
 * A 10-letter word can be generated and laid out (not painted) in under 25µs on a 2019 MacBook Pro and under 80µs on a 2012 MacBook Pro (`perf-3.ts`)
 
-Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout in Javascript that uses `measureText` (such as using a word cache, which is what GSuite apps do) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be chosen incorrectly without consulting the font).
+Shaping is done with [harfbuzz](https://github.com/harfbuzz/harfbuzz). Harfbuzz compiled to WebAssembly can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout in Javascript that uses `measureText` (such as using a word cache, which is what GSuite apps do) will still be faster than overflow, but not significantly so, and with drawbacks (for example, fonts with effects across spaces won't work and colored diacritics are not possible).
 
 The fastest performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
 
@@ -167,15 +167,15 @@ Following are rules that work or will work soon. Shorthand properties are not li
 
 <sup>1</sup>Any document that uses `position: fixed` could be reorganized and updated to use `position: absolute` and look identical. For that reason, I don't find fixed positioning very interesting.
 
-# Third party components
+# Shout-outs
 
-overflow doesn't have any `package.json` dependencies. External Javascript has instead been checked in and modified to varying degrees to fit this project. It's also a way to rebel against `node_modules` insanity. These are the repos that have been used:
+overflow doesn't have any `package.json` dependencies, but the work of many others made it possible. Javascript dependencies have been checked in and modified to varying degrees to fit this project, maintain focus, and rebel against dependency-of-dependency madness. Here are the projects I'm grateful for:
 
-* [harfbuzz](https://github.com/harfbuzz/harfbuzz) does font shaping
-* [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) is used for bidi
-* [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices
-* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) provides Unicode grapheme boundaries
-* [peggyjs/peggy](https://github.com/peggyjs/peggy) builds the CSS parser
-* [fb55/htmlparser2](https://github.com/fb55/htmlparser2) parses HTML
-* [google/emoji-segmenter](https://github.com/google/emoji-segmenter) segments emoji
-* [foliojs/unicode-trie](https://github.com/foliojs/unicode-trie) is used for fast unicode data (heavily modified to remove unused parts)
+* [harfbuzz](https://github.com/harfbuzz/harfbuzz) does font shaping and provides essential font APIs (C++)
+* [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) calculates bidi boundaries (C++)
+* [foliojs/linebreak](https://github.com/foliojs/linebreak) provides Unicode break indices (JS, modified)
+* [foliojs/grapheme-breaker](https://github.com/foliojs/grapheme-breaker) provides Unicode grapheme boundaries (JS, modified)
+* [peggyjs/peggy](https://github.com/peggyjs/peggy) builds the CSS parser (JS, dev dependency)
+* [fb55/htmlparser2](https://github.com/fb55/htmlparser2) parses HTML (JS, modified)
+* [google/emoji-segmenter](https://github.com/google/emoji-segmenter) segments emoji (C++)
+* [foliojs/unicode-trie](https://github.com/foliojs/unicode-trie) is used for fast unicode data (JS, heavily modified to remove unused parts)

@@ -5,7 +5,7 @@ Overflow is a CSS layout engine created to explore the reaches of the foundation
 # Features
 
 * Bidirectional and RTL text
-* Optional hyperscript (`h()`) API with styles as objects in addition to accepting HTML and CSS
+* Hyperscript (`h()`) API with styles as objects in addition to accepting HTML and CSS
 * Any OpenType/TrueType/WOFF buffer can (and must) be registered
 * Font fallbacks at the grapheme level
 * Colored diacritics
@@ -17,19 +17,7 @@ Overflow is a CSS layout engine created to explore the reaches of the foundation
 * Lots of tests
 * Fast
 
-# Performance characteristics
-
-Performance is a top goal and is second only to correctness. Run the performance examples in the `examples` directory to see the numbers for yourself.
-
-* 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in 7ms on a 2019 MacBook Pro and 16ms on a 2012 MacBook Pro (`perf-1.ts`)
-* The Little Prince (over 500 paragraphs) can be turned from HTML to image in under 150ms on a 2019 MacBook Pro and under 300ms on a 2012 MacBook Pro (`perf-2.ts`) 
-* A 10-letter word can be generated and laid out (not painted) in under 25µs on a 2019 MacBook Pro and under 80µs on a 2012 MacBook Pro (`perf-3.ts`)
-
-Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout in Javascript that uses `measureText` (such as using a word cache, which is what GSuite apps do) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be chosen incorrectly without consulting the font).
-
-The fastest performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
-
-# Fast hyperscript API
+# Usage
 
 Overflow works off of a DOM with inherited and calculated styles, the same way
 that browsers do. You create the DOM with the familiar `h()` function, and
@@ -79,7 +67,7 @@ canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.m
 
 </div>
 
-# HTML API
+## HTML
 
 This API is only recommended if performance is not a concern, or for learning
 purposes. Parsing adds extra time (though it is fast) and increases bundle size
@@ -104,6 +92,18 @@ renderToCanvas(rootElement, canvas, 2);
 
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
 ```
+
+# Performance characteristics
+
+Performance is a top goal and is second only to correctness. Run the performance examples in the `examples` directory to see the numbers for yourself.
+
+* 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in 7ms on a 2019 MacBook Pro and 16ms on a 2012 MacBook Pro (`perf-1.ts`)
+* The Little Prince (over 500 paragraphs) can be turned from HTML to image in under 150ms on a 2019 MacBook Pro and under 300ms on a 2012 MacBook Pro (`perf-2.ts`) 
+* A 10-letter word can be generated and laid out (not painted) in under 25µs on a 2019 MacBook Pro and under 80µs on a 2012 MacBook Pro (`perf-3.ts`)
+
+Shaping is done internally, as web browsers do, with [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs). Harfbuzzjs can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout in Javascript that uses `measureText` (such as using a word cache, which is what GSuite apps do) will still be faster than overflow, but not significantly so, and possibly with correctness drawbacks (shaping boundaries can easily be chosen incorrectly without consulting the font).
+
+The fastest performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
 
 # Supported CSS rules
 

@@ -14,18 +14,10 @@ import type {HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
 
 let debug = true;
 
-const zeroWidthNonJoinerCharacter = 0x200C;
-const zeroWidthJoinerCharacter = 0x200D;
 const lineFeedCharacter = 0x000A;
 const formFeedCharacter = 0x000C;
 const carriageReturnCharacter = 0x000D;
-const softHyphenCharacter = 0x00AD;
 const zeroWidthSpaceCharacter = 0x200B;
-const leftToRightMarkCharacter = 0x200E;
-const rightToLeftMarkCharacter = 0x200F;
-const leftToRightEmbedCharacter = 0x202A;
-const rightToLeftOverrideCharacter = 0x202E;
-const zeroWidthNoBreakSpaceCharacter = 0xFEFF;
 const objectReplacementCharacter = 0xFFFC;
 
 function isWsCollapsible(whiteSpace: WhiteSpace) {
@@ -1524,22 +1516,17 @@ function createIfcBuffer(text: string) {
   // Inspired by this diff in Chromium, which reveals the code that normalizes
   // the buffer passed to HarfBuzz before shaping:
   // https://chromium.googlesource.com/chromium/src.git/+/275c35fe82bd295a75c0d555db0e0b26fcdf980b%5E%21/#F18
-  // I haven't verified that HarfBuzz actually does anything unreasonable with
-  // these yet. I also added \n to this list since, possibly unlike Chrome,
-  // I'm including those as part of the whole shaped IFC
+  // I removed the characters in the Default_Ignorables Unicode category since
+  // HarfBuzz is configured to ignore them, and added newlines since currently
+  // they get passed to HarfBuzz (they probably shouldn't because effects
+  // should not happen across newlines)
   for (let i = 0; i < text.length; ++i) {
     const c = text.charCodeAt(i);
     if (
-      c == zeroWidthNonJoinerCharacter
-      || c == zeroWidthJoinerCharacter
-      || c == formFeedCharacter
-      || c == carriageReturnCharacter
-      || c == softHyphenCharacter
-      || c === lineFeedCharacter
-      || (c >= leftToRightMarkCharacter && c <= rightToLeftMarkCharacter)
-      || (c >= leftToRightEmbedCharacter && c <= rightToLeftOverrideCharacter)
-      || c == zeroWidthNoBreakSpaceCharacter
-      || c == objectReplacementCharacter
+      c === formFeedCharacter ||
+      c === carriageReturnCharacter ||
+      c === lineFeedCharacter ||
+      c === objectReplacementCharacter
     ) {
       a[i] = zeroWidthSpaceCharacter;
     } else {

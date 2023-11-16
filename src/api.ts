@@ -181,3 +181,40 @@ export function h(tagName: string, arg2: HsAttrs | Child[] | string, arg3?: Chil
   });
   return el;
 }
+
+export function staticLayoutContribution(box: BlockContainer) {
+  let intrinsicSize = 0;
+
+  const definiteSize = box.getDefiniteInlineSize();
+  if (definiteSize !== undefined) return definiteSize;
+
+  if (box.isBlockContainerOfInlines()) {
+    const [ifc] = box.children;
+    for (const line of ifc.paragraph.lineboxes) {
+      intrinsicSize = Math.max(intrinsicSize, line.width);
+    }
+    // TODO: floats
+  } else if (box.isBlockContainerOfBlockContainers()) {
+    for (const child of box.children) {
+      intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+    }
+  } else {
+    throw new Error(`Unknown box type: ${box.id}`);
+  }
+
+  const marginLineLeft = box.style.getMarginLineLeft(box);
+  const marginLineRight = box.style.getMarginLineRight(box);
+  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
+  const paddingLineLeft = box.style.getPaddingLineLeft(box);
+  const paddingLineRight = box.style.getPaddingLineRight(box);
+  const borderLineRightWidth = box.style.getBorderLineRightWidth(box);
+
+  intrinsicSize += (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+    + borderLineLeftWidth
+    + paddingLineLeft
+    + paddingLineRight
+    + borderLineRightWidth
+    + (marginLineRight === 'auto' ? 0 : marginLineRight);
+
+  return intrinsicSize;
+}

@@ -2,11 +2,10 @@ import {HTMLElement, TextNode} from './dom.js';
 import {cascadeStyles, createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles, EMPTY_STYLE} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
 import HtmlPaintBackend from './paint-html.js';
-import CanvasPaintBackend from './paint-canvas.js';
+import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paintBlockContainer from './paint.js';
 import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
-import type {Canvas, CanvasRenderingContext2D} from 'canvas';
 
 // required styles that always come last in the cascade
 const rootDeclaredStyle:DeclaredPlainStyle = {

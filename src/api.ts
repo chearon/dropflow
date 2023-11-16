@@ -7,8 +7,10 @@ import paintBlockContainer from './paint.js';
 import {BlockContainerArea} from './flow.js';
 import {id} from './util.js';
 
+export type {BlockContainer, DeclaredPlainStyle};
+
 // required styles that always come last in the cascade
-const rootDeclaredStyle:DeclaredPlainStyle = {
+const rootDeclaredStyle: DeclaredPlainStyle = {
   display: {
     outer: 'block',
     inner: 'flow-root'

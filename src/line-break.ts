@@ -1,13 +1,10 @@
 // All code based on foliojs/linebreak at time of writing
-import {createTrie} from './unicode-trie.js';
+import UnicodeTrie from './unicode-trie.js';
 import wasm from './wasm.js';
 
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
-const trie = createTrie(
-  wasm.instance.exports.memory.buffer,
-  wasm.instance.exports.line_break_trie.value
-);
+const trie = new UnicodeTrie(wasm.instance.exports.line_break_trie.value);
 
 const DI_BRK = 0; // Direct break opportunity
 const IN_BRK = 1; // Indirect break opportunity

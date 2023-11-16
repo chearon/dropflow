@@ -1,18 +1,12 @@
-import {createTrie} from './unicode-trie.js';
+import UnicodeTrie from './unicode-trie.js';
 import wasm from './wasm.js';
 import {codeToName} from '../gen/script-names.js';
 
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
-const emojiTrie = createTrie(
-  wasm.instance.exports.memory.buffer,
-  wasm.instance.exports.emoji_trie.value
-);
+const emojiTrie = new UnicodeTrie(wasm.instance.exports.emoji_trie.value);
 
-const scriptTrie = createTrie(
-  wasm.instance.exports.memory.buffer,
-  wasm.instance.exports.script_trie.value
-);
+const scriptTrie = new UnicodeTrie(wasm.instance.exports.script_trie.value);
 
 const {
   // SheenBidi

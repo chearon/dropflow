@@ -1,3 +1,12 @@
+import wasm from './wasm.js';
+import {onWasmMemoryResized} from './wasm-env.js';
+
+let heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
+
+onWasmMemoryResized(() => {
+  heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
+});
+
 // Based on unicode-trie from Devon Govett, which is based on Utrie2 from the
 // ICU project.
 //
@@ -103,12 +112,15 @@ export const MAX_INDEX_1_LENGTH = 0x100000 >> SHIFT_1;
 export default class UnicodeTrie {
   highStart: number;
   errorValue: number;
-  data: Uint32Array;
+  dataPtr32: number;
+  dataLength: number;
 
-  constructor(data: Uint32Array) {
-    this.highStart = data[1];
-    this.errorValue = data[2];
-    this.data = data.subarray(3);
+  constructor(dataPtr: number) {
+    const dataPtr32 = dataPtr >> 2;
+    this.highStart = heapu32[dataPtr32 + 1];
+    this.errorValue = heapu32[dataPtr32 + 2];
+    this.dataPtr32 = dataPtr32 + 3;
+    this.dataLength = heapu32[dataPtr32];
   }
 
   get(codePoint: number) {
@@ -122,25 +134,18 @@ export default class UnicodeTrie {
       // Ordinary BMP code point, excluding leading surrogates.
       // BMP uses a single level lookup.  BMP index starts at offset 0 in the index.
       // data is stored in the index array itself.
-      index = (this.data[codePoint >> SHIFT_2] << INDEX_SHIFT) + (codePoint & DATA_MASK);
-      return this.data[index];
+      index = (heapu32[this.dataPtr32 + (codePoint >> SHIFT_2)] << INDEX_SHIFT) + (codePoint & DATA_MASK);
+      return heapu32[this.dataPtr32 + index];
     }
 
     if (codePoint < this.highStart) {
       // Supplemental code point, use two-level lookup.
-      index = this.data[(INDEX_1_OFFSET - OMITTED_BMP_INDEX_1_LENGTH) + (codePoint >> SHIFT_1)];
-      index = this.data[index + ((codePoint >> SHIFT_2) & INDEX_2_MASK)];
+      index = heapu32[this.dataPtr32 + (INDEX_1_OFFSET - OMITTED_BMP_INDEX_1_LENGTH) + (codePoint >> SHIFT_1)];
+      index = heapu32[this.dataPtr32 + index + ((codePoint >> SHIFT_2) & INDEX_2_MASK)];
       index = (index << INDEX_SHIFT) + (codePoint & DATA_MASK);
-      return this.data[index];
+      return heapu32[this.dataPtr32 + index];
     }
 
-    return this.data[this.data.length - DATA_GRANULARITY];
+    return heapu32[this.dataPtr32 + this.dataLength - DATA_GRANULARITY];
   }
-}
-
-export function createTrie(memory: ArrayBuffer, ptr: number) {
-  const ptr32 = ptr >> 2;
-  const heapu32 = new Uint32Array(memory);
-  const len = heapu32[ptr32];
-  return new UnicodeTrie(heapu32.subarray(ptr32, ptr32 + len));
 }

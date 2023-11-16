@@ -6,12 +6,11 @@
     "outDir": "dist",
     "declaration": true,
     "customConditions": ["buildtime"],
-    "lib": ["esnext"],
+    "lib": ["esnext", "dom"],
     "target": "esnext",
     "module": "node16",
     "strict": true,
     "noUnusedLocals": true,
-    "moduleResolution": "node16",
     "useDefineForClassFields": false
   }
 }

@@ -1,6 +1,10 @@
 import UnicodeTrie from './unicode-trie.js';
 import wasm from './wasm.js';
+import {onWasmMemoryResized} from './wasm-env.js';
 import {codeToName} from '../gen/script-names.js';
+import {IfcInline, InlineLevel, Inline} from './flow.js';
+import {Style} from './cascade.js';
+import * as hb from './harfbuzz.js';
 
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
@@ -23,43 +27,114 @@ const {
   memory
 } = wasm.instance.exports;
 
+let heapu32 = new Uint32Array(memory.buffer);
+let heapu8 = new Uint8Array(memory.buffer);
+let heapu16 = new Uint16Array(memory.buffer);
+
+onWasmMemoryResized(() => {
+  heapu32 = new Uint32Array(memory.buffer);
+  heapu8 = new Uint8Array(memory.buffer);
+  heapu16 = new Uint16Array(memory.buffer);
+});
+
 const seqPtr = malloc(12); // sizeof(SBCodepointSequence)
-const paraLenPtr = malloc(8 /* sizeof(SBUInteger) * 2 */);
-const paraSepPtr = paraLenPtr + 4;
+const seqPtr32 = seqPtr >>> 2; // sizeof(SBCodepointSequence)
+const paraLenPtr = malloc(4 /* sizeof(SBUInteger) */);
+const paraLenPtr32 = paraLenPtr >>> 2;
+const paraSepPtr = malloc(4 /* sizeof(SBUInteger) */);
+const paraSepPtr32 = paraSepPtr >>> 2;
 
-export function* bidiIterator(str: Uint16Array, initialLevel = 0) {
+interface BidiIteratorState {
+  /* output */
+  offset: number;
+  level: number;
+  done: boolean;
+  /* private */
+  stringLength: number;
+  paragraphStart: number;
+  paragraphEnd: number;
+  algorithmPtr: number;
+  paragraphPtr: number;
+  levelsPtr: number;
+  initialLevel: number;
+}
+
+// exported for testing
+export function createBidiIteratorState(
+  stringPtr: number,
+  stringLength: number,
+  initialLevel = 0
+): BidiIteratorState {
   // first byte is 1 because 1 === SBStringEncodingUTF16
-  new Uint32Array(memory.buffer, seqPtr, 3).set([1, str.byteOffset, str.length]);
+  heapu32[seqPtr32] = 1;
+  heapu32[seqPtr32 + 1] = stringPtr;
+  heapu32[seqPtr32 + 2] = stringLength;
 
-  const algorithm = SBAlgorithmCreate(seqPtr);
-  let offset = 0;
-  let lastLevel = 0;
-  while (offset < str.length) {
-    const twoInts = new Uint32Array(memory.buffer, paraLenPtr, 2);
-    twoInts.set([0, 0]);
-    SBAlgorithmGetParagraphBoundary(algorithm, offset, str.length - offset, paraLenPtr, paraSepPtr);
-    const [paraLen, paraSep] = twoInts;
-    const paragraph = SBAlgorithmCreateParagraph(algorithm, offset, paraLen + paraSep, initialLevel);
-    const levels = new Uint8Array(memory.buffer, SBParagraphGetLevelsPtr(paragraph), paraLen + paraSep);
-    const isFirstParagraph = offset === 0;
-    const isLastParagraph = offset + paraLen + paraSep >= /* see Tehreer/SheenBidi#18 */ str.length;
-    let j = paraLen + paraSep;
+  return {
+    offset: 0,
+    stringLength,
+    paragraphStart: 0,
+    paragraphEnd: 0,
+    algorithmPtr: SBAlgorithmCreate(seqPtr),
+    paragraphPtr: 0,
+    levelsPtr: 0,
+    initialLevel,
+    level: 0,
+    done: false
+  };
+}
 
-    if (isFirstParagraph) lastLevel = levels[0];
-    if (isLastParagraph) j += 1; /* check levels[levels.length] to emit the final character */
+// exported for testing
+export function bidiIteratorNext(state: BidiIteratorState) {
+  if (state.done) return;
 
-    for (let i = 0; i < j; ++i) {
-      const level = levels[i];
-      if (level !== lastLevel) yield {i: offset + i, level: lastLevel};
-      lastLevel = level;
+  state.level = heapu8[state.levelsPtr + state.offset - state.paragraphStart];
+
+  outer: while (state.offset < state.stringLength) {
+    if (state.offset === state.paragraphEnd) {
+      if (state.paragraphPtr) SBParagraphRelease(state.paragraphPtr);
+
+      heapu32[paraLenPtr32] = 0;
+      heapu32[paraSepPtr32] = 0;
+
+      SBAlgorithmGetParagraphBoundary(
+        state.algorithmPtr,
+        state.offset,
+        state.stringLength - state.offset,
+        paraLenPtr,
+        paraSepPtr
+      );
+
+      const paraLen = heapu32[paraLenPtr32] + heapu32[paraSepPtr32];
+
+      state.paragraphStart = state.paragraphEnd;
+      state.paragraphEnd = state.offset + paraLen;
+      state.paragraphPtr = SBAlgorithmCreateParagraph(
+        state.algorithmPtr,
+        state.offset,
+        paraLen,
+        state.initialLevel
+      );
+
+      state.levelsPtr = SBParagraphGetLevelsPtr(state.paragraphPtr);
+
+      if (state.offset === 0) state.level = heapu8[state.levelsPtr];
     }
 
-    offset += paraLen + paraSep;
+    while (state.offset < state.paragraphEnd) {
+      if (
+        heapu8[state.levelsPtr + state.offset - state.paragraphStart] !== state.level
+      ) break outer;
 
-    SBParagraphRelease(paragraph);
+      state.offset += 1;
+    }
   }
 
-  SBAlgorithmRelease(algorithm);
+  if (state.offset === state.stringLength) {
+    if (state.paragraphPtr) SBParagraphRelease(state.paragraphPtr);
+    state.done = true;
+    SBAlgorithmRelease(state.algorithmPtr);
+  }
 }
 
 // Used for the trie
@@ -93,40 +168,29 @@ const TAG_SEQUENCE = 14;
 const TAG_TERM = 15;
 const kMaxEmojiScannerCategory = 1;
 
-function* scan(types: number[], offsets: number[]) {
-  const buffer = new Uint8Array(memory.buffer);
-  const n = types.length;
-  const ptr = malloc(n);
-  const bptr = malloc(1);
-
-  for (let i = 0; i < n; ++i) buffer[ptr + i] = types[i];
-
-  let p = ptr;
-  let isEmoji = false;
-
-  do {
-    p = emoji_scan(p, ptr + n, bptr);
-
-    const pIsEmoji = Boolean(buffer[bptr]);
-
-    if (pIsEmoji !== isEmoji) {
-      yield {i: offsets[p - ptr - 1], isEmoji};
-      isEmoji = pIsEmoji;
-    }
-  } while (p < ptr + n);
-
-  yield {i: offsets[offsets.length - 1], isEmoji: Boolean(buffer[bptr])};
-
-  free(ptr);
+interface EmojiIteratorState {
+  /* output */
+  offset: number;
+  isEmoji: boolean;
+  done: boolean;
+  /* private */
+  index: number;
+  typesPtr: number;
+  typesLength: number;
+  offsets: number[];
 }
 
-export function* emojiIterator(str: Uint16Array) {
+export function createEmojiIteratorState(
+  stringPtr: number,
+  stringLength: number
+): EmojiIteratorState {
+  const stringPtr16 = stringPtr >>> 1;
   const types = [];
   const offsets = [];
 
-  for (let i = 0; i < str.length; ++i) {
-    let code = str[i];
-    const next = str[i + 1];
+  for (let i = 0; i < stringLength; ++i) {
+    let code = heapu16[stringPtr16 + i];
+    const next = heapu16[stringPtr16 + i + 1];
 
     offsets.push(i);
 
@@ -146,10 +210,9 @@ export function* emojiIterator(str: Uint16Array) {
       types.push(VS15);
     } else if (code === kVariationSelector16Character) {
       types.push(VS16);
-    } else if (code === 0x1F3F4) {
+    } else if (code === 0x1f3f4) {
       types.push(TAG_BASE);
-    } else if ((code >= 0xE0030 && code <= 0xE0039) ||
-        (code >= 0xE0061 && code <= 0xE007A)) {
+    } else if (code >= 0xe0030 && code <= 0xe0039 || code >= 0xe0061 && code <= 0xe007a) {
       types.push(TAG_SEQUENCE);
     } else if (code === 0xE007F) {
       types.push(TAG_TERM);
@@ -157,7 +220,7 @@ export function* emojiIterator(str: Uint16Array) {
       types.push(EMOJI_MODIFIER_BASE);
     } else if (emojiTrie.get(code) === Emoji_Modifier) {
       types.push(EMOJI_MODIFIER);
-    } else if (code >= 0x1F1E6 && code <= 0x1F1FF) {
+    } else if (code >= 0x1f1e6 && code <= 0x1f1ff) {
       types.push(REGIONAL_INDICATOR);
     } else if ((code >= 48 && code <= 57) || code === 35 || code === 42) {
       types.push(KEYCAP_BASE);
@@ -172,9 +235,47 @@ export function* emojiIterator(str: Uint16Array) {
     }
   }
 
-  offsets.push(str.length);
+  const typesPtr = malloc(types.length);
 
-  yield* scan(types, offsets);
+  heapu8.set(types, typesPtr);
+  offsets.push(stringLength);
+
+  return {
+    index: 0,
+    typesPtr,
+    typesLength: types.length,
+    offsets,
+    isEmoji: false,
+    offset: 0,
+    done: false
+  };
+}
+
+const isEmojiPtr = malloc(1);
+
+export function emojiIteratorNext(state: EmojiIteratorState) {
+  if (state.done) return;
+
+  const end = state.typesPtr + state.typesLength;
+  let p = state.typesPtr + state.index;
+
+  state.isEmoji = Boolean(heapu8[isEmojiPtr]);
+  state.offset = state.offsets[state.index];
+
+  while (p < end) {
+    p = emoji_scan(p, end, isEmojiPtr);
+    const isEmoji = Boolean(heapu8[isEmojiPtr]);
+    if (state.index === 0) state.isEmoji = isEmoji;
+    state.index = p - state.typesPtr;
+
+    if (isEmoji !== state.isEmoji) return;
+
+    state.offset = state.offsets[state.index];
+  }
+
+  state.offset = state.offsets.at(-1)!;
+  state.done = true;
+  free(state.typesPtr);
 }
 
 const pairedChars = [
@@ -257,19 +358,44 @@ function getPairIndex(ch: number) {
   return -1;
 }
 
-export function* scriptIterator(text: string) {
-  let textEnd = text.length;
-  let scriptEnd = 0;
-  let runningScript = 'Common';
-  let startParen = -1;
-  const parens = [];
+interface ScriptIteratorState {
+  /* output */
+  offset: number;
+  script: string;
+  done: boolean;
+  /* private */
+  stringPtr16: number;
+  stringLength: number;
+  parens: {index: number; script: string;}[];
+  startParen: number;
+}
 
-  if (!text.length) return;
+export function createScriptIteratorState(
+  stringPtr: number,
+  stringLength: number
+): ScriptIteratorState {
+  return {
+    offset: 0,
+    stringPtr16: stringPtr >>> 1,
+    stringLength,
+    script: '',
+    parens: [],
+    startParen: -1,
+    done: false
+  };
+}
 
-  while (scriptEnd < textEnd) {
+export function scriptIteratorNext(state: ScriptIteratorState) {
+  if (state.done) return;
+
+  state.script = 'Common';
+
+  const parens = state.parens;
+
+  while (state.offset < state.stringLength) {
+    const next = heapu16[state.stringPtr16 + state.offset + 1];
+    let code = heapu16[state.stringPtr16 + state.offset];
     let jump = 1;
-    let code = text.charCodeAt(scriptEnd);
-    const next = text.charCodeAt(scriptEnd + 1);
 
     // If a surrogate pair
     if ((0xd800 <= code && code <= 0xdbff) && (0xdc00 <= next && next <= 0xdfff)) {
@@ -287,7 +413,7 @@ export function* scriptIterator(text: string) {
     // will be popped.
     if (pairIndex >= 0) {
       if ((pairIndex & 1) === 0) {
-        parens.push({index: pairIndex, script: runningScript});
+        parens.push({index: pairIndex, script: state.script});
       } else if (parens.length > 0) {
         const pi = pairIndex & ~1;
 
@@ -295,8 +421,8 @@ export function* scriptIterator(text: string) {
           parens.pop();
         }
 
-        if (parens.length - 1 < startParen) {
-          startParen = parens.length - 1;
+        if (parens.length - 1 < state.startParen) {
+          state.startParen = parens.length - 1;
         }
 
         if (parens.length > 0) {
@@ -305,35 +431,291 @@ export function* scriptIterator(text: string) {
       }
     }
 
-    const runningIsReal = runningScript !== 'Common' && runningScript !== 'Inherited';
+    const runningIsReal = state.script !== 'Common' && state.script !== 'Inherited';
     const isReal = script !== 'Common' && script !== 'Inherited';
-    const isSame = !runningIsReal || !isReal || script === runningScript;
+    const isSame = !runningIsReal || !isReal || script === state.script;
 
     if (isSame) {
       if (!runningIsReal && isReal) {
-        runningScript = script;
+        state.script = script;
 
         // Now that we have a final script code, fix any open characters we
         // pushed before we knew the real script code.
-        while (parens[startParen + 1]) parens[++startParen].script = script;
+        while (parens[state.startParen + 1]) parens[++state.startParen].script = script;
 
         if (pairIndex >= 0 && pairIndex & 1 && parens.length > 0) {
           parens.pop();
 
-          if (parens.length - 1 < startParen) {
-            startParen = parens.length - 1;
+          if (parens.length - 1 < state.startParen) {
+            state.startParen = parens.length - 1;
           }
         }
       }
 
-      scriptEnd += jump;
+      state.offset += jump;
     } else {
-      yield {i: scriptEnd, script: runningScript};
-
-      startParen = parens.length - 1;
-      runningScript = 'Common';
+      state.startParen = parens.length - 1;
+      break;
     }
   }
 
-  yield {i: scriptEnd, script: runningScript};
+  if (state.offset === state.stringLength) {
+    state.done = true;
+  }
+}
+
+interface NewlineIteratorState {
+  /* output */
+  offset: number;
+  done: boolean;
+  /* private */
+  str: string;
+}
+
+export function createNewlineIteratorState(str: string): NewlineIteratorState {
+  return {offset: 0, str, done: false};
+}
+
+export function newlineIteratorNext(state: NewlineIteratorState) {
+  if (state.done) return;
+
+  const next = state.str.indexOf('\n', state.offset);
+
+  if (next < 0) {
+    state.offset = state.str.length;
+  } else {
+    state.offset = next + 1;
+  }
+
+  if (state.offset === state.str.length) state.done = true;
+}
+
+const END_CHILDREN = Symbol('end of children');
+
+interface StyleIteratorState {
+  /* output */
+  offset: number;
+  style: Style;
+  done: boolean;
+  /* private */
+  parents: Inline[];
+  stack: (InlineLevel | typeof END_CHILDREN)[];
+  leader: InlineLevel | typeof END_CHILDREN;
+  direction: 'ltr' | 'rtl';
+  lastOffset: number;
+  ifc: IfcInline;
+}
+
+export function createStyleIteratorState(ifc: IfcInline): StyleIteratorState {
+  return {
+    parents: [ifc],
+    stack: ifc.children.slice().reverse(),
+    leader: ifc,
+    direction: ifc.style.direction,
+    style: ifc.style,
+    offset: 0,
+    lastOffset: 0,
+    ifc,
+    done: false
+  };
+}
+
+export function styleIteratorNext(state: StyleIteratorState) {
+  if (state.done) return;
+
+  state.lastOffset = state.offset;
+
+  if (state.leader !== END_CHILDREN) {
+    state.style = state.leader.style;
+    if (state.leader.isRun()) state.offset += state.leader.text.length;
+  }
+
+  while (state.stack.length) {
+    const item = state.stack.pop()!;
+    const parent = state.parents.at(-1)!;
+
+    if (item === END_CHILDREN) {
+      state.parents.pop();
+
+      if (state.direction === 'ltr' ? parent.hasLineRightGap(state.ifc) : parent.hasLineLeftGap(state.ifc)) {
+        if (state.offset !== state.lastOffset) {
+          state.leader = item;
+          break;
+        }
+      }
+      if (parent.style.verticalAlign !== 'baseline') {
+        if (state.offset !== state.lastOffset) {
+          state.leader = item;
+          break;
+        }
+      }
+    } else if (item.isRun()) {
+      if (
+        state.style.fontSize !== item.style.fontSize ||
+        state.style.fontVariant !== item.style.fontVariant ||
+        state.style.fontWeight !== item.style.fontWeight ||
+        state.style.fontStyle !== item.style.fontStyle ||
+        state.style.fontFamily.join(',') !== item.style.fontFamily.join(',')
+      ) {
+        if (state.offset !== state.lastOffset) {
+          state.leader = item;
+          break;
+        }
+
+        state.style = item.style;
+      }
+
+      state.offset += item.text.length;
+    } else if (item.isInline()) {
+      state.parents.push(item);
+
+      state.stack.push(END_CHILDREN);
+      for (let i = item.children.length - 1; i >= 0; --i) {
+        state.stack.push(item.children[i]);
+      }
+
+      if (item.style.verticalAlign !== 'baseline') {
+        if (state.offset !== state.lastOffset) {
+          state.leader = item;
+          break;
+        }
+      }
+
+      if (state.direction === 'ltr' ? item.hasLineLeftGap(state.ifc) : item.hasLineRightGap(state.ifc)) {
+        if (state.offset !== state.lastOffset) {
+          state.leader = item;
+          break;
+        }
+      }
+    } else if (item.isBreak()) {
+      if (state.offset !== state.lastOffset) {
+        state.leader = item;
+        break;
+      }
+    } else if (item.isFloat()) {
+      // OK
+    } else {
+      throw new Error('Inline block not supported yet');
+    }
+  }
+
+  if (state.offset === state.ifc.text.length) state.done = true;
+}
+
+interface ShapingAttrs {
+  isEmoji: boolean;
+  level: number;
+  script: string;
+  style: Style;
+}
+
+interface ItemizeState {
+  /* out */
+  attrs: ShapingAttrs;
+  offset: number;
+  done: boolean;
+  /* private */
+  newlineState: NewlineIteratorState | undefined;
+  inlineState: StyleIteratorState | undefined;
+  emojiState: EmojiIteratorState | undefined;
+  bidiState: BidiIteratorState | undefined;
+  scriptState: ScriptIteratorState | undefined;
+  simple: boolean;
+  length: number;
+  free: (() => void) | undefined;
+}
+
+export function createItemizeState(ifc: IfcInline): ItemizeState {
+  let newlineState;
+  let inlineState;
+  let emojiState;
+  let bidiState;
+  let scriptState;
+  let free;
+
+  if (ifc.hasNewlines()) {
+    newlineState = createNewlineIteratorState(ifc.text);
+  }
+
+  if (ifc.hasInlines() || ifc.hasBreaks()) {
+    inlineState = createStyleIteratorState(ifc);
+  }
+
+  if (ifc.isComplexText()) {
+    const allocation = hb.allocateUint16Array(ifc.text.length);
+    const initialLevel = ifc.style.direction === 'ltr' ? 0 : 1;
+    const array = allocation.array;
+    free = allocation.destroy;
+    for (let i = 0; i < ifc.text.length; i++) array[i] = ifc.text.charCodeAt(i);
+    emojiState = createEmojiIteratorState(array.byteOffset, array.length);
+    bidiState = createBidiIteratorState(array.byteOffset, array.length, initialLevel);
+    scriptState = createScriptIteratorState(array.byteOffset, array.length);
+  }
+
+  const attrs: ShapingAttrs = {
+    isEmoji: emojiState?.isEmoji ?? false,
+    level: bidiState?.level ?? 0,
+    script: scriptState?.script ?? 'Latin',
+    style: inlineState?.style ?? ifc.style
+  };
+
+  return {
+    attrs,
+    offset: 0,
+    done: false,
+    newlineState,
+    inlineState,
+    emojiState,
+    bidiState,
+    scriptState,
+    simple: !newlineState && !inlineState && !emojiState && !bidiState && !scriptState,
+    length: ifc.text.length,
+    free
+  };
+}
+
+export function itemizeNext(state: ItemizeState) {
+  if (state.done) return;
+
+  if (state.simple) {
+    state.offset = state.length;
+    state.done = true;
+    return;
+  }
+
+  const {newlineState, inlineState, emojiState, bidiState, scriptState, offset} = state;
+
+  // Advance
+  if (newlineState?.offset === offset) newlineIteratorNext(newlineState);
+  if (inlineState?.offset === offset) styleIteratorNext(inlineState);
+  if (emojiState?.offset === offset) emojiIteratorNext(emojiState);
+  if (bidiState?.offset === offset) bidiIteratorNext(bidiState);
+  if (scriptState?.offset === offset) scriptIteratorNext(scriptState);
+
+  // Map the current iterators to context
+  if (inlineState) state.attrs.style = inlineState.style;
+  if (emojiState) state.attrs.isEmoji = emojiState.isEmoji;
+  if (bidiState) state.attrs.level = bidiState.level;
+  if (scriptState) state.attrs.script = scriptState.script;
+
+  state.offset = Math.min(
+    newlineState?.offset ?? Infinity,
+    inlineState?.offset ?? Infinity,
+    emojiState?.offset ?? Infinity,
+    bidiState?.offset ?? Infinity,
+    scriptState?.offset ?? Infinity,
+    state.length
+  );
+
+  if (
+    (!newlineState || newlineState.done) &&
+    (!inlineState || inlineState.done) &&
+    (!emojiState || emojiState.done) &&
+    (!bidiState || bidiState.done) &&
+    (!scriptState || scriptState.done)
+  ) {
+    state.done = true;
+    state.free?.();
+    return;
+  }
 }

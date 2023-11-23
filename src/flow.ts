@@ -1459,14 +1459,15 @@ export class IfcInline extends Inline {
   public containingBlock: BlockContainerArea | null;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT        = 0b00000001;
-  static ANALYSIS_WRAPS           = 0b00000010
-  static ANALYSIS_WS_COLLAPSES    = 0b00000100;
-  static ANALYSIS_HAS_INLINES     = 0b00001000;
-  static ANALYSIS_HAS_BREAKS      = 0b00010000;
-  static ANALYSIS_IS_COMPLEX_TEXT = 0b00100000;
-  static ANALYSIS_HAS_SOFT_HYPHEN = 0b01000000;
-  static ANALYSIS_HAS_FLOATS      = 0b10000000;
+  static ANALYSIS_HAS_TEXT        = 1 << 0;
+  static ANALYSIS_WRAPS           = 1 << 1;
+  static ANALYSIS_WS_COLLAPSES    = 1 << 2;
+  static ANALYSIS_HAS_INLINES     = 1 << 3;
+  static ANALYSIS_HAS_BREAKS      = 1 << 4;
+  static ANALYSIS_IS_COMPLEX_TEXT = 1 << 5;
+  static ANALYSIS_HAS_SOFT_HYPHEN = 1 << 6;
+  static ANALYSIS_HAS_FLOATS      = 1 << 7;
+  static ANALYSIS_HAS_NEWLINES    = 1 << 8;
 
   constructor(style: Style, children: InlineLevel[], attrs: number) {
     super(style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1590,11 +1591,15 @@ export class IfcInline extends Inline {
     }
 
     for (let i = 0; i < this.text.length; i++) {
-      if (this.text.charCodeAt(i) & NON_ASCII_MASK) {
+      const code = this.text.charCodeAt(i);
+      if (code & NON_ASCII_MASK) {
         this.analysis |= IfcInline.ANALYSIS_IS_COMPLEX_TEXT;
       }
-      if (this.text.charCodeAt(i) === 0xad) {
+
+      if (code === 0xad) {
         this.analysis |= IfcInline.ANALYSIS_HAS_SOFT_HYPHEN;
+      } else if (code === 0xa0) {
+        this.analysis |= IfcInline.ANALYSIS_HAS_NEWLINES;
       }
     }
 
@@ -1605,86 +1610,6 @@ export class IfcInline extends Inline {
     // TODO step 2
     // TODO step 3
     // TODO step 4
-  }
-
-  *itemizeInlines() {
-    const END_CHILDREN = Symbol('end of children');
-    const stack:(InlineLevel | typeof END_CHILDREN)[] = this.children.slice().reverse();
-    const parents:Inline[] = [this];
-    const direction = this.style.direction;
-    let currentStyle = this.style;
-    let ci = 0;
-    // Shaping boundaries can overlap when they happen because of padding. We can
-    // pretend 0 has been emitted since runs at 0 which appear to have different
-    // style than `currentStyle` are just differing from the IFC's style, which
-    // is the initial `currentStyle` so that yields always have a concrete style.
-    let lastYielded = 0;
-
-    while (stack.length) {
-      const item = stack.pop()!;
-      const parent = parents[parents.length - 1];
-
-      if (item === END_CHILDREN) {
-        if (direction === 'ltr' ? parent.hasLineRightGap(this) : parent.hasLineLeftGap(this)) {
-          if (ci !== lastYielded) {
-            yield {i: ci, style: currentStyle};
-            lastYielded = ci;
-          }
-        }
-        if (parent.style.verticalAlign !== 'baseline') {
-          if (ci !== lastYielded) yield {i: ci, style: currentStyle};
-          lastYielded = ci;
-        }
-        parents.pop();
-      } else if (item.isRun()) {
-        if (
-          currentStyle.fontSize !== item.style.fontSize ||
-          currentStyle.fontVariant !== item.style.fontVariant ||
-          currentStyle.fontWeight !== item.style.fontWeight ||
-          currentStyle.fontStyle !== item.style.fontStyle ||
-          currentStyle.fontFamily.join(',') !== item.style.fontFamily.join(',')
-        ) {
-          if (ci !== lastYielded) yield {i: ci, style: currentStyle};
-          currentStyle = item.style;
-          lastYielded = ci;
-        }
-
-        ci += item.text.length;
-      } else if (item.isInline()) {
-        parents.push(item);
-
-        if (item.style.verticalAlign !== 'baseline') {
-          if (ci !== lastYielded) yield {i: ci, style: currentStyle};
-          lastYielded = ci;
-        }
-
-        if (direction === 'ltr' ? item.hasLineLeftGap(this) : item.hasLineRightGap(this)) {
-          if (ci !== lastYielded) {
-            yield {i: ci, style: currentStyle};
-            lastYielded = ci;
-          }
-        }
-
-        stack.push(END_CHILDREN);
-
-        for (let i = item.children.length - 1; i >= 0; --i) {
-          stack.push(item.children[i]);
-        }
-      } else if (item.isBreak()) {
-        if (ci !== lastYielded) {
-          yield {i: ci, style: currentStyle};
-          lastYielded = ci;
-        }
-      } else if (item.isFloat()) {
-        // OK
-      } else {
-        throw new Error('Inline block not supported yet');
-      }
-    }
-
-    if (ci !== lastYielded) {
-      yield {i: ci, style: currentStyle};
-    }
   }
 
   preprocess() {
@@ -1737,6 +1662,10 @@ export class IfcInline extends Inline {
 
   hasSoftHyphen() {
     return this.analysis & IfcInline.ANALYSIS_HAS_SOFT_HYPHEN;
+  }
+
+  hasNewlines() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_NEWLINES;
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

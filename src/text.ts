@@ -4,10 +4,10 @@ import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} 
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
 import LineBreak from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
-import {bidiIterator, emojiIterator, scriptIterator} from './itemize.js';
 import * as hb from './harfbuzz.js';
 import {getCascade} from './font.js';
 import {nameToTag} from '../gen/script-names.js';
+import {createItemizeState, itemizeNext} from './itemize.js';
 
 import type {FaceMatch} from './font.js';
 import type {HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
@@ -1650,82 +1650,6 @@ export class Paragraph {
     };
   }
 
-  *itemize() {
-    if (this.string.length === 0) return;
-
-    const iNewline = this.nlIterator();
-    let iStyle: ReturnType<IfcInline['itemizeInlines']> | undefined;
-    let iEmoji: ReturnType<typeof emojiIterator> | undefined;
-    let iBidi: ReturnType<typeof bidiIterator> | undefined;
-    let iScript: ReturnType<typeof scriptIterator> | undefined;
-    let free = () => {};
-
-    if (this.ifc.hasInlines() || this.ifc.hasBreaks()) {
-      iStyle = this.ifc.itemizeInlines();
-    }
-
-    if (this.ifc.isComplexText()) {
-      const allocation = hb.allocateUint16Array(this.string.length);
-      const buf = allocation.array;
-      free = allocation.destroy;
-      for (let i = 0; i < this.string.length; i++) buf[i] = this.string.charCodeAt(i);
-      iEmoji = emojiIterator(buf);
-      iBidi = bidiIterator(buf, this.ifc.style.direction === 'ltr' ? 0 : 1);
-      iScript = scriptIterator(this.string);
-    }
-
-    let emoji = iEmoji?.next();
-    let bidi = iBidi?.next();
-    let script = iScript?.next();
-    let style = iStyle?.next();
-    let newline = iNewline?.next();
-
-    if (emoji?.done || bidi?.done || script?.done || style?.done || newline.done) {
-      throw new Error('Iterator ended too early');
-    }
-
-    const ctx: ShapingAttrs = {
-      isEmoji: emoji ? emoji.value.isEmoji : false,
-      level: bidi ? bidi.value.level : 0,
-      script: script ? script.value.script : 'Latn',
-      style: style ? style.value.style : this.ifc.style
-    };
-
-    while (
-      (!emoji || !emoji.done) &&
-      (!bidi || !bidi.done) &&
-      (!script || !script.done) &&
-      (!style || !style.done) &&
-      !newline.done
-    ) {
-      // Find smallest text index
-      const smallest = Math.min(
-        emoji?.value.i ?? Infinity,
-        bidi?.value.i ?? Infinity,
-        script?.value.i ?? Infinity,
-        style?.value.i ?? Infinity,
-        newline.value.i
-      );
-
-      // Map the current iterators to context
-      if (emoji) ctx.isEmoji = emoji.value.isEmoji;
-      if (bidi) ctx.level = bidi.value.level;
-      if (script) ctx.script = script.value.script;
-      if (style) ctx.style = style.value.style;
-
-      // Advance
-      if (emoji && smallest === emoji.value.i) emoji = iEmoji!.next();
-      if (bidi && smallest === bidi.value.i) bidi = iBidi!.next();
-      if (script && smallest === script.value.i) script = iScript!.next();
-      if (style && smallest === style.value.i) style = iStyle!.next();
-      if (smallest === newline.value.i) newline = iNewline.next();
-
-      yield {i: smallest, attrs: ctx};
-    }
-
-    free();
-  }
-
   shapePartWithWordCache(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const end = offset + length;
     const words: {wordGlyphs: Int32Array, wordStart: number}[] = [];
@@ -1833,20 +1757,22 @@ export class Paragraph {
   shape() {
     const items:ShapedItem[] = [];
     const log = this.ifc.loggingEnabled() ? (s: string) => logstr += s : null;
+    const itemizeState = createItemizeState(this.ifc);
     let logstr = '';
-    let lastItemIndex = 0;
 
     log?.(`Preprocess ${this.ifc.id}\n`);
     log?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
     log?.(`Full text: "${this.string}"\n`);
 
-    for (const {i: itemIndex, attrs} of this.itemize()) {
-      const start = lastItemIndex;
-      const end = itemIndex;
+    while (!itemizeState.done) {
+      const itemStart = itemizeState.offset;
+      itemizeNext(itemizeState);
+      const attrs = itemizeState.attrs;
       const cascade = getCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
-      let shapeWork = [{offset: start, length: end - start}];
+      const itemEnd = itemizeState.offset;
+      let shapeWork = [{offset: itemStart, length: itemEnd - itemStart}];
 
-      log?.(`  Item ${lastItemIndex}..${itemIndex}:\n`);
+      log?.(`  Item ${itemStart}..${itemEnd}:\n`);
       log?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
       log?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
       log?.(`  cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
@@ -1942,8 +1868,6 @@ export class Paragraph {
 
         shapeWork = nextShapeWork;
       }
-
-      lastItemIndex = itemIndex;
     }
 
     if (log) {

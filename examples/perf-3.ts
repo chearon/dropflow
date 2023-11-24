@@ -20,8 +20,10 @@ const words: string[] = [];
 
 for (let i = 0; i < 10000; i++) words.push(word());
 
+const style = {whiteSpace: 'pre'} as const;
+
 bench('generate and layout one random word', () => {
-  const rootElement = oflo.dom(words[Math.floor(Math.random() * words.length)]);
+  const rootElement = oflo.dom(words[Math.floor(Math.random() * words.length)], style);
   const blockContainer = oflo.generate(rootElement);
   clearWordCache();
   oflo.layout(blockContainer, 100, 20);

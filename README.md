@@ -24,14 +24,14 @@ that browsers do. You create the DOM with the familiar `h()` function, and
 specify styles as plain objects.
 
 ```ts
-import {h, renderToCanvas, registerFont} from 'overflow';
+import * as flow from 'overflow';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
 // Register fonts before layout. This is a required step.
 // It is only async when you don't pass an ArrayBuffer
-await registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
-await registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
+await flow.registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
+await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 
 // Always create styles at the top-level of your module if you can
 const divStyle = {
@@ -47,14 +47,14 @@ const spanStyle = {
 };
 
 // Create a DOM
-const rootElement = h('div', {style: divStyle}, [
+const rootElement = flow.h('div', {style: divStyle}, [
   'Hello, ',
-  h('span', {style: spanStyle}, ['World!'])
+  flow.h('span', {style: spanStyle}, ['World!'])
 ]);
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);
-renderToCanvas(rootElement, canvas, /* optional density: */ 2);
+flow.renderToCanvas(rootElement, canvas, /* optional density: */ 2);
 
 // Save your image
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
@@ -74,21 +74,21 @@ purposes. Parsing adds extra time (though it is fast thanks to @fb55) and
 increases bundle size significantly.
 
 ```ts
-import {parse, renderToCanvas, registerFont} from 'overflow/with-parse.js';
+import * as flow from 'overflow/with-parse.js';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-await registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
-await registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
+await flow.registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
+await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 
-const rootElement = parse(`
+const rootElement = flow.parse(`
   <div style="background-color: #1c0a00; color: #b3c890; text-align: center;">
     Hello, <span style="color: #73a9ad; font-weight: bold;">World!</span>
   </div>
 `);
 
 const canvas = createCanvas(250, 50);
-renderToCanvas(rootElement, canvas, 2);
+flow.renderToCanvas(rootElement, canvas, 2);
 
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
 ```
@@ -97,13 +97,17 @@ canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.m
 
 Performance is a top goal and is second only to correctness. Run the performance examples in the `examples` directory to see the numbers for yourself.
 
-* 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in 7ms on a 2019 MacBook Pro and 16ms on a 2012 MacBook Pro (`perf-1.ts`)
-* The Little Prince (over 500 paragraphs) can be turned from HTML to image in under 150ms on a 2019 MacBook Pro and under 300ms on a 2012 MacBook Pro (`perf-2.ts`) 
-* A 10-letter word can be generated and laid out (not painted) in under 25µs on a 2019 MacBook Pro and under 80µs on a 2012 MacBook Pro (`perf-3.ts`)
-
-Shaping is done with [harfbuzz](https://github.com/harfbuzz/harfbuzz). Harfbuzz compiled to WebAssembly can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`, but it is not as fast. A smart implementation of text layout in Javascript that uses `measureText` (such as using a word cache, which is what GSuite apps do) will still be faster than overflow, but not significantly so, and with drawbacks (for example, fonts with effects across spaces won't work and colored diacritics are not possible).
+* 8 paragraphs with several inline spans of different fonts can be turned from HTML to image in **9ms** on a 2019 MacBook Pro and **13ms** on a 2012 MacBook Pro (`perf-1.ts`)
+* The Little Prince (over 500 paragraphs) can be turned from HTML to image in under **160ms** on a 2019 MacBook Pro and under **250ms** on a 2012 MacBook Pro (`perf-2.ts`) 
+* A 10-letter word can be generated and laid out (not painted) in under **25µs** on a 2019 MacBook Pro and under **50µs** on a 2012 MacBook Pro (`perf-3.ts`)
 
 The fastest performance can be achieved by using the hyperscript API, which creates a DOM directly and skips the typical HTML and CSS parsing steps. Take care to re-use style objects to get the most benefits. Reflows at different widths are faster than recreating the layout tree.
+
+# HarfBuzz
+
+Glyph layout is performed by [HarfBuzz](https://github.com/harfbuzz/harfbuzz) compiled to WebAssembly. This allows for a level of correctness that isn't possible by using the `measureText` API to position spans of text. If you color the "V" in the text "AV" differently in Google Sheets, you will notice kerning is lost, and the letters appear further apart than they should be. That's because two `measureText` and `fillText` calls were made on the letters, so contextual glyph advances were lost. Overflow uses HarfBuzz on more coarse shaping boundaries (not when color is changed) so that the font is more correctly supported. 
+
+HarfBuzz compiled to WebAssembly can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`. It's not as fast as `measureText`, but it's not significantly slower (neither of them are the dominators in a text layout stack) and `measureText` has other correctness drawbacks. For example, a `measureText`-based text layout implementation must use a word cache to be quick, and this is what GSuite apps do. But a word cache is not able to support fonts with effects across spaces, and to support such a font would have to involve a binary search on the paragraph's break indices, which is far slower than passing the whole paragraph to HarfBuzz. Colored diacritics are not possible in any way with `measureText` either.
 
 # Supported CSS rules
 

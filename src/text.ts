@@ -2,7 +2,7 @@ import {binarySearchTuple, binarySearchEndProp, loggableText, basename} from './
 import {Box} from './box.js';
 import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
 import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
-import LineBreak from './line-break.js';
+import LineBreak, {HardBreaker} from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import * as hb from './harfbuzz.js';
 import {getCascade} from './font.js';
@@ -1894,7 +1894,9 @@ export class Paragraph {
     let inline = inlineIterator.next();
     let inlineMark = 0;
     // Break iterator
-    const breakIterator = new LineBreak(this.string, !this.ifc.wraps());
+    const breakIterator = this.ifc.wraps()
+      ? new LineBreak(this.string, !this.ifc.wraps())
+      : new HardBreaker(this.string);
     let linebreak:{position: number, required: boolean} | null = {position: -1, required: false};
     let breakMark = 0;
     // Item iterator

@@ -2,6 +2,48 @@
 import UnicodeTrie from './unicode-trie.js';
 import wasm from './wasm.js';
 
+class Break {
+  public position: number;
+  public required: boolean;
+
+  constructor(position: number, required = false) {
+    this.position = position;
+    this.required = required;
+  }
+}
+
+const bk = new Break(0, false);
+
+export class HardBreaker {
+  private string: string;
+  private pos: number;
+
+  constructor(string: string) {
+    this.string = string;
+    this.pos = 0;
+  }
+
+  nextBreak() {
+    if (this.pos === this.string.length) {
+      return null;
+    }
+
+    const pos = this.string.indexOf('\n', this.pos);
+
+    if (pos < 0) {
+      bk.position = this.string.length;
+      bk.required = false;
+      this.pos = this.string.length;
+    } else {
+      bk.position = pos + 1;
+      bk.required = true;
+      this.pos = pos + 1;
+    }
+
+    return bk;
+  }
+}
+
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future
 const trie = new UnicodeTrie(wasm.instance.exports.line_break_trie.value);
@@ -131,18 +173,6 @@ function mapFirst(c: number) {
       return c;
   }
 };
-
-class Break {
-  public position: number;
-  public required: boolean;
-
-  constructor(position: number, required = false) {
-    this.position = position;
-    this.required = required;
-  }
-}
-
-const bk = new Break(0, false);
 
 export default class LineBreaker {
   private string: string;

@@ -78,14 +78,14 @@ const EMPTY_MAP = new Map();
 
 export class BlockFormattingContext {
   public inlineSize: number;
-  public fctx: FloatContext;
+  public fctx?: FloatContext;
   public stack: (BlockContainer | {post: BlockContainer})[];
   public cbBlockStart: number;
   public cbLineLeft: number;
   public cbLineRight: number;
   private sizeStack: number[];
   private offsetStack: number[];
-  private last:'start' | 'end' | null;
+  private last: 'start' | 'end' | null;
   private level: number;
   private hypotheticals: Map<Box, number>;
   private margin: {
@@ -96,7 +96,6 @@ export class BlockFormattingContext {
 
   constructor(inlineSize: number) {
     this.inlineSize = inlineSize;
-    this.fctx = new FloatContext(this);
     this.stack = [];
     this.cbBlockStart = 0;
     this.cbLineLeft = 0;
@@ -119,11 +118,11 @@ export class BlockFormattingContext {
 
     assumePx(marginBlockStart);
 
-    if (box.style.clear === 'left' || box.style.clear === 'both') {
+    if (this.fctx && (box.style.clear === 'left' || box.style.clear === 'both')) {
       floatBottom = Math.max(floatBottom, this.fctx.getLeftBottom());
     }
 
-    if (box.style.clear === 'right' || box.style.clear === 'both') {
+    if (this.fctx && (box.style.clear === 'right' || box.style.clear === 'both')) {
       floatBottom = Math.max(floatBottom, this.fctx.getRightBottom());
     }
 
@@ -157,7 +156,7 @@ export class BlockFormattingContext {
       this.cbBlockStart += blockStart + this.margin.collection.get();
     }
 
-    this.fctx.boxStart();
+    this.fctx?.boxStart();
 
     if (box.isBlockContainerOfInlines()) {
       box.doTextLayout(ctx);
@@ -218,6 +217,32 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
+  getLocalVacancyForLine(
+    bfc: BlockFormattingContext,
+    blockOffset: number,
+    blockSize: number,
+    vacancy: IfcVacancy
+  ) {
+    let leftInlineSpace = 0;
+    let rightInlineSpace = 0;
+
+    if (this.fctx) {
+      leftInlineSpace = this.fctx.leftFloats.getOccupiedSpace(blockOffset, blockSize, -this.cbLineLeft);
+      rightInlineSpace = this.fctx.rightFloats.getOccupiedSpace(blockOffset, blockSize, -this.cbLineRight);
+    }
+
+    vacancy.leftOffset = this.cbLineLeft + leftInlineSpace;
+    vacancy.rightOffset = this.cbLineRight + rightInlineSpace;
+    vacancy.inlineSize = this.inlineSize - vacancy.leftOffset - vacancy.rightOffset;
+    vacancy.blockOffset = blockOffset - bfc.cbBlockStart;
+    vacancy.leftOffset -= bfc.cbLineLeft;
+    vacancy.rightOffset -= bfc.cbLineRight;
+  }
+
+  ensureFloatContext(blockOffset: number) {
+    return this.fctx || (this.fctx = new FloatContext(this, blockOffset));
+  }
+
   finalize(box: BlockContainer) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
 
@@ -231,7 +256,7 @@ export class BlockFormattingContext {
         const blockSize = box.contentArea.blockSizeForWritingMode(box.writingMode);
         lineboxHeight = blockSize;
       }
-      box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx.getBothBottom()));
+      box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx?.getBothBottom() ?? 0));
     }
   }
 
@@ -310,11 +335,11 @@ class FloatSide {
   inlineOffsets: number[];
   floatCounts: number[];
 
-  constructor() {
+  constructor(blockOffset: number) {
     this.items = [];
-    this.shelfBlockOffset = 0;
+    this.shelfBlockOffset = blockOffset;
     this.shelfTrackIndex = 0;
-    this.blockOffsets = [0];
+    this.blockOffsets = [blockOffset];
     this.inlineSizes = [0];
     this.inlineOffsets = [0];
     this.floatCounts = [0];
@@ -510,26 +535,18 @@ export class FloatContext {
   bfc: BlockFormattingContext;
   leftFloats: FloatSide;
   rightFloats: FloatSide;
-  gotFirstBox: boolean;
   misfits: BlockContainer[];
 
-  constructor(bfc: BlockFormattingContext) {
+  constructor(bfc: BlockFormattingContext, blockOffset: number) {
     this.bfc = bfc;
-    this.leftFloats = new FloatSide();
-    this.rightFloats = new FloatSide();
-    this.gotFirstBox = false;
+    this.leftFloats = new FloatSide(blockOffset);
+    this.rightFloats = new FloatSide(blockOffset);
     this.misfits = [];
   }
 
   boxStart() {
-    if (!this.gotFirstBox) {
-      this.leftFloats.initialize(this.bfc.cbBlockStart);
-      this.rightFloats.initialize(this.bfc.cbBlockStart);
-      this.gotFirstBox = true;
-    } else {
-      this.leftFloats.boxStart(this.bfc.cbBlockStart);
-      this.rightFloats.boxStart(this.bfc.cbBlockStart);
-    }
+    this.leftFloats.boxStart(this.bfc.cbBlockStart);
+    this.rightFloats.boxStart(this.bfc.cbBlockStart);
   }
 
   getVacancyForLine(blockOffset: number, blockSize: number) {
@@ -539,17 +556,6 @@ export class FloatContext {
     const rightOffset = this.bfc.cbLineRight + rightInlineSpace;
     const inlineSize = this.bfc.inlineSize - leftOffset - rightOffset;
     return new IfcVacancy(leftOffset, rightOffset, blockOffset, inlineSize, 0, 0);
-  }
-
-  getLocalVacancyForLine(bfc: BlockFormattingContext, blockOffset: number, blockSize: number, vacancy: IfcVacancy) {
-    const leftInlineSpace = this.leftFloats.getOccupiedSpace(blockOffset, blockSize, -this.bfc.cbLineLeft);
-    const rightInlineSpace = this.rightFloats.getOccupiedSpace(blockOffset, blockSize, -this.bfc.cbLineRight);
-    vacancy.leftOffset = this.bfc.cbLineLeft + leftInlineSpace;
-    vacancy.rightOffset = this.bfc.cbLineRight + rightInlineSpace;
-    vacancy.inlineSize = this.bfc.inlineSize - vacancy.leftOffset - vacancy.rightOffset;
-    vacancy.blockOffset = blockOffset - bfc.cbBlockStart;
-    vacancy.leftOffset -= bfc.cbLineLeft;
-    vacancy.rightOffset -= bfc.cbLineRight;
   }
 
   getVacancyForBox(box: BlockContainer) {
@@ -1228,12 +1234,14 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
 
   if (box.isBfcRoot()) {
     cctx.bfc.finalize(box);
-    if (box.loggingEnabled()) {
-      console.log('Left floats');
-      console.log(cctx.bfc.fctx.leftFloats.repr());
-      console.log('Right floats');
-      console.log(cctx.bfc.fctx.rightFloats.repr());
-      console.log();
+    if (cctx.bfc.fctx) {
+      if (box.loggingEnabled()) {
+        console.log('Left floats');
+        console.log(cctx.bfc.fctx.leftFloats.repr());
+        console.log('Right floats');
+        console.log(cctx.bfc.fctx.rightFloats.repr());
+        console.log();
+      }
     }
   }
 
@@ -1278,12 +1286,14 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
 
   if (box.isBfcRoot()) {
     cctx.bfc.finalize(box);
-    if (mode === 'max-content') {
-      intrinsicSize += cctx.bfc.fctx.leftFloats.getOverflow();
-      intrinsicSize += cctx.bfc.fctx.rightFloats.getOverflow();
-    } else {
-      intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.leftFloats.getOverflow());
-      intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.rightFloats.getOverflow());
+    if (cctx.bfc.fctx) {
+      if (mode === 'max-content') {
+        intrinsicSize += cctx.bfc.fctx.leftFloats.getOverflow();
+        intrinsicSize += cctx.bfc.fctx.rightFloats.getOverflow();
+      } else {
+        intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.leftFloats.getOverflow());
+        intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.rightFloats.getOverflow());
+      }
     }
   }
 

@@ -2036,7 +2036,6 @@ export class Paragraph {
 
   createLineboxes(ctx: LayoutContext) {
     const bfc = ctx.bfc;
-    const fctx = bfc.fctx;
     const candidates = new LineCandidates(this.ifc);
     const width = new LineWidthTracker();
     const height = new LineHeightTracker(this.ifc);
@@ -2087,6 +2086,7 @@ export class Paragraph {
         if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
           const lineWidth = line ? width.forFloat() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
+          const fctx = bfc.ensureFloatContext(blockOffset);
           layoutFloatBox(mark.float, ctx);
           fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
         } else {
@@ -2122,11 +2122,11 @@ export class Paragraph {
       if (mark.isBreak && (lineHasInk && !nowrap || mark.isBreakForced || mark.position === this.length())) {
         if (!line) {
           lines.push(line = new Linebox(0, this));
-          fctx.preTextContent();
+          bfc.fctx?.preTextContent();
         }
 
         const blockSize = height.totalWith(candidates.height);
-        fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+        bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
           const glyphs = getHyphen(item);
@@ -2155,16 +2155,16 @@ export class Paragraph {
           lastLine.postprocess(width, height, vacancy, this.ifc.style.textAlign);
           width.reset();
           height.reset();
-          fctx.postLine(lastLine, true);
+          bfc.fctx?.postLine(lastLine, true);
           blockOffset += lastLine.height();
         }
 
         if (!line.hasText() /* line was just added */) {
-          fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-          if (candidates.width.forFloat() > vacancy.inlineSize) {
-            const newVacancy = fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
+          bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+          if (candidates.width.forFloat() > vacancy.inlineSize && bfc.fctx) {
+            const newVacancy = bfc.fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
             blockOffset = newVacancy.blockOffset;
-            fctx.dropShelf(blockOffset);
+            bfc.fctx?.dropShelf(blockOffset);
           }
         }
 
@@ -2176,15 +2176,16 @@ export class Paragraph {
         lastBreakMark = mark;
 
         for (const float of floats) {
+          const fctx = bfc.ensureFloatContext(blockOffset);
           layoutFloatBox(float, ctx);
           fctx.placeFloat(width.forFloat(), false, float);
         }
         floats = [];
 
         if (mark.isBreakForced) {
-          fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+          bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
           line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
-          fctx.postLine(line, true);
+          bfc.fctx?.postLine(line, true);
           blockOffset += line.height();
           width.reset();
           height.reset();
@@ -2213,18 +2214,19 @@ export class Paragraph {
     }
 
     for (const float of floats) {
+      const fctx = bfc.ensureFloatContext(blockOffset);
       layoutFloatBox(float, ctx);
       fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);
     }
 
     if (line) {
       const blockSize = height.total();
-      fctx.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+      bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
       line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
       blockOffset += line.height();
-      fctx.postLine(line, false);
+      bfc.fctx?.postLine(line, false);
     } else {
-      fctx.consumeMisfits();
+      bfc.fctx?.consumeMisfits();
     }
 
     if (this.ifc.loggingEnabled()) {
@@ -2241,10 +2243,12 @@ export class Paragraph {
         }
         console.log(log);
       }
-      console.log('Left floats');
-      console.log(fctx.leftFloats.repr());
-      console.log('Right floats');
-      console.log(fctx.rightFloats.repr());
+      if (bfc.fctx) {
+        console.log('Left floats');
+        console.log(bfc.fctx.leftFloats.repr());
+        console.log('Right floats');
+        console.log(bfc.fctx.rightFloats.repr());
+      }
     }
 
     this.lineboxes = lines;

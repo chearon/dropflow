@@ -1813,77 +1813,44 @@ function mapTree(el: HTMLElement, path: number[], level: number): [boolean, Inli
   return [bail, box];
 }
 
-// Generates an inline box for the element. Also generates blocks if the element
-// has any descendents which generate them. These are not included in the inline.
-function generateInlineBox(el: HTMLElement) {
-  const path: number[] = [], boxes: (Inline | BlockContainer)[] = [];
-  let inline: Inline, more = true;
-
+// Generates at least one inline box for the element. This must be called
+// repeatedly until the first tuple value returns false to split out all block-
+// level elements and the (fully nested) inlines in between and around them.
+function generateInlineBox(
+  el: HTMLElement,
+  path: number[]
+): [boolean, Inline | BlockContainer] {
   if (el.style.display.outer !== 'inline' || el.style.display.inner !== 'flow') {
     throw Error('Inlines only');
   }
 
-  while (more) {
-    let childEl;
+  const target = el.getEl(path);
 
-    [more, inline] = mapTree(el, path, 0);
-    boxes.push(inline);
-
-    while ((childEl = el.getEl(path)) instanceof HTMLElement && childEl.style.display.outer === 'block') {
-      boxes.push(generateBlockContainer(childEl, el));
-      ++path[path.length - 1];
-    }
+  if (target instanceof HTMLElement && target.style.display.outer === 'block') {
+    ++path[path.length - 1];
+    return [true, generateBlockContainer(target, el)]; // TODO: el is not the parent...
   }
 
-  return boxes;
+  return mapTree(el, path, 0);
 }
 
-// This cannot be a type guard (box is InlineLevel) because this can return
-// false even if `box` is a BlockContainer. TS would eliminate BlockContainer
-// in the else path. But if it returns true, you can safely `as InlineLevel`
-function isInlineLevel(box: Box) {
-  return box.isInline()
-    || box.isRun()
-    || box.isBreak()
-    || box.isBlockContainer() && (box.isInlineLevel() || box.isFloat());
-}
-
-// Wraps consecutive inlines and runs in block-level block containers. The
-// returned list is guaranteed to be a list of only blocks. This obeys CSS21
-// section 9.2.1.1
-function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
-  const blocks: BlockContainer[] = [];
-
-  for (let i = 0; i < boxes.length; ++i) {
-    const inlines: InlineLevel[] = [];
-
-    for (let box; i < boxes.length && isInlineLevel(box = boxes[i]); i++) {
-      inlines.push(box as InlineLevel);
-    }
-
-    if (inlines.length > 0) {
-      const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);
-      const anonStyle = createStyle(anonComputedStyle);
-      let attrs = Box.ATTRS.isAnonymous;
-      if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
-      const ifc = new IfcInline(anonStyle, inlines, attrs);
-      blocks.push(new BlockContainer(anonStyle, [ifc], attrs));
-    }
-
-    if (i < boxes.length) {
-      const block = boxes[i];
-      if (!block.isBlockContainer()) throw new Error('Unknown box type encountered');
-      blocks.push(block);
-    }
-  }
-
-  return blocks;
+// Wraps consecutive inlines and runs in block-level block containers.
+// CSS2.1 section 9.2.1.1
+function wrapInBlockContainer(inlines: InlineLevel[], parentEl: HTMLElement) {
+  const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);
+  const anonStyle = createStyle(anonComputedStyle);
+  let attrs = Box.ATTRS.isAnonymous;
+  if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
+  const ifc = new IfcInline(anonStyle, inlines, attrs);
+  return new BlockContainer(anonStyle, [ifc], attrs);
 }
 
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement): BlockContainer {
   const enableLogging = 'x-overflow-log' in el.attrs;
-  let boxes: Box[] = [], hasInline = false, hasBlock = false, attrs = 0;
+  const blocks: BlockContainer[] = [];
+  let inlines: InlineLevel[] = [];
+  let attrs = 0;
   
   // TODO: it's time to start moving some of this type of logic to HTMLElement.
   // For example add the methods establishesBfc, generatesBlockContainerOfBlocks,
@@ -1903,24 +1870,38 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
       if (child.tagName === 'br') {
-        boxes.push(new Break(createStyle(child.style), [], 0));
-        hasInline = true;
+        inlines.push(new Break(createStyle(child.style), [], 0));
       } else if (child.style.float !== 'none') {
-        boxes.push(generateBlockContainer(child, el));
-        hasInline = true;
+        inlines.push(generateBlockContainer(child, el));
       } else if (child.style.display.outer === 'block') {
-        boxes.push(generateBlockContainer(child, el));
-        hasBlock = true;
+        if (inlines.length) {
+          blocks.push(wrapInBlockContainer(inlines, el));
+          inlines = [];
+        }
+
+        blocks.push(generateBlockContainer(child, el));
       } else if (child.style.display.outer === 'inline') {
-        hasInline = true;
-        const blocks = generateInlineBox(child);
-        hasBlock = hasBlock || blocks.length > 1;
-        boxes = boxes.concat(blocks);
+        const path: number[] = [];
+        let more, box;
+
+        do {
+          ([more, box] = generateInlineBox(child, path));
+
+          if (box.isInline()) {
+            inlines.push(box);
+          } else {
+            if (inlines.length) {
+              blocks.push(wrapInBlockContainer(inlines, el));
+              inlines = [];
+            }
+
+            blocks.push(box);
+          }
+        } while (more);
       }
     } else { // TextNode
       const computed = createComputedStyle(el.style, EMPTY_STYLE);
-      hasInline = true;
-      boxes.push(new Run(child.text, createStyle(computed)));
+      inlines.push(new Run(child.text, createStyle(computed)));
     }
   }
 
@@ -1931,20 +1912,23 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   }
 
   const style = createStyle(el.style);
+  let children: BlockContainer[] | IfcInline[];
 
-  if (hasInline && !hasBlock) {
-    const anonComputedStyle = createComputedStyle(el.style, EMPTY_STYLE);
-    const anonStyle = createStyle(anonComputedStyle);
-    const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
-    const inline = new IfcInline(anonStyle, boxes as InlineLevel[], ifcAttrs);
-    const box = new BlockContainer(style, [inline], attrs);
-    el.boxes.push(box);
-    return box;
+  if (inlines.length) {
+    if (blocks.length) {
+      blocks.push(wrapInBlockContainer(inlines, el));
+      children = blocks;
+    } else {
+      const anonComputedStyle = createComputedStyle(el.style, EMPTY_STYLE);
+      const anonStyle = createStyle(anonComputedStyle);
+      const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
+      children = [new IfcInline(anonStyle, inlines, ifcAttrs)];
+    }
+  } else {
+    children = blocks;
   }
 
-  if (hasInline && hasBlock) boxes = wrapInBlockContainers(boxes, el);
-
-  const box = new BlockContainer(style, boxes as BlockContainer[], attrs);
+  const box = new BlockContainer(style, children, attrs);
   el.boxes.push(box);
   return box;
 }

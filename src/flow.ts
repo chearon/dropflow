@@ -1777,13 +1777,13 @@ export function createPreorderInlineIterator(inline: IfcInline) {
 }
 
 // Helper for generateInlineBox
-function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inline] {
+function mapTree(el: HTMLElement, path: number[], level: number): [boolean, Inline] {
   let children = [], bail = false, attrs = 0;
 
-  if (!stack[level]) stack[level] = 0;
+  if (!path[level]) path[level] = 0;
 
-  while (!bail && stack[level] < el.children.length) {
-    let child: InlineLevel | undefined, childEl = el.children[stack[level]];
+  while (!bail && path[level] < el.children.length) {
+    let child: InlineLevel | undefined, childEl = el.children[path[level]];
 
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
@@ -1794,18 +1794,18 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
         bail = true;
       } else if (childEl.style.display.inner === 'flow-root') {
         child = generateBlockContainer(childEl);
-      } else if (childEl.children) {
-        [bail, child] = mapTree(childEl, stack, level + 1);
+      } else {
+        [bail, child] = mapTree(childEl, path, level + 1);
       }
     } else if (childEl instanceof TextNode) {
       child = new Run(childEl.text, createStyle(childEl.style));
     }
 
     if (child != null) children.push(child);
-    if (!bail) stack[level]++;
+    if (!bail) path[level]++;
   }
 
-  if (!bail) stack.pop();
+  if (!bail) path.pop();
   if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
   const box = new Inline(createStyle(el.style), children, attrs);
   el.boxes.push(box);

@@ -1848,8 +1848,13 @@ function generateInlineBox(el: HTMLElement) {
   return boxes;
 }
 
-function isInlineLevel(box: Box): box is InlineLevel {
-  return box.isInline() || box.isRun() || box.isBreak()
+// This cannot be a type guard (box is InlineLevel) because this can return
+// false even if `box` is a BlockContainer. TS would eliminate BlockContainer
+// in the else path. But if it returns true, you can safely `as InlineLevel`
+function isInlineLevel(box: Box) {
+  return box.isInline()
+    || box.isRun()
+    || box.isBreak()
     || box.isBlockContainer() && (box.isInlineLevel() || box.isFloat());
 }
 
@@ -1857,12 +1862,14 @@ function isInlineLevel(box: Box): box is InlineLevel {
 // returned list is guaranteed to be a list of only blocks. This obeys CSS21
 // section 9.2.1.1
 function wrapInBlockContainers(boxes: Box[], parentEl: HTMLElement) {
-  const blocks:BlockContainer[] = [];
+  const blocks: BlockContainer[] = [];
 
   for (let i = 0; i < boxes.length; ++i) {
-    const inlines:InlineLevel[] = [];
+    const inlines: InlineLevel[] = [];
 
-    for (let box; i < boxes.length && isInlineLevel(box = boxes[i]); i++) inlines.push(box);
+    for (let box; i < boxes.length && isInlineLevel(box = boxes[i]); i++) {
+      inlines.push(box as InlineLevel);
+    }
 
     if (inlines.length > 0) {
       const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);

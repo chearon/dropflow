@@ -1685,8 +1685,6 @@ export class IfcInline extends Inline {
 
 export type InlineLevel = Inline | BlockContainer | Run | Break;
 
-type InlineNotRun = Inline | BlockContainer;
-
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
   | {state: 'float', item: BlockContainer}
@@ -1779,48 +1777,38 @@ export function createPreorderInlineIterator(inline: IfcInline) {
 }
 
 // Helper for generateInlineBox
-function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, InlineNotRun?] {
+function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inline] {
   let children = [], bail = false, attrs = 0;
-
-  if (el.style.display.outer !== 'inline' && el.style.display.outer !== 'none') {
-    throw Error('Inlines only');
-  }
 
   if (!stack[level]) stack[level] = 0;
 
-  let box:InlineNotRun | undefined;
+  while (!bail && stack[level] < el.children.length) {
+    let child: InlineLevel | undefined, childEl = el.children[stack[level]];
 
-  if (el.style.display.inner === 'flow') {
-    while (!bail && stack[level] < el.children.length) {
-      let child: InlineLevel | undefined, childEl = el.children[stack[level]];
-
-      if (childEl instanceof HTMLElement) {
-        if (childEl.tagName === 'br') {
-          child = new Break(createStyle(childEl.style), [], 0);
-        } else if (childEl.style.float !== 'none') {
-          child = generateBlockContainer(childEl);
-        } else if (childEl.style.display.outer === 'block') {
-          bail = true;
-        } else if (childEl.style.display.inner === 'flow-root') {
-          child = generateBlockContainer(childEl);
-        } else if (childEl.children) {
-          [bail, child] = mapTree(childEl, stack, level + 1);
-        }
-      } else if (childEl instanceof TextNode) {
-        child = new Run(childEl.text, createStyle(childEl.style));
+    if (childEl instanceof HTMLElement) {
+      if (childEl.tagName === 'br') {
+        child = new Break(createStyle(childEl.style), [], 0);
+      } else if (childEl.style.float !== 'none') {
+        child = generateBlockContainer(childEl);
+      } else if (childEl.style.display.outer === 'block') {
+        bail = true;
+      } else if (childEl.style.display.inner === 'flow-root') {
+        child = generateBlockContainer(childEl);
+      } else if (childEl.children) {
+        [bail, child] = mapTree(childEl, stack, level + 1);
       }
-
-      if (child != null) children.push(child);
-      if (!bail) stack[level]++;
+    } else if (childEl instanceof TextNode) {
+      child = new Run(childEl.text, createStyle(childEl.style));
     }
 
-    if (!bail) stack.pop();
-    if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
-    box = new Inline(createStyle(el.style), children, attrs);
-    el.boxes.push(box);
-  } else if (el.style.display.inner == 'flow-root') {
-    box = generateBlockContainer(el);
+    if (child != null) children.push(child);
+    if (!bail) stack[level]++;
   }
+
+  if (!bail) stack.pop();
+  if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
+  const box = new Inline(createStyle(el.style), children, attrs);
+  el.boxes.push(box);
 
   return [bail, box];
 }
@@ -1828,16 +1816,18 @@ function mapTree(el: HTMLElement, stack: number[], level: number): [boolean, Inl
 // Generates an inline box for the element. Also generates blocks if the element
 // has any descendents which generate them. These are not included in the inline.
 function generateInlineBox(el: HTMLElement) {
-  const path: number[] = [], boxes:(InlineLevel | BlockContainer)[] = [];
-  let inline: InlineNotRun | undefined, more = true;
+  const path: number[] = [], boxes: (Inline | BlockContainer)[] = [];
+  let inline: Inline, more = true;
 
-  if (el.style.display.outer !== 'inline') throw Error('Inlines only');
+  if (el.style.display.outer !== 'inline' || el.style.display.inner !== 'flow') {
+    throw Error('Inlines only');
+  }
 
   while (more) {
     let childEl;
 
     [more, inline] = mapTree(el, path, 0);
-    if (inline) boxes.push(inline);
+    boxes.push(inline);
 
     while ((childEl = el.getEl(path)) instanceof HTMLElement && childEl.style.display.outer === 'block') {
       boxes.push(generateBlockContainer(childEl, el));

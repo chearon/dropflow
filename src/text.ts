@@ -1,7 +1,17 @@
-import {binarySearchTuple, binarySearchEndProp, loggableText, basename} from './util.js';
-import {Box} from './box.js';
-import {Style, initialStyle, createComputedStyle, Color, TextAlign, WhiteSpace} from './cascade.js';
-import {IfcInline, Inline, BlockContainer, LayoutContext, createInlineIterator, createPreorderInlineIterator, IfcVacancy, layoutFloatBox} from './flow.js';
+import {binarySearchTuple, basename, loggableText} from './util.js';
+import {Box, ReprOptions} from './box.js';
+import {Style, Color, TextAlign, WhiteSpace} from './cascade.js';
+import {
+  BlockContainer,
+  IfcInline,
+  IfcVacancy,
+  Inline,
+  InlineLevel,
+  LayoutContext,
+  createInlineIterator,
+  createPreorderInlineIterator,
+  layoutFloatBox
+} from './flow.js';
 import LineBreak, {HardBreaker} from './line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
 import * as hb from './harfbuzz.js';
@@ -12,24 +22,33 @@ import {createItemizeState, itemizeNext} from './itemize.js';
 import type {FaceMatch} from './font.js';
 import type {HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
 
-let debug = true;
+const lineFeedCharacter = 0x000a;
+const formFeedCharacter = 0x000c;
+const carriageReturnCharacter = 0x000d;
+const spaceCharacter = 0x0020;
+const zeroWidthSpaceCharacter = 0x200b;
+const objectReplacementCharacter = 0xfffc;
 
-const lineFeedCharacter = 0x000A;
-const formFeedCharacter = 0x000C;
-const carriageReturnCharacter = 0x000D;
-const zeroWidthSpaceCharacter = 0x200B;
-const objectReplacementCharacter = 0xFFFC;
+const decoder = new TextDecoder('utf-16');
 
 function isWsCollapsible(whiteSpace: WhiteSpace) {
   return whiteSpace === 'normal' || whiteSpace === 'nowrap' || whiteSpace === 'pre-line';
 }
 
-function isSgUncollapsible(whiteSpace: WhiteSpace) {
-  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line';
-}
-
 function isNowrap(whiteSpace: WhiteSpace) {
   return whiteSpace === 'nowrap' || whiteSpace === 'pre';
+}
+
+export function isSpaceOrTabOrNewline(c: string) {
+  return c === ' ' || c === '\t' || c === '\n';
+}
+
+function isSpaceOrTab(c: string) {
+  return c === ' ' || c === '\t';
+}
+
+function isNewline(c: string) {
+  return c === '\n';
 }
 
 function graphemeBoundaries(text: string, index: number) {
@@ -51,272 +70,132 @@ export function prevGrapheme(text: string, index: number) {
 // TODO runs aren't really boxes per the spec. You can't position them, etc.
 // I wonder if I should create a class like RenderItem (Box extends RenderItem)
 export class Run extends Box {
-  public start: number = 0;
-  public end: number = 0;
-  public text: string;
+  public start: number;
+  public end: number;
 
-  constructor(text: string, style: Style) {
+  constructor(start: number, end: number, style: Style) {
     super(style, [], 0);
-
-    this.text = text;
-    this.style = style || new Style(createComputedStyle(initialStyle, {
-      whiteSpace: 'normal'
-    }));
-  }
-
-  get sym() {
-    return 'Ͳ';
-  }
-
-  setRange(start: number, end: number) {
-    if (this.text.length !== end - start + 1) {
-      throw new Error(`end=${end} - start=${start} + 1 should sum to text.length=${this.text.length}`);
-    }
-
     this.start = start;
     this.end = end;
   }
 
-  shift(n: number) {
-    this.start -= n;
-    this.end -= n;
+  get length() {
+    return this.end - this.start;
   }
 
-  isRun(): this is Run {
-    return true;
-  }
-
-  get desc() {
-    return `${this.start},${this.end} "${loggableText(this.text)}"`;
+  sym() {
+    return 'Ͳ';
   }
 
   get wsCollapsible() {
     return isWsCollapsible(this.style.whiteSpace);
   }
 
-  get sgUncollapsible() {
-    return isSgUncollapsible(this.style.whiteSpace);
+  isRun(): this is Run {
+    return true;
   }
 
-  get sgCollapsible() {
-    return !isSgUncollapsible(this.style.whiteSpace);
-  }
-
-  mod(start: number, end: number, s: string) {
-    const text = this.text;
-    const lstart = Math.max(0, start - this.start);
-    const lend = end - this.start;
-
-    this.text = text.slice(0, lstart) + s + text.slice(lend + 1);
-
-    const n = text.length - this.text.length;
-
-    this.end -= n;
-
-    return n;
-  }
-
-  allCollapsible() {
-    return Boolean(this.text.match(/^( |\r\n|\n|\t)*$/));
+  desc(options?: ReprOptions) {
+    let ret = `${this.start},${this.end}`;
+    if (options?.paragraphText) {
+      ret += ` "${loggableText(options.paragraphText.slice(this.start, this.end))}"`;
+    }
+    return ret;
   }
 }
 
-export class Collapser {
-  public buf: string;
-  public runs: Run[];
+export function collapseWhitespace(ifc: IfcInline) {
+  const stack: (InlineLevel | {post: Inline})[] = ifc.children.slice().reverse();
+  const parents: Inline[] = [ifc];
+  const str = new Uint16Array(ifc.text.length);
+  let delta = 0;
+  let stri = 0;
+  let inWhitespace = false;
 
-  constructor(buf: string, runs: Run[]) {
-    if (debug) {
-      if (buf.length > 0 || runs.length > 0) {
-        const start = runs[0];
-        let last!: Run;
+  while (stack.length) {
+    const item = stack.pop()!;
 
-        for (const run of runs) {
-          if (last && run.start !== last.end + 1) {
-            throw new Error('Run objects have gaps or overlap');
+    if ('post' in item) {
+      const inline = item.post;
+      inline.end -= delta;
+      parents.pop();
+    } else if (item.isInline()) {
+      item.start -= delta;
+      parents.push(item);
+      stack.push({post: item});
+      for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
+    } else if (item.isRun()) {
+      const whiteSpace = item.style.whiteSpace;
+      const originalStart = item.start;
+
+      item.start -= delta;
+
+      if (whiteSpace === 'normal' || whiteSpace === 'nowrap') {
+        for (let i = originalStart; i < item.end; i++) {
+          const isWhitespace = isSpaceOrTabOrNewline(ifc.text[i]);
+
+          if (inWhitespace && isWhitespace) {
+            delta += 1;
+          } else {
+            str[stri++] = isWhitespace ? spaceCharacter : ifc.text.charCodeAt(i);
           }
 
-          if (run.text !== buf.slice(run.start, run.end + 1)) {
-            throw new Error('Run/buffer mismatch');
+          inWhitespace = isWhitespace;
+        }
+      } else if (whiteSpace === 'pre-line') {
+        for (let i = originalStart; i < item.end; i++) {
+          const isWhitespace = isSpaceOrTabOrNewline(ifc.text[i]);
+
+          if (isWhitespace) {
+            let j = i + 1;
+            let hasNewline = isNewline(ifc.text[i]);
+
+            for (; j < item.end && isSpaceOrTabOrNewline(ifc.text[j]); j++) {
+              hasNewline = hasNewline || isNewline(ifc.text[j]);
+            }
+
+            while (i < j) {
+              if (isSpaceOrTab(ifc.text[i])) {
+                if (inWhitespace || hasNewline) {
+                  delta += 1;
+                } else {
+                  str[stri++] = spaceCharacter;
+                }
+                inWhitespace = true;
+              } else { // newline
+                str[stri++] = lineFeedCharacter;
+                inWhitespace = false;
+              }
+
+              i++;
+            }
+
+            i = j - 1;
+          } else {
+            str[stri++] = ifc.text.charCodeAt(i);
+            inWhitespace = false;
           }
-
-          last = run;
         }
-
-        if (!start || last.end - start.start + 1 !== buf.length) {
-          throw new Error('Buffer size doesn\'t match sum of run sizes'); 
-        }
-      }
-    }
-
-    this.buf = buf;
-    this.runs = runs;
-  }
-
-  mod(start: number, end: number, s: string) {
-    if (end < start) return 0;
-
-    const rstart = binarySearchEndProp(this.runs, start);
-    let rend = end <= this.runs[rstart].end ? rstart : binarySearchEndProp(this.runs, end);
-    let shrinkahead = 0;
-
-    this.buf = this.buf.slice(0, start) + s + this.buf.slice(end + 1);
-
-    for (let k = rstart; k < this.runs.length; ++k) {
-      const run = this.runs[k];
-
-      run.shift(shrinkahead);
-
-      if (k <= rend) shrinkahead += run.mod(start, end - shrinkahead, s);
-      if (run.end < run.start) {
-        this.runs.splice(k--, 1);
-        rend--;
-      }
-
-      s = '';
-    }
-
-    return shrinkahead;
-  }
-
-  *collapsibleRanges(filter: 'sgCollapsible' | 'wsCollapsible' | 'sgUncollapsible') {
-    let start = 0;
-    let end = 0;
-    let wasInCollapse = false;
-
-    while (true) {
-      const over = end >= this.runs.length;
-      const isInCollapse = !over && this.runs[end][filter];
-
-      if (wasInCollapse && !isInCollapse) yield [this.runs[start], this.runs[end - 1]];
-
-      if (over) break;
-
-      wasInCollapse = isInCollapse;
-
-      if (isInCollapse) {
-        end += 1;
-      } else {
-        start = end = end + 1;
-      }
-    }
-  }
-
-  modRanges(ranges: [number, number, string][]) {
-    let shrinkahead = 0;
-
-    for (const [start, end, s] of ranges) {
-      if (end < start) continue;
-      shrinkahead += this.mod(start - shrinkahead, end - shrinkahead, s);
-    }
-  }
-
-  // CSS Text Module Level 3 §4.1.1 step 1
-  stepOne() {
-    const toRemove: [number, number, string][] = [];
-
-    for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
-      const range = this.buf.slice(start.start, end.end + 1);
-      const rBefore = /([ \t]*)((\r\n|\n)+)([ \t]*)/g;
-      let match;
-
-      while (match = rBefore.exec(range)) {
-        const [, leftWs, allNl, , rightWs] = match;
-        const rangeStart = start.start + match.index;
-
-        if (leftWs.length) {
-          toRemove.push([rangeStart, rangeStart + leftWs.length - 1, '']);
-        }
-
-        if (rightWs.length) {
-          const rightWsStart = rangeStart + leftWs.length + allNl.length;
-          toRemove.push([rightWsStart, rightWsStart + rightWs.length - 1, '']);
+      } else { // pre
+        inWhitespace = false;
+        for (let i = originalStart; i < item.end; i++) {
+          str[stri++] = ifc.text.charCodeAt(i);
         }
       }
-    }
 
-    this.modRanges(toRemove);
-  }
+      item.end -= delta;
 
-  // CSS Text Module Level 3 §4.1.1 step 2 (defined in §4.1.2)
-  stepTwo() {
-    const removeCarriageReturn: [number, number, string][] = [];
-
-    for (const [start, end] of this.collapsibleRanges('sgUncollapsible')) {
-      const range = this.buf.slice(start.start, end.end + 1);
-      const rBreak = /\r\n/g;
-      let match;
-
-      while (match = rBreak.exec(range)) {
-        const rangeStart = start.start + match.index;
-        removeCarriageReturn.push([rangeStart + 1, rangeStart + 1, '']);
+      if (item.length === 0) {
+        const parent = parents.at(-1)!;
+        const i = parent.children.indexOf(item);
+        if (i < 0) throw new Error('Assertion failed');
+        parent.children.splice(i, 1);
       }
     }
-
-    this.modRanges(removeCarriageReturn);
-
-    const modConsecutiveSegments: [number, number, string][] = [];
-
-    for (const [start, end] of this.collapsibleRanges('sgCollapsible')) {
-      const range = this.buf.slice(start.start, end.end + 1);
-      const rSegment = /(\n|\r\n)((\n|\r\n)*)/g;
-      let match;
-
-      while (match = rSegment.exec(range)) {
-        const {1: sg, 2: asg} = match;
-        const rangeStart = start.start + match.index;
-
-        const s = ' '; // TODO spec says this is contextual based on some Asian scripts
-        modConsecutiveSegments.push([rangeStart, rangeStart + sg.length - 1, s]);
-
-        modConsecutiveSegments.push([rangeStart + sg.length, rangeStart + sg.length + asg.length - 1, '']);
-      }
-    }
-
-    this.modRanges(modConsecutiveSegments);
   }
 
-  // CSS Text Module Level 3 §4.1.1 step 3
-  stepThree() {
-    const removeTab: [number, number, string][] = [];
-
-    for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
-      const range = this.buf.slice(start.start, end.end + 1);
-      const rTab = /\t/g;
-      let match;
-
-      while (match = rTab.exec(range)) {
-        removeTab.push([start.start + match.index, start.start + match.index, ' ']);
-      }
-    }
-
-    this.modRanges(removeTab);
-  }
-
-  // CSS Text Module Level 3 §4.1.1 step 4
-  stepFour() {
-    const collapseWs: [number, number, string][] = [];
-
-    for (const [start, end] of this.collapsibleRanges('wsCollapsible')) {
-      const range = this.buf.slice(start.start, end.end + 1);
-      const rSpSeq = /  +/g;
-      let match;
-
-      while (match = rSpSeq.exec(range)) {
-        const rangeStart = start.start + match.index;
-        collapseWs.push([rangeStart + 1, rangeStart + 1 + match[0].length - 2, '']);
-      }
-    }
-    
-    this.modRanges(collapseWs);
-  }
-
-  collapse() {
-    this.stepOne();
-    this.stepTwo();
-    this.stepThree();
-    this.stepFour();
-  }
+  ifc.text = decoder.decode(str.subarray(0, stri));
+  ifc.end = ifc.text.length;
 }
 
 export type ShapingAttrs = {
@@ -1967,7 +1846,7 @@ export class Paragraph {
 
         // Consume text or hard break
         if (!inline.done && inline.value.state === 'text') {
-          inlineMark += inline.value.item.text.length;
+          inlineMark += inline.value.item.length;
           inline = inlineIterator.next();
         } else if (!inline.done && inline.value.state === 'break') {
           mark.isBreak = true;

@@ -2,242 +2,9 @@
 import {expect} from 'chai';
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {
-  Run,
-  Collapser,
-  G_ID,
-  G_AX,
-  G_SZ,
-} from '../src/text.js';
-import {initialStyle, createComputedStyle} from '../src/cascade.js';
+import {G_ID, G_AX, G_SZ} from '../src/text.js';
 import paintBlockContainer from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
-
-describe('Text Module', function () {
-  const s = createComputedStyle(initialStyle, {});
-
-  describe('Run', function () {
-    it('throws on a setRange that doesn\'t make sense', function () {
-      expect(() => new Run('', s).setRange(0, '')).to.throw();
-      expect(() => new Run('', s).setRange('', '')).to.throw();
-      expect(() => new Run('', s).setRange(5, 5)).to.throw();
-      expect(() => new Run('hello', s).setRange(-1, 4)).to.throw();
-      expect(() => new Run('test', s).setRange(0, 1)).to.throw();
-      expect(() => new Run('xxxxxx', s).setRange(1, 10)).to.throw();
-    });
-
-    it('shifts', function () {
-      const t1 = new Run('Hello', s);
-      t1.setRange(0, 4);
-      t1.shift(-2);
-      expect(t1.start).to.equal(2);
-      expect(t1.end).to.equal(6);
-
-      const t2 = new Run('Hello', s);
-      t2.setRange(0, 4);
-      t2.shift(2);
-      expect(t2.start).to.equal(-2);
-      expect(t2.end).to.equal(2);
-    });
-
-    it('mod() removes a character', function () {
-      const t1 = new Run('Hello', s);
-      t1.setRange(0, 4);
-      t1.mod(2, 2, '');
-      expect(t1.text).to.equal('Helo');
-      expect(t1.start).to.equal(0);
-      expect(t1.end).to.equal(3);
-    });
-
-    it('mod() removes characters', function () {
-      const t1 = new Run('Hello', s);
-      t1.setRange(0, 4);
-      t1.mod(1, 3, '');
-      expect(t1.text).to.equal('Ho');
-      expect(t1.start).to.equal(0);
-      expect(t1.end).to.equal(1);
-    });
-
-    it('mod() replaces characters', function () {
-      const t1 = new Run('Hello', s);
-      t1.setRange(0, 4);
-      t1.mod(2, 2, 'aron');
-      expect(t1.text).to.equal('Hearonlo');
-      expect(t1.start).to.equal(0);
-      expect(t1.end).to.equal(7);
-    });
-
-    it('mod() handles start < text.i < end', function () {
-      const t1 = new Run('texty', s);
-      t1.setRange(5, 9);
-      t1.mod(2, 6, 's');
-      expect(t1.text).to.equal('sxty');
-      expect(t1.start).to.equal(5);
-      expect(t1.end).to.equal(8);
-    });
-
-    it('mod() handles start < text.end < j', function () {
-      const t1 = new Run('texty', s);
-      t1.setRange(5, 9);
-      t1.mod(8, 10, 'y');
-      expect(t1.text).to.equal('texy');
-      expect(t1.start).to.equal(5);
-      expect(t1.end).to.equal(8);
-    });
-  });
-
-  describe('Collapser', function () {
-    it('throws an error if buf doesn\'t match the texts', function () {
-      const [r1, r2] = [new Run('a', s), new Run('b', s)];
-      r1.setRange(0, 0);
-      r2.setRange(1, 1);
-
-      const [r3, r4] = [new Run('text', s), new Run('musmatch', s)];
-      r3.setRange(0, 3);
-      r4.setRange(4, 11);
-
-      expect(() => new Collapser('xxyy', [])).to.throw();
-      expect(() => new Collapser('', [r1, r2])).to.throw();
-      expect(() => new Collapser('text mismatch', [r3, r4])).to.throw();
-    });
-
-    describe('mod()', function () {
-      it('replaces text', function () {
-        const t = new Run('Lorem ipsum', s);
-        t.setRange(0, 10);
-        const c = new Collapser('Lorem ipsum', [t]);
-        c.mod(6, 10, 'lorem');
-        expect(c.buf).to.equal('Lorem lorem');
-        expect(t.start).to.equal(0);
-        expect(t.end).to.equal(10);
-        expect(t.text).to.equal('Lorem lorem');
-      });
-
-      it('replaces text when the boundaries are in the middle of 2 texts', function () {
-        const t1 = new Run('This is my', s);
-        const t2 = new Run(' theme song', s);
-        t1.setRange(0, 9);
-        t2.setRange(10, 20);
-        const c = new Collapser('This is my theme song', [t1, t2]);
-        c.mod(8, 15, 'not my');
-        expect(c.buf).to.equal('This is not my song')
-        expect(t1.start).to.equal(0);
-        expect(t1.end).to.equal(13);
-        expect(t1.text).to.equal('This is not my');
-        expect(t2.start).to.equal(14);
-        expect(t2.end).to.equal(18);
-        expect(t2.text).to.equal(' song');
-      });
-
-      it('replaces with empty text', function () {
-        const t = new Run('Lorem ipsum', s);
-        t.setRange(0, 10);
-        const c = new Collapser('Lorem ipsum', [t]);
-        c.mod(3, 4, '');
-        expect(c.buf).to.equal('Lor ipsum');
-        expect(t.text).to.equal('Lor ipsum');
-        expect(t.start).to.equal(0);
-        expect(t.end).to.equal(8);
-      });
-
-      it('replaces with empty text when the boundaries are in the middle of 2 texts', function () {
-        const t1 = new Run('This is my', s);
-        const t2 = new Run(' theme song', s);
-        t1.setRange(0, 9);
-        t2.setRange(10, 20);
-        const c = new Collapser('This is my theme song', [t1, t2]);
-        c.mod(8, 16, '');
-        expect(c.buf).to.equal('This is song')
-        expect(t1.start).to.equal(0);
-        expect(t1.end).to.equal(7);
-        expect(t1.text).to.equal('This is ');
-        expect(t2.start).to.equal(8);
-        expect(t2.end).to.equal(11);
-        expect(t2.text).to.equal('song');
-      });
-    });
-
-    describe('collapse', function () {
-      it('collapses whitespace', function () {
-        const t1 = new Run('  \there\n', {whiteSpace: 'normal'});
-        const t2 = new Run('\t\t  I  go killin  ', {whiteSpace: 'nowrap'});
-        const t3 = new Run('  \n\t\n\t  again  ', {whiteSpace: 'normal'});
-
-        t1.setRange(0, 7);
-        t2.setRange(8, 25);
-        t3.setRange(26, 40);
-
-        const c = new Collapser('  \there\n\t\t  I  go killin    \n\t\n\t  again  ', [t1, t2, t3]);
-        c.collapse();
-        expect(c.buf).to.equal(' here I go killin again ');
-      });
-
-      it('preserves newlines', function () {
-        const t1 = new Run('  \there\n', {whiteSpace: 'pre-line'});
-        const t2 = new Run('\t\t  I  go killin  ', {whiteSpace: 'nowrap'});
-        const t3 = new Run('  \n\t\n\t  again  ', {whiteSpace: 'normal'});
-
-        t1.setRange(0, 7);
-        t2.setRange(8, 25);
-        t3.setRange(26, 40);
-
-        const c = new Collapser('  \there\n\t\t  I  go killin    \n\t\n\t  again  ', [t1, t2, t3]);
-        c.collapse();
-        expect(c.buf).to.equal(' here\nI go killin again ');
-      });
-
-      it('preserves everything', function () {
-        const t1 = new Run('  \there\n', {whiteSpace: 'pre'});
-        const t2 = new Run('\t\t  I  go killin  ', {whiteSpace: 'pre'});
-        const t3 = new Run('  \n\t\n\t  again  ', {whiteSpace: 'pre'});
-
-        t1.setRange(0, 7);
-        t2.setRange(8, 25);
-        t3.setRange(26, 40);
-
-        const c = new Collapser('  \there\n\t\t  I  go killin    \n\t\n\t  again  ', [t1, t2, t3]);
-        c.collapse();
-        expect(c.buf).to.equal('  \there\n\t\t  I  go killin    \n\t\n\t  again  ');
-      });
-
-      it('preserves parts', function () {
-        const t1 = new Run('  \there\n', {whiteSpace: 'normal'});
-        const t2 = new Run('\t\t  I  go killin  ', {whiteSpace: 'normal'});
-        const t3 = new Run('  \n\t\n\t  again  ', {whiteSpace: 'pre'});
-
-        t1.setRange(0, 7);
-        t2.setRange(8, 25);
-        t3.setRange(26, 40);
-
-        const c = new Collapser('  \there\n\t\t  I  go killin    \n\t\n\t  again  ', [t1, t2, t3]);
-        c.collapse();
-        expect(c.buf).to.equal(' here I go killin   \n\t\n\t  again  ');
-      });
-
-      it('doesnt break runs that are consecutive', function () {
-        const a = [];
-        let r;
-
-        // sorry for the garbled words, it is difficult to repro the bug this
-        // is for and took forever to find it so I ran out of time to narrow it
-        r = new Run('layout code', {whiteSpace: 'normal'}), r.setRange(0, 10), a.push(r);
-        r = new Run('\n', {whiteSpace: 'normal'}), r.setRange(11,11), a.push(r);
-        r = new Run('\n', {whiteSpace: 'normal'}), r.setRange(12,12), a.push(r);
-        r = new Run('\nbecause ', {whiteSpace: 'normal'}), r.setRange(13,21), a.push(r);
-        r = new Run('it really very ', {whiteSpace: 'normal'}), r.setRange(22,36), a.push(r);
-        r = new Run('is very', {whiteSpace: 'normal'}), r.setRange(37,43), a.push(r);
-        r = new Run('I love this!', {whiteSpace: 'normal'}), r.setRange(44,55), a.push(r);
-        r = new Run('\n', {whiteSpace: 'normal'}), r.setRange(56,56), a.push(r);
-
-        let buf = '';
-        for (const r of a) buf += r.text;
-        const c = new Collapser(buf, a);
-        c.collapse();
-        expect(c.buf).to.equal('layout code because it really very is veryI love this! ');
-      });
-    });
-  });
-});
 
 function setupLayoutTests() {
   registerFontAsset('Arimo/Arimo-Regular.ttf');
@@ -302,6 +69,149 @@ function logIfFailed() {
     console.log(this.currentTest.ctx.blockContainer.repr(indent));
   }
 }
+
+describe('Whitespace collapsing', function () {
+  before(setupLayoutTests);
+  after(teardownLayoutTests);
+  afterEach(logIfFailed);
+
+  it('collapses whitespace', function () {
+    this.layout(`
+      <div id="t">
+        \there\n
+        <span style="white-space: nowrap;">\t\t  I  go killin  </span>
+        \t\n\t  again
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children
+    expect(ifc.text).to.equal(' here I go killin again ');
+  });
+
+  it('preserves newlines', function () {
+    this.layout(`
+      <div id="t">
+        <span style="white-space: pre-line;">  \there\n</span>
+        <span style="white-space: nowrap;">\t\t  I  go killin  </span>
+        \t\n\t  again
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children
+    expect(ifc.text).to.equal(' here\n I go killin again ');
+  });
+
+  it('preserves everything', function () {
+    this.layout(`
+      <div id="t" style="white-space: pre;">  \there\n\t\t  I  go killin    \n\t\n\t  again  </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children
+    expect(ifc.text).to.equal('  \there\n\t\t  I  go killin    \n\t\n\t  again  ');
+  });
+
+  it('preserves parts', function () {
+    this.layout(`
+      <div id="t">
+        \there
+        \t\t  I  go killin  
+        <span style="white-space: pre;">  \n\t\n\t  again  </span>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children
+    expect(ifc.text).to.equal(' here I go killin   \n\t\n\t  again   ');
+  });
+
+  it('preserves nested parts', function () {
+    this.layout(
+      '<div id="t">' +
+        'applejack: an ' +
+        '<span style="white-space: pre;">' +
+          '<span style="white-space: normal;">' +
+            '<span style="white-space: pre;">  o  l  d  e  </span>' +
+          '</span>' +
+        '</span>' +
+        ' American tradition' +
+      '</div>'
+    );
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children
+    expect(ifc.text).to.equal(
+      'applejack: an   o  l  d  e   American tradition'
+    );
+  });
+
+  it('carries over whitespace state when changing white-space modes', function () {
+    this.layout(
+      '<div id="t">' +
+        '<span style="white-space: pre;"> one\n</span>' +
+        ' two ' +
+        '<span style="white-space: pre-line;"> three \n</span>' +
+        '<span style="white-space: nowrap;"> four </span>' +
+        '<span style="white-space: pre-line;"> \n five \n </span>' +
+        ' six ' +
+        '<span style="white-space: pre;"> \n seven</span>' +
+      '</div>'
+    );
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children
+    expect(ifc.text).to.equal(
+      ' one\n two three\n four \nfive\nsix  \n seven'
+    );
+  });
+
+  it('preserves whitespace correctly when blocks are in newlines', function () {
+    this.layout(`
+      this is an ifc
+      <span style="white-space: pre;">
+        <span>but it has inside of it</span>
+        <div>a bfc!   oh no!</div>
+      </span>
+      but it works!
+    `);
+
+    const [bfc1, bfc2, bfc3] = this.get().children
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc1] = bfc1.children;
+    expect(ifc1.text).to.equal(
+      ' this is an ifc \n        but it has inside of it\n        '
+    );
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc2] = bfc2.children;
+    expect(ifc2.text).to.equal(
+      'a bfc!   oh no!'
+    );
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc3] = bfc3.children;
+    expect(ifc3.text).to.equal(
+      '\n       but it works! '
+    );
+  });
+
+  it('doesnt break runs that are consecutive', function () {
+    // sorry for the garbled words, it is difficult to repro the bug this
+    // is for and took forever to find it so I ran out of time to narrow it
+    //
+    // (this has been changed once already since the above comment was writen.
+    // next time this needs to be touched, probably can just delete it)
+    /** @type import('../src/flow').IfcInline[] */
+    this.layout(
+      'layout code<span>\n</span>\n<span>\nbecause </span>' +
+      'it really very <span>is very</span>I love this!<span>\n</span>'
+    );
+    const [ifc] = this.get().children
+    expect(ifc.text).to.equal('layout code because it really very is veryI love this! ');
+  });
+});
 
 describe('Shaping', function () {
   before(setupLayoutTests);
@@ -1399,7 +1309,7 @@ describe('Lines', function () {
       `);
 
       const b = this.paint();
-      expect(b.called('baseline').y).to.be.approximately(15.547, 0.001);
+      expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
       expect(b.called('top').y).to.be.approximately(25.547, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;
@@ -1416,7 +1326,7 @@ describe('Lines', function () {
       `);
 
       const b = this.paint();
-      expect(b.called('baseline').y).to.be.approximately(38.747, 0.001);
+      expect(b.called('baseline ').y).to.be.approximately(38.747, 0.001);
       expect(b.called('bottom').y).to.be.approximately(28.747, 0.001);
       /** @type import('../src/flow').IfcInline[] */
       const [ifc] = this.get('div').children;

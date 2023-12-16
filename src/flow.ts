@@ -1,7 +1,18 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, createComputedStyle, Style, EMPTY_STYLE, WritingMode} from './cascade.js';
-import {Run, Collapser, Paragraph, createParagraph, createEmptyParagraph, Linebox, InlineMetrics, EmptyInlineMetrics, getFontMetrics} from './text.js';
+import {
+  EmptyInlineMetrics,
+  InlineMetrics,
+  Linebox,
+  Paragraph,
+  Run,
+  collapseWhitespace,
+  createEmptyParagraph,
+  createParagraph,
+  getFontMetrics,
+  isSpaceOrTabOrNewline
+} from './text.js';
 import {Box} from './box.js';
 
 import type {WhiteSpace} from './cascade.js';
@@ -859,11 +870,11 @@ export class BlockContainer extends Box {
     }
   }
 
-  get sym() {
+  sym() {
     return this.isFloat() ? '𝗈' : '◼︎';
   }
 
-  get desc() {
+  desc() {
     return (this.isAnonymous() ? dim : '')
       + (this.isBfcRoot() ? underline : '')
       + (this.isBlockLevel() ? 'Block' : 'Inline')
@@ -1375,11 +1386,11 @@ export class Break extends Box {
     return true;
   }
 
-  get sym() {
+  sym() {
     return '⏎';
   }
 
-  get desc() {
+  desc() {
     return 'BR';
   }
 }
@@ -1391,17 +1402,13 @@ export class Inline extends Box {
   public start: number;
   public end: number;
 
-  constructor(style: Style, children: InlineLevel[], attrs: number) {
+  constructor(start: number, end: number, style: Style, children: InlineLevel[], attrs: number) {
     super(style, children, attrs);
+    this.start = start;
+    this.end = end;
     this.children = children;
     this.nshaped = 0;
     this.metrics = EmptyInlineMetrics;
-
-    // TODO: these get set in ifc.prepare() because it needs to happen after
-    // whitespace collapsing. Instead I should do whitespace collapsing on
-    // shaped items, that way these can be set at parse time and not be affected
-    this.start = 0;
-    this.end = 0;
   }
 
   preprocess() {
@@ -1443,11 +1450,11 @@ export class Inline extends Box {
     return true;
   }
 
-  get sym() {
+  sym() {
     return '▭';
   }
 
-  get desc(): string /* TS 4.9 throws TS7023 - almost certainly a bug */ {
+  desc(): string /* TS 4.9 throws TS7023 - almost certainly a bug */ {
     return (this.isAnonymous() ? dim : '')
       + (this.isIfcInline() ? underline : '')
       + 'Inline'
@@ -1479,11 +1486,11 @@ export class IfcInline extends Inline {
   static ANALYSIS_HAS_FLOATS      = 1 << 7;
   static ANALYSIS_HAS_NEWLINES    = 1 << 8;
 
-  constructor(style: Style, children: InlineLevel[], attrs: number) {
-    super(style, children, Box.ATTRS.isAnonymous | attrs);
+  constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
+    super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
 
     this.children = children;
-    this.text = '';
+    this.text = text;
     this.analysis = 0;
     this.prepare();
     this.paragraph = createEmptyParagraph(this);
@@ -1506,49 +1513,8 @@ export class IfcInline extends Inline {
     return Boolean(this.attrs & Box.ATTRS.enableLogging);
   }
 
-  // TODO this would be unnecessary (both removing collapsed runs but also
-  // setting start and end) if I did whitespace collapsing on shaped items
-  postprepare() {
-    const parents: Inline[] = [];
-    const END_PARENT = Symbol('end parent');
-    const stack: (InlineLevel | typeof END_PARENT)[] = [this];
-    let cursor = 0;
-
-    while (stack.length) {
-      const item = stack.pop()!;
-
-      if (item === END_PARENT) {
-        parents.pop()!.end = cursor;
-      } else if (item.isBreak() || item.isBlockContainer()) {
-        // skip
-      } else if (item.isRun()) {
-        cursor = item.end + 1;
-      } else {
-        parents.push(item);
-
-        item.start = cursor;
-
-        for (let i = 0; i < item.children.length; ++i) {
-          const child = item.children[i];
-          if (child.isRun() && child.end < child.start) {
-            item.children.splice(i, 1);
-            i -= 1;
-          }
-        }
-
-        stack.push(END_PARENT);
-
-        for (let i = item.children.length - 1; i >= 0; --i) {
-          stack.push(item.children[i]);
-        }
-      }
-    }
-  }
-
   private prepare() {
     const stack = this.children.slice();
-    const runs: Run[] = [];
-    let i = 0;
 
     if (!isNowrap(this.style.whiteSpace)) {
       this.analysis |= IfcInline.ANALYSIS_WRAPS;
@@ -1558,19 +1524,15 @@ export class IfcInline extends Inline {
       this.analysis |= IfcInline.ANALYSIS_WS_COLLAPSES;
     }
 
-    // CSS Text Module Level 3, Appendix A, steps 1-4
+    let hasText = false;
 
-    // Step 1
     while (stack.length) {
       const box = stack.shift()!;
 
       if (box.isRun()) {
-        box.setRange(i, i + box.text.length - 1);
-        i += box.text.length;
-        this.text += box.text;
-        runs.push(box);
-        if (!box.wsCollapsible || !box.allCollapsible()) {
-          this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
+        hasText = hasText || !box.wsCollapsible;
+        for (let i = box.start; !hasText && i < box.end; i++) {
+          hasText = !isSpaceOrTabOrNewline(this.text[i]);
         }
       } else if (box.isInline()) {
         this.analysis |= IfcInline.ANALYSIS_HAS_INLINES;
@@ -1594,11 +1556,7 @@ export class IfcInline extends Inline {
       }
     }
 
-    if (this.collapses()) {
-      const collapser = new Collapser(this.text, runs);
-      collapser.collapse();
-      this.text = collapser.buf;
-    }
+    if (hasText) this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
 
     for (let i = 0; i < this.text.length; i++) {
       const code = this.text.charCodeAt(i);
@@ -1613,13 +1571,9 @@ export class IfcInline extends Inline {
       }
     }
 
-    if (this.hasBreaks() || this.hasInlines() || this.children.length > 1) {
-      this.postprepare();
+    if (this.hasText() || this.hasFloats()) {
+      if (this.collapses()) collapseWhitespace(this);
     }
-
-    // TODO step 2
-    // TODO step 3
-    // TODO step 4
   }
 
   preprocess() {
@@ -1694,14 +1648,14 @@ type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakop'};
 
 // TODO emit inline-block
 export function createInlineIterator(inline: IfcInline) {
-  const stack:(InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
-  const buffered:InlineIteratorBuffered[] = [];
+  const stack: (InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
+  const buffered: InlineIteratorBuffered[] = [];
   let minlevel = 0;
   let level = 0;
   let bk = 0;
   let shouldFlushBreakop = false;
 
-  function next():{done: true} | {done: false, value: InlineIteratorValue} {
+  function next(): {done: true} | {done: false, value: InlineIteratorValue} {
     if (!buffered.length) {
       while (stack.length) {
         const item = stack.pop()!;
@@ -1754,9 +1708,9 @@ export function createInlineIterator(inline: IfcInline) {
 
 // TODO emit inline-block
 export function createPreorderInlineIterator(inline: IfcInline) {
-  const stack:InlineLevel[] = inline.children.slice().reverse();
+  const stack: InlineLevel[] = inline.children.slice().reverse();
 
-  function next():{done: true} | {done: false, value: Inline | Run} {
+  function next(): {done: true} | {done: false, value: Inline | Run} {
     while (stack.length) {
       const item = stack.pop()!;
 
@@ -1776,8 +1730,18 @@ export function createPreorderInlineIterator(inline: IfcInline) {
   return {next};
 }
 
+interface ParagraphText {
+  value: string;
+}
+
 // Helper for generateInlineBox
-function mapTree(el: HTMLElement, path: number[], level: number): [boolean, Inline] {
+function mapTree(
+  el: HTMLElement,
+  text: ParagraphText,
+  path: number[],
+  level: number
+): [boolean, Inline] {
+  const start = text.value.length;
   let children = [], bail = false, attrs = 0;
 
   if (!path[level]) path[level] = 0;
@@ -1795,10 +1759,13 @@ function mapTree(el: HTMLElement, path: number[], level: number): [boolean, Inli
       } else if (childEl.style.display.inner === 'flow-root') {
         child = generateBlockContainer(childEl);
       } else {
-        [bail, child] = mapTree(childEl, path, level + 1);
+        [bail, child] = mapTree(childEl, text, path, level + 1);
       }
     } else if (childEl instanceof TextNode) {
-      child = new Run(childEl.text, createStyle(childEl.style));
+      const start = text.value.length;
+      const end = start + childEl.text.length;
+      child = new Run(start, end, createStyle(childEl.style));
+      text.value += childEl.text;
     }
 
     if (child != null) children.push(child);
@@ -1807,7 +1774,8 @@ function mapTree(el: HTMLElement, path: number[], level: number): [boolean, Inli
 
   if (!bail) path.pop();
   if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
-  const box = new Inline(createStyle(el.style), children, attrs);
+  const end = text.value.length;
+  const box = new Inline(start, end, createStyle(el.style), children, attrs);
   el.boxes.push(box);
 
   return [bail, box];
@@ -1818,6 +1786,7 @@ function mapTree(el: HTMLElement, path: number[], level: number): [boolean, Inli
 // level elements and the (fully nested) inlines in between and around them.
 function generateInlineBox(
   el: HTMLElement,
+  text: ParagraphText,
   path: number[]
 ): [boolean, Inline | BlockContainer] {
   if (el.style.display.outer !== 'inline' || el.style.display.inner !== 'flow') {
@@ -1831,22 +1800,23 @@ function generateInlineBox(
     return [true, generateBlockContainer(target, el)]; // TODO: el is not the parent...
   }
 
-  return mapTree(el, path, 0);
+  return mapTree(el, text, path, 0);
 }
 
 // Wraps consecutive inlines and runs in block-level block containers.
 // CSS2.1 section 9.2.1.1
-function wrapInBlockContainer(inlines: InlineLevel[], parentEl: HTMLElement) {
+function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], text: ParagraphText) {
   const anonComputedStyle = createComputedStyle(parentEl.style, EMPTY_STYLE);
   const anonStyle = createStyle(anonComputedStyle);
   let attrs = Box.ATTRS.isAnonymous;
   if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
-  const ifc = new IfcInline(anonStyle, inlines, attrs);
+  const ifc = new IfcInline(anonStyle, text.value, inlines, attrs);
   return new BlockContainer(anonStyle, [ifc], attrs);
 }
 
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement): BlockContainer {
+  const text: ParagraphText = {value: ''};
   const enableLogging = 'x-overflow-log' in el.attrs;
   const blocks: BlockContainer[] = [];
   let inlines: InlineLevel[] = [];
@@ -1875,8 +1845,9 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
         inlines.push(generateBlockContainer(child, el));
       } else if (child.style.display.outer === 'block') {
         if (inlines.length) {
-          blocks.push(wrapInBlockContainer(inlines, el));
+          blocks.push(wrapInBlockContainer(el, inlines, text));
           inlines = [];
+          text.value = '';
         }
 
         blocks.push(generateBlockContainer(child, el));
@@ -1885,14 +1856,15 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
         let more, box;
 
         do {
-          ([more, box] = generateInlineBox(child, path));
+          ([more, box] = generateInlineBox(child, text, path));
 
           if (box.isInline()) {
             inlines.push(box);
           } else {
             if (inlines.length) {
-              blocks.push(wrapInBlockContainer(inlines, el));
+              blocks.push(wrapInBlockContainer(el, inlines, text));
               inlines = [];
+              text.value = '';
             }
 
             blocks.push(box);
@@ -1901,7 +1873,10 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
       }
     } else { // TextNode
       const computed = createComputedStyle(el.style, EMPTY_STYLE);
-      inlines.push(new Run(child.text, createStyle(computed)));
+      const start = text.value.length;
+      const end = start + child.text.length;
+      inlines.push(new Run(start, end, createStyle(computed)));
+      text.value += child.text;
     }
   }
 
@@ -1916,13 +1891,13 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
 
   if (inlines.length) {
     if (blocks.length) {
-      blocks.push(wrapInBlockContainer(inlines, el));
+      blocks.push(wrapInBlockContainer(el, inlines, text));
       children = blocks;
     } else {
       const anonComputedStyle = createComputedStyle(el.style, EMPTY_STYLE);
       const anonStyle = createStyle(anonComputedStyle);
       const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
-      children = [new IfcInline(anonStyle, inlines, ifcAttrs)];
+      children = [new IfcInline(anonStyle, text.value, inlines, ifcAttrs)];
     }
   } else {
     children = blocks;

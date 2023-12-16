@@ -527,7 +527,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
 
   if (state.leader !== END_CHILDREN) {
     state.style = state.leader.style;
-    if (state.leader.isRun()) state.offset += state.leader.text.length;
+    if (state.leader.isRun()) state.offset += state.leader.length;
   }
 
   while (state.stack.length) {
@@ -565,7 +565,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
         state.style = item.style;
       }
 
-      state.offset += item.text.length;
+      state.offset += item.length;
     } else if (item.isInline()) {
       state.parents.push(item);
 

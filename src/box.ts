@@ -10,6 +10,12 @@ export type LogicalArea = {
   inlineSize: number | undefined
 };
 
+export interface ReprOptions {
+  containingBlocks?: boolean;
+  css?: keyof Style
+  paragraphText?: string;
+}
+
 export class Box {
   public id: string;
   public style: Style;
@@ -71,16 +77,21 @@ export class Box {
     return this.style.position !== 'static';
   }
 
-  get desc() {
+  desc(options?: ReprOptions) {
     return 'Box';
   }
 
-  get sym() {
+  sym() {
     return '◼︎';
   }
 
-  repr(indent = 0, options?: {containingBlocks?: boolean, css?: keyof Style}): string {
+  repr(indent = 0, options?: ReprOptions): string {
     let c = '';
+
+    if (this.isIfcInline()) {
+      options = {...options};
+      options.paragraphText = this.text;
+    }
 
     if (!this.isRun() && this.children.length) {
       c = '\n' + this.children.map(c => c.repr(indent + 1, options)).join('\n');
@@ -88,16 +99,16 @@ export class Box {
 
     let extra = '';
 
-    if (options && options.containingBlocks && this.isBlockContainer()) {
+    if (options?.containingBlocks && this.isBlockContainer()) {
       extra += ` (cb = ${this.containingBlock ? this.containingBlock.blockContainer.id : '(null)'})`;
     }
 
-    if (options && options.css) {
+    if (options?.css) {
       const css = this.style[options.css];
       extra += ` (${options.css}: ${css && JSON.stringify(css)})`;
     }
 
-    return '  '.repeat(indent) + this.sym + ' ' + this.desc + extra + c;
+    return '  '.repeat(indent) + this.sym() + ' ' + this.desc(options) + extra + c;
   }
 }
 

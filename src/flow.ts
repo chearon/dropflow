@@ -13,7 +13,7 @@ import {
   getFontMetrics,
   isSpaceOrTabOrNewline
 } from './text.js';
-import {Box} from './box.js';
+import {Box, RenderItem} from './box.js';
 
 import type {WhiteSpace} from './cascade.js';
 
@@ -1376,10 +1376,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   cctx.bfc.finalize(box);
 }
 
-// TODO breaks aren't really boxes. If a <br> was positioned or floated, it'd
-// generate BlockContainer. I wonder if I should create a RenderItem class
-// (Box extends RenderItem)
-export class Break extends Box {
+export class Break extends RenderItem {
   public className = 'break';
 
   isBreak(): this is Break {
@@ -1751,7 +1748,7 @@ function mapTree(
 
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
-        child = new Break(createStyle(childEl.style), [], 0);
+        child = new Break(createStyle(childEl.style));
       } else if (childEl.style.float !== 'none') {
         child = generateBlockContainer(childEl);
       } else if (childEl.style.display.outer === 'block') {
@@ -1840,7 +1837,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
       if (child.tagName === 'br') {
-        inlines.push(new Break(createStyle(child.style), [], 0));
+        inlines.push(new Break(createStyle(child.style)));
       } else if (child.style.float !== 'none') {
         inlines.push(generateBlockContainer(child, el));
       } else if (child.style.display.outer === 'block') {

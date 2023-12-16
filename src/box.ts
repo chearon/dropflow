@@ -16,25 +16,11 @@ export interface ReprOptions {
   paragraphText?: string;
 }
 
-export class Box {
-  public id: string;
+export abstract class RenderItem {
   public style: Style;
-  public children: Box[];
-  public attrs: number;
 
-  static ATTRS: {
-    isAnonymous: number,
-    isInline: number,
-    isBfcRoot: number,
-    isFloat: number,
-    enableLogging: number
-  };
-
-  constructor(style: Style, children: Box[], attrs: number) {
-    this.id = id();
+  constructor(style: Style) {
     this.style = style;
-    this.children = children;
-    this.attrs = attrs;
   }
 
   isBlockContainer(): this is BlockContainer {
@@ -55,6 +41,65 @@ export class Box {
 
   isIfcInline(): this is IfcInline {
     return false;
+  }
+
+  isBox(): this is Box {
+    return false;
+  }
+
+  abstract desc(options?: ReprOptions): string;
+
+  abstract sym(): string;
+
+  repr(indent = 0, options?: ReprOptions): string {
+    let c = '';
+
+    if (this.isIfcInline()) {
+      options = {...options};
+      options.paragraphText = this.text;
+    }
+
+    if (this.isBox() && this.children.length) {
+      c = '\n' + this.children.map(c => c.repr(indent + 1, options)).join('\n');
+    }
+
+    let extra = '';
+
+    if (options?.containingBlocks && this.isBlockContainer()) {
+      extra += ` (cb = ${this.containingBlock ? this.containingBlock.blockContainer.id : '(null)'})`;
+    }
+
+    if (options?.css) {
+      const css = this.style[options.css];
+      extra += ` (${options.css}: ${css && JSON.stringify(css)})`;
+    }
+
+    return '  '.repeat(indent) + this.sym() + ' ' + this.desc(options) + extra + c;
+  }
+}
+
+export class Box extends RenderItem {
+  public id: string;
+  public children: RenderItem[];
+  public attrs: number;
+
+  static ATTRS: {
+    isAnonymous: number,
+    isInline: number,
+    isBfcRoot: number,
+    isFloat: number,
+    enableLogging: number
+  };
+
+  constructor(style: Style, children: RenderItem[], attrs: number) {
+    super(style);
+    this.id = id();
+    this.children = children;
+    this.attrs = attrs;
+  }
+
+  isBox(): this is Box {
+    return true;
   }
 
   isAnonymous() {
@@ -83,32 +128,6 @@ export class Box {
 
   sym() {
     return '◼︎';
-  }
-
-  repr(indent = 0, options?: ReprOptions): string {
-    let c = '';
-
-    if (this.isIfcInline()) {
-      options = {...options};
-      options.paragraphText = this.text;
-    }
-
-    if (!this.isRun() && this.children.length) {
-      c = '\n' + this.children.map(c => c.repr(indent + 1, options)).join('\n');
-    }
-
-    let extra = '';
-
-    if (options?.containingBlocks && this.isBlockContainer()) {
-      extra += ` (cb = ${this.containingBlock ? this.containingBlock.blockContainer.id : '(null)'})`;
-    }
-
-    if (options?.css) {
-      const css = this.style[options.css];
-      extra += ` (${options.css}: ${css && JSON.stringify(css)})`;
-    }
-
-    return '  '.repeat(indent) + this.sym() + ' ' + this.desc(options) + extra + c;
   }
 }
 

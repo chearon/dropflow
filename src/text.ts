@@ -1,5 +1,5 @@
 import {binarySearchTuple, basename, loggableText} from './util.js';
-import {Box, ReprOptions} from './box.js';
+import {RenderItem, ReprOptions} from './box.js';
 import {Style, Color, TextAlign, WhiteSpace} from './cascade.js';
 import {
   BlockContainer,
@@ -67,14 +67,12 @@ export function prevGrapheme(text: string, index: number) {
   return graphemeStart < index ? graphemeStart : index;
 }
 
-// TODO runs aren't really boxes per the spec. You can't position them, etc.
-// I wonder if I should create a class like RenderItem (Box extends RenderItem)
-export class Run extends Box {
+export class Run extends RenderItem {
   public start: number;
   public end: number;
 
   constructor(start: number, end: number, style: Style) {
-    super(style, [], 0);
+    super(style);
     this.start = start;
     this.end = end;
   }

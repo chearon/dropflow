@@ -1786,10 +1786,6 @@ function generateInlineBox(
   text: ParagraphText,
   path: number[]
 ): [boolean, Inline | BlockContainer] {
-  if (el.style.display.outer !== 'inline' || el.style.display.inner !== 'flow') {
-    throw Error('Inlines only');
-  }
-
   const target = el.getEl(path);
 
   if (target instanceof HTMLElement && target.style.display.outer === 'block') {
@@ -1828,8 +1824,6 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     parentEl && writingModeInlineAxis(el) !== writingModeInlineAxis(parentEl)
   ) {
     attrs |= Box.ATTRS.isBfcRoot;
-  } else if (el.style.display.inner !== 'flow') {
-    throw Error('Only flow layout supported');
   }
 
   if (enableLogging) attrs |= Box.ATTRS.enableLogging;

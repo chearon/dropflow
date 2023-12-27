@@ -2118,7 +2118,7 @@ export class Paragraph {
         const B = line.blockOffset.toFixed(2);
         let log = `Line ${i} (W:${W} A:${A} D:${D} B:${B}): `;
         for (let n = line.head; n; n = n.next) {
-          log += n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“”';
+          log += n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“” ';
         }
         console.log(log);
       }

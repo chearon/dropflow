@@ -1085,7 +1085,7 @@ export class BlockContainer extends Box {
 
   preprocess() {
     for (const child of this.children) {
-      child.isIfcInline() ? child.preprocess() : child.preprocess();
+      child.preprocess();
     }
   }
 

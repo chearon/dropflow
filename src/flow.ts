@@ -899,18 +899,10 @@ export class BlockContainer extends Box {
   }
 
   setBlockPosition(position: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
     this.borderArea.blockStart = position;
   }
 
   setBlockSize(size: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
     this.contentArea.blockSize = size;
 
     if (this.contentArea !== this.paddingArea) {
@@ -929,18 +921,10 @@ export class BlockContainer extends Box {
   }
 
   setInlinePosition(lineLeft: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
     this.borderArea.lineLeft = lineLeft;
   }
 
   setInlineOuterSize(size: number) {
-    if (!this.containingBlock) {
-      throw new Error(`Inline layout called too early on ${this.id}: no containing block`);
-    }
-
     this.borderArea.inlineSize = size;
 
     if (this.paddingArea !== this.borderArea) {

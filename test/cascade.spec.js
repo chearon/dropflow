@@ -1,7 +1,8 @@
 //@ts-check
 
 import {createComputedStyle, initialStyle, Style, inherited, initial} from '../src/cascade.js';
-import {BlockContainer, BlockContainerArea} from '../src/flow.js';
+import {BlockContainer} from '../src/flow.js';
+import {BoxArea} from '../src/box.js';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {
@@ -19,7 +20,7 @@ describe('CSS Style', function () {
 
     const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
-    box.containingBlock = new BlockContainerArea(box, 0, 0, 100, 100);
+    box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
 
     expect(style.getBorderBlockStartWidth(box)).to.equal(0);
     expect(style.getBorderBlockEndWidth(box)).to.equal(0);
@@ -43,7 +44,7 @@ describe('CSS Style', function () {
 
     const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
-    box.containingBlock = new BlockContainerArea(box, 0, 0, 100, 200);
+    box.containingBlock = new BoxArea(box, 0, 0, 100, 200);
 
     expect(style.getPaddingBlockStart(box)).to.equal(50);
     expect(style.getPaddingLineRight(box)).to.equal(50);
@@ -71,7 +72,7 @@ describe('CSS Style', function () {
 
     const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
-    box.containingBlock = new BlockContainerArea(box, 0, 0, 100, 100);
+    box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
     expect(style.getInlineSize(box)).to.equal(60);
   });
 
@@ -87,7 +88,7 @@ describe('CSS Style', function () {
 
     const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
-    box.containingBlock = new BlockContainerArea(box, 0, 0, 100, 100);
+    box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
 
     expect(style.getInlineSize(box)).to.equal(80);
   });

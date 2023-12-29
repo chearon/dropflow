@@ -13,7 +13,7 @@ import {
   getFontMetrics,
   isSpaceOrTabOrNewline
 } from './text.js';
-import {Box, RenderItem} from './box.js';
+import {Box, BoxArea, RenderItem} from './box.js';
 
 import type {WhiteSpace} from './cascade.js';
 
@@ -48,8 +48,8 @@ const dim = '\x1b[2m';
 const underline = '\x1b[4m';
 
 export type LayoutContext = {
-  lastBlockContainerArea: BlockContainerArea,
-  lastPositionedArea: BlockContainerArea,
+  lastBlockContainerArea: BoxArea,
+  lastPositionedArea: BoxArea,
   mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext
 };
@@ -496,7 +496,6 @@ class FloatSide {
     if (box.style.float === 'left') {
       box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
     } else {
-      if (!box.containingBlock) throw new Error(`${box.id} has no containing block`);
       const inlineSize = box.containingBlock.inlineSize;
       const size = box.borderArea.inlineSize;
       box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
@@ -712,108 +711,6 @@ export class FloatContext {
   }
 }
 
-export class BlockContainerArea {
-  parent: BlockContainerArea | null;
-  blockContainer: BlockContainer;
-  blockStart: number;
-  blockSize: number;
-  lineLeft: number;
-  inlineSize: number;
-
-  constructor(blockContainer: BlockContainer, x?: number, y?: number, w?: number, h?: number) {
-    this.parent = null;
-    this.blockContainer = blockContainer;
-    this.blockStart = y || 0;
-    this.blockSize = h || 0;
-    this.lineLeft = x || 0;
-    this.inlineSize = w || 0;
-  }
-
-  clone() {
-    return new BlockContainerArea(
-      this.blockContainer,
-      this.lineLeft,
-      this.blockStart,
-      this.inlineSize,
-      this.blockSize
-    );
-  }
-
-  get writingMode() {
-    return this.blockContainer.style.writingMode;
-  }
-
-  get direction() {
-    return this.blockContainer.style.direction;
-  }
-
-  get x() {
-    return this.lineLeft;
-  }
-
-  get y() {
-    return this.blockStart;
-  }
-
-  get width() {
-    return this.inlineSize;
-  }
-
-  get height() {
-    return this.blockSize;
-  }
-
-  setParent(p: BlockContainerArea) {
-    this.parent = p;
-  }
-
-  inlineSizeForPotentiallyOrthogonal(box: BlockContainer) {
-    if (!this.blockContainer) return this.inlineSize; // root area
-    if ((this.blockContainer.writingModeAsParticipant === 'horizontal-tb') !== (box.writingModeAsParticipant === 'horizontal-tb')) {
-      return this.blockSize;
-    } else {
-      return this.inlineSize;
-    }
-  }
-
-  absolutify() {
-    let x, y, width, height;
-
-    if (!this.parent) {
-      throw new Error(`Cannot absolutify area for ${this.blockContainer.id}, parent was never set`);
-    }
-
-    if (this.parent.writingMode === 'vertical-lr') {
-      x = this.blockStart;
-      y = this.lineLeft;
-      width = this.blockSize;
-      height = this.inlineSize;
-    } else if (this.parent.writingMode === 'vertical-rl') {
-      x = this.parent.width - this.blockStart - this.blockSize;
-      y = this.lineLeft;
-      width = this.blockSize;
-      height = this.inlineSize;
-    } else if (this.parent.writingMode === 'horizontal-tb') {
-      x = this.lineLeft;
-      y = this.blockStart;
-      width = this.inlineSize;
-      height = this.blockSize;
-    } else {
-      return;
-    }
-
-    this.lineLeft = this.parent.x + x;
-    this.blockStart = this.parent.y + y;
-    this.inlineSize = width;
-    this.blockSize = height;
-  }
-
-  repr(indent = 0) {
-    const {width: w, height: h, x, y} = this;
-    return '  '.repeat(indent) + `⚃ Area ${this.blockContainer.id}: ${w}⨯${h} @${x},${y}`;
-  }
-}
-
 type BlockContainerOfInlines = BlockContainer & {
   children: IfcInline[];
 }
@@ -824,16 +721,15 @@ type BlockContainerOfBlockContainers = BlockContainer & {
 
 export class BlockContainer extends Box {
   public children: IfcInline[] | BlockContainer[];
-  public borderArea: BlockContainerArea;
-  public paddingArea: BlockContainerArea;
-  public contentArea: BlockContainerArea;
-  public containingBlock: BlockContainerArea | null = null;
+  public borderArea: BoxArea;
+  public paddingArea: BoxArea;
+  public contentArea: BoxArea;
 
   constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
     super(style, children, attrs);
     this.children = children;
 
-    const area = new BlockContainerArea(this);
+    const area = new BoxArea(this);
     this.borderArea = area;
     this.paddingArea = area;
     this.contentArea = area;
@@ -872,18 +768,10 @@ export class BlockContainer extends Box {
   }
 
   get writingModeAsParticipant() {
-    if (!this.containingBlock) {
-      throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
-    }
-
     return this.containingBlock.writingMode;
   }
 
   get directionAsParticipant() {
-    if (!this.containingBlock) {
-      throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
-    }
-
     return this.containingBlock.direction;
   }
 
@@ -932,10 +820,6 @@ export class BlockContainer extends Box {
   }
 
   getContainingBlockToContent() {
-    if (!this.containingBlock) {
-      throw new Error(`Box ${this.id} has no containing block`);
-    }
-
     const inlineSize = this.containingBlock.inlineSizeForPotentiallyOrthogonal(this);
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
@@ -1092,10 +976,6 @@ function preBlockContainer(box: BlockContainer, ctx: LayoutContext) {
 
 // §10.3.3
 function doInlineBoxModelForBlockBox(box: BlockContainer) {
-  if (!box.containingBlock) {
-    throw new Error(`Inline layout called too early on ${box.id}: no containing block`);
-  }
-
   if (!box.isBlockLevel()) {
     throw new Error('doInlineBoxModelForBlockBox called with inline or float');
   }
@@ -1311,10 +1191,6 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
 
   preBlockContainer(box, cctx);
 
-  if (!box.containingBlock) {
-    throw new Error(`Inline layout called too early on ${box.id}: no containing block`);
-  }
-
   let inlineSize = box.getDefiniteInlineSize();
 
   if (inlineSize === undefined) {
@@ -1443,7 +1319,6 @@ export class IfcInline extends Inline {
   public children: InlineLevel[];
   public text: string;
   public paragraph: Paragraph;
-  public containingBlock: BlockContainerArea | null;
   private analysis: number;
 
   static ANALYSIS_HAS_TEXT        = 1 << 0;
@@ -1464,7 +1339,6 @@ export class IfcInline extends Inline {
     this.analysis = 0;
     this.prepare();
     this.paragraph = createEmptyParagraph(this);
-    this.containingBlock = null;
   }
 
   isIfcInline(): this is IfcInline {
@@ -1472,10 +1346,6 @@ export class IfcInline extends Inline {
   }
 
   get writingModeAsParticipant() {
-    if (!this.containingBlock) {
-      throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
-    }
-
     return this.containingBlock.writingMode;
   }
 

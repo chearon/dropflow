@@ -66,7 +66,7 @@ export abstract class RenderItem {
     let extra = '';
 
     if (options?.containingBlocks && this.isBlockContainer()) {
-      extra += ` (cb = ${this.containingBlock ? this.containingBlock.blockContainer.id : '(null)'})`;
+      extra += ` (cb = ${this.containingBlock ? this.containingBlock.box.id : '(null)'})`;
     }
 
     if (options?.css) {
@@ -82,6 +82,7 @@ export class Box extends RenderItem {
   public id: string;
   public children: RenderItem[];
   public attrs: number;
+  public containingBlock: BoxArea;
 
   static ATTRS: {
     isAnonymous: number,
@@ -96,6 +97,7 @@ export class Box extends RenderItem {
     this.id = id();
     this.children = children;
     this.attrs = attrs;
+    this.containingBlock = EmptyContainingBlock;
   }
 
   isBox(): this is Box {
@@ -140,3 +142,111 @@ Box.ATTRS = {
   isFloat: 1 << 3,
   enableLogging: 1 << 4
 };
+
+export class BoxArea {
+  parent: BoxArea | null;
+  box: Box;
+  blockStart: number;
+  blockSize: number;
+  lineLeft: number;
+  inlineSize: number;
+
+  constructor(box: Box, x?: number, y?: number, w?: number, h?: number) {
+    this.parent = null;
+    this.box = box;
+    this.blockStart = y || 0;
+    this.blockSize = h || 0;
+    this.lineLeft = x || 0;
+    this.inlineSize = w || 0;
+  }
+
+  clone() {
+    return new BoxArea(
+      this.box,
+      this.lineLeft,
+      this.blockStart,
+      this.inlineSize,
+      this.blockSize
+    );
+  }
+
+  get writingMode() {
+    return this.box.style.writingMode;
+  }
+
+  get direction() {
+    return this.box.style.direction;
+  }
+
+  get x() {
+    return this.lineLeft;
+  }
+
+  get y() {
+    return this.blockStart;
+  }
+
+  get width() {
+    return this.inlineSize;
+  }
+
+  get height() {
+    return this.blockSize;
+  }
+
+  setParent(p: BoxArea) {
+    this.parent = p;
+  }
+
+  inlineSizeForPotentiallyOrthogonal(box: BlockContainer) {
+    if (!this.box) return this.inlineSize; // root area
+    if (!this.box.isBlockContainer()) return this.inlineSize; // cannot be orthogonal
+    if (
+      (this.box.writingModeAsParticipant === 'horizontal-tb') !==
+      (box.writingModeAsParticipant === 'horizontal-tb')
+    ) {
+      return this.blockSize;
+    } else {
+      return this.inlineSize;
+    }
+  }
+
+  absolutify() {
+    let x, y, width, height;
+
+    if (!this.parent) {
+      throw new Error(`Cannot absolutify area for ${this.box.id}, parent was never set`);
+    }
+
+    if (this.parent.writingMode === 'vertical-lr') {
+      x = this.blockStart;
+      y = this.lineLeft;
+      width = this.blockSize;
+      height = this.inlineSize;
+    } else if (this.parent.writingMode === 'vertical-rl') {
+      x = this.parent.width - this.blockStart - this.blockSize;
+      y = this.lineLeft;
+      width = this.blockSize;
+      height = this.inlineSize;
+    } else if (this.parent.writingMode === 'horizontal-tb') {
+      x = this.lineLeft;
+      y = this.blockStart;
+      width = this.inlineSize;
+      height = this.blockSize;
+    } else {
+      return;
+    }
+
+    this.lineLeft = this.parent.x + x;
+    this.blockStart = this.parent.y + y;
+    this.inlineSize = width;
+    this.blockSize = height;
+  }
+
+  repr(indent = 0) {
+    const {width: w, height: h, x, y} = this;
+    return '  '.repeat(indent) + `⚃ Area ${this.box.id}: ${w}⨯${h} @${x},${y}`;
+  }
+}
+
+const EmptyContainingBlock = new BoxArea(null!);

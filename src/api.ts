@@ -4,7 +4,7 @@ import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockCon
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paintBlockContainer from './paint.js';
-import {BlockContainerArea} from './flow.js';
+import {BoxArea} from './box.js';
 import {id} from './util.js';
 
 export type {BlockContainer, DeclaredPlainStyle};
@@ -43,13 +43,13 @@ export function generate(rootElement: HTMLElement) {
 }
 
 // Re-use the root containing block
-let initialContainingBlock: BlockContainerArea | undefined;
+let initialContainingBlock: BoxArea | undefined;
 
 export function layout(root: BlockContainer, width = 640, height = 480) {
   if (!initialContainingBlock) {
-    initialContainingBlock = new BlockContainerArea(root, 0, 0, width, height);
+    initialContainingBlock = new BoxArea(root, 0, 0, width, height);
   } else {
-    initialContainingBlock.blockContainer = root;
+    initialContainingBlock.box = root;
     initialContainingBlock.inlineSize = width;
     initialContainingBlock.blockSize = height;
   }

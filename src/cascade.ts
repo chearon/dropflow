@@ -213,7 +213,6 @@ export type ComputedPlainStyle = {
 type Used = Pick<ComputedPlainStyle, 'lineHeight' | 'textAlign'>;
 
 function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value: number, unit: '%'}) {
-  if (!box.containingBlock) throw new Error('Assertion failed');
   if (typeof cssVal === 'object') {
     if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
     const inlineSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].inlineSize];
@@ -444,7 +443,6 @@ export class Style implements ComputedPlainStyle {
 
   getBlockSize(box: BlockContainer | IfcInline) {
     let cssVal = this[LogicalMaps[box.writingModeAsParticipant].blockSize];
-    if (!box.containingBlock) throw new Error('Assertion failed');
     if (typeof cssVal === 'object') {
       const parentBlockSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].blockSize];
       if (parentBlockSize === undefined) return 'auto' as const; // §CSS2 10.5

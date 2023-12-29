@@ -154,7 +154,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>bottom</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works |
-| <code>display</code> | `block`, `inline`, `flow-root`, `none`<sup>2</sup> | ✅&zwj;&nbsp;Works |
+| <code>display</code> | `block`, `inline`, `flow-root`, `none` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  |
 | <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>left</code> | | 🚧&zwj;&nbsp;Planned |
@@ -170,7 +170,6 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>z-index</code> | | 🚧&zwj;&nbsp;Planned |
 
 <sup>1</sup>Any document that uses `position: fixed` could be reorganized and updated to use `position: absolute` and look identical. For that reason, I don't find fixed positioning very interesting.
-<sup>2</sup>`display: none` is not supported on inlines yet
 
 # Shout-outs
 

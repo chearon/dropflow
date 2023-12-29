@@ -122,8 +122,11 @@ describe('Flow', function () {
         </div>
       `);
 
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get(1).children;
       expect(this.get(1).contentArea.height).to.equal(100);
       expect(this.get(1).children).to.have.lengthOf(1);
+      expect(ifc.text).to.equal(' shown ');
     });
 
     it('considers floating inlines block-level', function () {

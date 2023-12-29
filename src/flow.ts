@@ -498,8 +498,8 @@ class FloatSide {
       box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
     } else {
       if (!box.containingBlock) throw new Error(`${box.id} has no containing block`);
-      const inlineSize = box.containingBlock.inlineSizeForWritingMode(box.containingBlock.writingMode);
-      const size = box.borderArea.inlineSizeForWritingMode(box.containingBlock.writingMode);
+      const inlineSize = box.containingBlock.inlineSize;
+      const size = box.borderArea.inlineSize;
       box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
     }
 
@@ -834,7 +834,6 @@ type BlockContainerOfBlockContainers = BlockContainer & {
 
 export class BlockContainer extends Box {
   public children: IfcInline[] | BlockContainer[];
-
   public borderArea: BlockContainerArea;
   public paddingArea: BlockContainerArea;
   public contentArea: BlockContainerArea;
@@ -1336,7 +1335,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
     } else {
       const minContent = layoutContribution(box, ctx, 'min-content');
       const maxContent = layoutContribution(box, ctx, 'max-content');
-      const availableSpace = box.containingBlock.inlineSizeForWritingMode(box.writingMode);
+      const availableSpace = box.containingBlock.inlineSize;
       inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
     }
   }
@@ -1344,7 +1343,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   doInlineBoxModelForFloatBox(box, inlineSize);
   doBlockBoxModelForBlockBox(box);
 
-  const cInlineSize = box.contentArea.inlineSizeForWritingMode(box.writingMode);
+  const cInlineSize = box.contentArea.inlineSize;
   cctx.bfc = new BlockFormattingContext(cInlineSize);
 
   if (box.isBlockContainerOfInlines()) {

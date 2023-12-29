@@ -228,13 +228,11 @@ export class BoxArea {
       y = this.lineLeft;
       width = this.blockSize;
       height = this.inlineSize;
-    } else if (this.parent.writingMode === 'horizontal-tb') {
+    } else { // 'horizontal-tb'
       x = this.lineLeft;
       y = this.blockStart;
       width = this.inlineSize;
       height = this.blockSize;
-    } else {
-      return;
     }
 
     this.lineLeft = this.parent.x + x;

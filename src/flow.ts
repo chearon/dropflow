@@ -1,6 +1,6 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
-import {createStyle, createComputedStyle, Style, EMPTY_STYLE, WritingMode} from './cascade.js';
+import {createStyle, createComputedStyle, Style, EMPTY_STYLE} from './cascade.js';
 import {
   EmptyInlineMetrics,
   InlineMetrics,
@@ -264,8 +264,7 @@ export class BlockFormattingContext {
     if (blockSize === 'auto') {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
-        const blockSize = box.contentArea.blockSizeForWritingMode(box.writingMode);
-        lineboxHeight = blockSize;
+        lineboxHeight = box.contentArea.blockSize;
       }
       box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx?.getBothBottom() ?? 0));
     }
@@ -294,7 +293,7 @@ export class BlockFormattingContext {
           box.setBlockSize(childSize);
         }
 
-        const blockSize = box.borderArea.blockSizeForWritingMode(box.writingMode);
+        const blockSize = box.borderArea.blockSize;
 
         sizeStack[level] += blockSize;
         this.cbBlockStart = offset + blockSize;
@@ -768,18 +767,9 @@ export class BlockContainerArea {
     this.parent = p;
   }
 
-  blockSizeForWritingMode(writingMode: WritingMode) {
-    if (!this.blockContainer) return this.blockSize; // root area
-    if ((this.blockContainer.writingMode === 'horizontal-tb') !== (writingMode === 'horizontal-tb')) {
-      return this.inlineSize;
-    } else {
-      return this.blockSize;
-    }
-  }
-
-  inlineSizeForWritingMode(writingMode: WritingMode) {
+  inlineSizeForPotentiallyOrthogonal(box: BlockContainer) {
     if (!this.blockContainer) return this.inlineSize; // root area
-    if ((this.blockContainer.writingMode === 'horizontal-tb') !== (writingMode === 'horizontal-tb')) {
+    if ((this.blockContainer.writingModeAsParticipant === 'horizontal-tb') !== (box.writingModeAsParticipant === 'horizontal-tb')) {
       return this.blockSize;
     } else {
       return this.inlineSize;
@@ -881,7 +871,7 @@ export class BlockContainer extends Box {
       + reset;
   }
 
-  get writingMode() {
+  get writingModeAsParticipant() {
     if (!this.containingBlock) {
       throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
     }
@@ -889,7 +879,7 @@ export class BlockContainer extends Box {
     return this.containingBlock.writingMode;
   }
 
-  get direction() {
+  get directionAsParticipant() {
     if (!this.containingBlock) {
       throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
     }
@@ -946,12 +936,12 @@ export class BlockContainer extends Box {
       throw new Error(`Box ${this.id} has no containing block`);
     }
 
-    const inlineSize = this.containingBlock.inlineSizeForWritingMode(this.writingMode);
+    const inlineSize = this.containingBlock.inlineSizeForPotentiallyOrthogonal(this);
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
     const bLineLeft = this.borderArea.lineLeft;
     const blockStart = borderBlockStartWidth + paddingBlockStart;
-    const cInlineSize = this.contentArea.inlineSizeForWritingMode(this.writingMode);
+    const cInlineSize = this.contentArea.inlineSize;
     const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
     const paddingLineLeft = this.style.getPaddingLineLeft(this);
     const lineLeft = bLineLeft + borderLineLeftWidth + paddingLineLeft;
@@ -1110,7 +1100,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
     throw new Error('doInlineBoxModelForBlockBox called with inline or float');
   }
 
-  const cInlineSize = box.containingBlock.inlineSizeForWritingMode(box.writingMode);
+  const cInlineSize = box.containingBlock.inlineSizeForPotentiallyOrthogonal(box);
   const inlineSize = box.style.getInlineSize(box);
   let marginLineLeft = box.style.getMarginLineLeft(box);
   let marginLineRight = box.style.getMarginLineRight(box);
@@ -1140,7 +1130,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
       // Paragraph 3: check over-constrained values. This expands the right
       // margin in LTR documents to fill space, or, if the above scenario was
       // hit, it makes the right margin negative.
-      if (box.direction === 'ltr') {
+      if (box.directionAsParticipant === 'ltr') {
         marginLineRight = cInlineSize - (specifiedInlineSize - marginLineRight);
       } else {
         marginLineLeft = cInlineSize - (specifiedInlineSize - marginLineRight);
@@ -1209,7 +1199,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   doBlockBoxModelForBlockBox(box);
 
   if (box.isBfcRoot()) {
-    const inlineSize = box.contentArea.inlineSizeForWritingMode(box.writingMode);
+    const inlineSize = box.contentArea.inlineSize;
     cctx.bfc = new BlockFormattingContext(inlineSize);
   }
 
@@ -1481,7 +1471,7 @@ export class IfcInline extends Inline {
     return true;
   }
 
-  get writingMode() {
+  get writingModeAsParticipant() {
     if (!this.containingBlock) {
       throw new Error(`Cannot access writing mode of ${this.id}: containing block never set`);
     }

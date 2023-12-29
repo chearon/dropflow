@@ -8,8 +8,6 @@ export const initial = Symbol('initial');
 
 type Initial = typeof initial;
 
-// Cascade model. This file lets you set up a cascade of declared styles and get
-// the resulting used style for a given element.
 export type LogicalStyle = {
   marginBlockStart: number | 'auto',
   marginBlockEnd: number | 'auto',
@@ -218,7 +216,7 @@ function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value
   if (!box.containingBlock) throw new Error('Assertion failed');
   if (typeof cssVal === 'object') {
     if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
-    const inlineSize = box.containingBlock[LogicalMaps[box.writingMode].inlineSize];
+    const inlineSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].inlineSize];
     if (inlineSize === undefined) throw new Error('Assertion failed');
     return cssVal.value / 100 * inlineSize;
   }
@@ -373,70 +371,82 @@ export class Style implements ComputedPlainStyle {
   }
 
   getMarginBlockStart(box: BlockContainer | IfcInline) {
-    const cssVal = this[LogicalMaps[box.writingMode].marginBlockStart];
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockStart];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginBlockEnd(box: BlockContainer | IfcInline) {
-    const cssVal = this[LogicalMaps[box.writingMode].marginBlockEnd];
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockEnd];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginLineLeft(box: BlockContainer | IfcInline) {
-    const cssVal = this[LogicalMaps[box.writingMode].marginLineLeft];
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineLeft];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginLineRight(box: BlockContainer | IfcInline) {
-    const cssVal = this[LogicalMaps[box.writingMode].marginLineRight];
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineRight];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getPaddingBlockStart(box: BlockContainer | IfcInline) {
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].paddingBlockStart]);
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockStart];
+    return resolvePercent(box, cssVal);
   }
 
   getPaddingBlockEnd(box: BlockContainer | IfcInline) {
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].paddingBlockEnd]);
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockEnd];
+    return resolvePercent(box, cssVal);
   }
 
   getPaddingLineLeft(box: BlockContainer | IfcInline) {
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].paddingLineLeft]);
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineLeft];
+    return resolvePercent(box, cssVal);
   }
 
   getPaddingLineRight(box: BlockContainer | IfcInline) {
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].paddingLineRight]);
+    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineRight];
+    return resolvePercent(box, cssVal);
   }
 
   getBorderBlockStartWidth(box: BlockContainer | IfcInline) {
-    if (this[LogicalMaps[box.writingMode].borderBlockStartStyle] === 'none') return 0;
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].borderBlockStartWidth]);
+    let cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartStyle];
+    if (cssStyleVal === 'none') return 0;
+    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartWidth];
+    return resolvePercent(box, cssWidthVal);
   }
 
   getBorderBlockEndWidth(box: BlockContainer | IfcInline) {
-    if (this[LogicalMaps[box.writingMode].borderBlockEndStyle] === 'none') return 0;
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].borderBlockEndWidth]);
+    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndStyle];
+    if (cssStyleVal === 'none') return 0;
+    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndWidth];
+    return resolvePercent(box, cssWidthVal);
   }
 
   getBorderLineLeftWidth(box: BlockContainer | IfcInline) {
-    if (this[LogicalMaps[box.writingMode].borderLineLeftStyle] === 'none') return 0;
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].borderLineLeftWidth]);
+    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftStyle];
+    if (cssStyleVal === 'none') return 0;
+    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftWidth]
+    return resolvePercent(box, cssWidthVal);
   }
 
   getBorderLineRightWidth(box: BlockContainer | IfcInline) {
-    if (this[LogicalMaps[box.writingMode].borderLineRightStyle] === 'none') return 0;
-    return resolvePercent(box, this[LogicalMaps[box.writingMode].borderLineRightWidth]);
+    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightStyle];
+    if (cssStyleVal === 'none') return 0;
+    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightWidth];
+    return resolvePercent(box, cssWidthVal);
   }
 
   getBlockSize(box: BlockContainer | IfcInline) {
-    let cssVal = this[LogicalMaps[box.writingMode].blockSize];
+    let cssVal = this[LogicalMaps[box.writingModeAsParticipant].blockSize];
     if (!box.containingBlock) throw new Error('Assertion failed');
     if (typeof cssVal === 'object') {
-      const parentBlockSize = box.containingBlock[LogicalMaps[box.writingMode].blockSize];
+      const parentBlockSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].blockSize];
       if (parentBlockSize === undefined) return 'auto' as const; // §CSS2 10.5
       cssVal = cssVal.value / 100 * parentBlockSize;
     }
@@ -451,7 +461,7 @@ export class Style implements ComputedPlainStyle {
   }
 
   getInlineSize(box: BlockContainer | IfcInline) {
-    let cssVal = this[LogicalMaps[box.writingMode].inlineSize];
+    let cssVal = this[LogicalMaps[box.writingModeAsParticipant].inlineSize];
     if (cssVal === 'auto') {
       cssVal = 'auto';
     } else {

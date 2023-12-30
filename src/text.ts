@@ -520,6 +520,8 @@ export class ShapedItem implements IfcRenderItem {
   length: number;
   attrs: ShapingAttrs;
   inlines: Inline[];
+  x: number;
+  y: number;
 
   constructor(
     paragraph: Paragraph,
@@ -536,6 +538,8 @@ export class ShapedItem implements IfcRenderItem {
     this.length = length;
     this.attrs = attrs;
     this.inlines = [];
+    this.x = 0;
+    this.y = 0;
   }
 
   clone() {
@@ -948,7 +952,7 @@ class LineWidthTracker {
   }
 }
 
-export function baselineStep(parent: Inline, inline: Inline) {
+function baselineStep(parent: Inline, inline: Inline) {
   if (inline.style.verticalAlign === 'baseline') {
     return 0;
   }
@@ -1367,6 +1371,58 @@ export class Linebox extends LineItemLinkedList {
   }
 }
 
+interface BackgroundBox {
+  start: number;
+  end: number;
+  blockOffset: number;
+  ascender: number;
+  descender: number;
+  naturalStart: boolean;
+  naturalEnd: boolean;
+}
+
+class ContiguousBoxBuilder {
+  opened: Map<Inline, BackgroundBox>;
+  closed: Map<Inline, BackgroundBox[]>;
+
+  constructor() {
+    this.opened = new Map();
+    this.closed = new Map();
+  }
+
+  open(inline: Inline, naturalStart: boolean, start: number, blockOffset: number) {
+    const box = this.opened.get(inline);
+    if (box) {
+      box.end = start;
+    } else {
+      const end = start;
+      const naturalEnd = false;
+      const {ascender, descender} = inline.metrics;
+      const box: BackgroundBox = {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd};
+      this.opened.set(inline, box);
+      // Make sure closed is in open order
+      if (!this.closed.has(inline)) this.closed.set(inline, []);
+    }
+  }
+
+  close(inline: Inline, naturalEnd: boolean, end: number) {
+    const box = this.opened.get(inline);
+    if (box) {
+      const list = this.closed.get(inline);
+      box.end = end;
+      box.naturalEnd = naturalEnd;
+      this.opened.delete(inline);
+      list ? list.push(box) : this.closed.set(inline, [box]);
+    }
+  }
+
+  closeAll(except: Inline[], end: number) {
+    for (const inline of this.opened.keys()) {
+      if (!except.includes(inline)) this.close(inline, false, end);
+    }
+  }
+}
+
 type IfcMark = {
   position: number,
   isBreak: boolean,
@@ -1445,6 +1501,7 @@ export class Paragraph {
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
   lineboxes: Linebox[];
+  backgroundBoxes: Map<Inline, BackgroundBox[]>;
   height: number;
 
   constructor(ifc: IfcInline, buffer: AllocatedUint16Array) {
@@ -1454,6 +1511,7 @@ export class Paragraph {
     this.brokenItems = [];
     this.wholeItems = [];
     this.lineboxes = [];
+    this.backgroundBoxes = new Map();
     this.height = 0;
   }
 
@@ -2132,6 +2190,187 @@ export class Paragraph {
 
     this.lineboxes = lines;
     this.height = blockOffset - bfc.cbBlockStart;
+  }
+
+  positionItems(ctx: LayoutContext) {
+    const counts: Map<Inline, number> = new Map();
+    const direction = this.ifc.style.direction;
+    const ifc = this.ifc;
+    let x = 0;
+    let bgcursor = 0;
+
+    function inlineMarginAdvance(inline: Inline, side: 'start' | 'end') {
+      const style = inline.style;
+      let margin
+        = (direction === 'ltr' ? side === 'start' : side === 'end')
+        ? style.getMarginLineLeft(ifc)
+        : style.getMarginLineRight(ifc);
+
+      if (margin === 'auto') margin = 0;
+
+      if (side === 'start') {
+        bgcursor += direction === 'ltr' ? margin : -margin;
+      }
+
+      x += direction === 'ltr' ? margin : -margin;
+    }
+
+    function inlineBorderAdvance(inline: Inline, side: 'start' | 'end') {
+      const style = inline.style;
+      const borderWidth
+        = (direction === 'ltr' ? side === 'start' : side === 'end')
+        ? style.borderLeftWidth
+        : style.borderRightWidth;
+
+      if (side === 'start' && style.backgroundClip !== 'border-box') {
+        bgcursor += direction === 'ltr' ? borderWidth : -borderWidth;
+      }
+
+      if (side === 'end' && style.backgroundClip === 'border-box') {
+        bgcursor += direction === 'ltr' ? borderWidth : -borderWidth;
+      }
+
+      x += direction === 'ltr' ? borderWidth : -borderWidth;
+    }
+
+    function inlinePaddingAdvance(inline: Inline, side: 'start' | 'end') {
+      const style = inline.style;
+      const padding
+        = (direction === 'ltr' ? side === 'start' : side === 'end')
+        ? style.getPaddingLineLeft(ifc)
+        : style.getPaddingLineRight(ifc);
+
+      if (side === 'start' && style.backgroundClip === 'content-box') {
+        bgcursor += direction === 'ltr' ? padding : -padding;
+      }
+
+      if (side === 'end' && style.backgroundClip !== 'content-box') {
+        bgcursor += direction === 'ltr' ? padding : -padding;
+      }
+
+      x += direction === 'ltr' ? padding : -padding;
+    }
+
+    function inlineSideAdvance(inline: Inline, side: 'start' | 'end') {
+      if (side === 'start') {
+        inlineMarginAdvance(inline, side);
+        inlineBorderAdvance(inline, side);
+        inlinePaddingAdvance(inline, side);
+      } else {
+        inlinePaddingAdvance(inline, side);
+        inlineBorderAdvance(inline, side);
+        inlineMarginAdvance(inline, side);
+      }
+    }
+
+    function inlineBackgroundAdvance(item: ShapedItem, mark: number, side: 'start' | 'end') {
+      if (mark > item.offset && mark < item.end()) {
+        if (direction === 'ltr' && side === 'start' || direction === 'rtl' && side === 'end') {
+          const direction = item.attrs.level & 1 ? -1 : 1;
+          bgcursor += item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
+        }
+
+        if (direction === 'rtl' && side === 'start' || direction == 'ltr' && side === 'end') {
+          const direction = item.attrs.level & 1 ? 1 : -1;
+          bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
+        }
+      }
+    }
+
+    for (const linebox of this.lineboxes) {
+      const boxBuilder = this.ifc.hasPaintedSpans() ? new ContiguousBoxBuilder() : undefined;
+      const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
+      let y = linebox.blockOffset + linebox.ascender;
+
+      if (direction === 'ltr') {
+        x = linebox.inlineOffset;
+      } else {
+        x = ctx.bfc.inlineSize - linebox.inlineOffset;
+      }
+
+      for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
+        const item = n.value;
+        let baselineShift = 0;
+
+        boxBuilder?.closeAll(item.inlines, x);
+
+        for (let i = 0; i < item.inlines.length; ++i) {
+          const inline = item.inlines[i];
+          const count = counts.get(inline);
+          const isFirstOccurance = count === undefined;
+          const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
+          const mark = isOrthogonal ? inline.end : inline.start;
+          const alignmentContext = linebox.contextRoots.get(inline);
+
+          bgcursor = x;
+
+          if (alignmentContext) baselineShift = alignmentContext.baselineShift;
+
+          baselineShift += baselineStep(item.inlines[i - 1] || ifc, inline);
+
+          if (item instanceof ShapedItem) {
+            inlineBackgroundAdvance(item, mark, 'start');
+          }
+
+          if (isFirstOccurance) inlineSideAdvance(inline, 'start');
+          boxBuilder?.open(inline, isFirstOccurance, bgcursor, y + baselineShift);
+
+          if (isFirstOccurance) {
+            counts.set(inline, 1);
+          } else {
+            counts.set(inline, count! + 1);
+          }
+        }
+
+        y -= baselineShift;
+
+        if (item instanceof ShapedItem) {
+          const width = item.measure().advance;
+          item.x = direction === 'ltr' ? x : x - width;
+          item.y = y;
+          x += direction === 'ltr' ? width : -width;
+        }
+
+        for (let i = item.inlines.length - 1; i >= 0; --i) {
+          const inline = item.inlines[i];
+          const count = counts.get(inline)!;
+          const isLastOccurance = count === inline.nshaped;
+          const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
+          const mark = isOrthogonal ? inline.start : inline.end;
+
+          bgcursor = x;
+
+          if (item instanceof ShapedItem) {
+            inlineBackgroundAdvance(item, mark, 'end');
+          }
+
+          if (isLastOccurance) inlineSideAdvance(inline, 'end');
+
+          if (
+            boxBuilder && (
+              isLastOccurance || isOrthogonal && (mark > item.offset && mark < item.end())
+            )
+          ) {
+            boxBuilder.close(inline, isLastOccurance, bgcursor);
+          }
+        }
+
+        y += baselineShift;
+      }
+
+      boxBuilder?.closeAll([], x);
+
+      if (boxBuilder) {
+        for (const [inline, list] of boxBuilder.closed) {
+          const thisList = this.backgroundBoxes.get(inline);
+          if (thisList) {
+            for (const backgroundBox of list) thisList.push(backgroundBox);
+          } else {
+            this.backgroundBoxes.set(inline, list);
+          }
+        }
+      }
+    }
   }
 }
 

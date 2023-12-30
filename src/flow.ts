@@ -47,12 +47,12 @@ const reset = '\x1b[0m';
 const dim = '\x1b[2m';
 const underline = '\x1b[4m';
 
-export type LayoutContext = {
+export interface LayoutContext {
   lastBlockContainerArea: BoxArea,
   lastPositionedArea: BoxArea,
   mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext
-};
+}
 
 class MarginCollapseCollection {
   private positive: number;
@@ -711,11 +711,11 @@ export class FloatContext {
   }
 }
 
-type BlockContainerOfInlines = BlockContainer & {
+interface BlockContainerOfInlines extends BlockContainer {
   children: IfcInline[];
 }
 
-type BlockContainerOfBlockContainers = BlockContainer & {
+interface BlockContainerOfBlockContainers extends BlockContainer {
   children: BlockContainer[];
 }
 

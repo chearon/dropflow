@@ -8,26 +8,26 @@ export const initial = Symbol('initial');
 
 type Initial = typeof initial;
 
-export type LogicalStyle = {
-  marginBlockStart: number | 'auto',
-  marginBlockEnd: number | 'auto',
-  marginLineLeft: number | 'auto',
-  marginLineRight: number | 'auto',
-  paddingBlockStart: number,
-  paddingBlockEnd: number,
-  paddingLineLeft: number,
-  paddingLineRight: number,
-  borderBlockStartWidth: number,
-  borderBlockEndWidth: number,
-  borderLineLeftWidth: number,
-  borderLineRightWidth: number,
-  borderBlockStartStyle: number,
-  borderBlockEndStyle: number,
-  borderLineLeftStyle: number,
-  borderLineRightStyle: number,
-  blockSize: number | 'auto',
-  inlineSize: number | 'auto'
-};
+export interface LogicalStyle {
+  marginBlockStart: number | 'auto';
+  marginBlockEnd: number | 'auto';
+  marginLineLeft: number | 'auto';
+  marginLineRight: number | 'auto';
+  paddingBlockStart: number;
+  paddingBlockEnd: number;
+  paddingLineLeft: number;
+  paddingLineRight: number;
+  borderBlockStartWidth: number;
+  borderBlockEndWidth: number;
+  borderLineLeftWidth: number;
+  borderLineRightWidth: number;
+  borderBlockStartStyle: number;
+  borderBlockEndStyle: number;
+  borderLineLeftStyle: number;
+  borderLineRightStyle: number;
+  blockSize: number | 'auto';
+  inlineSize: number | 'auto';
+}
 
 const LogicalMaps = Object.freeze({
   'horizontal-tb': Object.freeze({
@@ -109,8 +109,8 @@ type FontStyle = 'normal' | 'italic' | 'oblique';
 type FontVariant = 'normal' | 'small-caps';
 
 export type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed'
-                 | 'semi-condensed' | 'semi-expanded' | 'expanded'
-                 | 'extra-expanded' | 'ultra-expanded';
+  | 'semi-condensed' | 'semi-expanded' | 'expanded'
+  | 'extra-expanded' | 'ultra-expanded';
 
 type VerticalAlign = 'baseline' | 'middle' | 'sub' | 'super' | 'text-top'
   | 'text-bottom' | ValuePctPx | 'top' | 'bottom';
@@ -142,7 +142,7 @@ type Float = 'left' | 'right' | 'none';
 
 type Clear = 'left' | 'right' | 'both' | 'none';
 
-export type DeclaredPlainStyle = {
+export interface DeclaredPlainStyle {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
   fontSize?: ValuePctPxEm | Inherited | Initial;
@@ -186,7 +186,7 @@ export type DeclaredPlainStyle = {
   textAlign?: TextAlign | Inherited | Initial;
   float?: Float | Inherited | Initial;
   clear?: Clear | Inherited | Initial;
-};
+}
 
 export const EMPTY_STYLE:DeclaredPlainStyle = {};
 

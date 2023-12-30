@@ -59,23 +59,23 @@ function containsSlant(s: string): 'italic' | 'oblique' | undefined {
   if (strContainsIgnoreCase(s, 'oblique')) return 'oblique';
 }
 
-type FaceDescription = {
+interface FaceDescription {
   family: string;
   families: string[];
   weight: number;
   stretch: FontStretch;
   italic: boolean;
   oblique: boolean;
-};
+}
 
-type FaceNames = {
+interface FaceNames {
   family: string;
   subfamily: string;
   fullName: string;
   postscriptName: string;
   preferredFamily: string;
   preferredSubfamily: string;
-};
+}
 
 const defaultFeatures = new Set([
   hb_tag('abvf'),

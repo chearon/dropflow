@@ -99,10 +99,10 @@ export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density
 type Node = HTMLElement | TextNode;
 type Child = Node | string;
 
-type HsAttrs = {
-  style?: DeclaredPlainStyle,
-  attrs?: {[k: string]: string}
-};
+interface HsAttrs {
+  style?: DeclaredPlainStyle;
+  attrs?: {[k: string]: string};
+}
 
 export function dom(el: HTMLElement | HTMLElement[] | string, style?: DeclaredPlainStyle) {
   const computedStyle = getRootComputedStyle(style);

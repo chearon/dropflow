@@ -196,12 +196,12 @@ export function collapseWhitespace(ifc: IfcInline) {
   ifc.end = ifc.text.length;
 }
 
-export type ShapingAttrs = {
-  isEmoji: boolean,
-  level: number,
-  script: string,
-  style: Style
-};
+export interface ShapingAttrs {
+  isEmoji: boolean;
+  level: number;
+  script: string;
+  style: Style;
+}
 
 const hyphenCache = new Map<string, Int32Array>();
 
@@ -350,7 +350,7 @@ export function prevCluster(glyphs: Int32Array, index: number) {
   return index;
 }
 
-type GlyphIteratorState = {
+interface GlyphIteratorState {
   glyphIndex: number;
   clusterStart: number;
   clusterEnd: number;
@@ -359,7 +359,7 @@ type GlyphIteratorState = {
   level: number;
   textEnd: number;
   done: boolean;
-};
+}
 
 function createGlyphIteratorState(
   glyphs: Int32Array,
@@ -482,7 +482,7 @@ class ShapedShim implements IfcRenderItem {
   }
 }
 
-type MeasureState = {
+interface MeasureState {
   glyphIndex: number;
   characterIndex: number;
   clusterStart: number;
@@ -490,9 +490,9 @@ type MeasureState = {
   clusterAdvance: number;
   isInk: boolean;
   done: boolean;
-};
+}
 
-export type InlineMetrics = {
+export interface InlineMetrics {
   ascenderBox: number;
   ascender: number;
   superscript: number;
@@ -500,7 +500,7 @@ export type InlineMetrics = {
   subscript: number;
   descender: number;
   descenderBox: number;
-};
+}
 
 export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
   ascenderBox: 0,
@@ -783,11 +783,11 @@ function logParagraph(paragraph: ShapedItem[]) {
   }
 }
 
-type LineItem = {
+interface LineItem {
   value: ShapedItem | ShapedShim;
   next: LineItem | null;
   previous: LineItem | null;
-};
+}
 
 class LineItemLinkedList {
   head: LineItem | null;
@@ -1423,7 +1423,7 @@ class ContiguousBoxBuilder {
   }
 }
 
-type IfcMark = {
+interface IfcMark {
   position: number,
   isBreak: boolean,
   isBreakForced: boolean,
@@ -1436,7 +1436,7 @@ type IfcMark = {
   trailingWs: number,
   itemIndex: number,
   split: (this: IfcMark, mark: IfcMark) => void
-};
+}
 
 function isink(c: string) {
   return c !== undefined && c !== ' ' && c !== '\t';

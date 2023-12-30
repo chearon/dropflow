@@ -3,12 +3,12 @@ import {Style} from './cascade.js';
 import {Run} from './text.js';
 import {Break, Inline, IfcInline, BlockContainer} from './flow.js';
 
-export type LogicalArea = {
-  blockStart: number | undefined
-  lineLeft: number | undefined
-  blockSize: number | undefined
-  inlineSize: number | undefined
-};
+export interface LogicalArea {
+  blockStart: number | undefined;
+  lineLeft: number | undefined;
+  blockSize: number | undefined;
+  inlineSize: number | undefined;
+}
 
 export interface ReprOptions {
   containingBlocks?: boolean;

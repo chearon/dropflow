@@ -251,7 +251,7 @@ describe('Itemization', function () {
     });
   });
 
-  describe('Inline', function () {
+  describe('Inline / Style', function () {
     before(function () {
       registerFontAsset('Arimo/Arimo-Regular.ttf');
     });
@@ -304,6 +304,36 @@ describe('Itemization', function () {
     });
 
     it('stops at vertical-align changes', function () {
+      /** @type {import('../src/flow.js').IfcInline} */
+      const ifc = layout(`
+        <span style="position: relative;">sanitizers:</span>
+        bromine
+        <span style="position: relative;">chlorine</span>
+      `).children[0];
+      const state = createStyleIteratorState(ifc);
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(1);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(12);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(21);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(29);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(30);
+      expect(state.done).to.be.true;
+    });
+
+    it('stops at position: relative', function () {
       /** @type {import('../src/flow.js').IfcInline} */
       const ifc = layout(`
         <span style="vertical-align: sub;">

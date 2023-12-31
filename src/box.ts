@@ -108,6 +108,36 @@ export class Box extends RenderItem {
     return Boolean(this.attrs & Box.ATTRS.isAnonymous);
   }
 
+  getRelativeVerticalShift() {
+    const height = this.containingBlock.height;
+    let {top, bottom} = this.style;
+
+    if (top !== 'auto') {
+      if (typeof top !== 'number') top = height * top.value / 100;
+      return top
+    } else if (bottom !== 'auto') {
+      if (typeof bottom !== 'number') bottom = height * bottom.value / 100;
+      return -bottom;
+    } else {
+      return 0;
+    }
+  }
+
+  getRelativeHorizontalShift() {
+    const {direction, width} = this.containingBlock;
+    let {right, left} = this.style;
+
+    if (left !== 'auto' && (right === 'auto' || direction === 'ltr')) {
+      if (typeof left !== 'number') left = width * left.value / 100;
+      return left
+    } else if (right !== 'auto' && (left === 'auto' || direction === 'rtl')) {
+      if (typeof right !== 'number') right = width * right.value / 100;
+      return -right;
+    } else {
+      return 0;
+    }
+  }
+
   desc(options?: ReprOptions) {
     return 'Box';
   }
@@ -166,8 +196,16 @@ export class BoxArea {
     return this.lineLeft;
   }
 
+  set x(x: number) {
+    this.lineLeft = x;
+  }
+
   get y() {
     return this.blockStart;
+  }
+
+  set y(y: number) {
+    this.blockStart = y;
   }
 
   get width() {

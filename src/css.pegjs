@@ -139,6 +139,10 @@ declaration
   / border_dec
   / width_dec
   / height_dec
+  / top_dec
+  / right_dec
+  / bottom_dec
+  / left_dec
   / box_sizing_dec
   / background_color_dec
   / background_clip_dec
@@ -751,6 +755,26 @@ width_dec
 height_dec
   = 'height'i S* ':' S* height:(length_side / 'auto' / default) {
     return {height};
+  }
+
+top_dec
+  = 'top'i S* ':' S* top:(length_side / 'auto' / default) {
+    return {top};
+  }
+
+right_dec
+  = 'right'i S* ':' S* right:(length_side / 'auto' / default) {
+    return {right};
+  }
+
+bottom_dec
+  = 'bottom'i S* ':' S* bottom:(length_side / 'auto' / default) {
+    return {bottom};
+  }
+
+left_dec
+  = 'left'i S* ':' S* left:(length_side / 'auto' / default) {
+    return {left};
   }
 
 box_sizing_dec

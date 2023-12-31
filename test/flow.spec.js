@@ -1442,4 +1442,92 @@ describe('Flow', function () {
       });
     });
   });
+
+  describe('Relative Positioning', function () {
+    it('positions block containers, all 7 combinations', function () {
+      this.layout(`
+        <div style="width: 100px;">
+          <div id="t1" style="position: relative; left: 10px;"></div>
+          <div id="t2" style="position: relative; right: 10px;"></div>
+          <div id="t3" style="position: relative; left: 10px; right: 10px;"></div>
+          <div style="direction: rtl;">
+            <div id="t4" style="width: 50px; position: relative; left: 10px; right: 10px;"></div>
+          </div>
+          <div id="t5" style="position: relative; top: 10px;"></div>
+          <div id="t6" style="position: relative; bottom: 10px;"></div>
+          <div id="t7" style="position: relative; top: 10px; bottom: 10px;"></div>
+        </div>
+      `);
+
+      expect(this.get('#t1').contentArea.x).to.equal(10);
+      expect(this.get('#t2').contentArea.x).to.equal(-10);
+      expect(this.get('#t3').contentArea.x).to.equal(10);
+      expect(this.get('#t4').contentArea.x).to.equal(40);
+      expect(this.get('#t5').contentArea.y).to.equal(10);
+      expect(this.get('#t6').contentArea.y).to.equal(-10);
+      expect(this.get('#t7').contentArea.y).to.equal(10);
+    });
+
+    it('positions against (final) containing block size', function () {
+      this.layout(`
+        <div style="width: 200px;">
+          <div style="height: 100px;"></div>
+          <div id="t1" style="position: relative; left: 50%;"></div>
+          <div id="t2" style="position: relative; bottom: 66%;"></div>
+        </div>
+      `);
+
+      expect(this.get('#t1').contentArea.x).to.equal(100);
+      expect(this.get('#t2').contentArea.y).to.equal(34);
+    });
+
+    it('positions inline text and backgrounds', function () {
+      this.layout(`
+        <div style="width: 400px;">
+          Hemingway
+          <span id="t1" style="position: relative; right: 1px; background-color: gray;">sleeps</span>
+          <span id="t2" style="position: relative; left: 1px; background-color: gray;">peacefully</span>
+          next to
+          <span id="t3" style="position: relative; bottom: 1px; background-color: gray;">the</span>
+          <span id="t4" style="position: relative; top: 1px; background-color: gray;">keyboard</span>
+        </div>
+      `);
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87.03125);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(133.28125);
+      expect(ifc.paragraph.brokenItems[1].x).to.equal(87.03125);
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(139.7265625);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(211.7734375);
+      expect(ifc.paragraph.brokenItems[3].x).to.equal(139.7265625);
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
+      expect(ifc.paragraph.brokenItems[5].y).to.equal(13.74609375);
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t4'))[0].blockOffset).to.equal(15.74609375);
+      expect(ifc.paragraph.brokenItems[7].y).to.equal(15.74609375);
+    });
+
+    it('positions floats', function () {
+      this.layout(`
+        <div style="width: 400px; line-height: 25px;">
+          <div id="t" style="float: left; position: relative; left: 2.5%; top: 10%;">
+            Hemingway
+          </div>
+          He likes to eat food<br>
+          Cat food<br>
+          Human food<br>
+          All food
+        </div>
+      `);
+
+      /** @type import('../src/flow').BlockContainer */
+      const float = this.get('#t');
+      expect(float.borderArea.x).to.equal(10);
+      expect(float.borderArea.y).to.equal(10);
+    });
+  });
 });

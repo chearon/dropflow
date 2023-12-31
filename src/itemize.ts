@@ -543,7 +543,10 @@ export function styleIteratorNext(state: StyleIteratorState) {
           break;
         }
       }
-      if (parent.style.verticalAlign !== 'baseline') {
+      if (
+        parent.style.verticalAlign !== 'baseline' ||
+        parent.style.position === 'relative'
+      ) {
         if (state.offset !== state.lastOffset) {
           state.leader = item;
           break;
@@ -574,7 +577,10 @@ export function styleIteratorNext(state: StyleIteratorState) {
         state.stack.push(item.children[i]);
       }
 
-      if (item.style.verticalAlign !== 'baseline') {
+      if (
+        item.style.verticalAlign !== 'baseline' ||
+        item.style.position === 'relative'
+      ) {
         if (state.offset !== state.lastOffset) {
           state.leader = item;
           break;

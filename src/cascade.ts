@@ -182,6 +182,10 @@ export interface DeclaredPlainStyle {
   position?: Position | Inherited | Initial;
   width?: ValuePctPx | 'auto' | Inherited | Initial;
   height?: ValuePctPx | 'auto' | Inherited | Initial;
+  top?: ValuePctPx | 'auto' | Inherited | Initial;
+  right?: ValuePctPx | 'auto' | Inherited | Initial;
+  bottom?: ValuePctPx | 'auto' | Inherited | Initial;
+  left?: ValuePctPx | 'auto' | Inherited | Initial;
   boxSizing?: BoxSizing | Inherited | Initial;
   textAlign?: TextAlign | Inherited | Initial;
   float?: Float | Inherited | Initial;
@@ -265,6 +269,10 @@ export class Style implements ComputedPlainStyle {
   marginLeft: ComputedPlainStyle['marginLeft'];
   width: ComputedPlainStyle['width'];
   height: ComputedPlainStyle['height'];
+  top: ComputedPlainStyle['top'];
+  right: ComputedPlainStyle['right'];
+  bottom: ComputedPlainStyle['bottom'];
+  left: ComputedPlainStyle['left'];
 
   tabSize: ComputedPlainStyle['tabSize'];
   position: ComputedPlainStyle['position'];
@@ -314,7 +322,10 @@ export class Style implements ComputedPlainStyle {
     this.marginLeft = style.marginLeft;
     this.width = style.width;
     this.height = style.height;
-
+    this.top = style.top;
+    this.right = style.right;
+    this.bottom = style.bottom;
+    this.left = style.left;
 
     this.tabSize = style.tabSize;
     this.position = style.position;
@@ -548,6 +559,10 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   position: 'static',
   width: 'auto',
   height: 'auto',
+  top: 'auto',
+  right: 'auto',
+  bottom: 'auto',
+  left: 'auto',
   boxSizing: 'content-box',
   textAlign: 'start',
   float: 'none',
@@ -597,6 +612,10 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   position: false,
   width: false,
   height: false,
+  top: false,
+  right: false,
+  bottom: false,
+  left: false,
   boxSizing: false,
   textAlign: true,
   float: false,

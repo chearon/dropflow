@@ -946,11 +946,16 @@ export class BlockContainer extends Box {
 
   postprocess() {
     this.borderArea.absolutify();
+
+    if (this.style.position === 'relative') {
+      this.borderArea.x += this.getRelativeHorizontalShift();
+      this.borderArea.y += this.getRelativeVerticalShift();
+    }
+
     if (this.paddingArea !== this.borderArea) this.paddingArea.absolutify();
     if (this.contentArea !== this.paddingArea) this.contentArea.absolutify();
-    for (const c of this.children) {
-      c.postprocess();
-    }
+
+    for (const c of this.children) c.postprocess();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1306,6 +1311,13 @@ export class Inline extends Box {
       + reset;
   }
 
+  assignContainingBlocks(ctx: LayoutContext) {
+    this.containingBlock = ctx.lastBlockContainerArea;
+    for (const child of this.children) {
+      if (child.isInline()) child.assignContainingBlocks(ctx);
+    }
+  }
+
   absolutify() {
     // noop: inlines are painted in a different way than block containers
   }
@@ -1319,16 +1331,17 @@ export class IfcInline extends Inline {
   public paragraph: Paragraph;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT            = 1 << 0;
-  static ANALYSIS_WRAPS               = 1 << 1;
-  static ANALYSIS_WS_COLLAPSES        = 1 << 2;
-  static ANALYSIS_HAS_INLINES         = 1 << 3;
-  static ANALYSIS_HAS_BREAKS          = 1 << 4;
-  static ANALYSIS_IS_COMPLEX_TEXT     = 1 << 5;
-  static ANALYSIS_HAS_SOFT_HYPHEN     = 1 << 6;
-  static ANALYSIS_HAS_FLOATS          = 1 << 7;
-  static ANALYSIS_HAS_NEWLINES        = 1 << 8;
-  static ANALYSIS_HAS_PAINTED_INLINES = 1 << 9;
+  static ANALYSIS_HAS_TEXT              = 1 << 0;
+  static ANALYSIS_WRAPS                 = 1 << 1;
+  static ANALYSIS_WS_COLLAPSES          = 1 << 2;
+  static ANALYSIS_HAS_INLINES           = 1 << 3;
+  static ANALYSIS_HAS_BREAKS            = 1 << 4;
+  static ANALYSIS_IS_COMPLEX_TEXT       = 1 << 5;
+  static ANALYSIS_HAS_SOFT_HYPHEN       = 1 << 6;
+  static ANALYSIS_HAS_FLOATS            = 1 << 7;
+  static ANALYSIS_HAS_NEWLINES          = 1 << 8;
+  static ANALYSIS_HAS_PAINTED_INLINES   = 1 << 9;
+  static ANALYSIS_HAS_POSITIONED_INLINE = 1 << 10;
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1384,6 +1397,9 @@ export class IfcInline extends Inline {
         if (box.style.backgroundColor.a !== 0 || box.style.hasBorder()) {
           this.analysis |= IfcInline.ANALYSIS_HAS_PAINTED_INLINES;
         }
+        if (box.style.position === 'relative') {
+          this.analysis |= IfcInline.ANALYSIS_HAS_POSITIONED_INLINE;
+        }
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
         this.analysis |= IfcInline.ANALYSIS_HAS_BREAKS;
@@ -1402,6 +1418,7 @@ export class IfcInline extends Inline {
 
     for (let i = 0; i < this.text.length; i++) {
       const code = this.text.charCodeAt(i);
+
       if (code & NON_ASCII_MASK) {
         this.analysis |= IfcInline.ANALYSIS_IS_COMPLEX_TEXT;
       }
@@ -1420,6 +1437,7 @@ export class IfcInline extends Inline {
 
   preprocess() {
     super.preprocess();
+
     if (this.hasText() || this.hasFloats()) {
       this.paragraph.destroy();
       this.paragraph = createParagraph(this);
@@ -1429,7 +1447,40 @@ export class IfcInline extends Inline {
 
   postprocess() {
     super.postprocess();
+
     this.paragraph.destroy();
+
+    if (this.hasPositionedInline()) {
+      const stack = this.children.slice().reverse();
+      let itemIndex = 0;
+
+      while (stack.length) {
+        const box = stack.pop()!;
+
+        if (box.isInline()) {
+          while (this.paragraph.brokenItems[itemIndex].offset < box.start) itemIndex++;
+          for (let i = box.children.length - 1; i >= 0; i--) stack.push(box.children[i]);
+          if (box.style.position === 'relative') {
+            const item = this.paragraph.brokenItems[itemIndex];
+            item.x += box.getRelativeHorizontalShift();
+            item.y += box.getRelativeVerticalShift();
+          }
+        }
+      }
+
+      for (const [inline, backgrounds] of this.paragraph.backgroundBoxes) {
+        if (inline.style.position === 'relative') {
+          const horizontalShift = inline.getRelativeHorizontalShift();
+          const verticalShift = inline.getRelativeVerticalShift();
+
+          for (const background of backgrounds) {
+            background.blockOffset += verticalShift;
+            background.start += horizontalShift;
+            background.end += horizontalShift;
+          }
+        }
+      }
+    }
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1479,8 +1530,8 @@ export class IfcInline extends Inline {
     return this.analysis & IfcInline.ANALYSIS_HAS_PAINTED_INLINES;
   }
 
-  assignContainingBlocks(ctx: LayoutContext) {
-    this.containingBlock = ctx.lastBlockContainerArea;
+  hasPositionedInline() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_POSITIONED_INLINE;
   }
 }
 

@@ -152,19 +152,19 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>border-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works |
 | <code>border-&zwj;style</code> | `solid`, `none` | ✅&zwj;&nbsp;Works |
 | <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works |
-| <code>bottom</code> | | 🚧&zwj;&nbsp;Planned |
+| <code>bottom</code> | | ✅&zwj;&nbsp;Works |
 | <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `block`, `inline`, `flow-root`, `none` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  |
 | <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
-| <code>left</code> | | 🚧&zwj;&nbsp;Planned |
+| <code>left</code> | | ✅&zwj;&nbsp;Works |
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>position</code> | `absolute` | 🚧&zwj;&nbsp;Planned |
 | <code>position</code> | `fixed` | 👎&zwj;&nbsp;No&nbsp;interest<sup>1</sup> |
-| <code>position</code> | `relative` | 🚧&zwj;&nbsp;Planned |
-| <code>right</code> | | 🚧&zwj;&nbsp;Planned |
-| <code>top</code> | | 🚧&zwj;&nbsp;Planned |
+| <code>position</code> | `relative` | ✅&zwj;&nbsp;Works |
+| <code>right</code> | | ✅&zwj;&nbsp;Works |
+| <code>top</code> | | ✅&zwj;&nbsp;Works |
 | <code>overflow</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>z-index</code> | | 🚧&zwj;&nbsp;Planned |

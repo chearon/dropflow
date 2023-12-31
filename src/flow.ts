@@ -877,12 +877,10 @@ export class BlockContainer extends Box {
 
   assignContainingBlocks(ctx: LayoutContext) {
     // CSS2.2 10.1
-    if (this.isRelativeOrStatic) {
-      this.containingBlock = ctx.lastBlockContainerArea;
-    } else if (this.isAbsolute) {
+    if (this.style.position === 'absolute') {
       this.containingBlock = ctx.lastPositionedArea;
     } else {
-      throw new Error(`Could not assign a containing block to box ${this.id}`);
+      this.containingBlock = ctx.lastBlockContainerArea;
     }
 
     this.fillAreas();
@@ -890,7 +888,7 @@ export class BlockContainer extends Box {
 
     ctx.lastBlockContainerArea = this.contentArea;
 
-    if (this.isPositioned) {
+    if (this.style.position !== 'static') {
       ctx.lastPositionedArea = this.paddingArea;
     }
   }

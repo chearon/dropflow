@@ -108,22 +108,6 @@ export class Box extends RenderItem {
     return Boolean(this.attrs & Box.ATTRS.isAnonymous);
   }
 
-  get isRelativeOrStatic() {
-    return this.style.position === 'relative'
-      || this.style.position === 'static'
-      // XXX anonymous boxes won't have a position since position doesn't
-      // inherit. Possible this could cause a problem later, so take note
-      || this.isAnonymous() && !this.style.position;
-  }
-
-  get isAbsolute() {
-    return this.style.position === 'absolute';
-  }
-
-  get isPositioned() {
-    return this.style.position !== 'static';
-  }
-
   desc(options?: ReprOptions) {
     return 'Box';
   }

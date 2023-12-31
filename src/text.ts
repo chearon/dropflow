@@ -2278,7 +2278,7 @@ export class Paragraph {
     }
 
     for (const linebox of this.lineboxes) {
-      const boxBuilder = this.ifc.hasPaintedSpans() ? new ContiguousBoxBuilder() : undefined;
+      const boxBuilder = this.ifc.hasPaintedInlines() ? new ContiguousBoxBuilder() : undefined;
       const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
       let y = linebox.blockOffset + linebox.ascender;
 

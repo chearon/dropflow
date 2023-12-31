@@ -1319,16 +1319,16 @@ export class IfcInline extends Inline {
   public paragraph: Paragraph;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT          = 1 << 0;
-  static ANALYSIS_WRAPS             = 1 << 1;
-  static ANALYSIS_WS_COLLAPSES      = 1 << 2;
-  static ANALYSIS_HAS_INLINES       = 1 << 3;
-  static ANALYSIS_HAS_BREAKS        = 1 << 4;
-  static ANALYSIS_IS_COMPLEX_TEXT   = 1 << 5;
-  static ANALYSIS_HAS_SOFT_HYPHEN   = 1 << 6;
-  static ANALYSIS_HAS_FLOATS        = 1 << 7;
-  static ANALYSIS_HAS_NEWLINES      = 1 << 8;
-  static ANALYSIS_HAS_PAINTED_SPANS = 1 << 9;
+  static ANALYSIS_HAS_TEXT            = 1 << 0;
+  static ANALYSIS_WRAPS               = 1 << 1;
+  static ANALYSIS_WS_COLLAPSES        = 1 << 2;
+  static ANALYSIS_HAS_INLINES         = 1 << 3;
+  static ANALYSIS_HAS_BREAKS          = 1 << 4;
+  static ANALYSIS_IS_COMPLEX_TEXT     = 1 << 5;
+  static ANALYSIS_HAS_SOFT_HYPHEN     = 1 << 6;
+  static ANALYSIS_HAS_FLOATS          = 1 << 7;
+  static ANALYSIS_HAS_NEWLINES        = 1 << 8;
+  static ANALYSIS_HAS_PAINTED_INLINES = 1 << 9;
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1382,7 +1382,7 @@ export class IfcInline extends Inline {
           this.analysis |= IfcInline.ANALYSIS_WS_COLLAPSES;
         }
         if (box.style.backgroundColor.a !== 0 || box.style.hasBorder()) {
-          this.analysis |= IfcInline.ANALYSIS_HAS_PAINTED_SPANS;
+          this.analysis |= IfcInline.ANALYSIS_HAS_PAINTED_INLINES;
         }
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
@@ -1475,8 +1475,8 @@ export class IfcInline extends Inline {
     return this.analysis & IfcInline.ANALYSIS_HAS_NEWLINES;
   }
 
-  hasPaintedSpans() {
-    return this.analysis & IfcInline.ANALYSIS_HAS_PAINTED_SPANS;
+  hasPaintedInlines() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_PAINTED_INLINES;
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

@@ -65,7 +65,7 @@ function drawText(
   const end = item.attrs.level & 1 ? item.colorsStart(colors) - 1 : item.colorsEnd(colors);
   let i = item.attrs.level & 1 ? item.colorsEnd(colors) - 1 : item.colorsStart(colors);
   let glyphIndex = 0;
-  let tx = blockContainer.borderArea.x + item.x;
+  let tx = blockContainer.contentArea.x + item.x;
 
   while (i !== end) {
     const [color, offset] = colors[i];
@@ -93,7 +93,7 @@ function drawText(
     b.fontSize = style.fontSize;
     b.font = match;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-    b.text(tx, blockContainer.borderArea.y + item.y, item, start, end, isColorBoundary);
+    b.text(tx, blockContainer.contentArea.y + item.y, item, start, end, isColorBoundary);
 
     tx += ax / item.match.face.upem * style.fontSize;
 

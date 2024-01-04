@@ -1437,25 +1437,37 @@ describe('Lines', function () {
     });
 
     it('correctly splits out nested top and bottoms', function () {
-        this.layout(`
-          <div style="font: 16px/20px Arimo; background: yellow;">
-            <span style="vertical-align: top; line-height: 15px;">
-              t1
-              <span style="vertical-align: top; line-height: 10px;">
-                t2
-                <span style="vertical-align: bottom; line-height: 10px;">b</span>
-              </span>
+      this.layout(`
+        <div style="font: 16px/20px Arimo; background: yellow;">
+          <span style="vertical-align: top; line-height: 15px;">
+            t1
+            <span style="vertical-align: top; line-height: 10px;">
+              t2
+              <span style="vertical-align: bottom; line-height: 10px;">b</span>
             </span>
-          </div>
-        `);
+          </span>
+        </div>
+      `);
 
-        const b = this.paint();
-        expect(b.called('t1 ').y).to.be.approximately(13.047, 0.001);
-        expect(b.called('t2 ').y).to.be.approximately(10.547, 0.001);
-        expect(b.called('b').y).to.be.approximately(20.547, 0.001);
-        /** @type import('../src/flow').IfcInline[] */
-        const [ifc] = this.get('div').children;
-        expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+      const b = this.paint();
+      expect(b.called('t1 ').y).to.be.approximately(13.047, 0.001);
+      expect(b.called('t2 ').y).to.be.approximately(10.547, 0.001);
+      expect(b.called('b').y).to.be.approximately(20.547, 0.001);
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+    });
+
+    it('keeps ascenders and descenders of tops and bottoms separate', function () {
+      this.layout(`
+        <div style="font: 16px/20px Arimo; background: yellow;">
+          <span style="vertical-align: top; line-height: 20px;">top</span>
+          <span style="font-family: Cairo; vertical-align: bottom; line-height: 20px;">bottom</span>
+        </div>
+      `);
+
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
     });
   });
 });

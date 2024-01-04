@@ -1059,8 +1059,6 @@ class LineHeightTracker {
   contextStack: AlignmentContext[];
   contextRoots: Map<Inline, AlignmentContext>;
   markedContextRoots: Inline[];
-  ascender: number;
-  descender: number;
 
   constructor(ifc: IfcInline) {
     const ctx = new AlignmentContext(ifc.metrics);
@@ -1070,15 +1068,10 @@ class LineHeightTracker {
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
     this.markedContextRoots = [];
-    this.ascender = ctx.ascender;
-    this.descender = ctx.descender;
   }
 
   stampMetrics(metrics: InlineMetrics) {
-    const ctx = this.contextStack.at(-1)!;
-    ctx.stampMetrics(metrics);
-    this.ascender = Math.max(this.ascender, ctx.ascender);
-    this.descender = Math.max(this.descender, ctx.descender);
+    this.contextStack.at(-1)!.stampMetrics(metrics);
   }
 
   pushInline(inline: Inline) {
@@ -1096,9 +1089,6 @@ class LineHeightTracker {
       ctx.stepIn(parent, inline);
       ctx.stampMetrics(inline.metrics);
     }
-
-    this.ascender = Math.max(this.ascender, ctx.ascender);
-    this.descender = Math.max(this.descender, ctx.descender);
   }
 
   popInline() {
@@ -1131,9 +1121,6 @@ class LineHeightTracker {
         }
       }
     }
-
-    this.ascender = Math.max(this.ascender, height.ascender);
-    this.descender = Math.max(this.descender, height.descender);
   }
 
   align(): {ascender: number, descender: number} {
@@ -1165,7 +1152,15 @@ class LineHeightTracker {
   }
 
   total() {
-    return this.ascender + this.descender;
+    let height = this.contextStack[0].ascender + this.contextStack[0].descender;
+    if (this.contextRoots.size === 0) {
+      return height;
+    } else {
+      for (const ctx of this.contextRoots.values()) {
+        height = Math.max(height, ctx.ascender + ctx.descender);
+      }
+      return height;
+    }
   }
 
   totalWith(height: LineHeightTracker) {
@@ -1178,8 +1173,6 @@ class LineHeightTracker {
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
     this.markedContextRoots = [];
-    this.ascender = ctx.ascender;
-    this.descender = ctx.descender;
   }
 
   clearContents() {
@@ -1187,14 +1180,9 @@ class LineHeightTracker {
     let inline = this.stack[0];
     let i = 0;
 
-    this.ascender = 0;
-    this.descender = 0;
-
     if (this.contextStack.length === 1 && this.stack.length === 1) {
       const [ctx] = this.contextStack;
       ctx.stampMetrics(inline.metrics);
-      this.ascender = Math.max(this.ascender, ctx.ascender);
-      this.descender = Math.max(this.descender, ctx.descender);
     } else {
       for (const ctx of this.contextStack) {
         ctx.reset();
@@ -1211,9 +1199,6 @@ class LineHeightTracker {
             inline = this.stack[++i];
           }
         }
-
-        this.ascender = Math.max(this.ascender, ctx.ascender);
-        this.descender = Math.max(this.descender, ctx.descender);
       }
     }
 

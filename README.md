@@ -165,6 +165,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>position</code> | `relative` | ✅&zwj;&nbsp;Works |
 | <code>right</code> | | ✅&zwj;&nbsp;Works |
 | <code>top</code> | | ✅&zwj;&nbsp;Works |
+| <code>transform</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>overflow</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>z-index</code> | | 🚧&zwj;&nbsp;Planned |

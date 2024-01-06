@@ -54,8 +54,10 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
     initialContainingBlock.blockSize = height;
   }
 
+  root.style.width = width;
+  root.style.height = height;
+
   root.containingBlock = initialContainingBlock;
-  root.setBlockPosition(0);
   root.preprocess();
   layoutBlockBox(root, {
     bfc: new BlockFormattingContext(300),

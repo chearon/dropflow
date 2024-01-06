@@ -43,8 +43,9 @@ describe('CSS Style', function () {
     });
 
     const style = new Style(computed);
+    const documentElement = new BlockContainer(new Style(createComputedStyle(initialStyle, {width: 100, height: 200})), [], 0);
     const box = new BlockContainer(style, [], 0);
-    box.containingBlock = new BoxArea(box, 0, 0, 100, 200);
+    box.containingBlock = new BoxArea(documentElement, 0, 0, 100, 200);
 
     expect(style.getPaddingBlockStart(box)).to.equal(50);
     expect(style.getPaddingLineRight(box)).to.equal(50);

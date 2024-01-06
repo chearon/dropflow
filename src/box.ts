@@ -221,7 +221,7 @@ export class BoxArea {
   }
 
   inlineSizeForPotentiallyOrthogonal(box: BlockContainer) {
-    if (!this.box) return this.inlineSize; // root area
+    if (!this.parent) return this.inlineSize; // root area
     if (!this.box.isBlockContainer()) return this.inlineSize; // cannot be orthogonal
     if (
       (this.box.writingModeAsParticipant === 'horizontal-tb') !==

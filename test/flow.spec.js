@@ -480,6 +480,16 @@ describe('Flow', function () {
 
       expect(this.get('#t').contentArea.x).to.equal(-100);
     });
+
+    it('treats height: 100% as height: auto in a bfc', function () {
+      this.layout(`
+        <div style="height: 100px;">
+          <div id="t" style="height: 100%;"></div>
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.height).to.equal(100);
+    });
   });
 
   describe('Vertical writing modes', function () {

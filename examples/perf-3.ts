@@ -1,5 +1,7 @@
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset} from '../assets/register.js';
+import fs from 'fs';
+import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
 import {clearWordCache} from '../src/text.js';
 
@@ -21,6 +23,14 @@ const words: string[] = [];
 for (let i = 0; i < 10000; i++) words.push(word());
 
 const style = {whiteSpace: 'pre'} as const;
+
+const canvas = createCanvas(100, 20);
+const ctx = canvas.getContext('2d');
+const rootElement = oflo.dom(words[Math.floor(Math.random() * words.length)], style);
+const blockContainer = oflo.generate(rootElement);
+oflo.layout(blockContainer, 100, 20);
+oflo.paintToCanvas(blockContainer, ctx);
+canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-3.png', import.meta.url)));
 
 bench('generate and layout one random word', () => {
   const rootElement = oflo.dom(words[Math.floor(Math.random() * words.length)], style);

@@ -1192,282 +1192,286 @@ describe('Lines', function () {
       expect(ifc.paragraph.brokenItems.at(0).glyphs.at(G_AX)).to.equal(0);
     });
   });
+});
 
-  describe('Vertical Align', function () {
-    it('aligns middle', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: middle; font: 8px/8px Arimo;">middle</span>
-        </div>
-      `);
+describe('Vertical Align', function () {
+  before(setupLayoutTests);
+  after(teardownLayoutTests);
+  afterEach(logIfFailed);
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-      expect(b.called('middle').y).to.be.approximately(14.094, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
-    });
+  it('aligns middle', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: middle; font: 8px/8px Arimo;">middle</span>
+      </div>
+    `);
 
-    it('aligns sub', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: sub;">sub</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.called('middle').y).to.be.approximately(14.094, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-      expect(b.called('sub').y).to.be.approximately(18.747, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(23.2);
-    });
+  it('aligns sub', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: sub;">sub</span>
+      </div>
+    `);
 
-    it('aligns super', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: super;">super</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.called('sub').y).to.be.approximately(18.747, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(23.2);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(20.987, 0.001);
-      expect(b.called('super').y).to.be.approximately(15.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.44, 0.001);
-    });
+  it('aligns super', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: super;">super</span>
+      </div>
+    `);
 
-    it('aligns text-top', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: text-top;">text-top</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(20.987, 0.001);
+    expect(b.called('super').y).to.be.approximately(15.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.44, 0.001);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-      expect(b.called('text-top').y).to.be.approximately(16.609, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
-    });
+  it('aligns text-top', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: text-top;">text-top</span>
+      </div>
+    `);
 
-    it('aligns text-bottom', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: text-bottom;">text-bottom</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.called('text-top').y).to.be.approximately(16.609, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(16.609, 0.001);
-      expect(b.called('text-bottom').y).to.be.approximately(15.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
-    });
+  it('aligns text-bottom', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: text-bottom;">text-bottom</span>
+      </div>
+    `);
 
-    it('aligns px', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: 30px;">30px</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(16.609, 0.001);
+    expect(b.called('text-bottom').y).to.be.approximately(15.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(45.547, 0.001);
-      expect(b.called('30px').y).to.be.approximately(15.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(50, 0.001);
-    });
+  it('aligns px', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: 30px;">30px</span>
+      </div>
+    `);
 
-    it('aligns percentage', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: 50%; line-height: 10px;">percentage</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(45.547, 0.001);
+    expect(b.called('30px').y).to.be.approximately(15.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(50, 0.001);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-      expect(b.called('percentage').y).to.be.approximately(10.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
-    });
+  it('aligns percentage', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: 50%; line-height: 10px;">percentage</span>
+      </div>
+    `);
 
-    it('aligns top', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: top; line-height: 40px;">
-            <span style="vertical-align: super;">top</span>
-          </span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.called('percentage').y).to.be.approximately(10.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-      expect(b.called('top').y).to.be.approximately(25.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(45.44);
-    });
+  it('aligns top', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: top; line-height: 40px;">
+          <span style="vertical-align: super;">top</span>
+        </span>
+      </div>
+    `);
 
-    it('aligns bottom', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline <span style="vertical-align: bottom; line-height: 40px;">
-            <span style="vertical-align: sub;">bottom</span>
-          </span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.called('top').y).to.be.approximately(25.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(45.44);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(38.747, 0.001);
-      expect(b.called('bottom').y).to.be.approximately(28.747, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(43.2);
-    });
+  it('aligns bottom', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline <span style="vertical-align: bottom; line-height: 40px;">
+          <span style="vertical-align: sub;">bottom</span>
+        </span>
+      </div>
+    `);
 
-    it('aligns strut with the bottom when there are tops and bottoms', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          baseline
-          <span style="vertical-align: top; line-height: 80px;">t</span>
-          <span style="vertical-align: bottom; line-height: 40px;">b</span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(38.747, 0.001);
+    expect(b.called('bottom').y).to.be.approximately(28.747, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(43.2);
+  });
 
-      const b = this.paint();
-      expect(b.called('baseline ').y).to.be.approximately(35.547, 0.001);
-      expect(b.called('t').y).to.be.approximately(45.547, 0.001);
-      expect(b.called('b').y).to.be.approximately(65.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
-    });
+  it('aligns strut with the bottom when there are tops and bottoms', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        baseline
+        <span style="vertical-align: top; line-height: 80px;">t</span>
+        <span style="vertical-align: bottom; line-height: 40px;">b</span>
+      </div>
+    `);
 
-    it('changes line height for shifted empty spans', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo;">
-          text
-          <span style="vertical-align: super;"></span>
-        </div>
-      `);
+    const b = this.paint();
+    expect(b.called('baseline ').y).to.be.approximately(35.547, 0.001);
+    expect(b.called('t').y).to.be.approximately(45.547, 0.001);
+    expect(b.called('b').y).to.be.approximately(65.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
+  });
 
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(25.44);
-    });
+  it('changes line height for shifted empty spans', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        text
+        <span style="vertical-align: super;"></span>
+      </div>
+    `);
 
-    it('changes line height for shifted fallback glyphs', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo, Cairo;">
-          text
-          <span style="vertical-align: super;">هل</span>
-        </div>
-      `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(25.44);
+  });
 
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.749, 0.001);
-    });
+  it('changes line height for shifted fallback glyphs', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo, Cairo;">
+        text
+        <span style="vertical-align: super;">هل</span>
+      </div>
+    `);
 
-    it('affects line height on the second line', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo, Cairo; width: 400px;">
-          Do you speak a language other than Arabic?
-          <span style="vertical-align: super;">هل تتحدث لغة أخرى بجانب العربية؟</span>
-          Cool!
-        </div>
-      `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.749, 0.001);
+  });
 
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.749, 0.001);
-      expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(25.749, 0.001);
-    });
+  it('affects line height on the second line', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo, Cairo; width: 400px;">
+        Do you speak a language other than Arabic?
+        <span style="vertical-align: super;">هل تتحدث لغة أخرى بجانب العربية؟</span>
+        Cool!
+      </div>
+    `);
 
-    it('does not carry fallback height to the second line', function () {
-      this.layout(`
-        <div style="font: 16px Arimo, Cairo; width: 80px;">
-          <span style="vertical-align: super;">نعم</span>, قليل
-          yes, <span style="vertical-align: super;">a little</span>
-        </div>
-      `);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.749, 0.001);
+    expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(25.749, 0.001);
+  });
 
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(26.288, 0.001);
-      expect(ifc.paragraph.lineboxes[0].descender).to.be.approximately(9.136, 0.001);
-      expect(ifc.paragraph.lineboxes[1].ascender).to.be.approximately(20.186, 0.001);
-      expect(ifc.paragraph.lineboxes[1].descender).to.be.approximately(3.652, 0.001);
-    });
+  it('does not carry fallback height to the second line', function () {
+    this.layout(`
+      <div style="font: 16px Arimo, Cairo; width: 80px;">
+        <span style="vertical-align: super;">نعم</span>, قليل
+        yes, <span style="vertical-align: super;">a little</span>
+      </div>
+    `);
 
-    it('correctly resets separate alignment contexts for the second line', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo; background: yellow;">
-          1b
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(26.288, 0.001);
+    expect(ifc.paragraph.lineboxes[0].descender).to.be.approximately(9.136, 0.001);
+    expect(ifc.paragraph.lineboxes[1].ascender).to.be.approximately(20.186, 0.001);
+    expect(ifc.paragraph.lineboxes[1].descender).to.be.approximately(3.652, 0.001);
+  });
+
+  it('correctly resets separate alignment contexts for the second line', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo; background: yellow;">
+        1b
+        <span style="vertical-align: 10px;">
+          2b
           <span style="vertical-align: 10px;">
-            2b
-            <span style="vertical-align: 10px;">
-              3b
-              <span style="vertical-align: bottom;">4b<br>4a</span>
-              3a
-            </span>
-            2a
+            3b
+            <span style="vertical-align: bottom;">4b<br>4a</span>
+            3a
           </span>
-          1a
-        </div>
-      `);
+          2a
+        </span>
+        1a
+      </div>
+    `);
 
-      const b = this.paint();
-      expect(b.called('2b ').y).to.be.approximately(25.547, 0.001);
-      expect(b.called('4b').y).to.be.approximately(35.547, 0.001);
-      expect(b.called('2a ').y).to.be.approximately(65.547, 0.001);
-      expect(b.called('4a').y).to.be.approximately(75.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(40, 0.001);
-      expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(40, 0.001);
-    });
+    const b = this.paint();
+    expect(b.called('2b ').y).to.be.approximately(25.547, 0.001);
+    expect(b.called('4b').y).to.be.approximately(35.547, 0.001);
+    expect(b.called('2a ').y).to.be.approximately(65.547, 0.001);
+    expect(b.called('4a').y).to.be.approximately(75.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(40, 0.001);
+    expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(40, 0.001);
+  });
 
-    it('correctly splits out nested top and bottoms', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo; background: yellow;">
-          <span style="vertical-align: top; line-height: 15px;">
-            t1
-            <span style="vertical-align: top; line-height: 10px;">
-              t2
-              <span style="vertical-align: bottom; line-height: 10px;">b</span>
-            </span>
+  it('correctly splits out nested top and bottoms', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo; background: yellow;">
+        <span style="vertical-align: top; line-height: 15px;">
+          t1
+          <span style="vertical-align: top; line-height: 10px;">
+            t2
+            <span style="vertical-align: bottom; line-height: 10px;">b</span>
           </span>
-        </div>
-      `);
+        </span>
+      </div>
+    `);
 
-      const b = this.paint();
-      expect(b.called('t1 ').y).to.be.approximately(13.047, 0.001);
-      expect(b.called('t2 ').y).to.be.approximately(10.547, 0.001);
-      expect(b.called('b').y).to.be.approximately(20.547, 0.001);
-      /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
-    });
+    const b = this.paint();
+    expect(b.called('t1 ').y).to.be.approximately(13.047, 0.001);
+    expect(b.called('t2 ').y).to.be.approximately(10.547, 0.001);
+    expect(b.called('b').y).to.be.approximately(20.547, 0.001);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+  });
 
-    it('keeps ascenders and descenders of tops and bottoms separate', function () {
-      this.layout(`
-        <div style="font: 16px/20px Arimo; background: yellow;">
-          <span style="vertical-align: top; line-height: 20px;">top</span>
-          <span style="font-family: Cairo; vertical-align: bottom; line-height: 20px;">bottom</span>
-        </div>
-      `);
+  it('keeps ascenders and descenders of tops and bottoms separate', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo; background: yellow;">
+        <span style="vertical-align: top; line-height: 20px;">top</span>
+        <span style="font-family: Cairo; vertical-align: bottom; line-height: 20px;">bottom</span>
+      </div>
+    `);
 
-      const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
-    });
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
   });
 });

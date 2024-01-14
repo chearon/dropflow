@@ -7,20 +7,6 @@ import paintBlockContainer from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
 
 function setupLayoutTests() {
-  registerFontAsset('Arimo/Arimo-Regular.ttf');
-  registerFontAsset('Noto/NotoSansSC-Regular.otf');
-  registerFontAsset('Noto/NotoSansJP-Regular.otf');
-  registerFontAsset('Noto/NotoSansTC-Regular.otf');
-  registerFontAsset('Noto/NotoSansKR-Regular.otf');
-  registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
-  registerFontAsset('Noto/NotoSansCherokee-Regular.ttf');
-  registerFontAsset('Noto/NotoEmoji-Regular.ttf');
-  registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
-  registerFontAsset('Cairo/Cairo-Regular.ttf');
-  registerFontAsset('Roboto/Roboto-Regular.ttf');
-  registerFontAsset('Raleway/Raleway-Regular.ttf');
-  registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
-
   this.layout = function (html) {
     this.rootElement = oflo.parse(html);
     this.blockContainer = oflo.generate(this.rootElement);
@@ -45,22 +31,6 @@ function setupLayoutTests() {
   };
 }
 
-function teardownLayoutTests() {
-  unregisterFontAsset('Arimo/Arimo-Regular.ttf');
-  unregisterFontAsset('Noto/NotoSansSC-Regular.otf');
-  unregisterFontAsset('Noto/NotoSansJP-Regular.otf');
-  unregisterFontAsset('Noto/NotoSansTC-Regular.otf');
-  unregisterFontAsset('Noto/NotoSansKR-Regular.otf');
-  unregisterFontAsset('Noto/NotoSansHebrew-Regular.ttf');
-  unregisterFontAsset('Noto/NotoSansCherokee-Regular.ttf');
-  unregisterFontAsset('Noto/NotoEmoji-Regular.ttf');
-  unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
-  unregisterFontAsset('Cairo/Cairo-Regular.ttf');
-  unregisterFontAsset('Roboto/Roboto-Regular.ttf');
-  unregisterFontAsset('Raleway/Raleway-Regular.ttf');
-  unregisterFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
-}
-
 function logIfFailed() {
   if (this.currentTest.state == 'failed') {
     let indent = 0, t = this.currentTest;
@@ -72,7 +42,15 @@ function logIfFailed() {
 
 describe('Whitespace collapsing', function () {
   before(setupLayoutTests);
-  after(teardownLayoutTests);
+
+  before(function () {
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
+  });
+
   afterEach(logIfFailed);
 
   it('collapses whitespace', function () {
@@ -215,7 +193,23 @@ describe('Whitespace collapsing', function () {
 
 describe('Shaping', function () {
   before(setupLayoutTests);
-  after(teardownLayoutTests);
+
+  before(function () {
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+    registerFontAsset('Roboto/Roboto-Regular.ttf');
+    registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
+    unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+    unregisterFontAsset('Roboto/Roboto-Regular.ttf');
+    unregisterFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+  });
+
   afterEach(logIfFailed);
 
   it('doesn\'t infinite loop when the last match can\'t shape two parts', function () {
@@ -436,7 +430,27 @@ describe('Shaping', function () {
 
 describe('Lines', function () {
   before(setupLayoutTests);
-  after(teardownLayoutTests);
+
+  before(function () {
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+    registerFontAsset('Roboto/Roboto-Regular.ttf');
+    registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
+    registerFontAsset('Raleway/Raleway-Regular.ttf');
+    registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
+    unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+    unregisterFontAsset('Roboto/Roboto-Regular.ttf');
+    unregisterFontAsset('Noto/NotoSansHebrew-Regular.ttf');
+    unregisterFontAsset('Raleway/Raleway-Regular.ttf');
+    unregisterFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+  });
+
   afterEach(logIfFailed);
 
   it('always puts one word per line at minimum', function () {
@@ -1196,7 +1210,17 @@ describe('Lines', function () {
 
 describe('Vertical Align', function () {
   before(setupLayoutTests);
-  after(teardownLayoutTests);
+
+  before(function () {
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+  });
+
   afterEach(logIfFailed);
 
   it('aligns middle', function () {

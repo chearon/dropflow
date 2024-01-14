@@ -1415,7 +1415,7 @@ describe('Vertical Align', function () {
 
   it('correctly resets separate alignment contexts for the second line', function () {
     this.layout(`
-      <div style="font: 16px/20px Arimo; background: yellow;">
+      <div style="font: 16px/20px Arimo;">
         1b
         <span style="vertical-align: 10px;">
           2b
@@ -1443,7 +1443,7 @@ describe('Vertical Align', function () {
 
   it('correctly splits out nested top and bottoms', function () {
     this.layout(`
-      <div style="font: 16px/20px Arimo; background: yellow;">
+      <div style="font: 16px/20px Arimo;">
         <span style="vertical-align: top; line-height: 15px;">
           t1
           <span style="vertical-align: top; line-height: 10px;">
@@ -1465,7 +1465,7 @@ describe('Vertical Align', function () {
 
   it('keeps ascenders and descenders of tops and bottoms separate', function () {
     this.layout(`
-      <div style="font: 16px/20px Arimo; background: yellow;">
+      <div style="font: 16px/20px Arimo;">
         <span style="vertical-align: top; line-height: 20px;">top</span>
         <span style="font-family: Cairo; vertical-align: bottom; line-height: 20px;">bottom</span>
       </div>

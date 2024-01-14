@@ -12,19 +12,19 @@ function style(style) {
 
 describe('Font Registration and Matching', function () {
   before(function () {
-    registerFontAsset('Cairo/Cairo-Regular.ttf');
-    registerFontAsset('Cairo/Cairo-Bold.ttf');
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     registerFontAsset('Arimo/Arimo-Bold.ttf');
     registerFontAsset('Arimo/Arimo-Italic.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+    registerFontAsset('Cairo/Cairo-Bold.ttf');
   });
 
   after(function () {
-    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
-    unregisterFontAsset('Cairo/Cairo-Bold.ttf');
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
     unregisterFontAsset('Arimo/Arimo-Bold.ttf');
     unregisterFontAsset('Arimo/Arimo-Italic.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+    unregisterFontAsset('Cairo/Cairo-Bold.ttf');
   });
 
   it('looks up a single font', function () {
@@ -67,12 +67,12 @@ describe('Font Registration and Matching', function () {
   });
 
   it('looks up based on script when nothing is specified', function () {
-    let bc1 = oflo.generate(oflo.parse('هل تتحدث لغة أخرى بجانب العربية؟'));
+    const bc1 = oflo.generate(oflo.parse('هل تتحدث لغة أخرى بجانب العربية؟'));
     oflo.layout(bc1);
-    expect(bc1.children[0].paragraph.wholeItems[0].match.family).to.equal("Cairo");
-    let bc2 = oflo.generate(oflo.parse('Do you speak another language besides Arabic?'));
+    expect(bc1.children[0].paragraph.wholeItems[0].match.family).to.equal('Cairo');
+    const bc2 = oflo.generate(oflo.parse('Do you speak another language besides Arabic?'));
     oflo.layout(bc2);
-    expect(bc2.children[0].paragraph.wholeItems[0].match.family).to.equal("Arimo");
+    expect(bc2.children[0].paragraph.wholeItems[0].match.family).to.equal('Arimo');
   });
 
   it('selects 500 if 400 is requested but not found', function () {

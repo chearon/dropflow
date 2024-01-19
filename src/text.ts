@@ -884,7 +884,7 @@ class LineWidthTracker {
     this.endWs = 0;
     this.endWsC = 0;
     this.hyphen = 0;
-    this.inkSeen = true;
+    if (width) this.inkSeen = true;
   }
 
   addWs(width: number, isCollapsible: boolean) {
@@ -897,6 +897,10 @@ class LineWidthTracker {
     }
 
     this.hyphen = 0;
+  }
+
+  hasContent() {
+    return this.inkSeen || this.startWs - this.startWsC > 0;
   }
 
   addHyphen(width: number) {
@@ -1968,7 +1972,6 @@ export class Paragraph {
     let lastBreakMark:IfcMark | undefined;
     const lines = [];
     let floats = [];
-    let unbreakableMark = 0;
     let blockOffset = bfc.cbBlockStart;
     let itemInMark: ShapedItem | undefined; // TODO: merge with item?
 
@@ -2000,12 +2003,10 @@ export class Paragraph {
       if (inkAdvance) candidates.width.addInk(inkAdvance);
       if (mark.trailingWs) candidates.width.addWs(mark.trailingWs, !!wsCollapsible);
 
-      if (inkAdvance || !wsCollapsible) unbreakableMark = mark.position;
-
-      const lineHasInk = (line ? line.startOffset : 0) < unbreakableMark;
+      const wouldHaveContent = width.hasContent() || candidates.width.hasContent();
 
       if (mark.float) {
-        if (!lineHasInk || lastBreakMark && lastBreakMark.position === mark.position) {
+        if (!wouldHaveContent || lastBreakMark && lastBreakMark.position === mark.position) {
           const lineWidth = line ? width.forFloat() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
           const fctx = bfc.ensureFloatContext(blockOffset);
@@ -2041,7 +2042,7 @@ export class Paragraph {
         for (const p of parents) p.nshaped += 1;
       }
 
-      if (mark.isBreak && (lineHasInk && !nowrap || mark.isBreakForced || mark.position === this.length())) {
+      if (mark.isBreak && (wouldHaveContent && !nowrap || mark.isBreakForced || mark.position === this.length())) {
         if (!line) {
           lines.push(line = new Linebox(0, this));
           bfc.fctx?.preTextContent();

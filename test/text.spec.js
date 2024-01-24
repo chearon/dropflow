@@ -1078,6 +1078,18 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[0].x).to.be.approximately(30.641, 0.001);
   });
 
+  it('measures the last glyph in an RTL item correctly', function () {
+    this.layout(`
+      <div id="t" style="width: 100px; direction: rtl;">
+        أسف<br>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.brokenItems[0].x).to.be.approximately(65.584, 0.001);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

@@ -646,18 +646,18 @@ export class ShapedItem implements IfcRenderItem {
     const g = this.glyphs;
     let glyphIndex = state.glyphIndex;
 
-    if (glyphIndex < g.length) {
+    if (glyphIndex in g) {
       const cl = g[glyphIndex + G_CL];
       let w = 0;
 
-      while (glyphIndex < g.length && cl == g[glyphIndex + G_CL]) {
+      while (glyphIndex in g && cl == g[glyphIndex + G_CL]) {
         w += g[glyphIndex + G_AX];
         glyphIndex += inc;
       }
 
       if (direction === 1) {
         state.clusterStart = state.clusterEnd;
-        state.clusterEnd = glyphIndex < g.length ? g[glyphIndex + G_CL] : this.end();
+        state.clusterEnd = glyphIndex in g ? g[glyphIndex + G_CL] : this.end();
       } else {
         state.clusterEnd = state.clusterStart;
         state.clusterStart = cl;

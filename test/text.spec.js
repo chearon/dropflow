@@ -1066,6 +1066,18 @@ describe('Lines', function () {
     expect(inline.paragraph.lineboxes[2].blockOffset).to.equal(64);
   });
 
+  it('positions RTL items at the end of the CB', function () {
+    this.layout(`
+      <div id="t" style="width: 100px; direction: rtl;">
+        whereami
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.brokenItems[0].x).to.be.approximately(30.641, 0.001);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

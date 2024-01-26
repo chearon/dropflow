@@ -189,6 +189,12 @@ describe('Whitespace collapsing', function () {
     const [ifc] = this.get().children
     expect(ifc.text).to.equal('layout code because it really very is veryI love this! ');
   });
+
+  it('preserves whitespace around inline-block', function () {
+    this.layout('abc  <span style="display: inline-block;"></span> 123');
+    const [ifc] = this.get().children
+    expect(ifc.text).to.equal('abc  123');
+  });
 });
 
 describe('Shaping', function () {
@@ -1247,7 +1253,7 @@ describe('Vertical Align', function () {
 
   afterEach(logIfFailed);
 
-  it('aligns middle', function () {
+  it('aligns text to middle', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: middle; font: 8px/8px Arimo;">middle</span>
@@ -1262,7 +1268,24 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
   });
 
-  it('aligns sub', function () {
+  it('aligns inline-block to middle', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: middle;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: middle;">middle</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.320, 0.001);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
+    expect(this.get('#t2').contentArea.y).to.be.approximately(6.320, 0.001);
+    expect(this.get('#t3').contentArea.y).to.be.approximately(1.320, 0.001);
+  });
+
+  it('aligns text to subscript', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: sub;">sub</span>
@@ -1277,7 +1300,24 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(23.2);
   });
 
-  it('aligns super', function () {
+  it('aligns inline-block to subscript', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: sub;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: sub;">sub</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(23.200, 0.001);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
+    expect(this.get('#t2').contentArea.y).to.be.approximately(8.747, 0.001);
+    expect(this.get('#t3').contentArea.y).to.be.approximately(3.199, 0.001);
+  });
+
+  it('aligns text to superscript', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: super;">super</span>
@@ -1292,7 +1332,24 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.44, 0.001);
   });
 
-  it('aligns text-top', function () {
+  it('aligns inline-block to superscript', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: super;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: super;">super</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.440, 0.001);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(20.987, 0.001);
+    expect(this.get('#t2').contentArea.y).to.be.approximately(5.546, 0.001);
+    expect(this.get('#t3').contentArea.y).to.be.approximately(0, 0.001);
+  });
+
+  it('aligns text to text-top', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: text-top;">text-top</span>
@@ -1307,7 +1364,24 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
   });
 
-  it('aligns text-bottom', function () {
+  it('aligns inline-block to text-top', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: text-top;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: text-top;">text-top</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
+    expect(this.get('#t2').contentArea.y).to.be.approximately(1.063, 0.001);
+    expect(this.get('#t3').contentArea.y).to.be.approximately(1.063, 0.001);
+  });
+
+  it('aligns text to text-bottom', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: text-bottom;">text-bottom</span>
@@ -1322,7 +1396,24 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
   });
 
-  it('aligns px', function () {
+  it('aligns inline-block to text-bottom', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: text-bottom;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: text-bottom;">text-bottom</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(16.609, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(10);
+    expect(this.get('#t3').contentArea.y).to.equal(0);
+  });
+
+  it('aligns text with pixels', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: 30px;">30px</span>
@@ -1337,7 +1428,24 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(50, 0.001);
   });
 
-  it('aligns percentage', function () {
+  it('aligns inline-block with pixels', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: 30px;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: 30px;">30px</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(50);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(45.547, 0.001);
+    expect(this.get('#t2').contentArea.y).to.be.approximately(5.547, 0.001);
+    expect(this.get('#t3').contentArea.y).to.be.equal(0);
+  });
+
+  it('aligns text with percentage', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: 50%; line-height: 10px;">percentage</span>
@@ -1350,6 +1458,23 @@ describe('Vertical Align', function () {
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+  });
+
+  it('aligns inline-block with percentage', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block;height: 10px; vertical-align: 50%; line-height: 10px;"></div>
+        <div id="t3" style="display: inline-block; vertical-align: 50%; line-height: 10px;">50%</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.546, 0.001);
+    expect(this.get('#t2').contentArea.y).to.be.approximately(0.546, 0.001);
+    expect(this.get('#t3').contentArea.y).to.be.equal(0);
   });
 
   it('aligns top', function () {
@@ -1369,6 +1494,21 @@ describe('Vertical Align', function () {
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(45.44);
   });
 
+  it('aligns top inline-block', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 30px; vertical-align: top;"></div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(30);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(0);
+  });
+
   it('aligns bottom', function () {
     this.layout(`
       <div style="font: 16px/20px Arimo;">
@@ -1384,6 +1524,21 @@ describe('Vertical Align', function () {
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(43.2);
+  });
+
+  it('aligns bottom inline-block', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo;">
+        baseline
+        <div id="t2" style="display: inline-block; height: 30px; vertical-align: bottom;"></div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(30);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(25.547, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(0);
   });
 
   it('aligns strut with the bottom when there are tops and bottoms', function () {
@@ -1521,5 +1676,232 @@ describe('Vertical Align', function () {
 
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
+  });
+});
+
+describe('Inline Blocks', function () {
+  before(setupLayoutTests);
+
+  before(function () {
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+  });
+
+  afterEach(logIfFailed);
+
+  it('accounts for margin, border, and padding', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        it's cold out
+        <div id="t" style="
+          display: inline-block;
+          margin: 1px;
+          border: 1px solid;
+          padding: 1px;
+          vertical-align: 20px;
+        "></div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(30.453, 0.001);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.equal(26);
+    expect(t.borderArea.x).to.be.approximately(84.984, 0.001);
+    expect(t.borderArea.y).to.equal(1);
+  });
+
+  it('sizes to intrinsics correctly', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo;">
+        when it's cold out
+        <div id="t" style="display: inline-block;">
+          put<br>some<br>skates<br>on
+        </div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
+    expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(75.547, 0.001);
+    expect(t.borderArea.x).to.be.approximately(126.680, 0.001);
+    expect(t.borderArea.y).to.equal(0);
+  });
+
+  it('fills the entire cb width at most', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo; width: 100px;">
+        line before
+        <div id="t" style="display: inline-block;">
+          You better watch out, you better not cry
+        </div>
+        line after
+      </div>
+    `);
+
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.width).to.equal(100);
+    expect(t.contentArea.y).to.equal(20);
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(3);
+    expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+    expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(13);
+    expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(13);
+    expect(ifc.paragraph.lineboxes[1].endOffset).to.equal(13);
+    expect(ifc.paragraph.lineboxes[2].blockOffset).to.equal(100);
+    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(13);
+    expect(ifc.paragraph.lineboxes[2].endOffset).to.equal(25);
+  });
+
+  it('fills the entire cb taking margin into account', function () {
+    this.layout(`
+      <div style="font: 16px/20px Arimo; width: 200px;">
+        <div id="t" style="display: inline-block; margin: 5px; padding: 5px;">
+          hemingway's paws are literally on my hands as I type
+        </div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.x).to.equal(10);
+    expect(t.contentArea.inlineSize).to.equal(180);
+  });
+
+  it('doesn\'t collapse through a solitary inline-block', function () {
+    this.layout(`
+      <div id="t" style="font: 16px/20px Arimo;">
+        <div id="t" style="display: inline-block;">
+          This is the way
+        </div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(1);
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.height).to.equal(20);
+  });
+
+  it('positions correctly among bidirectional text', function () {
+    this.layout(`
+      <div style="font: 16px/20px Cairo; direction: rtl; width: 200px;">
+        excuse me: المعذرة<div id="t" style="display: inline-block; border-bottom: 2px solid red;">!</div>
+      </div>
+    `);
+
+    const t = this.get('#t');
+    expect(t.contentArea.x).to.be.approximately(66.208, 0.001);
+  });
+
+  it('breaks before and after', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo; width: 10px;">
+        <div id="t2" style="display: inline-block; width: 10px; height: 10px;"></div>
+        <div id="t3" style="display: inline-block; width: 10px; height: 10px;"></div>
+        <div id="t4" style="display: inline-block; width: 10px; height: 10px;"></div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(3);
+    /** @type import('../src/flow').BlockContainer */
+    const t2 = this.get('#t2');
+    expect(t2.contentArea.x).to.equal(0);
+    expect(t2.contentArea.y).to.be.approximately(5.547, 0.001);
+    /** @type import('../src/flow').BlockContainer */
+    const t3 = this.get('#t3');
+    expect(t3.contentArea.x).to.equal(0);
+    expect(t3.contentArea.y).to.be.approximately(25.547, 0.001);
+    /** @type import('../src/flow').BlockContainer */
+    const t4 = this.get('#t4');
+    expect(t4.contentArea.x).to.equal(0);
+    expect(t4.contentArea.y).to.be.approximately(45.547, 0.001);
+  });
+
+  it('prioritizes float over inline-block', function () {
+    this.layout(`
+      <div style="font: 16px/20px Cairo; width: 100px;">
+        hi <div id="t" style="display: inline-block; float: right; width: 10px;">!</div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.x).to.be.equal(90);
+  });
+
+  it('paints backgrounds behind inline-block correctly', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Cairo; width: 100px;">
+        1<span id="t2" style="background-color: veronicayellow;"><span style="display: inline-block;">different ifc!</span></span>2
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    /** @type import('../src/flow').Inline */
+    const span = this.get('#t2');
+    const box = ifc.paragraph.backgroundBoxes.get(span);
+    expect(box[0].start).to.be.approximately(8.960, 0.001);
+    expect(box[0].end).to.be.approximately(90.448, 0.001);
+  });
+
+  it('occupies the right amount of space for floats', function () {
+    this.layout(`
+      <div id="t" style="width: 200px; display: flow-root; font-size: 0;">
+        <div style="display: inline-block; width: 100px; height: 100px;"></div>
+        <div style="float: right; width: 100px; height: 100px;"></div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').BlockContainer */
+    const t = this.get('#t');
+    expect(t.contentArea.height).to.equal(100);
+  });
+
+  it('occupies the right amount of space for text-align', function () {
+    this.layout(`
+      <div id="t" style="width: 200px; font: 16px Arimo; text-align: center;">
+        I can't
+        <div style="display: inline-block;">wait</div>
+        for summer
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t').children;
+    expect(ifc.paragraph.brokenItems[0].x).to.be.approximately(19.785, 0.001);
+  });
+
+  it('takes horizontal margin into account on the line', function () {
+    this.layout(`
+      <div id="t1" style="width: 100px; font: 16px/20px Arimo;">
+        one <div id="t2" style="display: inline-block; margin-left: 100px;"><div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(2);
+    const t2 = this.get('#t2');
+    expect(t2.contentArea.y).to.be.approximately(35.547, 0.001);
+    expect(t2.contentArea.y).to.be.approximately(35.547, 0.001);
+    expect(t2.contentArea.x).to.equal(100);
   });
 });

@@ -189,6 +189,8 @@ export function collapseWhitespace(ifc: IfcInline) {
         if (i < 0) throw new Error('Assertion failed');
         parent.children.splice(i, 1);
       }
+    } else if (item.isBlockContainer() && item.isInlineLevel()) { // inline-block
+      inWhitespace = false;
     }
   }
 
@@ -466,15 +468,18 @@ interface IfcRenderItem {
   attrs: ShapingAttrs;
 }
 
-class ShapedShim implements IfcRenderItem {
+export class ShapedShim implements IfcRenderItem {
   offset: number;
   inlines: Inline[];
   attrs: ShapingAttrs;
+  /** Defined when the shim is containing an inline-block */
+  block: BlockContainer | undefined;
 
-  constructor(offset: number, inlines: Inline[], attrs: ShapingAttrs) {
+  constructor(offset: number, inlines: Inline[], attrs: ShapingAttrs, block?: BlockContainer) {
     this.offset = offset;
     this.inlines = inlines;
     this.attrs = attrs;
+    this.block = block;
   }
 
   end() {
@@ -994,6 +999,77 @@ function baselineStep(parent: Inline, inline: Inline) {
   return 0;
 }
 
+export function inlineBlockMetrics(block: BlockContainer) {
+  const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = block.getMarginsAutoIsZero();
+  const baseline = block.getLastBaseline();
+  let ascender, descender;
+
+  if (baseline !== undefined) {
+    const paddingBlockStart = block.style.getPaddingBlockStart(block);
+    const paddingBlockEnd = block.style.getPaddingBlockEnd(block);
+    const borderBlockStart = block.style.getBorderBlockStartWidth(block);
+    const borderBlockEnd = block.style.getBorderBlockEndWidth(block);
+    const blockSize = block.contentArea.blockSize;
+    ascender = marginBlockStart + borderBlockStart + paddingBlockStart + baseline;
+    descender = (blockSize - baseline) + paddingBlockEnd + borderBlockEnd + marginBlockEnd;
+  } else {
+    ascender = marginBlockStart + block.borderArea.blockSize + marginBlockEnd;
+    descender = 0;
+  }
+
+  return {ascender, descender};
+}
+
+function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
+  if (block.style.verticalAlign === 'baseline') {
+    return 0;
+  }
+
+  if (block.style.verticalAlign === 'super') {
+    return parent.metrics.superscript;
+  }
+
+  if (block.style.verticalAlign === 'sub') {
+    return -parent.metrics.subscript;
+  }
+
+  if (block.style.verticalAlign === 'middle') {
+    const {ascender, descender} = inlineBlockMetrics(block);
+    const midParent = parent.metrics.xHeight / 2;
+    const midInline = (ascender - descender) / 2;
+    return midParent - midInline;
+  }
+
+  if (block.style.verticalAlign === 'text-top') {
+    const {ascender} = inlineBlockMetrics(block);
+    return parent.metrics.ascender - ascender;
+  }
+
+  if (block.style.verticalAlign === 'text-bottom') {
+    const {descender} = inlineBlockMetrics(block);
+    return descender - parent.metrics.descender;
+  }
+
+  if (typeof block.style.verticalAlign === 'object') {
+    if (block.style.lineHeight === 'normal') {
+      // TODO: is there a better/faster way to do this? currently struts only
+      // exist if there is a paragraph, but I think spec is saying do this
+      const strutCascade = getCascade(block.style, 'en');
+      const [strutFontMatch] = strutCascade.matches;
+      const metrics = getMetrics(block.style, strutFontMatch);
+      return (metrics.ascenderBox + metrics.descenderBox) * block.style.verticalAlign.value / 100;
+    } else {
+      return block.style.lineHeight * block.style.verticalAlign.value / 100;
+    }
+  }
+
+  if (typeof block.style.verticalAlign === 'number') {
+    return block.style.verticalAlign;
+  }
+
+  return 0;
+}
+
 class AlignmentContext {
   ascender: number;
   descender: number;
@@ -1014,6 +1090,15 @@ class AlignmentContext {
   stampMetrics(metrics: InlineMetrics) {
     const top = this.baselineShift + metrics.ascenderBox;
     const bottom = metrics.descenderBox - this.baselineShift;
+    this.ascender = Math.max(this.ascender, top);
+    this.descender = Math.max(this.descender, bottom);
+  }
+
+  stampBlock(block: BlockContainer, parent: Inline) {
+    const {ascender, descender} = inlineBlockMetrics(block);
+    const baselineShift = this.baselineShift + inlineBlockBaselineStep(parent, block);
+    const top = baselineShift + ascender;
+    const bottom = descender - baselineShift;
     this.ascender = Math.max(this.ascender, top);
     this.descender = Math.max(this.descender, bottom);
   }
@@ -1062,6 +1147,8 @@ class LineHeightTracker {
   stack: Inline[];
   contextStack: AlignmentContext[];
   contextRoots: Map<Inline, AlignmentContext>;
+  /** Inline blocks */
+  blocks: BlockContainer[];
   markedContextRoots: Inline[];
 
   constructor(ifc: IfcInline) {
@@ -1071,11 +1158,20 @@ class LineHeightTracker {
     this.stack = [];
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
+    this.blocks = [];
     this.markedContextRoots = [];
   }
 
   stampMetrics(metrics: InlineMetrics) {
     this.contextStack.at(-1)!.stampMetrics(metrics);
+  }
+
+  stampBlock(block: BlockContainer, parent: Inline) {
+    if (block.style.verticalAlign === 'top' || block.style.verticalAlign === 'bottom') {
+      this.blocks.push(block);
+    } else {
+      this.contextStack.at(-1)!.stampBlock(block, parent);
+    }
   }
 
   pushInline(inline: Inline) {
@@ -1125,12 +1221,14 @@ class LineHeightTracker {
         }
       }
     }
+
+    for (const block of height.blocks) this.blocks.push(block);
   }
 
   align(): {ascender: number, descender: number} {
     const rootCtx = this.contextStack[0];
 
-    if (this.contextRoots.size === 0) return rootCtx;
+    if (this.contextRoots.size === 0 && this.blocks.length === 0) return rootCtx;
 
     const lineHeight = this.total();
     let bottomsHeight = rootCtx.ascender + rootCtx.descender;
@@ -1138,6 +1236,14 @@ class LineHeightTracker {
     for (const [inline, ctx] of this.contextRoots) {
       if (inline.style.verticalAlign === 'bottom') {
         bottomsHeight = Math.max(bottomsHeight, ctx.ascender + ctx.descender);
+      }
+    }
+
+    for (const block of this.blocks) {
+      if (block.style.verticalAlign === 'bottom') {
+        const blockSize = block.borderArea.blockSize;
+        const {blockStart, blockEnd} = block.getMarginsAutoIsZero();
+        bottomsHeight = Math.max(bottomsHeight, blockStart + blockSize + blockEnd);
       }
     }
 
@@ -1157,11 +1263,16 @@ class LineHeightTracker {
 
   total() {
     let height = this.contextStack[0].ascender + this.contextStack[0].descender;
-    if (this.contextRoots.size === 0) {
+    if (this.contextRoots.size === 0 && this.blocks.length === 0) {
       return height;
     } else {
       for (const ctx of this.contextRoots.values()) {
         height = Math.max(height, ctx.ascender + ctx.descender);
+      }
+      for (const block of this.blocks) {
+        const blockSize = block.borderArea.blockSize;
+        const {blockStart, blockEnd} = block.getMarginsAutoIsZero();
+        height = Math.max(height, blockStart + blockSize + blockEnd);
       }
       return height;
     }
@@ -1176,6 +1287,7 @@ class LineHeightTracker {
     this.stack = [];
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
+    this.blocks = [];
     this.markedContextRoots = [];
   }
 
@@ -1209,6 +1321,7 @@ class LineHeightTracker {
     for (const inline of this.markedContextRoots) this.contextRoots.delete(inline);
 
     this.markedContextRoots = [];
+    this.blocks = [];
   }
 }
 
@@ -1241,7 +1354,14 @@ export class Linebox extends LineItemLinkedList {
   }
 
   hasText() {
-    return this.endOffset > this.startOffset;
+    if (this.endOffset > this.startOffset) {
+      return true;
+    } else {
+      for (let n = this.head; n; n = n.next) {
+        if (n.value instanceof ShapedShim && n.value.block) return true;
+      }
+    }
+    return false;
   }
 
   hasAnything() {
@@ -1258,15 +1378,21 @@ export class Linebox extends LineItemLinkedList {
 
   trimStart() {
     for (let n = this.head; n; n = n.next) {
-      if (n.value instanceof ShapedShim) continue;
-      if (n.value.collapseWhitespace('start')) return;
+      if (n.value instanceof ShapedShim) {
+        if (n.value.block) return;
+      } else if (n.value.collapseWhitespace('start')) {
+        return;
+      }
     }
   }
 
   trimEnd() {
     for (let n = this.tail; n; n = n.previous) {
-      if (n.value instanceof ShapedShim) continue;
-      if (n.value.collapseWhitespace('end')) return;
+      if (n.value instanceof ShapedShim) {
+        if (n.value.block) return;
+      } else if (n.value.collapseWhitespace('end')) {
+        return;
+      }
     }
   }
 
@@ -1341,6 +1467,7 @@ export class Linebox extends LineItemLinkedList {
     const dir = this.paragraph.ifc.style.direction;
     const w = width.trimmed();
     const {ascender, descender} = height.align();
+
     this.width = w;
     if (height.contextRoots.size) this.contextRoots = new Map(height.contextRoots);
     this.blockOffset = vacancy.blockOffset;
@@ -1350,6 +1477,7 @@ export class Linebox extends LineItemLinkedList {
     this.ascender = ascender;
     this.descender = descender;
     this.inlineOffset = dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
+
     if (w < vacancy.inlineSize) {
       if (textAlign === 'right' && dir === 'ltr' || textAlign === 'left' && dir === 'rtl') {
         this.inlineOffset += vacancy.inlineSize - w;
@@ -1421,6 +1549,7 @@ interface IfcMark {
   inlinePre: Inline | null,
   inlinePost: Inline | null,
   float: BlockContainer | null,
+  block: BlockContainer | null,
   advance: number,
   trailingWs: number,
   itemIndex: number,
@@ -1841,6 +1970,7 @@ export class Paragraph {
         inlinePre: null,
         inlinePost: null,
         float: null,
+        block: null,
         advance: 0,
         trailingWs: 0,
         itemIndex,
@@ -1863,8 +1993,8 @@ export class Paragraph {
         emittedItemEnd = true;
       }
 
-      // Consume the inline break opportunity if we're not on a break
-      if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
+      // Consume the inline break spot if we're not on a break
+      if (!inline.done && inline.value.state === 'breakspot' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
         inline = inlineIterator.next();
       }
 
@@ -1875,8 +2005,14 @@ export class Paragraph {
         return {done: false, value: mark};
       }
 
-      // Consume pre[-text|-break], post[-text|-break], or pre-post[-text|-break] before a breakop
-      if (!inline.done && inline.value.state !== 'breakop' && inlineMark === mark.position) {
+      if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position) {
+        mark.isBreak = true;
+        inline = inlineIterator.next();
+        return {done: false, value: mark};
+      }
+
+      // Consume pre[-text|-break|-block], post["], or pre-post["] before a breakspot
+      if (!inline.done && inline.value.state !== 'breakspot' && inlineMark === mark.position) {
         if (inline.value.state === 'pre' || inline.value.state === 'post') {
           if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
           if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
@@ -1889,14 +2025,19 @@ export class Paragraph {
           inline = inlineIterator.next();
         }
 
-        // Consume text or hard break
-        if (!inline.done && inline.value.state === 'text') {
-          inlineMark += inline.value.item.length;
-          inline = inlineIterator.next();
-        } else if (!inline.done && inline.value.state === 'break') {
-          mark.isBreak = true;
-          mark.isBreakForced = true;
-          inline = inlineIterator.next();
+        // Consume text, hard break, or inline-block
+        if (!inline.done) {
+          if (inline.value.state === 'text') {
+            inlineMark += inline.value.item.length;
+            inline = inlineIterator.next();
+          } else if (inline.value.state === 'break') {
+            mark.isBreak = true;
+            mark.isBreakForced = true;
+            inline = inlineIterator.next();
+          } else if (inline.value.state === 'block') {
+            mark.block = inline.value.item;
+            inline = inlineIterator.next();
+          }
         }
       }
 
@@ -1935,7 +2076,7 @@ export class Paragraph {
         }
       }
 
-      if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakop') {
+      if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakspot') {
         inline = inlineIterator.next();
       }
 
@@ -1968,8 +2109,8 @@ export class Paragraph {
     const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
     const basedir = this.ifc.style.direction;
     const parents:Inline[] = [];
-    let line:Linebox | null = null;
-    let lastBreakMark:IfcMark | undefined;
+    let line: Linebox | null = null;
+    let lastBreakMark: IfcMark | undefined;
     const lines = [];
     let floats = [];
     let blockOffset = bfc.cbBlockStart;
@@ -2024,7 +2165,14 @@ export class Paragraph {
         candidates.width.addInk(w);
       }
 
-      if (mark.inlinePre && mark.inlinePost) {
+      if (mark.block) {
+        layoutFloatBox(mark.block, ctx);
+        const {lineLeft, lineRight} = mark.block.getMarginsAutoIsZero();
+        candidates.width.addInk(lineLeft + mark.block.borderArea.inlineSize + lineRight);
+        candidates.height.stampBlock(mark.block, parent);
+      }
+
+      if (mark.inlinePre && mark.inlinePost || mark.block) {
         const [left, right] = [item, this.brokenItems[mark.itemIndex + 1]];
         let level: number = 0;
         // Treat the empty span as an Other Neutral (ON) according to UAX29. I
@@ -2036,8 +2184,9 @@ export class Paragraph {
         // it isn't a character. Taking the min should fit most scenarios.
         if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
         // If there are no left or right, there is no text, so level=0 is OK
-        const attrs = {level, isEmoji: false, script: 'Latn', style: mark.inlinePre.style};
-        const shiv = new ShapedShim(mark.position, parents.slice(), attrs);
+        const style = mark.inlinePre?.style || (mark.block as BlockContainer).style;
+        const attrs = {level, isEmoji: false, script: 'Latn', style};
+        const shiv = new ShapedShim(mark.position, parents.slice(), attrs, mark.block || undefined);
         candidates.push(shiv);
         for (const p of parents) p.nshaped += 1;
       }
@@ -2299,7 +2448,7 @@ export class Paragraph {
           }
 
           if (isFirstOccurance) inlineSideAdvance(inline, 'start');
-          boxBuilder?.open(inline, isFirstOccurance, bgcursor, y + baselineShift);
+          boxBuilder?.open(inline, isFirstOccurance, bgcursor, y - baselineShift);
 
           if (isFirstOccurance) {
             counts.set(inline, 1);
@@ -2308,13 +2457,35 @@ export class Paragraph {
           }
         }
 
-        y -= baselineShift;
-
         if (item instanceof ShapedItem) {
           const width = item.measure().advance;
           item.x = direction === 'ltr' ? x : x - width;
-          item.y = y;
+          item.y = y - baselineShift;
           x += direction === 'ltr' ? width : -width;
+        } else if (item.block) {
+          const parent = item.inlines.at(-1) || ifc;
+          const {lineLeft, blockStart, lineRight} = item.block.getMarginsAutoIsZero();
+
+          if (item.block.style.verticalAlign === 'top') {
+            item.block.setBlockPosition(linebox.blockOffset + blockStart);
+          } else if (item.block.style.verticalAlign === 'bottom') {
+            const {ascender, descender} = inlineBlockMetrics(item.block);
+            item.block.setBlockPosition(
+              linebox.blockOffset + linebox.height() - descender - ascender + blockStart
+            );
+          } else {
+            const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(parent, item.block);
+            const {ascender} = inlineBlockMetrics(item.block);
+            item.block.setBlockPosition(y - inlineBlockBaselineShift - ascender + blockStart);
+          }
+
+          if (direction === 'ltr') {
+            item.block.setInlinePosition(x + lineLeft);
+            x += lineLeft + item.block.borderArea.width + lineRight;
+          } else {
+            x -= lineRight + item.block.borderArea.width + lineLeft;
+            item.block.setInlinePosition(x + lineLeft);
+          }
         }
 
         for (let i = item.inlines.length - 1; i >= 0; --i) {
@@ -2340,8 +2511,6 @@ export class Paragraph {
             boxBuilder.close(inline, isLastOccurance, bgcursor);
           }
         }
-
-        y += baselineShift;
       }
 
       boxBuilder?.closeAll([], x);

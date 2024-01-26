@@ -600,8 +600,11 @@ export function styleIteratorNext(state: StyleIteratorState) {
       }
     } else if (item.isFloat()) {
       // OK
-    } else {
-      throw new Error('Inline block not supported yet');
+    } else { // inline-block
+      if (state.offset !== state.lastOffset) {
+        state.leader = item;
+        break;
+      }
     }
   }
 
@@ -643,7 +646,7 @@ export function createItemizeState(ifc: IfcInline): ItemizeState {
     newlineState = createNewlineIteratorState(ifc.text);
   }
 
-  if (ifc.hasInlines() || ifc.hasBreaks()) {
+  if (ifc.hasInlines() || ifc.hasBreaks() || ifc.hasInlineBlocks()) {
     inlineState = createStyleIteratorState(ifc);
   }
 

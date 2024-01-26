@@ -333,6 +333,24 @@ describe('Itemization', function () {
       expect(state.done).to.be.true;
     });
 
+    it('stops at inline-block', function () {
+      /** @type {import('../src/flow.js').IfcInline} */
+      const ifc = layout(`
+        cat
+        <div style="display: inline-block;">dog</div>
+        rat
+      `).children[0];
+      const state = createStyleIteratorState(ifc);
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(5);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(10);
+      expect(state.done).to.be.true;
+    });
+
     it('stops at position: relative', function () {
       /** @type {import('../src/flow.js').IfcInline} */
       const ifc = layout(`

@@ -204,8 +204,14 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
     }
   }
 
-  for (const item of ifc.paragraph.brokenItems) {
-    drawText(blockContainer, item, colors, b);
+  for (const linebox of ifc.paragraph.lineboxes) {
+    for (let n = linebox.head; n; n = n.next) {
+      if (n.value instanceof ShapedItem) {
+        drawText(blockContainer, n.value, colors, b);
+      } else if (n.value.block) {
+        paintBlockContainer(n.value.block, b);
+      }
+    }
   }
 }
 

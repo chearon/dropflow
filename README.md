@@ -157,9 +157,10 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `block` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `inline` | ✅&zwj;&nbsp;Works |
+| <code>display</code> | `inline-block` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `flow-root` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `none` | ✅&zwj;&nbsp;Works |
-| <code>display</code> | `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  |
+| <code>display</code> | `table` | 🚧&zwj;&nbsp;Planned |  |
 | <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>left</code> | | ✅&zwj;&nbsp;Works |
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |

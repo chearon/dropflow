@@ -875,6 +875,33 @@ export class BlockContainer extends Box {
     };
   }
 
+  getLastBaseline() {
+    const stack: {block: BlockContainer, offset: number}[] = [{block: this, offset: 0}];
+
+    while (stack.length) {
+      const {block, offset} = stack.pop()!;
+
+      if (block.isBlockContainerOfInlines()) {
+        const [ifc] = block.children;
+        const linebox = ifc.paragraph.lineboxes.at(-1);
+        if (linebox) return offset + linebox.blockOffset + linebox.ascender;
+      }
+
+      if (block.isBlockContainerOfBlockContainers()) {
+        const parentOffset = offset;
+
+        for (const child of block.children) {
+          const offset = parentOffset
+            + child.borderArea.blockStart
+            + child.style.getBorderBlockStartWidth(child);
+            + child.style.getPaddingBlockStart(child);
+
+          stack.push({block: child, offset});
+        }
+      }
+    }
+  }
+
   assignContainingBlocks(ctx: LayoutContext) {
     // CSS2.2 10.1
     if (this.style.position === 'absolute') {
@@ -1050,10 +1077,6 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
 function doBlockBoxModelForBlockBox(box: BlockContainer) {
   const blockSize = box.style.getBlockSize(box);
 
-  if (!box.isBlockLevel()) {
-    throw new Error('doBlockBoxModelForBlockBox called with inline');
-  }
-
   if (blockSize === 'auto') {
     if (box.children.length === 0) {
       box.setBlockSize(0); // Case 4
@@ -1182,10 +1205,6 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
 }
 
 export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
-  if (!box.isFloat()) {
-    throw new Error(`Tried to layout non-float box ${box.id} with layoutFloatBox`);
-  }
-
   if (!box.isBfcRoot()) {
     throw new Error(`Box ${box.id} is float but not BFC root, that should be impossible`);
   }
@@ -1342,6 +1361,7 @@ export class IfcInline extends Inline {
   static ANALYSIS_HAS_NEWLINES          = 1 << 8;
   static ANALYSIS_HAS_PAINTED_INLINES   = 1 << 9;
   static ANALYSIS_HAS_POSITIONED_INLINE = 1 << 10;
+  static ANALYSIS_HAS_INLINE_BLOCKS     = 1 << 11;
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1406,11 +1426,9 @@ export class IfcInline extends Inline {
         // ok
       } else if (box.isFloat()) {
         this.analysis |= IfcInline.ANALYSIS_HAS_FLOATS;
-      } else {
-        // TODO: this is e.g. a block container. store it somewhere for future
-        // layout here
-        // TODO: and remember to reflect the results in canCollapseThrough
-        throw new Error(`Only inlines and runs in IFCs for now (box ${this.id})`);
+      } else if (box.isBlockContainer()) {
+        this.analysis |= IfcInline.ANALYSIS_HAS_INLINE_BLOCKS;
+        // TODO: may be absolutely positioned?
       }
     }
 
@@ -1430,15 +1448,13 @@ export class IfcInline extends Inline {
       }
     }
 
-    if (this.hasText() || this.hasFloats()) {
-      if (this.collapses()) collapseWhitespace(this);
-    }
+    if (this.shouldCreateLineboxes() && this.collapses()) collapseWhitespace(this);
   }
 
   preprocess() {
     super.preprocess();
 
-    if (this.hasText() || this.hasFloats()) {
+    if (this.shouldCreateLineboxes()) {
       this.paragraph.destroy();
       this.paragraph = createParagraph(this);
       this.paragraph.shape();
@@ -1483,8 +1499,12 @@ export class IfcInline extends Inline {
     }
   }
 
+  shouldCreateLineboxes() {
+    return this.hasText() || this.hasFloats() || this.hasInlineBlocks();
+  }
+
   doTextLayout(ctx: LayoutContext) {
-    if (this.hasText() || this.hasFloats()) {
+    if (this.shouldCreateLineboxes()) {
       this.paragraph.createLineboxes(ctx);
       this.paragraph.positionItems(ctx);
     }
@@ -1533,6 +1553,10 @@ export class IfcInline extends Inline {
   hasPositionedInline() {
     return this.analysis & IfcInline.ANALYSIS_HAS_POSITIONED_INLINE;
   }
+
+  hasInlineBlocks() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_INLINE_BLOCKS;
+  }
 }
 
 export type InlineLevel = Inline | BlockContainer | Run | Break;
@@ -1540,11 +1564,21 @@ export type InlineLevel = Inline | BlockContainer | Run | Break;
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
   | {state: 'float', item: BlockContainer}
+  | {state: 'block', item: BlockContainer}
   | {state: 'break'}
+  | {state: 'breakop'}
 
-type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakop'};
+type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
 
-// TODO emit inline-block
+// break: an actual forced break; <br>.
+//
+// breakspot: the location in between spans at which to break if needed. for
+// example, `abc </span><span>def ` would emit breakspot between the closing
+// ("post") and opening ("pre") span
+//
+// breakop: a break opportunity introduced by an inline-block (these are unique
+// compared to text break opportunities because they do not exist on character
+// positions). one of thse comes before and one after an inline-block
 export function createInlineIterator(inline: IfcInline) {
   const stack: (InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
   const buffered: InlineIteratorBuffered[] = [];
@@ -1553,7 +1587,7 @@ export function createInlineIterator(inline: IfcInline) {
   let bk = 0;
   let shouldFlushBreakop = false;
 
-  function next(): {done: true} | {done: false, value: InlineIteratorValue} {
+  function next(): {done: true} | {done: false; value: InlineIteratorValue} {
     if (!buffered.length) {
       while (stack.length) {
         const item = stack.pop()!;
@@ -1569,20 +1603,24 @@ export function createInlineIterator(inline: IfcInline) {
           buffered.push({state: 'pre', item});
           stack.push({post: item});
           for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
-        } else if (item.isRun() || item.isBreak() || item.isFloat()) {
+        } else {
           shouldFlushBreakop = minlevel !== level;
           minlevel = level;
           if (item.isRun()) {
             buffered.push({state: 'text', item});
           } else if (item.isBreak()) {
             buffered.push({state: 'break'});
-          } else {
+          } else if (item.isFloat()) {
             shouldFlushBreakop = true;
             buffered.push({state: 'float', item});
+          } else {
+            buffered.push(
+              {state: 'breakop'},
+              {state: 'block', item},
+              {state: 'breakop'}
+            );
           }
           break;
-        } else {
-          throw new Error('Inline block not supported yet');
         }
       }
     }
@@ -1592,7 +1630,7 @@ export function createInlineIterator(inline: IfcInline) {
         bk -= 1;
       } else if (shouldFlushBreakop) {
         shouldFlushBreakop = false;
-        return {value: {state: 'breakop'}, done: false};
+        return {value: {state: 'breakspot'}, done: false};
       }
 
       return {value: buffered.shift()!, done: false};
@@ -1604,7 +1642,6 @@ export function createInlineIterator(inline: IfcInline) {
   return {next};
 }
 
-// TODO emit inline-block
 export function createPreorderInlineIterator(inline: IfcInline) {
   const stack: InlineLevel[] = inline.children.slice().reverse();
 
@@ -1746,24 +1783,28 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
 
         blocks.push(generateBlockContainer(child, el));
       } else if (child.style.display.outer === 'inline') {
-        const path: number[] = [];
-        let more, box;
+        if (child.style.display.inner === 'flow-root') { // inline-block
+          inlines.push(generateBlockContainer(child, el));
+        } else {
+          const path: number[] = [];
+          let more, box;
 
-        do {
-          ([more, box] = generateInlineBox(child, text, path));
+          do {
+            ([more, box] = generateInlineBox(child, text, path));
 
-          if (box.isInline()) {
-            inlines.push(box);
-          } else {
-            if (inlines.length) {
-              blocks.push(wrapInBlockContainer(el, inlines, text));
-              inlines = [];
-              text.value = '';
+            if (box.isInline()) {
+              inlines.push(box);
+            } else {
+              if (inlines.length) {
+                blocks.push(wrapInBlockContainer(el, inlines, text));
+                inlines = [];
+                text.value = '';
+              }
+
+              blocks.push(box);
             }
-
-            blocks.push(box);
-          }
-        } while (more);
+          } while (more);
+        }
       }
     } else { // TextNode
       const computed = createComputedStyle(el.style, EMPTY_STYLE);

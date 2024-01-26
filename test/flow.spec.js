@@ -59,6 +59,21 @@ describe('Flow', function () {
       expect(this.get(0, 2, 0, 0).isRun()).to.be.true;
     });
 
+    it('wraps inline-block in block boxes', function () {
+      this.layout(`
+        <div><span style="display: inline-block;">yo</span><div>sup</div></div>
+      `);
+
+      // anon div
+      expect(this.get(1, 0).isBlockContainer()).to.be.true;
+      expect(this.get(1, 0).isAnonymous()).to.be.true;
+      // inline-block
+      expect(this.get(1, 0, 0, 0).isBlockContainer()).to.be.true;
+      expect(this.get(1, 0, 0, 0).isBfcRoot()).to.be.true;
+      expect(this.get(1, 0, 0, 0).isInline()).to.be.false;
+      expect(this.get(1, 0, 0, 0).isInlineLevel()).to.be.true;
+    });
+
     it('breaks out block level elements', function () {
       this.layout(`
         <div>
@@ -1549,6 +1564,24 @@ describe('Flow', function () {
       /** @type import('../src/flow').BlockContainer */
       const float = this.get('#t');
       expect(float.borderArea.x).to.equal(10);
+      expect(float.borderArea.y).to.equal(10);
+    });
+
+    it('positions inline-blocks', function () {
+      this.layout(`
+        <div style="width: 400px; line-height: 25px;">
+          He likes to eat food
+          <div id="t" style="display: inline-block; position: relative; left: 2.5%; top: 10px;">
+            Cat food<br>
+            Human food<br>
+            All food
+          </div>
+        </div>
+      `);
+
+      /** @type import('../src/flow').BlockContainer */
+      const float = this.get('#t');
+      expect(float.borderArea.x).to.be.approximately(151.414, 0.001);
       expect(float.borderArea.y).to.equal(10);
     });
   });

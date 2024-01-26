@@ -150,11 +150,11 @@ export class Box extends RenderItem {
 // For some reason the inline `static ATTRS = {}` along with
 // useDefineForClassFields generates JS with a syntax error as of typescript 5.0.4
 Box.ATTRS = {
-  isAnonymous: 1,
-  isInline: 1 << 1,
-  isBfcRoot: 1 << 2,
-  isFloat: 1 << 3,
-  enableLogging: 1 << 4
+  isAnonymous:   1 << 0,
+  isInline:      1 << 1,
+  isBfcRoot:     1 << 2,
+  isFloat:       1 << 3,
+  enableLogging: 1 << 4,
 };
 
 export class BoxArea {

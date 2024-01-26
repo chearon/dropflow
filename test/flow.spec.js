@@ -137,6 +137,18 @@ describe('Flow', function () {
 
       expect(this.get('#t').isInlineLevel()).to.be.false;
     });
+
+    it('generates nothing for <br> with display: none', function () {
+      this.layout('abc <br style="display: none"> def');
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get().children;
+      expect(ifc.children.every(b => b.isRun())).to.be.true;
+    });
+
+    it('generates nothing for display: none; and float', function () {
+      this.layout('<div style="float: right; display: none;"></div>');
+      expect(this.get().children.length).to.equal(0);
+    });
   });
 
   describe('Collapsing', function () {

@@ -1731,6 +1731,8 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
 
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
+      if (child.style.display.outer === 'none') continue;
+
       if (child.tagName === 'br') {
         inlines.push(new Break(createStyle(child.style)));
       } else if (child.style.float !== 'none') {

@@ -154,14 +154,18 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>bottom</code> | | ✅&zwj;&nbsp;Works |
 | <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works |
-| <code>display</code> | `block`, `inline`, `flow-root`, `none` | ✅&zwj;&nbsp;Works |
+| <code>display</code> | `block` | ✅&zwj;&nbsp;Works |
+| <code>display</code> | `inline` | ✅&zwj;&nbsp;Works |
+| <code>display</code> | `flow-root` | ✅&zwj;&nbsp;Works |
+| <code>display</code> | `none` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `inline-block`, `table` | 🚧&zwj;&nbsp;Planned |  |
 | <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>left</code> | | ✅&zwj;&nbsp;Works |
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
+| <code>max-height</code><br><code>max-width</code><br><code>min-height</code><br><code>min-width</code> | `em`, `px`, `%`, `cm` etc, `auto` | 🚧&zwj;&nbsp;Planned |
 | <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>position</code> | `absolute` | 🚧&zwj;&nbsp;Planned |
-| <code>position</code> | `fixed` | 👎&zwj;&nbsp;No&nbsp;interest<sup>1</sup> |
+| <code>position</code> | `fixed` | 🚧&zwj;&nbsp;Planned |
 | <code>position</code> | `relative` | ✅&zwj;&nbsp;Works |
 | <code>right</code> | | ✅&zwj;&nbsp;Works |
 | <code>top</code> | | ✅&zwj;&nbsp;Works |
@@ -169,8 +173,6 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>overflow</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>z-index</code> | | 🚧&zwj;&nbsp;Planned |
-
-<sup>1</sup>Any document that uses `position: fixed` could be reorganized and updated to use `position: absolute` and look identical. For that reason, I don't find fixed positioning very interesting.
 
 # Shout-outs
 

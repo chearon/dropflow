@@ -153,7 +153,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>border-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works |
 | <code>border-&zwj;style</code> | `solid`, `none` | ✅&zwj;&nbsp;Works |
 | <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works |
-| <code>bottom</code> | | ✅&zwj;&nbsp;Works |
+| <code>top</code>, <code>right</code>, <code>bottom</code>, <code>left</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>box-&zwj;sizing</code> | `border-box`, `content-box` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `block` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `inline` | ✅&zwj;&nbsp;Works |
@@ -162,15 +162,12 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>display</code> | `none` | ✅&zwj;&nbsp;Works |
 | <code>display</code> | `table` | 🚧&zwj;&nbsp;Planned |  |
 | <code>height</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
-| <code>left</code> | | ✅&zwj;&nbsp;Works |
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
-| <code>max-height</code><br><code>max-width</code><br><code>min-height</code><br><code>min-width</code> | `em`, `px`, `%`, `cm` etc, `auto` | 🚧&zwj;&nbsp;Planned |
+| <code>max-height</code>, <code>max-width</code>,<br><code>min-height</code>, <code>min-width</code> | `em`, `px`, `%`, `cm` etc, `auto` | 🚧&zwj;&nbsp;Planned |
 | <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>position</code> | `absolute` | 🚧&zwj;&nbsp;Planned |
 | <code>position</code> | `fixed` | 🚧&zwj;&nbsp;Planned |
 | <code>position</code> | `relative` | ✅&zwj;&nbsp;Works |
-| <code>right</code> | | ✅&zwj;&nbsp;Works |
-| <code>top</code> | | ✅&zwj;&nbsp;Works |
 | <code>transform</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>overflow</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |

@@ -1,4 +1,4 @@
-import * as oflo from '../src/api-with-parse.js';
+import * as flow from '../src/api-with-parse.js';
 import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
@@ -13,7 +13,7 @@ registerFontAsset('Cousine/Cousine-Regular.ttf');
 console.timeEnd('Add fonts');
 console.log();
 
-const rootElement = oflo.parse(`
+const rootElement = flow.parse(`
   <div style="padding: 1em; background-color: #fff; font-family: Arimo;">
     <div style="margin: 1em 0;">Downloaded from https://archive.org/details/TheLittlePrince-English
     </div>
@@ -1912,18 +1912,18 @@ const canvas = createCanvas(800 , 28696 );
 const ctx = canvas.getContext('2d');
 //ctx.scale(2, 2);
 
-const blockContainer = oflo.generate(rootElement);
-oflo.layout(blockContainer, 800, 28696);
+const blockContainer = flow.generate(rootElement);
+flow.layout(blockContainer, 800, 28696);
 ctx.clearRect(0, 0, 800 , 28696 );
-oflo.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(blockContainer, ctx);
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-2.png', import.meta.url)));
 
 bench('10 paragraphs generate, layout, and paint', () => {
-  const blockContainer = oflo.generate(rootElement);
+  const blockContainer = flow.generate(rootElement);
   clearWordCache();
-  oflo.layout(blockContainer, 800, 28696);
+  flow.layout(blockContainer, 800, 28696);
   ctx.clearRect(0, 0, 800 , 28696 );
-  oflo.paintToCanvas(blockContainer, ctx);
+  flow.paintToCanvas(blockContainer, ctx);
 });
 
 await run();

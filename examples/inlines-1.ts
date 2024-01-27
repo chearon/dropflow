@@ -1,4 +1,4 @@
-import * as oflo from '../src/api-with-parse.js';
+import * as flow from '../src/api-with-parse.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';
@@ -8,7 +8,7 @@ registerFontAsset('Arimo/Arimo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Italic.ttf');
 registerFontAsset('Cousine/Cousine-Regular.ttf');
 
-const rootElement = oflo.parse(`
+const rootElement = flow.parse(`
   <div style="font: 16px/1.4 Arimo; background-color: white;" x-overflow-log>
     <span style="background-color: #eee;">
       I <span style="font-family: Cousine; color: #11a;">like</span> to write
@@ -24,13 +24,13 @@ const rootElement = oflo.parse(`
   </div>
 `);
 
-const blockContainer = oflo.generate(rootElement);
+const blockContainer = flow.generate(rootElement);
 console.log(blockContainer.repr());
 
-oflo.layout(blockContainer, 300, 200);
+flow.layout(blockContainer, 300, 200);
 
 const canvas = createCanvas(600, 400);
 const ctx = canvas.getContext('2d');
 ctx.scale(2, 2);
-oflo.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(blockContainer, ctx);
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('inlines-1.png', import.meta.url)));

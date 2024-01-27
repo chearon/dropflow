@@ -1,4 +1,4 @@
-import * as oflo from '../src/api-with-parse.js';
+import * as flow from '../src/api-with-parse.js';
 import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
@@ -26,17 +26,17 @@ const style = {whiteSpace: 'pre'} as const;
 
 const canvas = createCanvas(100, 20);
 const ctx = canvas.getContext('2d');
-const rootElement = oflo.dom(words[Math.floor(Math.random() * words.length)], style);
-const blockContainer = oflo.generate(rootElement);
-oflo.layout(blockContainer, 100, 20);
-oflo.paintToCanvas(blockContainer, ctx);
+const rootElement = flow.dom(words[Math.floor(Math.random() * words.length)], style);
+const blockContainer = flow.generate(rootElement);
+flow.layout(blockContainer, 100, 20);
+flow.paintToCanvas(blockContainer, ctx);
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-3.png', import.meta.url)));
 
 bench('generate and layout one random word', () => {
-  const rootElement = oflo.dom(words[Math.floor(Math.random() * words.length)], style);
-  const blockContainer = oflo.generate(rootElement);
+  const rootElement = flow.dom(words[Math.floor(Math.random() * words.length)], style);
+  const blockContainer = flow.generate(rootElement);
   clearWordCache();
-  oflo.layout(blockContainer, 100, 20);
+  flow.layout(blockContainer, 100, 20);
 });
 
 await run();

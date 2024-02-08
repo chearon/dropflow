@@ -8,27 +8,6 @@ export const initial = Symbol('initial');
 
 type Initial = typeof initial;
 
-export interface LogicalStyle {
-  marginBlockStart: number | 'auto';
-  marginBlockEnd: number | 'auto';
-  marginLineLeft: number | 'auto';
-  marginLineRight: number | 'auto';
-  paddingBlockStart: number;
-  paddingBlockEnd: number;
-  paddingLineLeft: number;
-  paddingLineRight: number;
-  borderBlockStartWidth: number;
-  borderBlockEndWidth: number;
-  borderLineLeftWidth: number;
-  borderLineRightWidth: number;
-  borderBlockStartStyle: number;
-  borderBlockEndStyle: number;
-  borderLineLeftStyle: number;
-  borderLineRightStyle: number;
-  blockSize: number | 'auto';
-  inlineSize: number | 'auto';
-}
-
 const LogicalMaps = Object.freeze({
   'horizontal-tb': Object.freeze({
     marginBlockStart: 'marginTop',

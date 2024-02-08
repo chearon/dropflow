@@ -756,14 +756,19 @@ export class BlockContainer extends Box {
   }
 
   sym() {
-    return this.isFloat() ? '𝗈' : '◼︎';
+    if (this.isFloat()) {
+      return '';
+    } else if (this.isInlineLevel()) {
+      return '▬';
+    } else {
+      return '◼︎';
+    }
   }
 
   desc() {
     return (this.isAnonymous() ? dim : '')
       + (this.isBfcRoot() ? underline : '')
-      + (this.isBlockLevel() ? 'Block' : 'Inline')
-      + ' ' + this.id
+      + 'Block ' + this.id
       + reset;
   }
 

@@ -1472,33 +1472,61 @@ export class IfcInline extends Inline {
     this.paragraph.destroy();
 
     if (this.hasPositionedInline()) {
-      const stack = this.children.slice().reverse();
+      const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
+      const stack: (InlineLevel | {sentinel: Inline})[] = this.children.slice().reverse();
+      let dx = 0;
+      let dy = 0;
       let itemIndex = 0;
 
       while (stack.length) {
         const box = stack.pop()!;
 
-        if (box.isInline()) {
-          while (this.paragraph.brokenItems[itemIndex].offset < box.start) itemIndex++;
-          for (let i = box.children.length - 1; i >= 0; i--) stack.push(box.children[i]);
-          if (box.style.position === 'relative') {
+        if ('sentinel' in box) {
+          while (
+            itemIndex < this.paragraph.brokenItems.length &&
+            this.paragraph.brokenItems[itemIndex].end() <= box.sentinel.start
+          ) itemIndex++;
+
+          while (
+            itemIndex < this.paragraph.brokenItems.length &&
+            this.paragraph.brokenItems[itemIndex].offset < box.sentinel.end
+          ) {
             const item = this.paragraph.brokenItems[itemIndex];
-            item.x += box.getRelativeHorizontalShift();
-            item.y += box.getRelativeVerticalShift();
+            item.x += dx;
+            item.y += dy;
+            itemIndex++;
           }
+
+          if (box.sentinel.style.position === 'relative') {
+            dx -= box.sentinel.getRelativeHorizontalShift();
+            dy -= box.sentinel.getRelativeVerticalShift();
+          }
+        } else if (box.isInline()) {
+          stack.push({sentinel: box});
+          for (let i = box.children.length - 1; i >= 0; i--) {
+            stack.push(box.children[i]);
+          }
+
+          if (box.style.position === 'relative') {
+            dx += box.getRelativeHorizontalShift();
+            dy += box.getRelativeVerticalShift();
+          }
+
+          inlineShifts.set(box, {dx, dy});
+        } else if (box.isBlockContainer()) {
+          // floats or inline-blocks
+          box.borderArea.x += dx;
+          box.borderArea.y += dy;
         }
       }
 
       for (const [inline, backgrounds] of this.paragraph.backgroundBoxes) {
-        if (inline.style.position === 'relative') {
-          const horizontalShift = inline.getRelativeHorizontalShift();
-          const verticalShift = inline.getRelativeVerticalShift();
+        const {dx, dy} = inlineShifts.get(inline)!;
 
-          for (const background of backgrounds) {
-            background.blockOffset += verticalShift;
-            background.start += horizontalShift;
-            background.end += horizontalShift;
-          }
+        for (const background of backgrounds) {
+          background.blockOffset += dy;
+          background.start += dx;
+          background.end += dx;
         }
       }
     }

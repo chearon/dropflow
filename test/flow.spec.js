@@ -1548,6 +1548,40 @@ describe('Flow', function () {
       expect(ifc.paragraph.brokenItems[7].y).to.equal(15.74609375);
     });
 
+    it('positions inline text and backgrounds inside other positioned spans', function () {
+      this.layout(`
+        <div style="width: 400px;">
+          Hemingway
+          <span style="position: relative; left: 1px;">
+            <span id="t1" style="position: relative; right: 1px; background-color: gray;">sleeps</span>
+            <span id="t2" style="position: relative; left: 1px; background-color: gray;">peacefully</span>
+          </span>
+          next to
+          <span style="position: relative; top: 1px;">
+            <span id="t3" style="position: relative; bottom: 1px; background-color: gray;">the</span>
+            <span id="t4" style="position: relative; top: 1px; background-color: gray;">keyboard</span>
+          </span>
+        </div>
+      `);
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88.03125);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(134.28125);
+      expect(ifc.paragraph.brokenItems[1].x).to.equal(88.03125);
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(140.7265625);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(212.7734375);
+      expect(ifc.paragraph.brokenItems[3].x).to.equal(140.7265625);
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);
+      expect(ifc.paragraph.brokenItems[5].y).to.equal(14.74609375);
+
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t4'))[0].blockOffset).to.equal(16.74609375);
+      expect(ifc.paragraph.brokenItems[8].y).to.equal(16.74609375);
+    });
+
     it('positions floats', function () {
       this.layout(`
         <div style="width: 400px; line-height: 25px;">
@@ -1567,6 +1601,27 @@ describe('Flow', function () {
       expect(float.borderArea.y).to.equal(10);
     });
 
+    it('positions floats inside of positioned spans', function () {
+      this.layout(`
+        <div style="width: 400px; line-height: 25px;">
+          <span style="position: relative; right: 10px; bottom: 10px;">
+            <div id="t" style="float: left; position: relative; left: 2.5%; top: 10%;">
+              Hemingway
+            </div>
+          </span>
+          He likes to eat food<br>
+          Cat food<br>
+          Human food<br>
+          All food
+        </div>
+      `);
+
+      /** @type import('../src/flow').BlockContainer */
+      const float = this.get('#t');
+      expect(float.borderArea.x).to.equal(0);
+      expect(float.borderArea.y).to.equal(0);
+    });
+
     it('positions inline-blocks', function () {
       this.layout(`
         <div style="width: 400px; line-height: 25px;">
@@ -1580,9 +1635,29 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/flow').BlockContainer */
-      const float = this.get('#t');
-      expect(float.borderArea.x).to.be.approximately(151.414, 0.001);
-      expect(float.borderArea.y).to.equal(10);
+      const block = this.get('#t');
+      expect(block.borderArea.x).to.be.approximately(151.414, 0.001);
+      expect(block.borderArea.y).to.equal(10);
+    });
+
+    it('positions inline-blocks inside of positioned spans', function () {
+      this.layout(`
+        <div style="width: 400px; line-height: 25px;">
+          He likes to eat food
+          <span style="position: relative; right: 10px; bottom: 10px;">
+            <div id="t" style="display: inline-block; position: relative; left: 2.5%; top: 10px;">
+              Cat food<br>
+              Human food<br>
+              All food
+            </div>
+          </span>
+        </div>
+      `);
+
+      /** @type import('../src/flow').BlockContainer */
+      const block = this.get('#t');
+      expect(block.borderArea.x).to.be.approximately(141.414, 0.001);
+      expect(block.borderArea.y).to.equal(0);
     });
   });
 });

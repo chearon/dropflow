@@ -90,7 +90,7 @@ describe('Flow', function () {
       expect(this.get(1, 0).isBlockContainer()).to.be.true;
       expect(this.get(1, 0).isBlockContainerOfInlines()).to.be.true;
       expect(this.get(1, 0).isAnonymous()).to.be.true;
-      expect(this.get(1, 0).isBlockLevel()).to.be.true;
+      expect(this.get(1, 0).isInlineLevel()).to.be.false;
       // <span>1break </span>
       expect(this.get(1, 0, 0, 1).isInline()).to.be.true;
       expect(this.get(1, 0, 0, 1).isAnonymous()).to.be.false;
@@ -98,12 +98,12 @@ describe('Flow', function () {
       expect(this.get(1, 1).isBlockContainer()).to.be.true;
       expect(this.get(1, 1).isBlockContainerOfInlines()).to.be.true;
       expect(this.get(1, 1).isAnonymous()).to.be.false;
-      expect(this.get(1, 1).isBlockLevel()).to.be.true;
+      expect(this.get(1, 1).isInlineLevel()).to.be.false;
       // 2break
       expect(this.get(1, 2).isBlockContainer()).to.be.true;
       expect(this.get(1, 2).isBlockContainerOfInlines()).to.be.true;
       expect(this.get(1, 2).isAnonymous()).to.be.true;
-      expect(this.get(1, 2).isBlockLevel()).to.be.true;
+      expect(this.get(1, 2).isInlineLevel()).to.be.false;
       // <div><span> 2out<div> 2deep</div></span></div>
       expect(this.get(1, 3).isBlockContainer()).be.true
       expect(this.get(1, 3).isBlockContainerOfBlockContainers()).be.true

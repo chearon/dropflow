@@ -145,8 +145,6 @@ export class BlockFormattingContext {
     const adjoinsPrevious = clearance === 0;
     const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
 
-    if (!box.isBlockLevel()) throw new Error('Inline encountered');
-
     if (adjoinsPrevious) {
       this.margin.collection.add(marginBlockStart);
     } else {
@@ -190,7 +188,6 @@ export class BlockFormattingContext {
       && (this.margin.clearanceAtLevel == null || this.level > this.margin.clearanceAtLevel);
 
     assumePx(marginBlockEnd);
-    if (!box.isBlockLevel()) throw new Error('Inline encountered');
 
     if (adjoins) {
       if (this.last === 'start') {
@@ -933,10 +930,6 @@ export class BlockContainer extends Box {
     return Boolean(this.attrs & Box.ATTRS.isInline);
   }
 
-  isBlockLevel() {
-    return !this.isInlineLevel();
-  }
-
   isBfcRoot() {
     return Boolean(this.attrs & Box.ATTRS.isBfcRoot);
   }
@@ -1011,10 +1004,6 @@ function preBlockContainer(box: BlockContainer, ctx: LayoutContext) {
 
 // §10.3.3
 function doInlineBoxModelForBlockBox(box: BlockContainer) {
-  if (!box.isBlockLevel()) {
-    throw new Error('doInlineBoxModelForBlockBox called with inline or float');
-  }
-
   const cInlineSize = box.containingBlock.inlineSizeForPotentiallyOrthogonal(box);
   const inlineSize = box.style.getInlineSize(box);
   let marginLineLeft = box.style.getMarginLineLeft(box);
@@ -1097,10 +1086,6 @@ function doBlockBoxModelForBlockBox(box: BlockContainer) {
 }
 
 export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
-  if (!box.isBlockLevel()) {
-    throw new Error(`BlockContainer ${box.id} is not block-level`);
-  }
-
   const bfc = ctx.bfc;
   const cctx = {...ctx};
 

@@ -84,12 +84,12 @@ export class Box extends RenderItem {
   public attrs: number;
   public containingBlock: BoxArea;
 
-  static ATTRS: {
-    isAnonymous: number,
-    isInline: number,
-    isBfcRoot: number,
-    isFloat: number,
-    enableLogging: number
+  static ATTRS = {
+    isAnonymous:   1 << 0,
+    isInline:      1 << 1,
+    isBfcRoot:     1 << 2,
+    isFloat:       1 << 3,
+    enableLogging: 1 << 4,
   };
 
   constructor(style: Style, children: RenderItem[], attrs: number) {
@@ -146,16 +146,6 @@ export class Box extends RenderItem {
     return '◼︎';
   }
 }
-
-// For some reason the inline `static ATTRS = {}` along with
-// useDefineForClassFields generates JS with a syntax error as of typescript 5.0.4
-Box.ATTRS = {
-  isAnonymous:   1 << 0,
-  isInline:      1 << 1,
-  isBfcRoot:     1 << 2,
-  isFloat:       1 << 3,
-  enableLogging: 1 << 4,
-};
 
 export class BoxArea {
   parent: BoxArea | null;

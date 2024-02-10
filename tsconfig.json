@@ -10,7 +10,6 @@
     "target": "esnext",
     "module": "node16",
     "strict": true,
-    "noUnusedLocals": true,
-    "useDefineForClassFields": false
+    "noUnusedLocals": true
   }
 }

@@ -2,7 +2,7 @@
 
 import {expect} from 'chai';
 import * as oflo from '../src/api-with-parse.js';
-import {registerFontAsset} from '../assets/register.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 
 describe('Flow', function () {
   before(function () {
@@ -29,6 +29,10 @@ describe('Flow', function () {
         }
       };
     };
+  });
+
+  after(function () {
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   afterEach(function () {

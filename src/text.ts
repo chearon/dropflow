@@ -189,7 +189,7 @@ export function collapseWhitespace(ifc: IfcInline) {
         if (i < 0) throw new Error('Assertion failed');
         parent.children.splice(i, 1);
       }
-    } else if (item.isBlockContainer() && item.isInlineLevel()) { // inline-block
+    } else if (item.isBlockContainer() && !item.isFloat()) { // inline-block
       inWhitespace = false;
     }
   }

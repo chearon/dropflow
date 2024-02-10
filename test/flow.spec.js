@@ -148,15 +148,6 @@ describe('Flow', function () {
       expect(ifc.text).to.equal(' shown ');
     });
 
-    it('considers floating inlines block-level', function () {
-      this.layout(`
-        <span id="t" style="float: left; margin-right: 1em;">👻</span>
-        Spooky floating ghost!
-      `);
-
-      expect(this.get('#t').isInlineLevel()).to.be.false;
-    });
-
     it('generates nothing for <br> with display: none', function () {
       this.layout('abc <br style="display: none"> def');
       /** @type import('../src/flow').IfcInline[] */

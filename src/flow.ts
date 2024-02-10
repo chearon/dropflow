@@ -942,7 +942,7 @@ export class BlockContainer extends Box {
   }
 
   isFloat() {
-    return Boolean(this.attrs & Box.ATTRS.isFloat);
+    return this.style.float !== 'none';
   }
 
   loggingEnabled() {
@@ -1848,9 +1848,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
     }
   }
 
-  if (el.style.float !== 'none') {
-    attrs |= Box.ATTRS.isFloat;
-  } else if (el.style.display.outer === 'inline') {
+  if (el.style.display.outer === 'inline') {
     attrs |= Box.ATTRS.isInline;
   }
 

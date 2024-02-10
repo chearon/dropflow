@@ -86,10 +86,17 @@ export class Box extends RenderItem {
 
   static ATTRS = {
     isAnonymous:   1 << 0,
+    // Inline or block-level: we can't use the style for this since anonymously
+    // created block containers are block-level but their style is inline (the
+    // initial value). Potentially we could remove this and say that it's block
+    // level if it's anonymous.
+    //
+    // Other CSS rules that affect how a block container is treated during
+    // layout do not have this problem (position: absolute, display: inline-
+    // block) because anonymously created boxes cannot invoke those modes.
     isInline:      1 << 1,
     isBfcRoot:     1 << 2,
-    isFloat:       1 << 3,
-    enableLogging: 1 << 4,
+    enableLogging: 1 << 3,
   };
 
   constructor(style: Style, children: RenderItem[], attrs: number) {

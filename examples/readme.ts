@@ -1,11 +1,11 @@
-import {h, renderToCanvas, registerFont} from '../src/api.js';
+import * as flow from '../src/api.js';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
 // Register fonts before layout. This is a required step.
 // It is only async when you don't pass an ArrayBuffer
-await registerFont(new URL('../assets/Roboto/Roboto-Regular.ttf', import.meta.url));
-await registerFont(new URL('../assets/Roboto/Roboto-Bold.ttf', import.meta.url));
+await flow.registerFont(new URL('../assets/Roboto/Roboto-Regular.ttf', import.meta.url));
+await flow.registerFont(new URL('../assets/Roboto/Roboto-Bold.ttf', import.meta.url));
 
 // Always create styles at the top-level of your module if you can
 const divStyle = {
@@ -21,14 +21,14 @@ const spanStyle = {
 };
 
 // Create a DOM
-const rootElement = h('div', {style: divStyle}, [
+const rootElement = flow.h('div', {style: divStyle}, [
   'Hello, ',
-  h('span', {style: spanStyle}, ['World!'])
+  flow.h('span', {style: spanStyle}, ['World!'])
 ]);
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);
-renderToCanvas(rootElement, canvas, /* optional density: */ 2);
+flow.renderToCanvas(rootElement, canvas, /* optional density: */ 2);
 
 // Save your image
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));

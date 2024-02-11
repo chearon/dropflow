@@ -1548,7 +1548,6 @@ interface IfcMark {
   isItemEnd: boolean,
   inlinePre: Inline | null,
   inlinePost: Inline | null,
-  float: BlockContainer | null,
   block: BlockContainer | null,
   advance: number,
   trailingWs: number,
@@ -1969,7 +1968,6 @@ export class Paragraph {
         isItemEnd: false,
         inlinePre: null,
         inlinePost: null,
-        float: null,
         block: null,
         advance: 0,
         trailingWs: 0,
@@ -1999,8 +1997,8 @@ export class Paragraph {
       }
 
       // Consume floats
-      if (!inline.done && inline.value.state === 'float' && inlineMark === mark.position) {
-        mark.float = inline.value.item;
+      if (!inline.done && inline.value.state === 'block' && inline.value.item.isFloat() && inlineMark === mark.position) {
+        mark.block = inline.value.item;
         inline = inlineIterator.next();
         return {done: false, value: mark};
       }
@@ -2034,7 +2032,7 @@ export class Paragraph {
             mark.isBreak = true;
             mark.isBreakForced = true;
             inline = inlineIterator.next();
-          } else if (inline.value.state === 'block') {
+          } else if (inline.value.state === 'block' && inline.value.item.isInlineBlock()) {
             mark.block = inline.value.item;
             inline = inlineIterator.next();
           }
@@ -2146,15 +2144,15 @@ export class Paragraph {
 
       const wouldHaveContent = width.hasContent() || candidates.width.hasContent();
 
-      if (mark.float) {
+      if (mark.block?.isFloat()) {
         if (!wouldHaveContent || lastBreakMark && lastBreakMark.position === mark.position) {
           const lineWidth = line ? width.forFloat() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
           const fctx = bfc.ensureFloatContext(blockOffset);
-          layoutFloatBox(mark.float, ctx);
-          fctx.placeFloat(lineWidth, lineIsEmpty, mark.float);
+          layoutFloatBox(mark.block, ctx);
+          fctx.placeFloat(lineWidth, lineIsEmpty, mark.block);
         } else {
-          floats.push(mark.float);
+          floats.push(mark.block);
         }
       }
 
@@ -2165,14 +2163,14 @@ export class Paragraph {
         candidates.width.addInk(w);
       }
 
-      if (mark.block) {
+      if (mark.block?.isInlineBlock()) {
         layoutFloatBox(mark.block, ctx);
         const {lineLeft, lineRight} = mark.block.getMarginsAutoIsZero();
         candidates.width.addInk(lineLeft + mark.block.borderArea.inlineSize + lineRight);
         candidates.height.stampBlock(mark.block, parent);
       }
 
-      if (mark.inlinePre && mark.inlinePost || mark.block) {
+      if (mark.inlinePre && mark.inlinePost || mark.block?.isInlineBlock()) {
         const [left, right] = [item, this.brokenItems[mark.itemIndex + 1]];
         let level: number = 0;
         // Treat the empty span as an Other Neutral (ON) according to UAX29. I

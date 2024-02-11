@@ -115,7 +115,9 @@ function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBac
   if (ifc.hasFloats()) {
     const iterator = createInlineIterator(ifc);
     for (let item = iterator.next(); !item.done; item = iterator.next()) {
-      if (item.value.state === 'float') paintBlockContainer(item.value.item, b);
+      if (item.value.state === 'block' && item.value.item.isFloat()) {
+        paintBlockContainer(item.value.item, b);
+      }
     }
   }
 

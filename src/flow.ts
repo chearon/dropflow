@@ -938,6 +938,13 @@ export class BlockContainer extends Box {
     return this.style.float !== 'none';
   }
 
+  // Note that this doesn't check isInlineLevel because that's really only used
+  // for logging. What really determines if a block is inline or block-level is
+  // whether it's inside a block of blocks or a block of inlines.
+  isInlineBlock() {
+    return this.style.float === 'none';
+  }
+
   loggingEnabled() {
     return Boolean(this.attrs & Box.ATTRS.enableLogging);
   }
@@ -1581,7 +1588,6 @@ export type InlineLevel = Inline | BlockContainer | Run | Break;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
-  | {state: 'float', item: BlockContainer}
   | {state: 'block', item: BlockContainer}
   | {state: 'break'}
   | {state: 'breakop'}
@@ -1628,15 +1634,17 @@ export function createInlineIterator(inline: IfcInline) {
             buffered.push({state: 'text', item});
           } else if (item.isBreak()) {
             buffered.push({state: 'break'});
-          } else if (item.isFloat()) {
-            shouldFlushBreakop = true;
-            buffered.push({state: 'float', item});
           } else {
-            buffered.push(
-              {state: 'breakop'},
-              {state: 'block', item},
-              {state: 'breakop'}
-            );
+            if (item.isFloat()) {
+              shouldFlushBreakop = true;
+              buffered.push({state: 'block', item});
+            } else {
+              buffered.push(
+                {state: 'breakop'},
+                {state: 'block', item},
+                {state: 'breakop'}
+              );
+            }
           }
           break;
         }

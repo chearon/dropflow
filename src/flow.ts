@@ -1590,7 +1590,7 @@ type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
   | {state: 'block', item: BlockContainer}
   | {state: 'break'}
-  | {state: 'breakop'}
+  | {state: 'breakop'};
 
 type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
 
@@ -1808,7 +1808,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
         }
 
         blocks.push(generateBlockContainer(child, el));
-      } else if (child.style.display.outer === 'inline') {
+      } else { // inline
         if (child.style.display.inner === 'flow-root') { // inline-block
           inlines.push(generateBlockContainer(child, el));
         } else {

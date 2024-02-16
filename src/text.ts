@@ -1949,7 +1949,7 @@ export class Paragraph {
     const breakIterator = this.ifc.wraps()
       ? new LineBreak(this.string, !this.ifc.wraps())
       : new HardBreaker(this.string);
-    let linebreak:{position: number, required: boolean} | null = {position: -1, required: false};
+    let linebreak: {position: number, required: boolean} | null = {position: -1, required: false};
     let breakMark = 0;
     // Item iterator
     let itemIndex = -1;
@@ -1959,7 +1959,7 @@ export class Paragraph {
     // Other
     const end = this.length();
 
-    const next = ():{done: true} | {done: false, value: IfcMark} => {
+    const next = (): {done: true} | {done: false, value: IfcMark} => {
       const mark: IfcMark = {
         position: Math.min(inlineMark, itemMark, breakMark),
         isBreak: false,
@@ -2096,7 +2096,7 @@ export class Paragraph {
       }
     }
 
-    return {next};
+    return {[Symbol.iterator]: () => ({next})};
   }
 
   createLineboxes(ctx: LayoutContext) {
@@ -2123,7 +2123,7 @@ export class Paragraph {
       this.brokenItems = this.wholeItems;
     }
 
-    for (const mark of {[Symbol.iterator]: () => this.createMarkIterator()}) {
+    for (const mark of this.createMarkIterator()) {
       const parent = parents[parents.length - 1] || this.ifc;
       const item = this.brokenItems[mark.itemIndex];
 

@@ -1112,6 +1112,20 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[1].x).to.be.approximately(15.789, 0.001);
   });
 
+  it('takes margin-right into account on the line', function () {
+    // a dumb mistake caused this one
+    this.layout(`
+      <div style="width: 100px;">
+        big <span style="margin-right: 100px;"></span> crane
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    // “ ” “אחד ” “שתיים” “ ” “three” “ ”
+    expect(ifc.paragraph.lineboxes.length).to.equal(2);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

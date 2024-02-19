@@ -2169,7 +2169,7 @@ export class Paragraph {
       if (mark.inlinePre || mark.inlinePost) {
         const p = basedir === 'ltr' ? 'getLineLeftMarginBorderPadding' : 'getLineRightMarginBorderPadding';
         const op = basedir === 'ltr' ? 'getLineRightMarginBorderPadding' : 'getLineLeftMarginBorderPadding';
-        const w = mark.inlinePre?.[p](this.ifc) ?? 0 + (mark.inlinePost?.[op](this.ifc) ?? 0);
+        const w = (mark.inlinePre?.[p](this.ifc) ?? 0) + (mark.inlinePost?.[op](this.ifc) ?? 0);
         candidates.width.addInk(w);
       }
 

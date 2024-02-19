@@ -384,6 +384,38 @@ describe('Itemization', function () {
       expect(state.done).to.be.true;
     });
 
+    it('stops at padding', function () {
+      /** @type {import('../src/flow.js').IfcInline} */
+      const ifc = layout(`
+        <span>abc</span><span style="padding-left: 3px;">def</span>
+      `).children[0];
+      const state = createStyleIteratorState(ifc);
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(4);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(8);
+      expect(state.done).to.be.true;
+    });
+
+    it('stops after negative margin', function () {
+      /** @type {import('../src/flow.js').IfcInline} */
+      const ifc = layout(`
+        <span style="margin-right: -1px;">a</span> b
+      `).children[0];
+      const state = createStyleIteratorState(ifc);
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(2);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(5);
+      expect(state.done).to.be.true;
+    });
+
     after(function () {
       unregisterFontAsset('Arimo/Arimo-Regular.ttf');
     });

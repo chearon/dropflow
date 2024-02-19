@@ -1096,6 +1096,22 @@ describe('Lines', function () {
     expect(ifc.paragraph.brokenItems[0].x).to.be.approximately(65.584, 0.001);
   });
 
+  it('breaks shaping boundaries on negative margins', function () {
+    this.layout(`
+      <div>
+        left <span style="margin-left: -10px;">right</span>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('div').children;
+    // “ ” “אחד ” “שתיים” “ ” “three” “ ”
+    // TODO: why are the 1st and 3rd spaces shaped individually?
+    expect(ifc.paragraph.brokenItems.length).to.equal(2);
+    expect(ifc.paragraph.brokenItems[0].x).to.equal(0);
+    expect(ifc.paragraph.brokenItems[1].x).to.be.approximately(15.789, 0.001);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

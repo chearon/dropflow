@@ -1289,12 +1289,12 @@ export class Inline extends Box {
     }
   }
 
-  hasLineLeftGap(ifc: IfcInline) {
-    return this.style.hasLineLeftGap(ifc);
+  hasLineLeftGap() {
+    return this.style.hasLineLeftGap();
   }
 
-  hasLineRightGap(ifc: IfcInline) {
-    return this.style.hasLineRightGap(ifc);
+  hasLineRightGap() {
+    return this.style.hasLineRightGap();
   }
 
   getLineLeftMarginBorderPadding(ifc: IfcInline) {

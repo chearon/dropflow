@@ -205,7 +205,7 @@ function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value
   return cssVal;
 }
 
-function percentNonzero(cssVal: number | {value: number, unit: '%'}) {
+function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
   return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
 }
 
@@ -346,10 +346,10 @@ export class Style implements ComputedPlainStyle {
   }
 
   hasPadding() {
-    return percentNonzero(this.paddingTop)
-      || percentNonzero(this.paddingRight)
-      || percentNonzero(this.paddingBottom)
-      || percentNonzero(this.paddingLeft);
+    return percentGtZero(this.paddingTop)
+      || percentGtZero(this.paddingRight)
+      || percentGtZero(this.paddingBottom)
+      || percentGtZero(this.paddingLeft);
   }
 
   hasBorder() {
@@ -465,30 +465,30 @@ export class Style implements ComputedPlainStyle {
     return cssVal;
   }
 
-  hasLineLeftGap(box: IfcInline) {
+  hasLineLeftGap() {
     // TODO: bug: need to check box.writingMode, but it isn't assigned yet :(
     const writingMode = 'horizontal-tb';
-    const cssVal = this[LogicalMaps[writingMode].marginLineLeft];
-    if (cssVal === 'auto') return false;
-    if (typeof cssVal === 'object' && cssVal.value > 0) return true;
-    if (typeof cssVal !== 'object' && cssVal > 0) return true;
+    const marginLineLeft = this[LogicalMaps[writingMode].marginLineLeft];
+    if (marginLineLeft === 'auto') return false;
+    if (typeof marginLineLeft === 'object' && marginLineLeft.value !== 0) return true;
+    if (typeof marginLineLeft !== 'object' && marginLineLeft !== 0) return true;
     const paddingLineLeft = this[LogicalMaps[writingMode].paddingLineLeft];
     if (typeof paddingLineLeft === 'object' && paddingLineLeft.value > 0) return true;
-    if (typeof paddingLineLeft !== 'object' && paddingLineLeft> 0) return true;
+    if (typeof paddingLineLeft !== 'object' && paddingLineLeft > 0) return true;
     if (this[LogicalMaps[writingMode].borderLineLeftStyle] === 'none') return false;
     if (this[LogicalMaps[writingMode].borderLineLeftWidth] > 0) return true;
   }
 
-  hasLineRightGap(box: IfcInline) {
+  hasLineRightGap() {
     // TODO: bug: need to check writingMode, but it isn't assigned yet :(
     const writingMode = 'horizontal-tb';
-    const cssVal = this[LogicalMaps[writingMode].marginLineRight];
-    if (cssVal === 'auto') return false;
-    if (typeof cssVal === 'object' && cssVal.value > 0) return true;
-    if (typeof cssVal !== 'object' && cssVal > 0) return true;
+    const marginLineRight = this[LogicalMaps[writingMode].marginLineRight];
+    if (marginLineRight === 'auto') return false;
+    if (typeof marginLineRight === 'object' && marginLineRight.value !== 0) return true;
+    if (typeof marginLineRight !== 'object' && marginLineRight !== 0) return true;
     const paddingLineRight = this[LogicalMaps[writingMode].paddingLineRight];
     if (typeof paddingLineRight === 'object' && paddingLineRight.value > 0) return true;
-    if (typeof paddingLineRight !== 'object' && paddingLineRight> 0) return true;
+    if (typeof paddingLineRight !== 'object' && paddingLineRight > 0) return true;
     if (this[LogicalMaps[writingMode].borderLineRightStyle] === 'none') return false;
     if (this[LogicalMaps[writingMode].borderLineRightWidth] > 0) return true;
   }

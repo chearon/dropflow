@@ -2123,6 +2123,16 @@ export class Paragraph {
       this.brokenItems = this.wholeItems;
     }
 
+    const finishLine = (line: Linebox) => {
+      line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
+      const blockSize = line.height();
+      width.reset();
+      height.reset();
+      bfc.fctx?.postLine(line, true);
+      blockOffset += blockSize;
+      bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+    };
+
     for (const mark of this.createMarkIterator()) {
       const parent = parents[parents.length - 1] || this.ifc;
       const item = this.brokenItems[mark.itemIndex];
@@ -2222,15 +2232,10 @@ export class Paragraph {
             lastBreakMark.split(mark);
             candidates.unshift(this.brokenItems[lastBreakMark.itemIndex]);
           }
-          lastLine.postprocess(width, height, vacancy, this.ifc.style.textAlign);
-          width.reset();
-          height.reset();
-          bfc.fctx?.postLine(lastLine, true);
-          blockOffset += lastLine.height();
+          finishLine(lastLine);
         }
 
         if (!line.hasText() /* line was just added */) {
-          bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
           if (candidates.width.forFloat() > vacancy.inlineSize && bfc.fctx) {
             const newVacancy = bfc.fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
             blockOffset = newVacancy.blockOffset;
@@ -2253,12 +2258,7 @@ export class Paragraph {
         floats = [];
 
         if (mark.isBreakForced) {
-          bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-          line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
-          bfc.fctx?.postLine(line, true);
-          blockOffset += line.height();
-          width.reset();
-          height.reset();
+          finishLine(line);
           lines.push(line = new Linebox(mark.position, this));
         }
       }
@@ -2290,11 +2290,7 @@ export class Paragraph {
     }
 
     if (line) {
-      const blockSize = height.total();
-      bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-      line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
-      blockOffset += line.height();
-      bfc.fctx?.postLine(line, false);
+      finishLine(line);
     } else {
       bfc.fctx?.consumeMisfits();
     }

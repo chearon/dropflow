@@ -1775,9 +1775,9 @@ describe('Inline Blocks', function () {
     expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
     expect(ifc.paragraph.lineboxes[0].endOffset).to.equal(13);
     expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(13);
-    expect(ifc.paragraph.lineboxes[1].endOffset).to.equal(13);
+    expect(ifc.paragraph.lineboxes[1].endOffset).to.equal(14);
     expect(ifc.paragraph.lineboxes[2].blockOffset).to.equal(100);
-    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(13);
+    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(14);
     expect(ifc.paragraph.lineboxes[2].endOffset).to.equal(25);
   });
 
@@ -1848,6 +1848,19 @@ describe('Inline Blocks', function () {
     const t4 = this.get('#t4');
     expect(t4.contentArea.x).to.equal(0);
     expect(t4.contentArea.y).to.be.approximately(45.547, 0.001);
+  });
+
+  it('doesn\'t end with an empty line of space', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo; width: 10px;">
+        abc
+        <div id="t2" style="display: inline-block; width: 10px; height: 10px;"></div>
+      </div>
+    `);
+
+    /** @type import('../src/flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes.length).to.equal(2);
   });
 
   it('prioritizes float over inline-block', function () {

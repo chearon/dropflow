@@ -1353,7 +1353,7 @@ export class Linebox extends LineItemLinkedList {
     this.endOffset = endOffset;
   }
 
-  hasText() {
+  hasContent() {
     if (this.endOffset > this.startOffset) {
       return true;
     } else {
@@ -2218,7 +2218,11 @@ export class Paragraph {
           }
         }
 
-        if (line.hasText() && width.forWord() + candidates.width.asWord() > vacancy.inlineSize) {
+        if (
+          line.hasContent() && // the line has non-whitespace text or inline-blocks
+          candidates.width.hasContent() && // this isn't just whitespace
+          width.forWord() + candidates.width.asWord() > vacancy.inlineSize // overflows
+        ) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(lastBreakMark.position, this));
@@ -2235,7 +2239,7 @@ export class Paragraph {
           finishLine(lastLine);
         }
 
-        if (!line.hasText() /* line was just added */) {
+        if (!line.hasContent() /* line was just added */) {
           if (candidates.width.forFloat() > vacancy.inlineSize && bfc.fctx) {
             const newVacancy = bfc.fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
             blockOffset = newVacancy.blockOffset;

@@ -1347,18 +1347,19 @@ export class IfcInline extends Inline {
   public paragraph: Paragraph;
   private analysis: number;
 
-  static ANALYSIS_HAS_TEXT              = 1 << 0;
-  static ANALYSIS_WRAPS                 = 1 << 1;
-  static ANALYSIS_WS_COLLAPSES          = 1 << 2;
-  static ANALYSIS_HAS_INLINES           = 1 << 3;
-  static ANALYSIS_HAS_BREAKS            = 1 << 4;
-  static ANALYSIS_IS_COMPLEX_TEXT       = 1 << 5;
-  static ANALYSIS_HAS_SOFT_HYPHEN       = 1 << 6;
-  static ANALYSIS_HAS_FLOATS            = 1 << 7;
-  static ANALYSIS_HAS_NEWLINES          = 1 << 8;
-  static ANALYSIS_HAS_PAINTED_INLINES   = 1 << 9;
-  static ANALYSIS_HAS_POSITIONED_INLINE = 1 << 10;
-  static ANALYSIS_HAS_INLINE_BLOCKS     = 1 << 11;
+  static ANALYSIS_HAS_TEXT                 = 1 << 0;
+  static ANALYSIS_WRAPS                    = 1 << 1;
+  static ANALYSIS_WS_COLLAPSES             = 1 << 2;
+  static ANALYSIS_HAS_INLINES              = 1 << 3;
+  static ANALYSIS_HAS_BREAKS               = 1 << 4;
+  static ANALYSIS_IS_COMPLEX_TEXT          = 1 << 5;
+  static ANALYSIS_HAS_SOFT_HYPHEN          = 1 << 6;
+  static ANALYSIS_HAS_FLOATS               = 1 << 7;
+  static ANALYSIS_HAS_NEWLINES             = 1 << 8;
+  static ANALYSIS_HAS_PAINTED_INLINES      = 1 << 9;
+  static ANALYSIS_HAS_POSITIONED_INLINE    = 1 << 10;
+  static ANALYSIS_HAS_INLINE_BLOCKS        = 1 << 11;
+  static ANALYSIS_HAS_TEXT_OR_SIZED_INLINE = 1 << 12;
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1417,6 +1418,12 @@ export class IfcInline extends Inline {
         if (box.style.position === 'relative') {
           this.analysis |= IfcInline.ANALYSIS_HAS_POSITIONED_INLINE;
         }
+        if (
+          !this.hasTextOrSizedInline() &&
+          (hasText || box.hasLineLeftGap() || box.hasLineRightGap())
+        ) {
+          this.analysis |= IfcInline.ANALYSIS_HAS_TEXT_OR_SIZED_INLINE;
+        }
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
         this.analysis |= IfcInline.ANALYSIS_HAS_BREAKS;
@@ -1429,7 +1436,10 @@ export class IfcInline extends Inline {
       }
     }
 
-    if (hasText) this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
+    if (hasText) {
+      this.analysis |= IfcInline.ANALYSIS_HAS_TEXT;
+      this.analysis |= IfcInline.ANALYSIS_HAS_TEXT_OR_SIZED_INLINE;
+    }
 
     for (let i = 0; i < this.text.length; i++) {
       const code = this.text.charCodeAt(i);
@@ -1445,13 +1455,13 @@ export class IfcInline extends Inline {
       }
     }
 
-    if (this.shouldCreateLineboxes() && this.collapses()) collapseWhitespace(this);
+    if (this.shouldLayoutContent() && this.collapses()) collapseWhitespace(this);
   }
 
   preprocess() {
     super.preprocess();
 
-    if (this.shouldCreateLineboxes()) {
+    if (this.shouldLayoutContent()) {
       this.paragraph.destroy();
       this.paragraph = createParagraph(this);
       this.paragraph.shape();
@@ -1524,12 +1534,14 @@ export class IfcInline extends Inline {
     }
   }
 
-  shouldCreateLineboxes() {
-    return this.hasText() || this.hasFloats() || this.hasInlineBlocks();
+  shouldLayoutContent() {
+    return this.hasTextOrSizedInline()
+      || this.hasFloats()
+      || this.hasInlineBlocks();
   }
 
   doTextLayout(ctx: LayoutContext) {
-    if (this.shouldCreateLineboxes()) {
+    if (this.shouldLayoutContent()) {
       this.paragraph.createLineboxes(ctx);
       this.paragraph.positionItems(ctx);
     }
@@ -1581,6 +1593,13 @@ export class IfcInline extends Inline {
 
   hasInlineBlocks() {
     return this.analysis & IfcInline.ANALYSIS_HAS_INLINE_BLOCKS;
+  }
+
+  // Note this could have been a separate "hasSizedInline" flag since there is
+  // already a "hasText", but it's more efficient to calculate the combined flag
+  // and we never care about sized inlines alone when there is text
+  hasTextOrSizedInline() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_TEXT_OR_SIZED_INLINE;
   }
 }
 

@@ -1265,6 +1265,15 @@ describe('Lines', function () {
       expect(ifc.paragraph.brokenItems.at(-1).glyphs.at(-G_SZ + G_AX)).to.equal(0);
       expect(ifc.paragraph.brokenItems.at(0).glyphs.at(G_AX)).to.equal(0);
     });
+
+    it('does create lineboxes if there were sized inlines but no text', function () {
+      this.layout(`
+        <div style="font: 16px/20px Arimo;">
+          <span style="margin-right: 1px;"></span>
+        </div>
+      `);
+      expect(this.get('div').borderArea.height).to.equal(20);
+    });
   });
 });
 

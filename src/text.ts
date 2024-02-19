@@ -2295,6 +2295,13 @@ export class Paragraph {
 
     if (line) {
       finishLine(line);
+    } else if (candidates.width.hasContent()) {
+      // We never hit a break opportunity because there is no non-whitespace
+      // text and no inline-blocks, but there is some content on spans (border,
+      // padding, or margin). Add everything.
+      lines.push(line = new Linebox(0, this));
+      line.addCandidates(candidates, this.string.length);
+      finishLine(line);
     } else {
       bfc.fctx?.consumeMisfits();
     }

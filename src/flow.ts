@@ -1360,6 +1360,7 @@ export class IfcInline extends Inline {
   static ANALYSIS_HAS_POSITIONED_INLINE    = 1 << 10;
   static ANALYSIS_HAS_INLINE_BLOCKS        = 1 << 11;
   static ANALYSIS_HAS_TEXT_OR_SIZED_INLINE = 1 << 12;
+  static ANALYSIS_HAS_COLORED_INLINE       = 1 << 13;
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
@@ -1385,6 +1386,7 @@ export class IfcInline extends Inline {
 
   private prepare() {
     const stack = this.children.slice();
+    const color = this.style.color;
 
     if (!isNowrap(this.style.whiteSpace)) {
       this.analysis |= IfcInline.ANALYSIS_WRAPS;
@@ -1424,6 +1426,17 @@ export class IfcInline extends Inline {
         ) {
           this.analysis |= IfcInline.ANALYSIS_HAS_TEXT_OR_SIZED_INLINE;
         }
+        if (
+          !this.hasColoredInline() && (
+            box.style.color.r !== color.r ||
+            box.style.color.g !== color.g ||
+            box.style.color.b !== color.b ||
+            box.style.color.a !== color.a
+          )
+        ) {
+          this.analysis |= IfcInline.ANALYSIS_HAS_COLORED_INLINE;
+        }
+
         stack.unshift(...box.children);
       } else if (box.isBreak()) {
         this.analysis |= IfcInline.ANALYSIS_HAS_BREAKS;
@@ -1600,6 +1613,10 @@ export class IfcInline extends Inline {
   // and we never care about sized inlines alone when there is text
   hasTextOrSizedInline() {
     return this.analysis & IfcInline.ANALYSIS_HAS_TEXT_OR_SIZED_INLINE;
+  }
+
+  hasColoredInline() {
+    return this.analysis & IfcInline.ANALYSIS_HAS_COLORED_INLINE;
   }
 }
 

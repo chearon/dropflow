@@ -1784,29 +1784,32 @@ export class Paragraph {
   }
 
   getColors() {
-    const inlineIterator = createPreorderInlineIterator(this.ifc);
     const colors: [Color, number][] = [[this.ifc.style.color, 0]];
-    let inline = inlineIterator.next();
 
-    while (!inline.done) {
-      const [, lastColorOffset] = colors[colors.length - 1];
-      if (inline.value.isRun()) {
-        const style = inline.value.style;
-        const color = colors[colors.length - 1];
+    if (this.ifc.hasColoredInline()) {
+      const inlineIterator = createPreorderInlineIterator(this.ifc);
+      let inline = inlineIterator.next();
 
-        if (lastColorOffset === inline.value.start) {
-          color[0] = style.color;
-        } else if (
-          style.color.r !== color[0].r ||
-          style.color.g !== color[0].g ||
-          style.color.b !== color[0].b ||
-          style.color.a !== color[0].a
-        ) {
-          colors.push([style.color, inline.value.start]);
+      while (!inline.done) {
+        const [, lastColorOffset] = colors[colors.length - 1];
+        if (inline.value.isRun()) {
+          const style = inline.value.style;
+          const color = colors[colors.length - 1];
+
+          if (lastColorOffset === inline.value.start) {
+            color[0] = style.color;
+          } else if (
+            style.color.r !== color[0].r ||
+            style.color.g !== color[0].g ||
+            style.color.b !== color[0].b ||
+            style.color.a !== color[0].a
+          ) {
+            colors.push([style.color, inline.value.start]);
+          }
         }
-      }
 
-      inline = inlineIterator.next();
+        inline = inlineIterator.next();
+      }
     }
 
     return colors;

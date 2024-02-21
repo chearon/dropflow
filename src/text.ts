@@ -1792,10 +1792,16 @@ export class Paragraph {
       const [, lastColorOffset] = colors[colors.length - 1];
       if (inline.value.isRun()) {
         const style = inline.value.style;
+        const color = colors[colors.length - 1];
 
         if (lastColorOffset === inline.value.start) {
-          colors[colors.length - 1][0] = style.color;
-        } else {
+          color[0] = style.color;
+        } else if (
+          style.color.r !== color[0].r ||
+          style.color.g !== color[0].g ||
+          style.color.b !== color[0].b ||
+          style.color.a !== color[0].a
+        ) {
           colors.push([style.color, inline.value.start]);
         }
       }

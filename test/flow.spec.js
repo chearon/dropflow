@@ -1080,6 +1080,18 @@ describe('Flow', function () {
       expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(40);
     });
 
+    it('places text correctly when the float is at the end of the line', function () {
+      this.layout(`
+        <div id="t" style="font: 12px Arimo;">
+          1<div style="float: left;">2</div>
+        </div>
+      `);
+
+      /** @type import('../src/flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+      expect(ifc.paragraph.lineboxes[0].head.value.x).to.be.approximately(6.674, 0.001);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

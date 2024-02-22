@@ -2303,6 +2303,8 @@ export class Paragraph {
     }
 
     if (line) {
+      // There could have been floats after the paragraph's final line break
+      bfc.getLocalVacancyForLine(bfc, blockOffset, line.height(), vacancy);
       finishLine(line);
     } else if (candidates.width.hasContent()) {
       // We never hit a break opportunity because there is no non-whitespace

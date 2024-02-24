@@ -708,11 +708,11 @@ export class FloatContext {
   }
 }
 
-interface BlockContainerOfInlines extends BlockContainer {
+export interface BlockContainerOfInlines extends BlockContainer {
   children: IfcInline[];
 }
 
-interface BlockContainerOfBlockContainers extends BlockContainer {
+export interface BlockContainerOfBlockContainers extends BlockContainer {
   children: BlockContainer[];
 }
 

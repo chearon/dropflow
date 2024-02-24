@@ -1,6 +1,8 @@
-import {BlockContainer, createInlineIterator} from './flow.js';
-import {ShapedItem, G_CL, G_AX, G_SZ} from './text.js';
+import {BlockContainer, Inline, InlineLevel, IfcInline} from './flow.js';
+import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './text.js';
 import {Color} from './cascade.js';
+import {BoxArea} from './box.js';
+import {binarySearchOf} from './util.js';
 
 import type {FaceMatch} from './font.js';
 
@@ -50,7 +52,7 @@ function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
 }
 
 function drawText(
-  blockContainer: BlockContainer,
+  containingBlock: BoxArea,
   item: ShapedItem,
   colors: [Color, number][],
   b: PaintBackend
@@ -65,7 +67,7 @@ function drawText(
   const end = item.attrs.level & 1 ? item.colorsStart(colors) - 1 : item.colorsEnd(colors);
   let i = item.attrs.level & 1 ? item.colorsEnd(colors) - 1 : item.colorsStart(colors);
   let glyphIndex = 0;
-  let tx = blockContainer.contentArea.x + item.x;
+  let tx = containingBlock.x + item.x;
 
   while (i !== end) {
     const [color, offset] = colors[i];
@@ -96,7 +98,7 @@ function drawText(
       b.fontSize = style.fontSize;
       b.font = match;
       b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-      b.text(tx, blockContainer.contentArea.y + item.y, item, start, end, isColorBoundary);
+      b.text(tx, containingBlock.y + item.y, item, start, end, isColorBoundary);
 
       tx += ax / item.match.face.upem * style.fontSize;
     }
@@ -109,122 +111,13 @@ function drawText(
   }
 }
 
-function paintBlockContainerOfInline(blockContainer: BlockContainer, b: PaintBackend) {
-  if (!blockContainer.isBlockContainerOfInlines()) throw new Error('Assertion failed');
-
-  const [ifc] = blockContainer.children;
-  const direction = ifc.style.direction;
-  const colors = ifc.paragraph.getColors();
-
-  if (ifc.hasFloats()) {
-    const iterator = createInlineIterator(ifc);
-    for (let item = iterator.next(); !item.done; item = iterator.next()) {
-      if (item.value.state === 'block' && item.value.item.isFloat()) {
-        paintBlockContainer(item.value.item, b);
-      }
-    }
-  }
-
-  for (const [inline, list] of ifc.paragraph.backgroundBoxes) {
-    const bgc = inline.style.backgroundColor;
-    const clip = inline.style.backgroundClip;
-    const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
-    const {a: ta} = borderTopColor;
-    const {a: ra} = borderRightColor;
-    const {a: ba} = borderBottomColor;
-    const {a: la} = borderLeftColor;
-
-    for (const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} of list) {
-      const paddingTop = inline.style.getPaddingBlockStart(ifc);
-      const paddingRight = inline.style.getPaddingLineRight(ifc);
-      const paddingBottom = inline.style.getPaddingBlockEnd(ifc);
-      const paddingLeft = inline.style.getPaddingLineLeft(ifc);
-      const paintLeft = naturalStart && direction === 'ltr' || naturalEnd && direction === 'rtl';
-      const paintRight = naturalEnd && direction === 'ltr' || naturalStart && direction === 'rtl';
-      const borderTopWidth = inline.style.getBorderBlockStartWidth(ifc);
-      let borderRightWidth = inline.style.getBorderLineRightWidth(ifc);
-      const borderBottomWidth = inline.style.getBorderBlockEndWidth(ifc);
-      let borderLeftWidth = inline.style.getBorderLineLeftWidth(ifc);
-
-      if (!paintLeft) borderLeftWidth = 0;
-      if (!paintRight) borderRightWidth = 0;
-
-      if (start !== end && bgc.a > 0) {
-        let extraTop = 0;
-        let extraBottom = 0;
-
-        if (clip !== 'content-box') {
-          extraTop += inline.style.getPaddingBlockStart(ifc);
-          extraBottom += inline.style.getPaddingBlockEnd(ifc);
-        }
-
-        if (clip === 'border-box') {
-          extraTop += borderTopWidth;
-          extraBottom += borderBottomWidth;
-        }
-
-        b.fillColor = bgc;
-        const x = blockContainer.contentArea.x + Math.min(start, end);
-        const y = blockContainer.contentArea.y + blockOffset - ascender - extraTop;
-        const width = Math.abs(start - end);
-        const height = ascender + descender + extraTop + extraBottom;
-        b.rect(x, y, width, height);
-      }
-
-      if (start !== end && (ta > 0 || ra > 0 || ba > 0 || la > 0)) {
-        let extraLeft = 0;
-        let extraRight = 0;
-
-        if (paintLeft && clip === 'content-box') extraLeft += paddingLeft
-        if (paintLeft && clip !== 'border-box') extraLeft += borderLeftWidth;
-        if (paintRight && clip === 'content-box') extraRight += paddingRight;
-        if (paintRight && clip !== 'border-box') extraRight += borderRightWidth;
-
-        const left = blockContainer.contentArea.x + Math.min(start, end) - extraLeft;
-        const top = blockContainer.contentArea.y + blockOffset - ascender - paddingTop - borderTopWidth;
-        const width = Math.abs(start - end) + extraLeft + extraRight;
-        const height = borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth;
-
-        const work = [
-          ['top', borderTopWidth, borderTopColor],
-          ['right', borderRightWidth, borderRightColor],
-          ['bottom', borderBottomWidth, borderBottomColor],
-          ['left', borderLeftWidth, borderLeftColor]
-        ] as const;
-
-        // TODO there's a bug here: try
-        // <span style="background-color:red; border-left: 2px solid yellow; border-top: 4px solid maroon;">red</span>
-
-        for (const [side, lineWidth, color] of work) {
-          if (lineWidth === 0) continue;
-          const length = side === 'left' || side === 'right' ? height : width;
-          let x = side === 'right' ? left + width : left;
-          let y = side === 'bottom' ? top + height : top;
-          x += side === 'left' ? lineWidth/2 : side === 'right' ? -lineWidth/2 : 0;
-          y += side === 'top' ? lineWidth/2 : side === 'bottom' ? -lineWidth/2 : 0;
-          b.lineWidth = lineWidth;
-          b.strokeColor = color;
-          b.edge(x, y, length, side);
-        }
-      }
-    }
-  }
-
-  for (const linebox of ifc.paragraph.lineboxes) {
-    for (let n = linebox.head; n; n = n.next) {
-      if (n.value instanceof ShapedItem) {
-        drawText(blockContainer, n.value, colors, b);
-      } else if (n.value.block) {
-        paintBlockContainer(n.value.block, b);
-      }
-    }
-  }
-}
-
-export default function paintBlockContainer(blockContainer: BlockContainer, b: PaintBackend) {
-  const style = blockContainer.style;
+/**
+ * Paints the background and borders
+ */
+function paintBlockBackground(block: BlockContainer, b: PaintBackend) {
+  const style = block.style;
   const {backgroundColor, backgroundClip} = style;
-  const {paddingArea, borderArea, contentArea} = blockContainer;
+  const {paddingArea, borderArea, contentArea} = block;
   const area = backgroundClip === 'border-box' ? borderArea :
     backgroundClip === 'padding-box' ? paddingArea :
     contentArea;
@@ -252,16 +145,313 @@ export default function paintBlockContainer(blockContainer: BlockContainer, b: P
     y += side === 'top' || side === 'bottom' ? lineWidth/2 : 0;
     b.edge(x, y, length, side);
   }
+}
 
-  if (blockContainer.isBlockContainerOfInlines()) {
-    paintBlockContainerOfInline(blockContainer, b);
-  }
-
-  for (const child of blockContainer.children) {
-    if (child.isBlockContainer()) {
-      paintBlockContainer(child, b);
+function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBackend) {
+  const stack = [root];
+  while (stack.length) {
+    const block = stack.pop()!;
+    if (block.isBlockContainer() && block !== root) {
+      paintBlockBackground(block, b);
+    }
+    for (let i = block.children.length - 1; i >= 0; i--) {
+      const child = block.children[i];
+      if (
+        child.isBox() &&
+        !child.isPositioned() &&
+        !(child.isBlockContainer() && child.isFloat())
+      ) {
+        stack.push(child);
+      }
     }
   }
 }
 
+function paintInlineBackground(
+  background: BackgroundBox,
+  inline: Inline,
+  paragraph: Paragraph,
+  b: PaintBackend
+) {
+  const ifc = paragraph.ifc;
+  const direction = ifc.style.direction;
+  const containingBlock = inline.containingBlock;
+  const bgc = inline.style.backgroundColor;
+  const clip = inline.style.backgroundClip;
+  const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
+  const {a: ta} = borderTopColor;
+  const {a: ra} = borderRightColor;
+  const {a: ba} = borderBottomColor;
+  const {a: la} = borderLeftColor;
+  const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = background;
+  const paddingTop = inline.style.getPaddingBlockStart(ifc);
+  const paddingRight = inline.style.getPaddingLineRight(ifc);
+  const paddingBottom = inline.style.getPaddingBlockEnd(ifc);
+  const paddingLeft = inline.style.getPaddingLineLeft(ifc);
+  const paintLeft = naturalStart && direction === 'ltr' || naturalEnd && direction === 'rtl';
+  const paintRight = naturalEnd && direction === 'ltr' || naturalStart && direction === 'rtl';
+  const borderTopWidth = inline.style.getBorderBlockStartWidth(ifc);
+  let borderRightWidth = inline.style.getBorderLineRightWidth(ifc);
+  const borderBottomWidth = inline.style.getBorderBlockEndWidth(ifc);
+  let borderLeftWidth = inline.style.getBorderLineLeftWidth(ifc);
 
+  if (!paintLeft) borderLeftWidth = 0;
+  if (!paintRight) borderRightWidth = 0;
+
+  if (start !== end && bgc.a > 0) {
+    let extraTop = 0;
+    let extraBottom = 0;
+
+    if (clip !== 'content-box') {
+      extraTop += inline.style.getPaddingBlockStart(ifc);
+      extraBottom += inline.style.getPaddingBlockEnd(ifc);
+    }
+
+    if (clip === 'border-box') {
+      extraTop += borderTopWidth;
+      extraBottom += borderBottomWidth;
+    }
+
+    b.fillColor = bgc;
+    const x = containingBlock.x + Math.min(start, end);
+    const y = containingBlock.y + blockOffset - ascender - extraTop;
+    const width = Math.abs(start - end);
+    const height = ascender + descender + extraTop + extraBottom;
+    b.rect(x, y, width, height);
+  }
+
+  if (start !== end && (ta > 0 || ra > 0 || ba > 0 || la > 0)) {
+    let extraLeft = 0;
+    let extraRight = 0;
+
+    if (paintLeft && clip === 'content-box') extraLeft += paddingLeft
+    if (paintLeft && clip !== 'border-box') extraLeft += borderLeftWidth;
+    if (paintRight && clip === 'content-box') extraRight += paddingRight;
+    if (paintRight && clip !== 'border-box') extraRight += borderRightWidth;
+
+    const left = containingBlock.x + Math.min(start, end) - extraLeft;
+    const top = containingBlock.y + blockOffset - ascender - paddingTop - borderTopWidth;
+    const width = Math.abs(start - end) + extraLeft + extraRight;
+    const height = borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth;
+
+    const work = [
+      ['top', borderTopWidth, borderTopColor],
+      ['right', borderRightWidth, borderRightColor],
+      ['bottom', borderBottomWidth, borderBottomColor],
+      ['left', borderLeftWidth, borderLeftColor]
+    ] as const;
+
+    // TODO there's a bug here: try
+    // <span style="background-color:red; border-left: 2px solid yellow; border-top: 4px solid maroon;">red</span>
+
+    for (const [side, lineWidth, color] of work) {
+      if (lineWidth === 0) continue;
+      const length = side === 'left' || side === 'right' ? height : width;
+      let x = side === 'right' ? left + width : left;
+      let y = side === 'bottom' ? top + height : top;
+      x += side === 'left' ? lineWidth/2 : side === 'right' ? -lineWidth/2 : 0;
+      y += side === 'top' ? lineWidth/2 : side === 'bottom' ? -lineWidth/2 : 0;
+      b.lineWidth = lineWidth;
+      b.strokeColor = color;
+      b.edge(x, y, length, side);
+    }
+  }
+}
+
+function paintInlines(ifc: IfcInline, b: PaintBackend) {
+  const colors = ifc.paragraph.getColors();
+  const lineboxes = ifc.paragraph.lineboxes;
+  const painted = new Set<Inline>();
+  let lineboxIndex = -1;
+  let lineboxItem = null;
+
+  for (const item of ifc.paragraph.treeItems) {
+    let hasPositionedParent = false;
+
+    if (lineboxItem) lineboxItem = lineboxItem.next;
+    if (!lineboxItem) { // starting a new linebox
+      lineboxItem = lineboxes[++lineboxIndex].head;
+      painted.clear();
+    }
+
+    for (const inline of item.inlines) {
+      if (inline.isPositioned()) {
+        hasPositionedParent = true;
+        break;
+      } else if (!painted.has(inline)) {
+        const backgrounds = ifc.paragraph.backgroundBoxes.get(inline);
+        if (backgrounds) {
+          for (const background of backgrounds) {
+            if (background.linebox === lineboxes[lineboxIndex]) {
+              paintInlineBackground(background, inline, ifc.paragraph, b);
+            }
+          }
+        }
+        painted.add(inline);
+      }
+    }
+
+    if (item instanceof ShapedItem) {
+      if (!hasPositionedParent) {
+        drawText(ifc.containingBlock, item, colors, b);
+      }
+    } else if (item.block) {
+      paintBlockRoot(item.block, b);
+    }
+  }
+}
+
+function paintInlinesAndDescendents(block: BlockContainer, b: PaintBackend) {
+  const stack: (IfcInline | BlockContainer)[] = block.children.slice().reverse();
+  while (stack.length) {
+    const box = stack.pop()!;
+
+    if (box.isBlockContainer()) {
+      for (let i = box.children.length - 1; i >= 0; i--) {
+        const child = box.children[i];
+        if (!child.isPositioned()) stack.push(child);
+      }
+    } else {
+      paintInlines(box, b);
+    }
+  }
+}
+
+function collectLayeredDescendents(box: BlockContainer | Inline) {
+  const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
+  const parents: InlineLevel[] = [];
+  const positionedDescendents: [BlockContainer | Inline, Paragraph | undefined][] = [];
+  const floatDescendents: [BlockContainer, undefined][] = [];
+
+  while (stack.length) {
+    const box = stack.pop()!;
+
+    if ('sentinel' in box) {
+      parents.pop();
+    } else if (box.isBox()) {
+      if (box.isPositioned()) {
+        let paragraph;
+
+        if (box.isInline()) {
+          for (let i = parents.length - 1; i >= 0; i--) {
+            const parent = parents[i];
+            if (parent.isIfcInline()) {
+              paragraph = parent.paragraph;
+              break;
+            }
+          }
+        }
+
+        positionedDescendents.push([box, paragraph]);
+      } else if (box.isBlockContainer() && box.isFloat()) {
+        floatDescendents.push([box, undefined]);
+      }
+
+      // TODO: if it doesn't create a stacking context:
+      stack.push({sentinel: true});
+      parents.push(box);
+      for (let i = box.children.length - 1; i >= 0; i--) {
+        stack.push(box.children[i]);
+      }
+    }
+  }
+
+  return {positionedDescendents, floatDescendents};
+}
+
+function paintLayeredDescendents(
+  descendents: [BlockContainer | Inline, Paragraph | undefined][],
+  b: PaintBackend
+) {
+  for (const [box, paragraph] of descendents) {
+    if (box.isInline()) {
+      paintInlineRoot(box, paragraph!, b);
+    } else {
+      paintBlockRoot(box, b);
+    }
+  }
+}
+
+function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
+  const colors = paragraph.getColors();
+  const containingBlock = paragraph.ifc.containingBlock;
+  const treeItems = paragraph.treeItems;
+  const stack = inline.children.slice().reverse();
+  const ranges: [number, number][] = [];
+  let itemIndex = binarySearchOf(paragraph.treeItems, inline.start, item => item.offset);
+
+  function paintRanges() {
+    while (ranges.length) {
+      const [start, end] = ranges.shift()!;
+      while (treeItems[itemIndex]?.offset < start) itemIndex++;
+      while (treeItems[itemIndex]?.end() <= end) {
+        const item = treeItems[itemIndex];
+        if (item instanceof ShapedItem) {
+          drawText(containingBlock, item, colors, b);
+        }
+        itemIndex++;
+      }
+    }
+  }
+
+  while (stack.length) {
+    const box = stack.pop()!;
+
+    if (box.isRun()) {
+      const range = ranges.at(-1);
+      if (range?.[1] === box.start) {
+        range[1] = box.end;
+      } else {
+        ranges.push([box.start, box.end]);
+      }
+    } else if (box.isBox() && !box.isPositioned()) {
+      if (box.isInline()) {
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
+      } else if (box.isBlockContainer()) {
+        paintRanges();
+        paintBlockRoot(box, b);
+      }
+    }
+  }
+
+  paintRanges();
+}
+
+function paintInlineRoot(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
+  const {positionedDescendents, floatDescendents} = collectLayeredDescendents(inline);
+  // TODO: negative stacking contexts here
+  paintBackgroundDescendents(inline, b);
+  paintLayeredDescendents(floatDescendents, b);
+  const backgrounds = paragraph.backgroundBoxes.get(inline);
+  if (backgrounds) {
+    for (const background of backgrounds) {
+      paintInlineBackground(background, inline, paragraph, b);
+    }
+  }
+  paintInline(inline, paragraph, b);
+  paintLayeredDescendents(positionedDescendents, b);
+  // TODO: positive stacking contexts here
+}
+
+/**
+ * Paint a stacking context root
+ * https://www.w3.org/TR/CSS22/zindex.html
+ */
+export default function paintBlockRoot(
+  block: BlockContainer,
+  b: PaintBackend,
+  isRoot = false
+) {
+  const {positionedDescendents, floatDescendents} = collectLayeredDescendents(block);
+  paintBlockBackground(block, b);
+  // TODO: negative stacking contexts here
+  paintBackgroundDescendents(block, b);
+  paintLayeredDescendents(floatDescendents, b);
+  paintInlinesAndDescendents(block, b);
+  if (isRoot /* TODO or z-index is not auto */) {
+    paintLayeredDescendents(positionedDescendents, b);
+  }
+  // TODO: positive stacking contexts here
+}

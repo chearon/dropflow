@@ -1488,7 +1488,8 @@ export class Linebox extends LineItemLinkedList {
   }
 }
 
-interface BackgroundBox {
+export interface BackgroundBox {
+  linebox: Linebox;
   start: number;
   end: number;
   blockOffset: number;
@@ -1507,7 +1508,7 @@ class ContiguousBoxBuilder {
     this.closed = new Map();
   }
 
-  open(inline: Inline, naturalStart: boolean, start: number, blockOffset: number) {
+  open(inline: Inline, linebox: Linebox, naturalStart: boolean, start: number, blockOffset: number) {
     const box = this.opened.get(inline);
     if (box) {
       box.end = start;
@@ -1515,7 +1516,9 @@ class ContiguousBoxBuilder {
       const end = start;
       const naturalEnd = false;
       const {ascender, descender} = inline.metrics;
-      const box: BackgroundBox = {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd};
+      const box: BackgroundBox = {
+        start, end, linebox, blockOffset, ascender, descender, naturalStart, naturalEnd
+      };
       this.opened.set(inline, box);
       // Make sure closed is in open order
       if (!this.closed.has(inline)) this.closed.set(inline, []);
@@ -1617,6 +1620,7 @@ export class Paragraph {
   buffer: AllocatedUint16Array;
   brokenItems: ShapedItem[];
   wholeItems: ShapedItem[];
+  treeItems: (ShapedItem | ShapedShim)[];
   lineboxes: Linebox[];
   backgroundBoxes: Map<Inline, BackgroundBox[]>;
   height: number;
@@ -1627,6 +1631,7 @@ export class Paragraph {
     this.buffer = buffer;
     this.brokenItems = [];
     this.wholeItems = [];
+    this.treeItems = [];
     this.lineboxes = [];
     this.backgroundBoxes = new Map();
     this.height = 0;
@@ -2132,7 +2137,10 @@ export class Paragraph {
       this.brokenItems = this.wholeItems;
     }
 
+    this.treeItems = [];
+
     const finishLine = (line: Linebox) => {
+      for (let n = line.head; n; n = n.next) this.treeItems.push(n.value);
       line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
       const blockSize = line.height();
       width.reset();
@@ -2464,7 +2472,7 @@ export class Paragraph {
           }
 
           if (isFirstOccurance) inlineSideAdvance(inline, 'start');
-          boxBuilder?.open(inline, isFirstOccurance, bgcursor, y - baselineShift);
+          boxBuilder?.open(inline, linebox, isFirstOccurance, bgcursor, y - baselineShift);
 
           if (isFirstOccurance) {
             counts.set(inline, 1);

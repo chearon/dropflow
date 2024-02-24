@@ -115,6 +115,10 @@ export class Box extends RenderItem {
     return Boolean(this.attrs & Box.ATTRS.isAnonymous);
   }
 
+  isPositioned() {
+    return this.style.position !== 'static';
+  }
+
   getRelativeVerticalShift() {
     const height = this.containingBlock.height;
     let {top, bottom} = this.style;

@@ -3,7 +3,7 @@ import {cascadeStyles, createComputedStyle, initialStyle, DeclaredPlainStyle, ua
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
-import paintBlockContainer from './paint.js';
+import paintBlockRoot from './paint.js';
 import {BoxArea} from './box.js';
 import {id} from './util.js';
 
@@ -69,16 +69,16 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
 }
 
 export function paintToHtml(root: BlockContainer) {
-  const b = new HtmlPaintBackend();
-  paintBlockContainer(root, b);
-  return b.s;
+  const backend = new HtmlPaintBackend();
+  paintBlockRoot(root, backend, true);
+  return backend.s;
 }
 
 export {eachRegisteredFont} from './font.js';
 
 export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D) {
-  const b = new CanvasPaintBackend(ctx);
-  paintBlockContainer(root, b);
+  const backend = new CanvasPaintBackend(ctx);
+  paintBlockRoot(root, backend, true);
 }
 
 export function renderToCanvasContext(

@@ -23,7 +23,11 @@ export function binarySearch(a: number[], x: number) {
  * Binary search that returns the position `x` should be in, using the `end`
  * property of objects in the `a` array
  */
-export function binarySearchEndProp(a: {end: number}[], x: number): number {
+export function binarySearchOf<T>(
+  a: T[],
+  x: number,
+  end: (item: T) => number
+): number {
   let l = 0, r = a.length - 1;
 
   if (r < 0) return -1;
@@ -31,10 +35,10 @@ export function binarySearchEndProp(a: {end: number}[], x: number): number {
   while (true) {
     let i = Math.floor((l+r)/2);
 
-    if (a[i].end < x) {
+    if (end(a[i]) < x) {
       l = i + 1;
       if (l > r) return l;
-    } else if (a[i].end > x) {
+    } else if (end(a[i]) > x) {
       r = i - 1;
       if (r < l) return i;
     } else {

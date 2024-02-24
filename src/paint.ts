@@ -229,8 +229,10 @@ export default function paintBlockContainer(blockContainer: BlockContainer, b: P
     backgroundClip === 'padding-box' ? paddingArea :
     contentArea;
 
-  b.fillColor = backgroundColor;
-  b.rect(area.x, area.y, area.width, area.height);
+  if (backgroundColor.a > 0) {
+    b.fillColor = backgroundColor;
+    b.rect(area.x, area.y, area.width, area.height);
+  }
 
   const work = [
     ['top', style.borderTopWidth, style.borderTopColor],

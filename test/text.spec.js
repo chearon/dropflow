@@ -374,9 +374,9 @@ describe('Shaping', function () {
       /** @type import('../src/flow').IfcInline[] */
       const [inline] = this.get().children;
       const b = this.paint();
-      b.called('paint ');
-      b.called('😑');
-      b.called(' this!');
+      b.drewText('paint ');
+      b.drewText('😑');
+      b.drewText(' this!');
     });
   });
 
@@ -1300,8 +1300,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.called('middle').y).to.be.approximately(14.094, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('middle').y).to.be.approximately(14.094, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
@@ -1332,8 +1332,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.called('sub').y).to.be.approximately(18.747, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('sub').y).to.be.approximately(18.747, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(23.2);
@@ -1364,8 +1364,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(20.987, 0.001);
-    expect(b.called('super').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(20.987, 0.001);
+    expect(b.drewText('super').y).to.be.approximately(15.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.44, 0.001);
@@ -1396,8 +1396,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.called('text-top').y).to.be.approximately(16.609, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('text-top').y).to.be.approximately(16.609, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
@@ -1428,8 +1428,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(16.609, 0.001);
-    expect(b.called('text-bottom').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(16.609, 0.001);
+    expect(b.drewText('text-bottom').y).to.be.approximately(15.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
@@ -1460,8 +1460,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(45.547, 0.001);
-    expect(b.called('30px').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(45.547, 0.001);
+    expect(b.drewText('30px').y).to.be.approximately(15.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(50, 0.001);
@@ -1492,8 +1492,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.called('percentage').y).to.be.approximately(10.547, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('percentage').y).to.be.approximately(10.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
@@ -1526,8 +1526,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.called('top').y).to.be.approximately(25.547, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('top').y).to.be.approximately(25.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(45.44);
@@ -1558,8 +1558,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(38.747, 0.001);
-    expect(b.called('bottom').y).to.be.approximately(28.747, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(38.747, 0.001);
+    expect(b.drewText('bottom').y).to.be.approximately(28.747, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(43.2);
@@ -1590,9 +1590,9 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('baseline ').y).to.be.approximately(35.547, 0.001);
-    expect(b.called('t').y).to.be.approximately(45.547, 0.001);
-    expect(b.called('b').y).to.be.approximately(65.547, 0.001);
+    expect(b.drewText('baseline ').y).to.be.approximately(35.547, 0.001);
+    expect(b.drewText('t').y).to.be.approximately(45.547, 0.001);
+    expect(b.drewText('b').y).to.be.approximately(65.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
@@ -1673,10 +1673,10 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('2b ').y).to.be.approximately(25.547, 0.001);
-    expect(b.called('4b').y).to.be.approximately(35.547, 0.001);
-    expect(b.called('2a ').y).to.be.approximately(65.547, 0.001);
-    expect(b.called('4a').y).to.be.approximately(75.547, 0.001);
+    expect(b.drewText('2b ').y).to.be.approximately(25.547, 0.001);
+    expect(b.drewText('4b').y).to.be.approximately(35.547, 0.001);
+    expect(b.drewText('2a ').y).to.be.approximately(65.547, 0.001);
+    expect(b.drewText('4a').y).to.be.approximately(75.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(40, 0.001);
@@ -1697,9 +1697,9 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.called('t1 ').y).to.be.approximately(13.047, 0.001);
-    expect(b.called('t2 ').y).to.be.approximately(10.547, 0.001);
-    expect(b.called('b').y).to.be.approximately(20.547, 0.001);
+    expect(b.drewText('t1 ').y).to.be.approximately(13.047, 0.001);
+    expect(b.drewText('t2 ').y).to.be.approximately(10.547, 0.001);
+    expect(b.drewText('b').y).to.be.approximately(20.547, 0.001);
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);

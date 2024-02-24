@@ -6,3 +6,4 @@ import './flow.spec.js';
 import './text.spec.js';
 import './font.spec.js';
 import './itemize.spec.js';
+import './paint.spec.js';

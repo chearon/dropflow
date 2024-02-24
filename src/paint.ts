@@ -73,29 +73,33 @@ function drawText(
     const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
     const start = Math.max(colorStart, textStart);
     const end = Math.min(colorEnd, textEnd);
-    // TODO: should really have isStartColorBoundary, isEndColorBoundary
-    const isColorBoundary = start !== textStart && start === colorStart || end !== textEnd && end === colorEnd;
-    let ax = 0;
 
-    if (item.attrs.level & 1) {
-      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] >= start) {
-        ax += item.glyphs[glyphIndex + G_AX];
-        glyphIndex += G_SZ;
+    if (start < end) {
+      // TODO: should really have isStartColorBoundary, isEndColorBoundary
+      const isColorBoundary = start !== textStart && start === colorStart
+        || end !== textEnd && end === colorEnd;
+      let ax = 0;
+
+      if (item.attrs.level & 1) {
+        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] >= start) {
+          ax += item.glyphs[glyphIndex + G_AX];
+          glyphIndex += G_SZ;
+        }
+      } else {
+        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] < end) {
+          ax += item.glyphs[glyphIndex + G_AX];
+          glyphIndex += G_SZ;
+        }
       }
-    } else {
-      while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] < end) {
-        ax += item.glyphs[glyphIndex + G_AX];
-        glyphIndex += G_SZ;
-      }
+
+      b.fillColor = color;
+      b.fontSize = style.fontSize;
+      b.font = match;
+      b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
+      b.text(tx, blockContainer.contentArea.y + item.y, item, start, end, isColorBoundary);
+
+      tx += ax / item.match.face.upem * style.fontSize;
     }
-
-    b.fillColor = color;
-    b.fontSize = style.fontSize;
-    b.font = match;
-    b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-    b.text(tx, blockContainer.contentArea.y + item.y, item, start, end, isColorBoundary);
-
-    tx += ax / item.match.face.upem * style.fontSize;
 
     if (item.attrs.level & 1) {
       i -= 1;

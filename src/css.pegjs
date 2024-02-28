@@ -149,6 +149,7 @@ declaration
   / text_align_dec
   / float_dec
   / clear_dec
+  / z_index_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -275,7 +276,7 @@ font_size
   = font_size:(relative_size / absolute_size / LENGTH / PERCENTAGE) { return font_size; }
 
 line_height
-  = line_height:('normal' / LENGTH / PERCENTAGE / NUMBER) { return line_height; }
+  = line_height:('normal' / LENGTH / PERCENTAGE / NUMBER_UNIT) { return line_height; }
 
 vertical_align
   = vertical_align:('baseline' / 'middle' / 'sub' / 'super' / 'text-top' / 'text-bottom' / LENGTH / PERCENTAGE / 'top' / 'bottom') { return vertical_align; }
@@ -747,6 +748,11 @@ clear_dec
     return {clear};
   }
 
+z_index_dec
+  = 'z-index'i S* ':' S* zIndex:('auto' / NUMBER / default) {
+    return {zIndex}
+  }
+
 width_dec
   = 'width'i S* ':' S* width:(length_side / 'auto' / default) {
     return {width};
@@ -920,6 +926,9 @@ PERCENTAGE "percentage"
   = comment* value:num '%' { return { value: value, unit: '%' }; }
 
 NUMBER "number"
+  = comment* value:num { return value; }
+
+NUMBER_UNIT "number"
   = comment* value:num { return { value: value, unit: null }; }
 
 URI "uri"

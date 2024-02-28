@@ -169,6 +169,7 @@ export interface DeclaredPlainStyle {
   textAlign?: TextAlign | Inherited | Initial;
   float?: Float | Inherited | Initial;
   clear?: Clear | Inherited | Initial;
+  zIndex?: number | 'auto' | Inherited | Initial;
 }
 
 export const EMPTY_STYLE:DeclaredPlainStyle = {};
@@ -258,6 +259,7 @@ export class Style implements ComputedPlainStyle {
   boxSizing: ComputedPlainStyle['boxSizing'];
   float: ComputedPlainStyle['float'];
   clear: ComputedPlainStyle['clear'];
+  zIndex: ComputedPlainStyle['zIndex'];
 
   private s: Used;
 
@@ -311,6 +313,7 @@ export class Style implements ComputedPlainStyle {
     this.boxSizing = style.boxSizing;
     this.float = style.float;
     this.clear = style.clear;
+    this.zIndex = style.zIndex;
 
     // CSS properties that can be resolved to used values given a containing
     // block or given another CSS property
@@ -545,7 +548,8 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   boxSizing: 'content-box',
   textAlign: 'start',
   float: 'none',
-  clear: 'none'
+  clear: 'none',
+  zIndex: 'auto'
 });
 
 type InheritedStyleDefinitions = {[K in keyof ComputedPlainStyle]: boolean};
@@ -598,7 +602,8 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
   boxSizing: false,
   textAlign: true,
   float: false,
-  clear: false
+  clear: false,
+  zIndex: false
 });
 
 type UaDeclaredStyles = {[tagName: string]: DeclaredPlainStyle};

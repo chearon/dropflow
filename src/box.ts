@@ -119,6 +119,10 @@ export class Box extends RenderItem {
     return this.style.position !== 'static';
   }
 
+  isStackingContextRoot() {
+    return this.isPositioned() && this.style.zIndex !== 'auto';
+  }
+
   getRelativeVerticalShift() {
     const height = this.containingBlock.height;
     let {top, bottom} = this.style;

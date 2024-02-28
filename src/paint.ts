@@ -151,7 +151,7 @@ function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBacke
   const stack = [root];
   while (stack.length) {
     const block = stack.pop()!;
-    if (block.isBlockContainer() && block !== root) {
+    if (block.isBlockContainer() && !block.isInlineLevel() && block !== root) {
       paintBlockBackground(block, b);
     }
     for (let i = block.children.length - 1; i >= 0; i--) {
@@ -291,12 +291,12 @@ function paintInlines(ifc: IfcInline, b: PaintBackend) {
       }
     }
 
-    if (item instanceof ShapedItem) {
-      if (!hasPositionedParent) {
+    if (!hasPositionedParent) {
+      if (item instanceof ShapedItem) {
         drawText(ifc.containingBlock, item, colors, b);
+      } else if (item.block) {
+        paintBlockRoot(item.block, b);
       }
-    } else if (item.block) {
-      paintBlockRoot(item.block, b);
     }
   }
 }
@@ -317,11 +317,16 @@ function paintInlinesAndDescendents(block: BlockContainer, b: PaintBackend) {
   }
 }
 
-function collectLayeredDescendents(box: BlockContainer | Inline) {
+function collectLayeredDescendents(
+  box: BlockContainer | Inline,
+  paragraph: Paragraph | undefined
+) {
   const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
   const parents: InlineLevel[] = [];
-  const positionedDescendents: [BlockContainer | Inline, Paragraph | undefined][] = [];
-  const floatDescendents: [BlockContainer, undefined][] = [];
+  const negativeRoots: [BlockContainer | Inline, Paragraph | undefined][] = []
+  const floats: [BlockContainer, undefined][] = [];
+  const positionedBoxes: [BlockContainer | Inline, Paragraph | undefined][] = [];
+  const positiveRoots: [BlockContainer | Inline, Paragraph | undefined][] = []
 
   while (stack.length) {
     const box = stack.pop()!;
@@ -330,33 +335,48 @@ function collectLayeredDescendents(box: BlockContainer | Inline) {
       parents.pop();
     } else if (box.isBox()) {
       if (box.isPositioned()) {
-        let paragraph;
+        let nearestParagraph = paragraph;
 
         if (box.isInline()) {
           for (let i = parents.length - 1; i >= 0; i--) {
             const parent = parents[i];
             if (parent.isIfcInline()) {
-              paragraph = parent.paragraph;
+              nearestParagraph = parent.paragraph;
               break;
             }
           }
         }
 
-        positionedDescendents.push([box, paragraph]);
+        if (box.isStackingContextRoot()) {
+          const zIndex = box.style.zIndex as number;
+          if (zIndex < 0) {
+            negativeRoots.push([box, nearestParagraph]);
+          } else if (zIndex > 0) {
+            positiveRoots.push([box, nearestParagraph]);
+          } else {
+            positionedBoxes.push([box, nearestParagraph]);
+          }
+        } else {
+          positionedBoxes.push([box, nearestParagraph]);
+        }
       } else if (box.isBlockContainer() && box.isFloat()) {
-        floatDescendents.push([box, undefined]);
+        floats.push([box, undefined]);
       }
 
-      // TODO: if it doesn't create a stacking context:
-      stack.push({sentinel: true});
-      parents.push(box);
-      for (let i = box.children.length - 1; i >= 0; i--) {
-        stack.push(box.children[i]);
+      if (!box.isStackingContextRoot()) {
+        stack.push({sentinel: true});
+        parents.push(box);
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
       }
     }
   }
 
-  return {positionedDescendents, floatDescendents};
+  negativeRoots.sort(([a], [b]) => (a.style.zIndex as number) - (b.style.zIndex as number));
+  positiveRoots.sort(([a], [b]) => (a.style.zIndex as number) - (b.style.zIndex as number));
+
+  return {negativeRoots, floats, positionedBoxes, positiveRoots};
 }
 
 function paintLayeredDescendents(
@@ -386,7 +406,15 @@ function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
       while (treeItems[itemIndex]?.offset < start) itemIndex++;
       while (treeItems[itemIndex]?.end() <= end) {
         const item = treeItems[itemIndex];
-        if (item instanceof ShapedItem) {
+        let hasPositionedParent = false;
+        for (let i = item.inlines.length - 1; i >= 0; i--) {
+          if (item.inlines[i] === inline) break;
+          if (item.inlines[i].isPositioned()) {
+            hasPositionedParent = true;
+            break;
+          }
+        }
+        if (!hasPositionedParent && item instanceof ShapedItem) {
           drawText(containingBlock, item, colors, b);
         }
         itemIndex++;
@@ -420,10 +448,18 @@ function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
 }
 
 function paintInlineRoot(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
-  const {positionedDescendents, floatDescendents} = collectLayeredDescendents(inline);
-  // TODO: negative stacking contexts here
+  const {
+    negativeRoots,
+    floats,
+    positionedBoxes,
+    positiveRoots
+  } = collectLayeredDescendents(inline, paragraph);
+
+  if (inline.isStackingContextRoot()) {
+    paintLayeredDescendents(negativeRoots, b);
+  }
   paintBackgroundDescendents(inline, b);
-  paintLayeredDescendents(floatDescendents, b);
+  paintLayeredDescendents(floats, b);
   const backgrounds = paragraph.backgroundBoxes.get(inline);
   if (backgrounds) {
     for (const background of backgrounds) {
@@ -431,8 +467,10 @@ function paintInlineRoot(inline: Inline, paragraph: Paragraph, b: PaintBackend) 
     }
   }
   paintInline(inline, paragraph, b);
-  paintLayeredDescendents(positionedDescendents, b);
-  // TODO: positive stacking contexts here
+  if (inline.isStackingContextRoot()) {
+    paintLayeredDescendents(positionedBoxes, b);
+    paintLayeredDescendents(positiveRoots, b);
+  }
 }
 
 /**
@@ -444,14 +482,22 @@ export default function paintBlockRoot(
   b: PaintBackend,
   isRoot = false
 ) {
-  const {positionedDescendents, floatDescendents} = collectLayeredDescendents(block);
+  const {
+    negativeRoots,
+    floats,
+    positionedBoxes,
+    positiveRoots
+  } = collectLayeredDescendents(block, undefined);
+
   paintBlockBackground(block, b);
-  // TODO: negative stacking contexts here
-  paintBackgroundDescendents(block, b);
-  paintLayeredDescendents(floatDescendents, b);
-  paintInlinesAndDescendents(block, b);
-  if (isRoot /* TODO or z-index is not auto */) {
-    paintLayeredDescendents(positionedDescendents, b);
+  if (isRoot || block.isStackingContextRoot()) {
+    paintLayeredDescendents(negativeRoots, b);
   }
-  // TODO: positive stacking contexts here
+  paintBackgroundDescendents(block, b);
+  paintLayeredDescendents(floats, b);
+  paintInlinesAndDescendents(block, b);
+  if (isRoot || block.isStackingContextRoot()) {
+    paintLayeredDescendents(positionedBoxes, b);
+    paintLayeredDescendents(positiveRoots, b);
+  }
 }

@@ -99,9 +99,9 @@ export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density
 }
 
 type Node = HTMLElement | TextNode;
-type Child = Node | string;
+type HsChild = Node | string;
 
-interface HsAttrs {
+interface HsData {
   style?: DeclaredPlainStyle;
   attrs?: {[k: string]: string};
 }
@@ -147,40 +147,42 @@ export function dom(el: HTMLElement | HTMLElement[] | string, style?: DeclaredPl
   return rootElement;
 }
 
-export function h(tagName: string, attrs: HsAttrs): HTMLElement;
-export function h(tagName: string, children: Child[]): HTMLElement;
+function toDomChild(child: HsChild) {
+  if (typeof child === 'string') {
+    return new TextNode(id(), child, initialStyle);
+  } else {
+    return child;
+  }
+}
+
+export function h(tagName: string): HTMLElement;
+export function h(tagName: string, attrs: HsData): HTMLElement;
+export function h(tagName: string, children: HsChild[]): HTMLElement;
 export function h(tagName: string, text: string): HTMLElement;
-export function h(tagName: string, attrs: HsAttrs, children: Child[] | string): HTMLElement;
-export function h(tagName: string, arg2: HsAttrs | Child[] | string, arg3?: Child[] | string): HTMLElement {
-  const hid = id();
-  let attrs: HsAttrs | undefined;
-  let children: Child[] | undefined;
+export function h(tagName: string, attrs: HsData, children: HsChild[] | string): HTMLElement;
+export function h(tagName: string, arg2?: HsData | HsChild[] | string, arg3?: HsChild[] | string): HTMLElement {
+  let data: HsData | undefined;
+  let children: (HTMLElement | TextNode)[] | undefined;
 
   if (typeof arg2 === 'string') {
     children = [new TextNode(id(), arg2, initialStyle)];
   } else if (Array.isArray(arg2)) {
-    children = arg2;
+    children = arg2.map(toDomChild);
   } else {
-    attrs = arg2;
+    data = arg2;
   }
 
   if (Array.isArray(arg3)) {
-    children = arg3;
+    children = arg3.map(toDomChild);
   } else if (typeof arg3 === 'string') {
     children = [new TextNode(id(), arg3, initialStyle)];
   }
 
   if (!children) children = [];
-  if (!attrs) attrs = {};
+  if (!data) data = {};
 
-  const el = new HTMLElement(hid, tagName, initialStyle, null, attrs.attrs, attrs.style);
-  el.children = children.map((child): HTMLElement | TextNode => {
-    if (typeof child === 'string') {
-      return new TextNode(id(), child, initialStyle);
-    } else {
-      return child;
-    }
-  });
+  const el = new HTMLElement(id(), tagName, initialStyle, null, data.attrs, data.style);
+  el.children = children;
   return el;
 }
 

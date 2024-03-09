@@ -1568,25 +1568,6 @@ export class Parser implements Callbacks {
 
     if (this.ended) this.tokenizer.end();
   }
-
-  /**
-   * Alias of `write`, for backwards compatibility.
-   *
-   * @param chunk Chunk to parse.
-   * @deprecated
-   */
-  public parseChunk(chunk: string): void {
-    this.write(chunk);
-  }
-  /**
-   * Alias of `end`, for backwards compatibility.
-   *
-   * @param chunk Optional final chunk to parse.
-   * @deprecated
-   */
-  public done(chunk?: string): void {
-    this.end(chunk);
-  }
 }
 
 export function parseNodes(rootElement: HTMLElement, str: string) {

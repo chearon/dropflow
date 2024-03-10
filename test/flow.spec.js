@@ -12,9 +12,7 @@ describe('Flow', function () {
      * @param {string} [html]
      */
     this.layout = function (html) {
-      this.rootElement = oflo.parse(html, {
-        height: {unit: '%', value: 100}
-      });
+      this.rootElement = oflo.parse(html);
       this.blockContainer = oflo.generate(this.rootElement);
       oflo.layout(this.blockContainer, 300, 500);
       this.get = function (...args) {
@@ -69,13 +67,13 @@ describe('Flow', function () {
       `);
 
       // anon div
-      expect(this.get(1, 0).isBlockContainer()).to.be.true;
-      expect(this.get(1, 0).isAnonymous()).to.be.true;
+      expect(this.get(0, 0).isBlockContainer()).to.be.true;
+      expect(this.get(0, 0).isAnonymous()).to.be.true;
       // inline-block
-      expect(this.get(1, 0, 0, 0).isBlockContainer()).to.be.true;
-      expect(this.get(1, 0, 0, 0).isBfcRoot()).to.be.true;
-      expect(this.get(1, 0, 0, 0).isInline()).to.be.false;
-      expect(this.get(1, 0, 0, 0).isInlineLevel()).to.be.true;
+      expect(this.get(0, 0, 0, 0).isBlockContainer()).to.be.true;
+      expect(this.get(0, 0, 0, 0).isBfcRoot()).to.be.true;
+      expect(this.get(0, 0, 0, 0).isInline()).to.be.false;
+      expect(this.get(0, 0, 0, 0).isInlineLevel()).to.be.true;
     });
 
     it('breaks out block level elements', function () {
@@ -87,32 +85,32 @@ describe('Flow', function () {
       `);
 
       // <anon div> <span>1break </span></anon div>
-      expect(this.get(1, 0).isBlockContainer()).to.be.true;
-      expect(this.get(1, 0).isBlockContainerOfInlines()).to.be.true;
-      expect(this.get(1, 0).isAnonymous()).to.be.true;
-      expect(this.get(1, 0).isInlineLevel()).to.be.false;
+      expect(this.get(0, 0).isBlockContainer()).to.be.true;
+      expect(this.get(0, 0).isBlockContainerOfInlines()).to.be.true;
+      expect(this.get(0, 0).isAnonymous()).to.be.true;
+      expect(this.get(0, 0).isInlineLevel()).to.be.false;
       // <span>1break </span>
-      expect(this.get(1, 0, 0, 1).isInline()).to.be.true;
-      expect(this.get(1, 0, 0, 1).isAnonymous()).to.be.false;
+      expect(this.get(0, 0, 0, 1).isInline()).to.be.true;
+      expect(this.get(0, 0, 0, 1).isAnonymous()).to.be.false;
       // <div>1out</div>
-      expect(this.get(1, 1).isBlockContainer()).to.be.true;
-      expect(this.get(1, 1).isBlockContainerOfInlines()).to.be.true;
-      expect(this.get(1, 1).isAnonymous()).to.be.false;
-      expect(this.get(1, 1).isInlineLevel()).to.be.false;
+      expect(this.get(0, 1).isBlockContainer()).to.be.true;
+      expect(this.get(0, 1).isBlockContainerOfInlines()).to.be.true;
+      expect(this.get(0, 1).isAnonymous()).to.be.false;
+      expect(this.get(0, 1).isInlineLevel()).to.be.false;
       // 2break
-      expect(this.get(1, 2).isBlockContainer()).to.be.true;
-      expect(this.get(1, 2).isBlockContainerOfInlines()).to.be.true;
-      expect(this.get(1, 2).isAnonymous()).to.be.true;
-      expect(this.get(1, 2).isInlineLevel()).to.be.false;
+      expect(this.get(0, 2).isBlockContainer()).to.be.true;
+      expect(this.get(0, 2).isBlockContainerOfInlines()).to.be.true;
+      expect(this.get(0, 2).isAnonymous()).to.be.true;
+      expect(this.get(0, 2).isInlineLevel()).to.be.false;
       // <div><span> 2out<div> 2deep</div></span></div>
-      expect(this.get(1, 3).isBlockContainer()).be.true
-      expect(this.get(1, 3).isBlockContainerOfBlockContainers()).be.true
-      expect(this.get(1, 3).children).to.have.lengthOf(3);
+      expect(this.get(0, 3).isBlockContainer()).be.true
+      expect(this.get(0, 3).isBlockContainerOfBlockContainers()).be.true
+      expect(this.get(0, 3).children).to.have.lengthOf(3);
       // <anon div><span> 2out</span></anon div>
-      expect(this.get(1, 3, 0).isBlockContainer()).be.true
-      expect(this.get(1, 3, 0).isAnonymous()).be.true
+      expect(this.get(0, 3, 0).isBlockContainer()).be.true
+      expect(this.get(0, 3, 0).isAnonymous()).be.true
       // end
-      expect(this.get(1).children).to.have.lengthOf(5);
+      expect(this.get(0).children).to.have.lengthOf(5);
     });
 
     it('generates BFCs', function () {
@@ -129,8 +127,8 @@ describe('Flow', function () {
         </div>
       `);
 
-      expect(this.get(1).contentArea.height).to.equal(10);
-      expect(this.get(1).children).to.have.lengthOf(5);
+      expect(this.get(0).contentArea.height).to.equal(10);
+      expect(this.get(0).children).to.have.lengthOf(5);
     });
 
     it('doesn\'t create inline boxes with display: none', function () {
@@ -142,9 +140,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/flow').IfcInline[] */
-      const [ifc] = this.get(1).children;
-      expect(this.get(1).contentArea.height).to.equal(100);
-      expect(this.get(1).children).to.have.lengthOf(1);
+      const [ifc] = this.get(0).children;
+      expect(this.get(0).contentArea.height).to.equal(100);
+      expect(this.get(0).children).to.have.lengthOf(1);
       expect(ifc.text).to.equal(' shown ');
     });
 

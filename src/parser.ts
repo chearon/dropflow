@@ -22,10 +22,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-import {TextNode, HTMLElement} from './dom.js';
-import {parse as StyleParser} from './css.js';
-import {createComputedStyle, uaDeclaredStyles} from './cascade.js';
-import {id} from './util.js';
 import {determineBranch, BinTrieFlags} from './string-trie.js';
 import entityTrie from '../gen/entity-trie.js';
 
@@ -148,7 +144,7 @@ const enum State {
   InHexEntity, // X
 }
 
-function isWhitespace(c: number): boolean {
+export function isWhitespace(c: number): boolean {
   return (
     c === CharCodes.Space ||
     c === CharCodes.NewLine ||
@@ -1590,55 +1586,4 @@ export class Parser implements Callbacks {
 
     if (this.ended) this.tokenizer.end();
   }
-}
-
-export function parseNodes(rootElement: HTMLElement, str: string) {
-  const stack:HTMLElement[] = [];
-  let parent = rootElement;
-  let tn:TextNode | null = null;
-  const parser = new Parser({
-    onopentag(tagName, attrs) {
-      const newId = id();
-      const uaDeclaredStyle = uaDeclaredStyles[tagName] || {};
-      const style = attrs.style;
-      let cascadedStyle;
-
-      // Just ignore invalid styles so the parser can continue
-      try {
-        if (style) {
-          const styleDeclaredStyle = StyleParser(style);
-          // 2-level cascade:
-          cascadedStyle = Object.assign({}, uaDeclaredStyle, styleDeclaredStyle);
-        } else {
-          cascadedStyle = uaDeclaredStyle;
-        }
-      } catch (e) {
-        cascadedStyle = uaDeclaredStyle;
-      }
-
-      const computedStyle = createComputedStyle(parent.style, cascadedStyle);
-      const element = new HTMLElement(newId, tagName, computedStyle, parent, attrs);
-
-      parent.children.push(element);
-      stack.push(parent);
-      parent = element;
-      tn = null;
-    },
-    onclosetag(tagName) {
-      parent = stack.pop()!;
-      tn = null;
-    },
-    ontext(text) {
-      if (tn) {
-        tn.text += text;
-      } else {
-        const newId = id();
-        const computedStyle = createComputedStyle(parent.style, {});
-        parent.children.push(tn = new TextNode(newId, text, computedStyle));
-      }
-    }
-  });
-
-  parser.write(str);
-  parser.end();
 }

@@ -1,6 +1,8 @@
+// @ts-check
 import {expect} from 'chai';
 import {registerFontAsset} from '../assets/register.js';
 import {h, dom, generate, layout} from '../src/api-with-parse.js';
+import {parse} from '../src/api-with-parse.js';
 
 describe('Hyperscript API', function () {
   it('accepts children argument', function () {
@@ -48,10 +50,20 @@ describe('Hyperscript API', function () {
   });
 
   it('computes styles', function () {
-    const d1 = dom(h('div', {style: {fontSize: 99}}, 'abc'));
-    expect(d1.children[0].style.fontSize).to.equal(99);
-    const d2 = dom(h('div', {style: {lineHeight: {value: 123, unit: null}}}, [h('div')]));
-    expect(d2.children[0].style.lineHeight).to.deep.equal({value: 123, unit: null});
+    const h1 = dom(h('div', {style: {fontSize: 99}}, 'abc'));
+    expect(h1.children[0].computedStyle.fontSize).to.equal(99);
+    const h2 = dom(h('div', {style: {lineHeight: {value: 123, unit: null}}}, [h('div')]));
+    expect(h2.children[0].computedStyle.lineHeight).to.deep.equal({value: 123, unit: null});
+  });
+
+  it('uses the html element', function () {
+    expect(dom(h('html', {})).children.length).to.equal(0);
+  });
+
+  it('makes the root element block-level, flow-root', function () {
+    const html = dom(h('html', {style: {display: {outer: 'inline', inner: 'flow'}}}));
+    expect(html.computedStyle.display.outer).to.equal('block');
+    expect(html.computedStyle.display.inner).to.equal('flow-root');
   });
 
   it('lays out successfully', async function () {
@@ -93,5 +105,45 @@ describe('Hyperscript API', function () {
     layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
+  });
+});
+
+describe('Parse API', function () {
+  it('parses <html> ignoring ws before but not content after', function () {
+    const html = parse('\t\n <html></html><p>wat</p> ');
+    expect(html.children.length).to.equal(2);
+    expect(html.children[0].tagName).to.equal('p');
+    expect(html.children[0].children[0].text).to.equal('wat');
+    expect(html.children[1].text).to.equal(' ');
+  });
+
+  it('wraps with <html> except leading whitespace', function () {
+    const html = parse('\r   <p>hello world</p>');
+    expect(html.children.length).to.equal(1);
+    expect(html.children[0].tagName).to.equal('p');
+    expect(html.children[0].children[0].text).to.equal('hello world');
+  });
+
+  it('combines text after <html> correctly', function () {
+    const html = parse('<html> bingo</html> bango ');
+    expect(html.children.length).to.equal(1);
+    expect(html.children[0].text).to.equal(' bingo bango ');
+  });
+
+  it('returns an empty element if there\'s no content', function () {
+    expect(parse('').children.length).to.equal(0);
+    expect(parse('\t\n  ').children.length).to.equal(0);
+  });
+
+  it('computes styles', function () {
+    const html = parse('<p style="white-space: pre;">coffee</p>');
+    expect(html.children[0].computedStyle.whiteSpace).to.equal('pre');
+    expect(html.children[0].children[0].computedStyle.whiteSpace).to.equal('pre');
+  });
+
+  it('computes styles on reparented elements/text', function () {
+    const html = parse('<html style="font: 12px Bro;">happy </html><span>birthday</span>');
+    expect(html.children[0].computedStyle.fontFamily).to.deep.equal(['Bro']);
+    expect(html.children[1].computedStyle.fontFamily).to.deep.equal(['Bro']);
   });
 });

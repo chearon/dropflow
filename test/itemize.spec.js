@@ -265,7 +265,7 @@ describe('Itemization', function () {
             <span><span><span>chump</span></span</span>
           </span>
         </div>
-      `).children[1].children[0];
+      `).children[0].children[0];
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -283,7 +283,7 @@ describe('Itemization', function () {
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(1);
+      expect(state.offset).to.equal(5);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
@@ -291,15 +291,11 @@ describe('Itemization', function () {
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(7);
+      expect(state.offset).to.equal(11);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(12);
-      expect(state.done).to.be.false;
-
-      styleIteratorNext(state);
-      expect(state.offset).to.equal(13);
       expect(state.done).to.be.true;
     });
 
@@ -313,23 +309,19 @@ describe('Itemization', function () {
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(1);
+      expect(state.offset).to.equal(11);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(12);
+      expect(state.offset).to.equal(20);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(21);
+      expect(state.offset).to.equal(28);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(29);
-      expect(state.done).to.be.false;
-
-      styleIteratorNext(state);
-      expect(state.offset).to.equal(30);
       expect(state.done).to.be.true;
     });
 
@@ -343,11 +335,11 @@ describe('Itemization', function () {
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(5);
+      expect(state.offset).to.equal(4);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(10);
+      expect(state.offset).to.equal(9);
       expect(state.done).to.be.true;
     });
 
@@ -392,11 +384,11 @@ describe('Itemization', function () {
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(4);
+      expect(state.offset).to.equal(3);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(8);
+      expect(state.offset).to.equal(7);
       expect(state.done).to.be.true;
     });
 
@@ -408,11 +400,11 @@ describe('Itemization', function () {
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(2);
+      expect(state.offset).to.equal(1);
       expect(state.done).to.be.false;
 
       styleIteratorNext(state);
-      expect(state.offset).to.equal(5);
+      expect(state.offset).to.equal(4);
       expect(state.done).to.be.true;
     });
 

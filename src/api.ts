@@ -1,5 +1,5 @@
 import {HTMLElement, TextNode} from './dom.js';
-import {cascadeStyles, createComputedStyle, initialStyle, DeclaredPlainStyle, uaDeclaredStyles, EMPTY_STYLE} from './cascade.js';
+import {DeclaredPlainStyle, getRootComputedStyle, initialStyle, computeElementStyle} from './cascade.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
@@ -9,30 +9,12 @@ import {id} from './util.js';
 
 export type {BlockContainer, DeclaredPlainStyle};
 
-// required styles that always come last in the cascade
-const rootDeclaredStyle: DeclaredPlainStyle = {
-  display: {
-    outer: 'block',
-    inner: 'flow-root'
-  }
-};
-
-export function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
-  return createComputedStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
-}
-
-// ***
-// all VERY subject to change. for example, users should be able to specify the
-// rootComputedStyle. these functions should probably be methods on a public
-// class which stores a reference to the style. also there should be a dead
-// simple render(html, [viewportWidth, [viewportHeight]]). also the paint to
-// html api is just for development
-// ***
+export {getRootComputedStyle};
 
 export {registerFont, unregisterFont} from './font.js';
 
 export function generate(rootElement: HTMLElement) {
-  if (rootElement.declaredStyle) {
+  if (rootElement.computedStyle === initialStyle) {
     throw new Error(
       'To use the hyperscript API, pass the element tree to dom() and use ' +
       'the return value as the argument to generate().'
@@ -68,6 +50,9 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
   root.postprocess();
 }
 
+/**
+ * Old paint target for testing, not maintained much anymore
+ */
 export function paintToHtml(root: BlockContainer) {
   const backend = new HtmlPaintBackend();
   paintBlockRoot(root, backend, true);
@@ -87,7 +72,7 @@ export function renderToCanvasContext(
   width: number,
   height: number
 ) {
-  const root = generate(dom(rootElement));
+  const root = generate(rootElement);
   layout(root, width, height);
   paintToCanvas(root, ctx);
 }
@@ -106,42 +91,46 @@ interface HsData {
   attrs?: {[k: string]: string};
 }
 
-export function dom(el: HTMLElement | HTMLElement[] | string, style?: DeclaredPlainStyle) {
-  const computedStyle = getRootComputedStyle(style);
-  const rootElement = new HTMLElement('', 'root', computedStyle);
-  const stack: (Node | {end: true})[] = Array.isArray(el) ? el.slice() : typeof el === 'string' ? [] : [el];
-  const parents: HTMLElement[] = [rootElement];
+export function dom(el: HTMLElement | HTMLElement[]) {
+  let rootElement;
+
+  if (el instanceof HTMLElement && el.tagName === 'html') {
+    rootElement = el;
+
+    if (rootElement.children.length === 1) {
+      const [child] = rootElement.children;
+      if (child instanceof TextNode) {
+        // fast path: saves something like 0.4µs, so no need to keep...
+        child.parent = rootElement;
+        computeElementStyle(rootElement);
+        computeElementStyle(child);
+        return rootElement;
+      }
+    }
+  } else {
+    rootElement = new HTMLElement('root', 'html');
+    rootElement.children = Array.isArray(el) ? el.slice() : [el];
+  }
+
+  // Assign parents
+  const stack: (HTMLElement | TextNode | {sentinel: true})[] = [rootElement];
+  const parents: HTMLElement[] = [];
 
   while (stack.length) {
     const el = stack.pop()!;
     const parent = parents.at(-1);
 
-    if (!parent) throw new Error('Assertion failed: !!parent');
-
-    if ('end' in el) {
+    if ('sentinel' in el) {
       parents.pop();
-    } else if (el instanceof TextNode) {
-      el.id = id();
-      el.style = createComputedStyle(parent.style, EMPTY_STYLE);
-    } else if (!el.parent) {
-      const uaDeclaredStyle = uaDeclaredStyles[el.tagName] || EMPTY_STYLE;
-      const cascadedStyle = cascadeStyles(uaDeclaredStyle, el.declaredStyle || EMPTY_STYLE);
-
-      el.style = createComputedStyle(parent.style, cascadedStyle);
-      el.declaredStyle = null;
-      el.parent = parent;
-
-      parents.push(el);
-      stack.push({end: true});
-      for (const child of el.children) stack.push(child);
+    } else {
+      el.parent = parent || null;
+      computeElementStyle(el);
+      if (el instanceof HTMLElement) {
+        parents.push(el);
+        stack.push({sentinel: true});
+        for (const child of el.children) stack.push(child);
+      }
     }
-  }
-
-  if (typeof el === 'string') {
-    const style = createComputedStyle(computedStyle, EMPTY_STYLE);
-    rootElement.children = [new TextNode(id(), el, style)];
-  } else {
-    rootElement.children = Array.isArray(el) ? el.slice() : [el];
   }
 
   return rootElement;
@@ -149,7 +138,7 @@ export function dom(el: HTMLElement | HTMLElement[] | string, style?: DeclaredPl
 
 function toDomChild(child: HsChild) {
   if (typeof child === 'string') {
-    return new TextNode(id(), child, initialStyle);
+    return new TextNode(id(), child);
   } else {
     return child;
   }
@@ -165,7 +154,7 @@ export function h(tagName: string, arg2?: HsData | HsChild[] | string, arg3?: Hs
   let children: (HTMLElement | TextNode)[] | undefined;
 
   if (typeof arg2 === 'string') {
-    children = [new TextNode(id(), arg2, initialStyle)];
+    children = [new TextNode(id(), arg2)];
   } else if (Array.isArray(arg2)) {
     children = arg2.map(toDomChild);
   } else {
@@ -175,13 +164,13 @@ export function h(tagName: string, arg2?: HsData | HsChild[] | string, arg3?: Hs
   if (Array.isArray(arg3)) {
     children = arg3.map(toDomChild);
   } else if (typeof arg3 === 'string') {
-    children = [new TextNode(id(), arg3, initialStyle)];
+    children = [new TextNode(id(), arg3)];
   }
 
   if (!children) children = [];
   if (!data) data = {};
 
-  const el = new HTMLElement(id(), tagName, initialStyle, null, data.attrs, data.style);
+  const el = new HTMLElement(id(), tagName, null, data.attrs, data.style);
   el.children = children;
   return el;
 }

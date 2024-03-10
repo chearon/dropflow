@@ -1,17 +1,19 @@
 import {Box} from './box.js';
 import {loggableText} from './util.js';
-import {ComputedPlainStyle, DeclaredPlainStyle} from './cascade.js';
+import {ComputedPlainStyle, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './cascade.js';
 import selectAll, {Adapter} from './query.js';
 
 export class TextNode {
   public id: string;
-  public style: ComputedPlainStyle;
+  public computedStyle: ComputedPlainStyle;
   public text: string;
+  public parent: HTMLElement | null;
 
-  constructor(id: string, text: string, style: ComputedPlainStyle) {
+  constructor(id: string, text: string, parent: HTMLElement | null = null) {
     this.id = id;
-    this.style = style;
+    this.computedStyle = initialStyle;
     this.text = text;
+    this.parent = parent;
   }
 
   repr(indent = 0) {
@@ -22,27 +24,26 @@ export class TextNode {
 export class HTMLElement {
   public id: string;
   public tagName: string;
-  public style: ComputedPlainStyle;
+  public computedStyle: ComputedPlainStyle;
+  public declaredStyle: DeclaredPlainStyle;
   public parent: HTMLElement | null;
-  public attrs: {[k: string]: string};
-  public declaredStyle: DeclaredPlainStyle | null;
+  public attrs: Record<string, string>;
   public children: (TextNode | HTMLElement)[];
   public boxes: Box[];
 
   constructor(
     id: string,
     tagName: string,
-    style: ComputedPlainStyle,
     parent: HTMLElement | null = null,
     attrs: {[k: string]: string} = {},
-    declaredStyle?: DeclaredPlainStyle
+    declaredStyle = EMPTY_STYLE
   ) {
     this.id = id;
     this.tagName = tagName;
-    this.style = style;
+    this.computedStyle = initialStyle;
+    this.declaredStyle = declaredStyle;
     this.parent = parent;
     this.attrs = attrs;
-    this.declaredStyle = declaredStyle || null; // only used by hyperscript API
     this.children = [];
     this.boxes = [];
   }
@@ -60,7 +61,7 @@ export class HTMLElement {
 
   repr(indent = 0, styleProp?: keyof ComputedPlainStyle): string {
     const c = this.children.map(c => c.repr(indent + 1, styleProp)).join('\n');
-    const style = styleProp ? ` ${styleProp}: ${JSON.stringify(this.style[styleProp])}` : '';
+    const style = styleProp ? ` ${styleProp}: ${JSON.stringify(this.computedStyle[styleProp])}` : '';
     const desc = `◼ <${this.tagName}> ${this.id}${style}`
     return '  '.repeat(indent) + desc + (c ? '\n' + c : '');
   }

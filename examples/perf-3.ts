@@ -26,15 +26,19 @@ const style = {whiteSpace: 'pre'} as const;
 
 const canvas = createCanvas(100, 20);
 const ctx = canvas.getContext('2d');
-const rootElement = flow.dom(words[Math.floor(Math.random() * words.length)], style);
-const blockContainer = flow.generate(rootElement);
+const html = flow.dom(
+  flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
+);
+const blockContainer = flow.generate(html);
 flow.layout(blockContainer, 100, 20);
 flow.paintToCanvas(blockContainer, ctx);
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-3.png', import.meta.url)));
 
 bench('generate and layout one random word', () => {
-  const rootElement = flow.dom(words[Math.floor(Math.random() * words.length)], style);
-  const blockContainer = flow.generate(rootElement);
+  const html = flow.dom(
+    flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
+  );
+  const blockContainer = flow.generate(html);
   clearWordCache();
   flow.layout(blockContainer, 100, 20);
 });

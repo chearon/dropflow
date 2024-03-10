@@ -1,4 +1,5 @@
 import {BlockContainer, IfcInline} from './flow.js';
+import {HTMLElement, TextNode} from './dom.js';
 
 export const inherited = Symbol('inherited');
 
@@ -210,6 +211,10 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
   return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
 }
 
+// TODO: I don't think ComputedPlainStyle needs to exist separate from Style.
+// Originally this class was to hold "used" styles, but I now know that used
+// styles are more like getting properties from the _layout_. Not a high
+// priority since these are cached, but could reduce code, and memory a bit.
 export class Style implements ComputedPlainStyle {
   whiteSpace: ComputedPlainStyle['whiteSpace'];
   color: ComputedPlainStyle['color'];
@@ -745,4 +750,41 @@ export function createStyle(s: ComputedPlainStyle) {
     styleCache.set(s, style);
   }
   return style;
+}
+
+// required styles that always come last in the cascade
+const rootDeclaredStyle: DeclaredPlainStyle = {
+  display: {
+    outer: 'block',
+    inner: 'flow-root'
+  }
+};
+
+export function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
+  return createComputedStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
+}
+
+export function computeElementStyle(el: HTMLElement | TextNode) {
+  if (el.parent) {
+    if (el instanceof TextNode) {
+      el.computedStyle = createComputedStyle(el.parent!.computedStyle, EMPTY_STYLE);
+    } else {
+      const uaDeclaredStyle = uaDeclaredStyles[el.tagName];
+      if (uaDeclaredStyle) {
+        const cascadedStyle = cascadeStyles(uaDeclaredStyle, el.declaredStyle);
+        el.computedStyle = createComputedStyle(el.parent!.computedStyle, cascadedStyle);
+      } else {
+        el.computedStyle = createComputedStyle(el.parent!.computedStyle, el.declaredStyle);
+      }
+    }
+  } else {
+    const rootElement = el as HTMLElement;
+    const uaDeclaredStyle = uaDeclaredStyles[rootElement.tagName];
+    if (uaDeclaredStyle) {
+      const cascadedStyle = cascadeStyles(uaDeclaredStyle, rootElement.declaredStyle);
+      rootElement.computedStyle = getRootComputedStyle(cascadedStyle);
+    } else {
+      el.computedStyle = getRootComputedStyle(rootElement.declaredStyle);
+    }
+  }
 }

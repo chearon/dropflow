@@ -159,7 +159,7 @@ describe('Whitespace collapsing', function () {
     /** @type import('../src/flow').IfcInline[] */
     const [ifc1] = bfc1.children;
     expect(ifc1.text).to.equal(
-      ' this is an ifc \n        but it has inside of it\n        '
+      'this is an ifc \n        but it has inside of it\n        '
     );
 
     /** @type import('../src/flow').IfcInline[] */
@@ -276,7 +276,7 @@ describe('Shaping', function () {
       `);
       /** @type import('../src/flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(4);
     });
 
     it('splits shaping boundaries on font-size', function () {
@@ -286,7 +286,7 @@ describe('Shaping', function () {
       `);
       /** @type import('../src/flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.paragraph.brokenItems).to.have.lengthOf(5);
+      expect(inline.paragraph.brokenItems).to.have.lengthOf(4);
     });
 
     it('splits shaping boundaries on font-style', function () {
@@ -418,7 +418,7 @@ describe('Shaping', function () {
       `);
       /** @type import('../src/flow').IfcInline[] */
       const [inline] = this.get().children;
-      expect(inline.paragraph.brokenItems[1].length).to.equal(2);
+      expect(inline.paragraph.brokenItems[0].length).to.equal(2);
     });
 
     it('affect line height when line height is normal', function () {
@@ -619,7 +619,7 @@ describe('Lines', function () {
 
     /** @type import('../src/flow').IfcInline[] */
     const [ifc] = this.get().children;
-    expect(ifc.children[1].nshaped).to.equal(1);
+    expect(ifc.children[0].nshaped).to.equal(1);
   });
 
   it('updates item inlines/count when wrapping', function () {
@@ -831,7 +831,7 @@ describe('Lines', function () {
     `);
 
     /** @type import('../src/flow').IfcInline[] */
-    const [ifc] = this.get(1).children;
+    const [ifc] = this.get(0).children;
     const colors = ifc.paragraph.getColors();
 
     expect(colors).to.deep.equal([

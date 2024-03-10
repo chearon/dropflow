@@ -471,6 +471,7 @@ class Tokenizer {
       this.stateText(c);
     }
   }
+
   private stateInTagName(c: number): void {
     if (isEndOfTagSection(c)) {
       this.cbs.onopentagname(this.sectionStart, this.index);
@@ -479,6 +480,7 @@ class Tokenizer {
       this.stateBeforeAttributeName(c);
     }
   }
+
   private stateBeforeClosingTagName(c: number): void {
     if (isWhitespace(c)) {
       // Ignore
@@ -491,6 +493,7 @@ class Tokenizer {
       this.sectionStart = this.index;
     }
   }
+
   private stateInClosingTagName(c: number): void {
     if (c === CharCodes.Gt || isWhitespace(c)) {
       this.cbs.onclosetag(this.sectionStart, this.index);
@@ -499,6 +502,7 @@ class Tokenizer {
       this.stateAfterClosingTagName(c);
     }
   }
+
   private stateAfterClosingTagName(c: number): void {
     // Skip everything until ">"
     if (c === CharCodes.Gt || this.fastForwardTo(CharCodes.Gt)) {
@@ -506,6 +510,7 @@ class Tokenizer {
       this.sectionStart = this.index + 1;
     }
   }
+
   private stateBeforeAttributeName(c: number): void {
     if (c === CharCodes.Gt) {
       this.cbs.onopentagend(this.index);
@@ -524,6 +529,7 @@ class Tokenizer {
       this.sectionStart = this.index;
     }
   }
+
   private stateInSelfClosingTag(c: number): void {
     if (c === CharCodes.Gt) {
       this.cbs.onselfclosingtag(this.index);
@@ -536,6 +542,7 @@ class Tokenizer {
       this.stateBeforeAttributeName(c);
     }
   }
+
   private stateInAttributeName(c: number): void {
     if (c === CharCodes.Eq || isEndOfTagSection(c)) {
       this.cbs.onattribname(this.sectionStart, this.index);
@@ -544,6 +551,7 @@ class Tokenizer {
       this.stateAfterAttributeName(c);
     }
   }
+
   private stateAfterAttributeName(c: number): void {
     if (c === CharCodes.Eq) {
       this.state = State.BeforeAttributeValue;
@@ -557,6 +565,7 @@ class Tokenizer {
       this.sectionStart = this.index;
     }
   }
+
   private stateBeforeAttributeValue(c: number): void {
     if (c === CharCodes.DoubleQuote) {
       this.state = State.InAttributeValueDq;
@@ -570,6 +579,7 @@ class Tokenizer {
       this.stateInAttributeValueNoQuotes(c); // Reconsume token
     }
   }
+
   private handleInAttributeValue(c: number, quote: number) {
     if (c === quote) {
       this.cbs.onattribdata(this.sectionStart, this.index);
@@ -586,12 +596,15 @@ class Tokenizer {
       this.state = State.BeforeEntity;
     }
   }
+
   private stateInAttributeValueDoubleQuotes(c: number): void {
     this.handleInAttributeValue(c, CharCodes.DoubleQuote);
   }
+
   private stateInAttributeValueSingleQuotes(c: number): void {
     this.handleInAttributeValue(c, CharCodes.SingleQuote);
   }
+
   private stateInAttributeValueNoQuotes(c: number): void {
     if (isWhitespace(c) || c === CharCodes.Gt) {
       this.cbs.onattribdata(this.sectionStart, this.index);
@@ -604,6 +617,7 @@ class Tokenizer {
       this.state = State.BeforeEntity;
     }
   }
+
   private stateBeforeDeclaration(c: number): void {
     if (c === CharCodes.OpeningSquareBracket) {
       this.state = State.CDATASequence;
@@ -615,6 +629,7 @@ class Tokenizer {
           : State.InDeclaration;
     }
   }
+
   private stateInDeclaration(c: number): void {
     if (c === CharCodes.Gt || this.fastForwardTo(CharCodes.Gt)) {
       this.cbs.ondeclaration(this.sectionStart, this.index);
@@ -622,6 +637,7 @@ class Tokenizer {
       this.sectionStart = this.index + 1;
     }
   }
+
   private stateInProcessingInstruction(c: number): void {
     if (c === CharCodes.Gt || this.fastForwardTo(CharCodes.Gt)) {
       this.cbs.onprocessinginstruction(this.sectionStart, this.index);
@@ -629,6 +645,7 @@ class Tokenizer {
       this.sectionStart = this.index + 1;
     }
   }
+
   private stateBeforeComment(c: number): void {
     if (c === CharCodes.Dash) {
       this.state = State.InCommentLike;
@@ -640,6 +657,7 @@ class Tokenizer {
       this.state = State.InDeclaration;
     }
   }
+
   private stateInSpecialComment(c: number): void {
     if (c === CharCodes.Gt || this.fastForwardTo(CharCodes.Gt)) {
       this.cbs.oncomment(this.sectionStart, this.index, 0);
@@ -647,6 +665,7 @@ class Tokenizer {
       this.sectionStart = this.index + 1;
     }
   }
+
   private stateBeforeSpecialS(c: number): void {
     const lower = c | 0x20;
     if (lower === Sequences.ScriptEnd[3]) {
@@ -796,6 +815,7 @@ class Tokenizer {
     }
     this.state = this.baseState;
   }
+
   private stateInNumericEntity(c: number): void {
     if (c === CharCodes.Semi) {
       this.emitNumericEntity(true);
@@ -811,6 +831,7 @@ class Tokenizer {
       this.index--;
     }
   }
+
   private stateInHexEntity(c: number): void {
     if (c === CharCodes.Semi) {
       this.emitNumericEntity(true);
@@ -863,10 +884,10 @@ class Tokenizer {
   }
 
   /**
-     * Iterates through the buffer, calling the function corresponding to the current state.
-     *
-     * States that are more likely to be hit are higher up, as a performance improvement.
-     */
+   * Iterates through the buffer, calling the function corresponding to the current state.
+   *
+   * States that are more likely to be hit are higher up, as a performance improvement.
+   */
   private parse() {
     while (this.shouldContinue()) {
       const c = this.buffer.charCodeAt(this.index - this.offset);
@@ -998,6 +1019,7 @@ class Tokenizer {
       this.cbs.ontext(start, endIndex);
     }
   }
+
   private emitCodePoint(cp: number): void {
     if (
       this.baseState !== State.Text &&
@@ -1164,9 +1186,9 @@ export class Parser implements Callbacks {
   /** The end index of the last event. */
   public endIndex = 0;
   /**
-     * Store the start index of the current open tag,
-     * so we can update the start index for attributes.
-     */
+   * Store the start index of the current open tag,
+   * so we can update the start index for attributes.
+   */
   private openTagStart = 0;
 
   private tagname = '';
@@ -1531,10 +1553,10 @@ export class Parser implements Callbacks {
   }
 
   /**
-     * Parses the end of the buffer and clears the stack, calls onend.
-     *
-     * @param chunk Optional final chunk to parse.
-     */
+   * Parses the end of the buffer and clears the stack, calls onend.
+   *
+   * @param chunk Optional final chunk to parse.
+   */
   public end(chunk?: string): void {
     if (this.ended) {
       this.cbs.onerror?.(Error('.end() after done!'));

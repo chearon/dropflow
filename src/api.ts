@@ -24,17 +24,8 @@ export function generate(rootElement: HTMLElement) {
   return generateBlockContainer(rootElement);
 }
 
-// Re-use the root containing block
-let initialContainingBlock: BoxArea | undefined;
-
 export function layout(root: BlockContainer, width = 640, height = 480) {
-  if (!initialContainingBlock) {
-    initialContainingBlock = new BoxArea(root, 0, 0, width, height);
-  } else {
-    initialContainingBlock.box = root;
-    initialContainingBlock.inlineSize = width;
-    initialContainingBlock.blockSize = height;
-  }
+  const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
 
   root.style.width = width;
   root.style.height = height;

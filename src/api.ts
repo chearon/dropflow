@@ -27,9 +27,6 @@ export function generate(rootElement: HTMLElement) {
 export function layout(root: BlockContainer, width = 640, height = 480) {
   const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
 
-  root.style.width = width;
-  root.style.height = height;
-
   root.containingBlock = initialContainingBlock;
   root.preprocess();
   layoutBlockBox(root, {

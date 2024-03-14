@@ -168,7 +168,6 @@ describe('Flow', function () {
         </div>
       `);
 
-      expect(this.blockContainer.contentArea.height).to.equal(500);
       expect(this.get('#r').contentArea.height).to.equal(10);
       expect(this.get('#c1').contentArea.height).to.equal(0);
       expect(this.get('#c2').contentArea.height).to.equal(0);
@@ -187,7 +186,6 @@ describe('Flow', function () {
         </div>
       `);
 
-      expect(this.blockContainer.contentArea.height).to.equal(500);
       expect(this.get('#r').contentArea.height).to.equal(20);
       expect(this.get('#c1').contentArea.height).to.equal(0);
       expect(this.get('#c2').contentArea.height).to.equal(0);
@@ -367,7 +365,7 @@ describe('Flow', function () {
     });
   });
 
-  describe('Automatic width and offsets', function () {
+  describe('Automatic width, height, and offsets', function () {
     describe('Border, padding, and empty div behavior', function () {
       before(function () {
         this.layout(`

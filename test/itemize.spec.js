@@ -11,7 +11,7 @@ import {
   newlineIteratorNext,
   createStyleIteratorState,
   styleIteratorNext
-} from '../src/itemize.js';
+} from '../src/text-itemize.js';
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 
@@ -257,7 +257,7 @@ describe('Itemization', function () {
     });
 
     it('stops at the end when all is the same', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         <div style="font-size: 8px;">
           <span style="font-size: 8px;">hello</span>
@@ -275,7 +275,7 @@ describe('Itemization', function () {
     });
 
     it('stops at font changes', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         <span style="font-size: 1px;">hello</span>
         <span style="font-size: 2px;">world</span>
@@ -300,7 +300,7 @@ describe('Itemization', function () {
     });
 
     it('stops at vertical-align changes', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         <span style="position: relative;">sanitizers:</span>
         bromine
@@ -326,7 +326,7 @@ describe('Itemization', function () {
     });
 
     it('stops at inline-block', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         cat
         <div style="display: inline-block;">dog</div>
@@ -344,7 +344,7 @@ describe('Itemization', function () {
     });
 
     it('stops at position: relative', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         <span style="vertical-align: sub;">
           <span style="vertical-align: sub;">sub</span>
@@ -366,7 +366,7 @@ describe('Itemization', function () {
     });
 
     it('stops with the right style with nested inlines', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout('<span style="font-family: Abc;">Abc</span>').children[0];
       const state = createStyleIteratorState(ifc);
 
@@ -377,7 +377,7 @@ describe('Itemization', function () {
     });
 
     it('stops at padding', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         <span>abc</span><span style="padding-left: 3px;">def</span>
       `).children[0];
@@ -393,7 +393,7 @@ describe('Itemization', function () {
     });
 
     it('stops after negative margin', function () {
-      /** @type {import('../src/flow.js').IfcInline} */
+      /** @type {import('../src/layout-flow.js').IfcInline} */
       const ifc = layout(`
         <span style="margin-right: -1px;">a</span> b
       `).children[0];

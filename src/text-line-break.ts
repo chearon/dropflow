@@ -1,5 +1,5 @@
 // All code based on foliojs/linebreak at time of writing
-import UnicodeTrie from './unicode-trie.js';
+import UnicodeTrie from './text-unicode-trie.js';
 import wasm from './wasm.js';
 
 class Break {

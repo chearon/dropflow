@@ -1,4 +1,4 @@
-import {BlockContainer, IfcInline} from './flow.js';
+import {BlockContainer, IfcInline} from './layout-flow.js';
 import {HTMLElement, TextNode} from './dom.js';
 
 export const inherited = Symbol('inherited');

@@ -1,6 +1,6 @@
 import {binarySearchTuple, basename, loggableText} from './util.js';
-import {RenderItem, ReprOptions} from './box.js';
-import {Style, Color, TextAlign, WhiteSpace} from './cascade.js';
+import {RenderItem, ReprOptions} from './layout-box.js';
+import {Style, Color, TextAlign, WhiteSpace} from './style.js';
 import {
   BlockContainer,
   IfcInline,
@@ -11,16 +11,16 @@ import {
   createInlineIterator,
   createPreorderInlineIterator,
   layoutFloatBox
-} from './flow.js';
-import LineBreak, {HardBreaker} from './line-break.js';
-import {nextGraphemeBreak, previousGraphemeBreak} from './grapheme-break.js';
-import * as hb from './harfbuzz.js';
-import {getCascade} from './font.js';
+} from './layout-flow.js';
+import LineBreak, {HardBreaker} from './text-line-break.js';
+import {nextGraphemeBreak, previousGraphemeBreak} from './text-grapheme-break.js';
+import * as hb from './text-harfbuzz.js';
+import {getCascade} from './text-font.js';
 import {nameToTag} from '../gen/script-names.js';
-import {createItemizeState, itemizeNext} from './itemize.js';
+import {createItemizeState, itemizeNext} from './text-itemize.js';
 
-import type {FaceMatch} from './font.js';
-import type {HbFace, HbFont, AllocatedUint16Array} from './harfbuzz.js';
+import type {FaceMatch} from './text-font.js';
+import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.js';
 
 const lineFeedCharacter = 0x000a;
 const formFeedCharacter = 0x000c;

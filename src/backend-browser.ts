@@ -1,4 +1,4 @@
-import type {FaceMatch} from './font.js';
+import type {FaceMatch} from './text-font.js';
 
 // TypeScript does not support different possibilities of runtime environments,
 // so the types loaded are for node. To add the browser environment too would

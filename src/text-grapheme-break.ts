@@ -1,5 +1,5 @@
 // All code based on foliojs/grapheme-breaker at time of writing
-import UnicodeTrie from './unicode-trie.js';
+import UnicodeTrie from './text-unicode-trie.js';
 import wasm from './wasm.js';
 
 // I don't know why the pointer value is stored directly in the .value here.

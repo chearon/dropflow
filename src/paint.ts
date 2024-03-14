@@ -1,10 +1,10 @@
-import {BlockContainer, Inline, InlineLevel, IfcInline} from './flow.js';
-import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './text.js';
-import {Color} from './cascade.js';
-import {BoxArea} from './box.js';
+import {BlockContainer, Inline, InlineLevel, IfcInline} from './layout-flow.js';
+import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './layout-text.js';
+import {Color} from './style.js';
+import {BoxArea} from './layout-box.js';
 import {binarySearchOf} from './util.js';
 
-import type {FaceMatch} from './font.js';
+import type {FaceMatch} from './text-font.js';
 
 export interface PaintBackend {
   fillColor: Color;

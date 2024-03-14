@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import * as lbClasses from './dist/src/line-break.js';
-import * as gbClasses from './dist/src/grapheme-break.js';
-import * as mjClasses from './dist/src/itemize.js';
-import UnicodeTrieBuilder from './dist/src/unicode-trie-builder.js';
+import * as lbClasses from './dist/src/text-line-break.js';
+import * as gbClasses from './dist/src/text-grapheme-break.js';
+import * as mjClasses from './dist/src/text-itemize.js';
+import UnicodeTrieBuilder from './dist/src/text-unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './dist/src/string-trie-encode.js';
-import {hb_tag} from './dist/src/harfbuzz.js';
+import {hb_tag} from './dist/src/text-harfbuzz.js';
 import {URL} from 'url';
 
 // TODO: common function for unicode data file parsing
@@ -49,7 +49,7 @@ async function generateLineBreakTrie() {
 
     if ((type != null) && (rangeType !== type)) {
       if (typeof lbClasses[type] !== 'number') {
-        throw new Error(`Class ${type} not found; update line-break.ts?`);
+        throw new Error(`Class ${type} not found; update text-line-break.ts?`);
       }
       trie.setRange(parseInt(start, 16), parseInt(end, 16), lbClasses[type], true);
       type = null;
@@ -84,7 +84,7 @@ async function generateGraphemeBreakTrie() {
     const end = match[2] != null ? match[2] : start;
     const type = match[3];
     if (typeof gbClasses[type] !== 'number') {
-      throw new Error(`Class ${type} not found; update grapheme-break.ts?`);
+      throw new Error(`Class ${type} not found; update text-grapheme-break.ts?`);
     }
 
     trie.setRange(parseInt(start, 16), parseInt(end, 16), gbClasses[type]);

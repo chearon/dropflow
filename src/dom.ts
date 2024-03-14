@@ -1,7 +1,7 @@
-import {Box} from './box.js';
+import {Box} from './layout-box.js';
 import {loggableText} from './util.js';
-import {ComputedPlainStyle, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './cascade.js';
-import selectAll, {Adapter} from './query.js';
+import {ComputedPlainStyle, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './style.js';
+import selectAll, {Adapter} from './style-query.js';
 
 export class TextNode {
   public id: string;

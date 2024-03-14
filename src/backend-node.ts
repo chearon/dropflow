@@ -1,4 +1,4 @@
-import type {FaceMatch} from './font.js';
+import type {FaceMatch} from './text-font.js';
 import fs from 'node:fs';
 import {fileURLToPath} from 'url';
 

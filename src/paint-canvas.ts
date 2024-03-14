@@ -1,4 +1,4 @@
-import {firstCascadeItem} from './font.js';
+import {firstCascadeItem} from './text-font.js';
 import {
   prevCluster,
   nextCluster,
@@ -12,13 +12,13 @@ import {
   G_DY,
   G_FL,
   G_SZ
-} from './text.js';
+} from './layout-text.js';
 
-import type {Color} from './cascade.js';
+import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
 import type {CanvasRenderingContext2D as NodeCanvasRenderingContext2D} from 'canvas';
-import type {ShapedItem} from './text.js';
-import type {FaceMatch} from './font.js';
+import type {ShapedItem} from './layout-text.js';
+import type {FaceMatch} from './text-font.js';
 
 // This is used in the public API to say what kind of canvas context we can
 // take. If the browser ever took a wider type than node-canvas, we would be in

@@ -1,7 +1,7 @@
 import {id} from './util.js';
-import {Style} from './cascade.js';
-import {Run} from './text.js';
-import {Break, Inline, IfcInline, BlockContainer} from './flow.js';
+import {Style} from './style.js';
+import {Run} from './layout-text.js';
+import {Break, Inline, IfcInline, BlockContainer} from './layout-flow.js';
 
 export interface LogicalArea {
   blockStart: number | undefined;

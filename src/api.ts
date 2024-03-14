@@ -1,17 +1,17 @@
 import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredPlainStyle, getRootComputedStyle, initialStyle, computeElementStyle} from './cascade.js';
-import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './flow.js';
+import {DeclaredPlainStyle, getRootComputedStyle, initialStyle, computeElementStyle} from './style.js';
+import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paintBlockRoot from './paint.js';
-import {BoxArea} from './box.js';
+import {BoxArea} from './layout-box.js';
 import {id} from './util.js';
 
 export type {BlockContainer, DeclaredPlainStyle};
 
 export {getRootComputedStyle};
 
-export {registerFont, unregisterFont} from './font.js';
+export {registerFont, unregisterFont} from './text-font.js';
 
 export function generate(rootElement: HTMLElement) {
   if (rootElement.computedStyle === initialStyle) {
@@ -59,7 +59,7 @@ export function paintToHtml(root: BlockContainer) {
   return backend.s;
 }
 
-export {eachRegisteredFont} from './font.js';
+export {eachRegisteredFont} from './text-font.js';
 
 export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D) {
   const backend = new CanvasPaintBackend(ctx);

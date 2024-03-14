@@ -1,6 +1,6 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
-import {createStyle, createComputedStyle, Style, EMPTY_STYLE} from './cascade.js';
+import {createStyle, createComputedStyle, Style, EMPTY_STYLE} from './style.js';
 import {
   EmptyInlineMetrics,
   InlineMetrics,
@@ -12,10 +12,10 @@ import {
   createParagraph,
   getFontMetrics,
   isSpaceOrTabOrNewline
-} from './text.js';
-import {Box, BoxArea, RenderItem} from './box.js';
+} from './layout-text.js';
+import {Box, BoxArea, RenderItem} from './layout-box.js';
 
-import type {WhiteSpace} from './cascade.js';
+import type {WhiteSpace} from './style.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {

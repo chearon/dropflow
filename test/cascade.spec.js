@@ -1,8 +1,8 @@
 //@ts-check
 
-import {createComputedStyle, initialStyle, Style, inherited, initial} from '../src/cascade.js';
-import {BlockContainer} from '../src/flow.js';
-import {BoxArea} from '../src/box.js';
+import {createComputedStyle, initialStyle, Style, inherited, initial} from '../src/style.js';
+import {BlockContainer} from '../src/layout-flow.js';
+import {BoxArea} from '../src/layout-box.js';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {

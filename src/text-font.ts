@@ -1,12 +1,12 @@
-import * as hb from './harfbuzz.js';
+import * as hb from './text-harfbuzz.js';
 import langCoverage from '../gen/lang-script-coverage.js';
 import wasm from './wasm.js';
-import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './harfbuzz.js';
+import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
 import {registerPaintFont, loadBuffer} from '#backend';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
 
-import type {HbBlob, HbFace, HbFont} from './harfbuzz.js';
-import type {Style, FontStretch} from './cascade.js';
+import type {HbBlob, HbFace, HbFont} from './text-harfbuzz.js';
+import type {Style, FontStretch} from './style.js';
 
 // See FcStrContainsIgnoreCase in fcstr.c
 function strContainsIgnoreCase(s1: string, s2: string) {

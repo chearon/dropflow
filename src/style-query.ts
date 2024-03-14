@@ -60,7 +60,7 @@ import {
   SelectorType,
   PseudoSelector,
   Traversal
-} from './selector.js';
+} from './style-selector.js';
 
 function trueFunc() {
   return true;

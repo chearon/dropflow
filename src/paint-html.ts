@@ -1,9 +1,9 @@
-import {getMetrics, ShapedItem} from './text.js';
-import {firstCascadeItem} from './font.js';
+import {getMetrics, ShapedItem} from './layout-text.js';
+import {firstCascadeItem} from './text-font.js';
 
-import type {Color} from './cascade.js';
+import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
-import type {FaceMatch} from './font.js';
+import type {FaceMatch} from './text-font.js';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');

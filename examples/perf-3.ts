@@ -3,7 +3,7 @@ import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
-import {clearWordCache} from '../src/text.js';
+import {clearWordCache} from '../src/layout-text.js';
 
 console.time('Add fonts');
 registerFontAsset('Roboto/Roboto-Regular.ttf');

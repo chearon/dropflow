@@ -47,7 +47,7 @@ import {
   INDEX_2_BMP_LENGTH,
   INDEX_1_OFFSET,
   MAX_INDEX_1_LENGTH
-} from './unicode-trie.js';
+} from './text-unicode-trie.js';
 
 // The start of non-linear-ASCII data blocks, at offset 128=0x80.
 // !!!!

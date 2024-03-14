@@ -1,10 +1,10 @@
-import UnicodeTrie from './unicode-trie.js';
+import UnicodeTrie from './text-unicode-trie.js';
 import wasm from './wasm.js';
 import {onWasmMemoryResized} from './wasm-env.js';
 import {codeToName} from '../gen/script-names.js';
-import {IfcInline, InlineLevel, Inline} from './flow.js';
-import {Style} from './cascade.js';
-import * as hb from './harfbuzz.js';
+import {IfcInline, InlineLevel, Inline} from './layout-flow.js';
+import {Style} from './style.js';
+import * as hb from './text-harfbuzz.js';
 
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future

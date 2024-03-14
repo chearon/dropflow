@@ -1,3 +1,3 @@
-import {DeclaredPlainStyle} from './cascade.js';
+import {DeclaredPlainStyle} from './style.ts';
 
 export function parse(s: string): DeclaredPlainStyle;

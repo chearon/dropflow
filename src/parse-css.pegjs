@@ -8,7 +8,7 @@
 // element
 
 {{
-  import {initial, inherited} from './cascade.js';
+  import {initial, inherited} from './style.js';
 
   function extractList(list, index) {
     return list.map(function(element) { return element[index]; });

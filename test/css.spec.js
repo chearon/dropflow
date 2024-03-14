@@ -1,4 +1,4 @@
-import {parse} from '../src/css.js';
+import {parse} from '../src/parse-css.js';
 import {expect} from 'chai';
 
 describe('CSS Parser', function () {

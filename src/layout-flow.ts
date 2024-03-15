@@ -1790,7 +1790,7 @@ function generateInlineBox(
 
   if (target instanceof HTMLElement && target.computedStyle.display.outer === 'block') {
     ++path[path.length - 1];
-    return [true, generateBlockContainer(target, el)]; // TODO: el is not the parent...
+    return [true, generateBlockContainer(target)];
   }
 
   return mapTree(el, text, path, 0);
@@ -1808,7 +1808,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
 }
 
 // Generates a block container for the element
-export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement): BlockContainer {
+export function generateBlockContainer(el: HTMLElement): BlockContainer {
   const text: ParagraphText = {value: ''};
   const enableLogging = 'x-overflow-log' in el.attrs;
   const blocks: BlockContainer[] = [];
@@ -1821,7 +1821,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
   if (
     el.computedStyle.float !== 'none' ||
     el.computedStyle.display.inner === 'flow-root' ||
-    parentEl && writingModeInlineAxis(el) !== writingModeInlineAxis(parentEl)
+    el.parent && writingModeInlineAxis(el) !== writingModeInlineAxis(el.parent)
   ) {
     attrs |= Box.ATTRS.isBfcRoot;
   }
@@ -1835,7 +1835,7 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
       if (child.tagName === 'br') {
         inlines.push(new Break(createStyle(child.computedStyle)));
       } else if (child.computedStyle.float !== 'none') {
-        inlines.push(generateBlockContainer(child, el));
+        inlines.push(generateBlockContainer(child));
       } else if (child.computedStyle.display.outer === 'block') {
         if (inlines.length) {
           blocks.push(wrapInBlockContainer(el, inlines, text));
@@ -1843,10 +1843,10 @@ export function generateBlockContainer(el: HTMLElement, parentEl?: HTMLElement):
           text.value = '';
         }
 
-        blocks.push(generateBlockContainer(child, el));
+        blocks.push(generateBlockContainer(child));
       } else { // inline
         if (child.computedStyle.display.inner === 'flow-root') { // inline-block
-          inlines.push(generateBlockContainer(child, el));
+          inlines.push(generateBlockContainer(child));
         } else {
           const path: number[] = [];
           let more, box;

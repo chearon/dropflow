@@ -216,14 +216,19 @@ export class Style implements ComputedPlainStyle {
   fontWeight: ComputedPlainStyle['fontWeight'];
   fontVariant: ComputedPlainStyle['fontVariant'];
   fontStyle: ComputedPlainStyle['fontStyle'];
-  fontFamily: ComputedPlainStyle['fontFamily'];
   fontStretch: ComputedPlainStyle['fontStretch'];
+  fontFamily: ComputedPlainStyle['fontFamily'];
+  lineHeight: ComputedPlainStyle['lineHeight'];
   verticalAlign: ComputedPlainStyle['verticalAlign'];
   backgroundColor: ComputedPlainStyle['backgroundColor'];
   backgroundClip: ComputedPlainStyle['backgroundClip'];
   display: ComputedPlainStyle['display'];
   direction: ComputedPlainStyle['direction'];
   writingMode: ComputedPlainStyle['writingMode'];
+  borderTopWidth: ComputedPlainStyle['borderTopWidth'];
+  borderRightWidth: ComputedPlainStyle['borderRightWidth'];
+  borderBottomWidth: ComputedPlainStyle['borderBottomWidth'];
+  borderLeftWidth: ComputedPlainStyle['borderLeftWidth'];
   borderTopStyle: ComputedPlainStyle['borderTopStyle'];
   borderRightStyle: ComputedPlainStyle['borderRightStyle'];
   borderBottomStyle: ComputedPlainStyle['borderBottomStyle'];
@@ -232,35 +237,27 @@ export class Style implements ComputedPlainStyle {
   borderRightColor: ComputedPlainStyle['borderRightColor'];
   borderBottomColor: ComputedPlainStyle['borderBottomColor'];
   borderLeftColor: ComputedPlainStyle['borderLeftColor'];
-
-  // TODO order
   paddingTop: ComputedPlainStyle['paddingTop'];
   paddingRight: ComputedPlainStyle['paddingRight'];
   paddingBottom: ComputedPlainStyle['paddingBottom'];
   paddingLeft: ComputedPlainStyle['paddingLeft'];
-  borderTopWidth: ComputedPlainStyle['borderTopWidth'];
-  borderRightWidth: ComputedPlainStyle['borderRightWidth'];
-  borderBottomWidth: ComputedPlainStyle['borderBottomWidth'];
-  borderLeftWidth: ComputedPlainStyle['borderLeftWidth'];
   marginTop: ComputedPlainStyle['marginTop'];
   marginRight: ComputedPlainStyle['marginRight'];
   marginBottom: ComputedPlainStyle['marginBottom'];
   marginLeft: ComputedPlainStyle['marginLeft'];
+  tabSize: ComputedPlainStyle['tabSize'];
+  position: ComputedPlainStyle['position'];
   width: ComputedPlainStyle['width'];
   height: ComputedPlainStyle['height'];
   top: ComputedPlainStyle['top'];
   right: ComputedPlainStyle['right'];
   bottom: ComputedPlainStyle['bottom'];
   left: ComputedPlainStyle['left'];
-
-  tabSize: ComputedPlainStyle['tabSize'];
-  position: ComputedPlainStyle['position'];
   boxSizing: ComputedPlainStyle['boxSizing'];
+  textAlign: ComputedPlainStyle['textAlign'];
   float: ComputedPlainStyle['float'];
   clear: ComputedPlainStyle['clear'];
   zIndex: ComputedPlainStyle['zIndex'];
-  lineHeight: ComputedPlainStyle['lineHeight'];
-  textAlign: ComputedPlainStyle['textAlign'];
 
   constructor(style: ComputedPlainStyle) {
     this.whiteSpace = style.whiteSpace;
@@ -269,14 +266,19 @@ export class Style implements ComputedPlainStyle {
     this.fontWeight = style.fontWeight;
     this.fontVariant = style.fontVariant;
     this.fontStyle = style.fontStyle;
-    this.fontFamily = style.fontFamily;
     this.fontStretch = style.fontStretch;
+    this.fontFamily = style.fontFamily;
+    this.lineHeight = style.lineHeight;
     this.verticalAlign = style.verticalAlign;
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;
     this.direction = style.direction;
     this.writingMode = style.writingMode;
+    this.borderTopWidth = style.borderTopWidth;
+    this.borderRightWidth = style.borderRightWidth;
+    this.borderBottomWidth = style.borderBottomWidth;
+    this.borderLeftWidth = style.borderLeftWidth;
     this.borderTopStyle = style.borderTopStyle;
     this.borderRightStyle = style.borderRightStyle;
     this.borderBottomStyle = style.borderBottomStyle;
@@ -285,35 +287,27 @@ export class Style implements ComputedPlainStyle {
     this.borderRightColor = style.borderRightColor;
     this.borderBottomColor = style.borderBottomColor;
     this.borderLeftColor = style.borderLeftColor;
-
     this.paddingTop = style.paddingTop;
     this.paddingRight = style.paddingRight;
     this.paddingBottom = style.paddingBottom;
     this.paddingLeft = style.paddingLeft;
-    this.borderTopWidth = style.borderTopWidth;
-    this.borderRightWidth = style.borderRightWidth;
-    this.borderBottomWidth = style.borderBottomWidth;
-    this.borderLeftWidth = style.borderLeftWidth;
     this.marginTop = style.marginTop;
     this.marginRight = style.marginRight;
     this.marginBottom = style.marginBottom;
     this.marginLeft = style.marginLeft;
+    this.tabSize = style.tabSize;
+    this.position = style.position;
     this.width = style.width;
     this.height = style.height;
     this.top = style.top;
     this.right = style.right;
     this.bottom = style.bottom;
     this.left = style.left;
-
-    this.tabSize = style.tabSize;
-    this.position = style.position;
     this.boxSizing = style.boxSizing;
+    this.textAlign = style.textAlign;
     this.float = style.float;
     this.clear = style.clear;
     this.zIndex = style.zIndex;
-
-    this.lineHeight = style.lineHeight;
-    this.textAlign = style.textAlign;
   }
 
   getLineHeight() {

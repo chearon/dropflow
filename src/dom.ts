@@ -1,17 +1,17 @@
 import {Box} from './layout-box.js';
 import {loggableText} from './util.js';
-import {ComputedPlainStyle, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './style.js';
+import {Style, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './style.js';
 import selectAll, {Adapter} from './style-query.js';
 
 export class TextNode {
   public id: string;
-  public computedStyle: ComputedPlainStyle;
+  public style: Style;
   public text: string;
   public parent: HTMLElement | null;
 
   constructor(id: string, text: string, parent: HTMLElement | null = null) {
     this.id = id;
-    this.computedStyle = initialStyle;
+    this.style = initialStyle;
     this.text = text;
     this.parent = parent;
   }
@@ -24,7 +24,7 @@ export class TextNode {
 export class HTMLElement {
   public id: string;
   public tagName: string;
-  public computedStyle: ComputedPlainStyle;
+  public style: Style;
   public declaredStyle: DeclaredPlainStyle;
   public parent: HTMLElement | null;
   public attrs: Record<string, string>;
@@ -40,7 +40,7 @@ export class HTMLElement {
   ) {
     this.id = id;
     this.tagName = tagName;
-    this.computedStyle = initialStyle;
+    this.style = initialStyle;
     this.declaredStyle = declaredStyle;
     this.parent = parent;
     this.attrs = attrs;
@@ -59,9 +59,9 @@ export class HTMLElement {
     return el;
   }
 
-  repr(indent = 0, styleProp?: keyof ComputedPlainStyle): string {
+  repr(indent = 0, styleProp?: keyof Style): string {
     const c = this.children.map(c => c.repr(indent + 1, styleProp)).join('\n');
-    const style = styleProp ? ` ${styleProp}: ${JSON.stringify(this.computedStyle[styleProp])}` : '';
+    const style = styleProp ? ` ${styleProp}: ${JSON.stringify(this.style[styleProp])}` : '';
     const desc = `◼ <${this.tagName}> ${this.id}${style}`
     return '  '.repeat(indent) + desc + (c ? '\n' + c : '');
   }

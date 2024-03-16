@@ -1,6 +1,6 @@
 import {binarySearch} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
-import {createStyle, createComputedStyle, Style, EMPTY_STYLE} from './style.js';
+import {createStyle, Style, EMPTY_STYLE} from './style.js';
 import {
   EmptyInlineMetrics,
   InlineMetrics,
@@ -28,7 +28,7 @@ function assumePx(v: any): asserts v is number {
 }
 
 function writingModeInlineAxis(el: HTMLElement) {
-  if (el.computedStyle.writingMode === 'horizontal-tb') {
+  if (el.style.writingMode === 'horizontal-tb') {
     return 'horizontal';
   } else {
     return 'vertical';
@@ -1748,12 +1748,12 @@ function mapTree(
 
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
-        child = new Break(createStyle(childEl.computedStyle));
-      } else if (childEl.computedStyle.float !== 'none') {
+        child = new Break(childEl.style);
+      } else if (childEl.style.float !== 'none') {
         child = generateBlockContainer(childEl);
-      } else if (childEl.computedStyle.display.outer === 'block') {
+      } else if (childEl.style.display.outer === 'block') {
         bail = true;
-      } else if (childEl.computedStyle.display.inner === 'flow-root') {
+      } else if (childEl.style.display.inner === 'flow-root') {
         child = generateBlockContainer(childEl);
       } else {
         [bail, child] = mapTree(childEl, text, path, level + 1);
@@ -1761,7 +1761,7 @@ function mapTree(
     } else if (childEl instanceof TextNode) {
       const start = text.value.length;
       const end = start + childEl.text.length;
-      child = new Run(start, end, createStyle(childEl.computedStyle));
+      child = new Run(start, end, childEl.style);
       text.value += childEl.text;
     }
 
@@ -1772,7 +1772,7 @@ function mapTree(
   if (!bail) path.pop();
   if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
   const end = text.value.length;
-  const box = new Inline(start, end, createStyle(el.computedStyle), children, attrs);
+  const box = new Inline(start, end, el.style, children, attrs);
   el.boxes.push(box);
 
   return [bail, box];
@@ -1788,7 +1788,7 @@ function generateInlineBox(
 ): [boolean, Inline | BlockContainer] {
   const target = el.getEl(path);
 
-  if (target instanceof HTMLElement && target.computedStyle.display.outer === 'block') {
+  if (target instanceof HTMLElement && target.style.display.outer === 'block') {
     ++path[path.length - 1];
     return [true, generateBlockContainer(target)];
   }
@@ -1799,8 +1799,7 @@ function generateInlineBox(
 // Wraps consecutive inlines and runs in block-level block containers.
 // CSS2.1 section 9.2.1.1
 function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], text: ParagraphText) {
-  const anonComputedStyle = createComputedStyle(parentEl.computedStyle, EMPTY_STYLE);
-  const anonStyle = createStyle(anonComputedStyle);
+  const anonStyle = createStyle(parentEl.style, EMPTY_STYLE);
   let attrs = Box.ATTRS.isAnonymous;
   if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
   const ifc = new IfcInline(anonStyle, text.value, inlines, attrs);
@@ -1819,8 +1818,8 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
   // For example add the methods establishesBfc, generatesBlockContainerOfBlocks,
   // generatesBreak, etc
   if (
-    el.computedStyle.float !== 'none' ||
-    el.computedStyle.display.inner === 'flow-root' ||
+    el.style.float !== 'none' ||
+    el.style.display.inner === 'flow-root' ||
     el.parent && writingModeInlineAxis(el) !== writingModeInlineAxis(el.parent)
   ) {
     attrs |= Box.ATTRS.isBfcRoot;
@@ -1830,13 +1829,13 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
 
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
-      if (child.computedStyle.display.outer === 'none') continue;
+      if (child.style.display.outer === 'none') continue;
 
       if (child.tagName === 'br') {
-        inlines.push(new Break(createStyle(child.computedStyle)));
-      } else if (child.computedStyle.float !== 'none') {
+        inlines.push(new Break(child.style));
+      } else if (child.style.float !== 'none') {
         inlines.push(generateBlockContainer(child));
-      } else if (child.computedStyle.display.outer === 'block') {
+      } else if (child.style.display.outer === 'block') {
         if (inlines.length) {
           blocks.push(wrapInBlockContainer(el, inlines, text));
           inlines = [];
@@ -1845,7 +1844,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
 
         blocks.push(generateBlockContainer(child));
       } else { // inline
-        if (child.computedStyle.display.inner === 'flow-root') { // inline-block
+        if (child.style.display.inner === 'flow-root') { // inline-block
           inlines.push(generateBlockContainer(child));
         } else {
           const path: number[] = [];
@@ -1869,19 +1868,18 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
         }
       }
     } else { // TextNode
-      const computed = createComputedStyle(el.computedStyle, EMPTY_STYLE);
+      const computed = createStyle(el.style, EMPTY_STYLE);
       const start = text.value.length;
       const end = start + child.text.length;
-      inlines.push(new Run(start, end, createStyle(computed)));
+      inlines.push(new Run(start, end, computed));
       text.value += child.text;
     }
   }
 
-  if (el.computedStyle.display.outer === 'inline') {
+  if (el.style.display.outer === 'inline') {
     attrs |= Box.ATTRS.isInline;
   }
 
-  const style = createStyle(el.computedStyle);
   let children: BlockContainer[] | IfcInline[];
 
   if (inlines.length) {
@@ -1889,16 +1887,15 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       blocks.push(wrapInBlockContainer(el, inlines, text));
       children = blocks;
     } else {
-      const anonComputedStyle = createComputedStyle(el.computedStyle, EMPTY_STYLE);
-      const anonStyle = createStyle(anonComputedStyle);
+      const anonComputedStyle = createStyle(el.style, EMPTY_STYLE);
       const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
-      children = [new IfcInline(anonStyle, text.value, inlines, ifcAttrs)];
+      children = [new IfcInline(anonComputedStyle, text.value, inlines, ifcAttrs)];
     }
   } else {
     children = blocks;
   }
 
-  const box = new BlockContainer(style, children, attrs);
+  const box = new BlockContainer(el.style, children, attrs);
   el.boxes.push(box);
   return box;
 }

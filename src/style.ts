@@ -173,9 +173,9 @@ export interface DeclaredPlainStyle {
   zIndex?: number | 'auto' | Inherited | Initial;
 }
 
-export const EMPTY_STYLE:DeclaredPlainStyle = {};
+export const EMPTY_STYLE: DeclaredPlainStyle = {};
 
-export type CascadedPlainStyle = DeclaredPlainStyle;
+type CascadedPlainStyle = DeclaredPlainStyle;
 
 type RemoveUnits<T, U> =
   T extends number ? number
@@ -187,7 +187,7 @@ type SpecifiedPlainStyle = Required<{
   [K in keyof DeclaredPlainStyle]: Exclude<DeclaredPlainStyle[K], Inherited | Initial>
 }>;
 
-export type ComputedPlainStyle = {
+type ComputedPlainStyle = {
   [K in keyof SpecifiedPlainStyle]
     : K extends 'fontSize' ? number
     : K extends 'lineHeight' ? 'normal' | number | {value: number, unit: null}
@@ -209,10 +209,6 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
   return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
 }
 
-// TODO: I don't think ComputedPlainStyle needs to exist separate from Style.
-// Originally this class was to hold "used" styles, but I now know that used
-// styles are more like getting properties from the _layout_. Not a high
-// priority since these are cached, but could reduce code, and memory a bit.
 export class Style implements ComputedPlainStyle {
   whiteSpace: ComputedPlainStyle['whiteSpace'];
   color: ComputedPlainStyle['color'];
@@ -267,8 +263,6 @@ export class Style implements ComputedPlainStyle {
   textAlign: ComputedPlainStyle['textAlign'];
 
   constructor(style: ComputedPlainStyle) {
-    // CSS properties that are already as close to the used values as they can
-    // be. For example, `position: absolute; display: block;`
     this.whiteSpace = style.whiteSpace;
     this.color = style.color;
     this.fontSize = style.fontSize;
@@ -500,7 +494,7 @@ export class Style implements ComputedPlainStyle {
 // initial values as specified in the property's specification. This is also
 // the style that's used as the root style for inheritance. These are the
 // "computed value"s as described in CSS Cascading and Inheritance Level 4 § 4.4
-export const initialStyle: ComputedPlainStyle = Object.freeze({
+const initialPlainStyle: ComputedPlainStyle = Object.freeze({
   whiteSpace: 'normal',
   color: {r: 0, g: 0, b: 0, a: 1},
   fontSize: 16,
@@ -551,10 +545,12 @@ export const initialStyle: ComputedPlainStyle = Object.freeze({
   zIndex: 'auto'
 });
 
+export const initialStyle = new Style(initialPlainStyle);
+
 type InheritedStyleDefinitions = {[K in keyof ComputedPlainStyle]: boolean};
 
 // Each CSS property defines whether or not it's inherited
-const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
+const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
   whiteSpace: true,
   color: true,
   fontSize: true,
@@ -607,7 +603,7 @@ const inheritedStyle:InheritedStyleDefinitions = Object.freeze({
 
 type UaDeclaredStyles = {[tagName: string]: DeclaredPlainStyle};
 
-export const uaDeclaredStyles:UaDeclaredStyles = Object.freeze({
+export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
   div: {
     display: {outer: 'block', inner: 'flow'}
   },
@@ -638,15 +634,15 @@ export function cascadeStyles(s1: DeclaredPlainStyle, s2: DeclaredPlainStyle): C
   return ret;
 }
 
-function defaultifyStyle(parentStyle: ComputedPlainStyle, style: CascadedPlainStyle) {
+function defaultifyStyle(parentStyle: Style, style: CascadedPlainStyle) {
   const ret: any = {};
 
-  for (const _ in initialStyle) {
-    const p = _ as keyof typeof initialStyle;
+  for (const _ in initialPlainStyle) {
+    const p = _ as keyof typeof initialPlainStyle;
     if (style[p] === inherited || !(p in style) && inheritedStyle[p]) {
       ret[p] = parentStyle[p];
     } else if (style[p] === initial || !(p in style) && !inheritedStyle[p]) {
-      ret[p] = initialStyle[p];
+      ret[p] = initialPlainStyle[p];
     } else {
       ret[p] = style[p];
     }
@@ -655,11 +651,11 @@ function defaultifyStyle(parentStyle: ComputedPlainStyle, style: CascadedPlainSt
   return ret as SpecifiedPlainStyle;
 }
 
-function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyle) {
+function computeStyle(parentStyle: Style, style: SpecifiedPlainStyle) {
   const ret:{[i: string]: any} = {};
 
-  for (const _ in initialStyle) {
-    const p = _ as keyof typeof initialStyle;
+  for (const _ in initialPlainStyle) {
+    const p = _ as keyof typeof initialPlainStyle;
     const value = style[p];
 
     if (typeof value === 'object' && 'unit' in value) {
@@ -700,10 +696,10 @@ function computeStyle(parentStyle: ComputedPlainStyle, style: SpecifiedPlainStyl
     ret.lineHeight = style.lineHeight.value / 100 * ret.fontSize;
   }
 
-  return ret as ComputedPlainStyle;
+  return new Style(ret as ComputedPlainStyle);
 }
 
-const computedStyleCache = new WeakMap<DeclaredPlainStyle, WeakMap<DeclaredPlainStyle, ComputedPlainStyle>>();
+const styleCache = new WeakMap<DeclaredPlainStyle, WeakMap<DeclaredPlainStyle, Style>>();
 
 /**
  * Very simple property inheritance model. createStyle starts out with cascaded
@@ -714,8 +710,8 @@ const computedStyleCache = new WeakMap<DeclaredPlainStyle, WeakMap<DeclaredPlain
  * Used/actual styles (§4.5, §4.6) are calculated during layout, external to
  * this file.
  */
-export function createComputedStyle(s1: ComputedPlainStyle, s2: CascadedPlainStyle) {
-  let m1 = computedStyleCache.get(s1);
+export function createStyle(s1: Style, s2: CascadedPlainStyle) {
+  let m1 = styleCache.get(s1);
   let m2 = m1 && m1.get(s2);
 
   if (m2) return m2;
@@ -730,20 +726,9 @@ export function createComputedStyle(s1: ComputedPlainStyle, s2: CascadedPlainSty
 
   m1 = new WeakMap();
   m1.set(s2, ret);
-  computedStyleCache.set(s1, m1);
+  styleCache.set(s1, m1);
 
   return ret;
-}
-
-const styleCache = new WeakMap<ComputedPlainStyle, Style>();
-
-export function createStyle(s: ComputedPlainStyle) {
-  let style = styleCache.get(s);
-  if (!style) {
-    style = new Style(s);
-    styleCache.set(s, style);
-  }
-  return style;
 }
 
 // required styles that always come last in the cascade
@@ -754,21 +739,21 @@ const rootDeclaredStyle: DeclaredPlainStyle = {
   }
 };
 
-export function getRootComputedStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
-  return createComputedStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
+export function getRootStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
+  return createStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
 }
 
 export function computeElementStyle(el: HTMLElement | TextNode) {
   if (el.parent) {
     if (el instanceof TextNode) {
-      el.computedStyle = createComputedStyle(el.parent!.computedStyle, EMPTY_STYLE);
+      el.style = createStyle(el.parent!.style, EMPTY_STYLE);
     } else {
       const uaDeclaredStyle = uaDeclaredStyles[el.tagName];
       if (uaDeclaredStyle) {
         const cascadedStyle = cascadeStyles(uaDeclaredStyle, el.declaredStyle);
-        el.computedStyle = createComputedStyle(el.parent!.computedStyle, cascadedStyle);
+        el.style = createStyle(el.parent!.style, cascadedStyle);
       } else {
-        el.computedStyle = createComputedStyle(el.parent!.computedStyle, el.declaredStyle);
+        el.style = createStyle(el.parent!.style, el.declaredStyle);
       }
     }
   } else {
@@ -776,9 +761,9 @@ export function computeElementStyle(el: HTMLElement | TextNode) {
     const uaDeclaredStyle = uaDeclaredStyles[rootElement.tagName];
     if (uaDeclaredStyle) {
       const cascadedStyle = cascadeStyles(uaDeclaredStyle, rootElement.declaredStyle);
-      rootElement.computedStyle = getRootComputedStyle(cascadedStyle);
+      rootElement.style = getRootStyle(cascadedStyle);
     } else {
-      el.computedStyle = getRootComputedStyle(rootElement.declaredStyle);
+      el.style = getRootStyle(rootElement.declaredStyle);
     }
   }
 }

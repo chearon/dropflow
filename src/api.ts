@@ -1,5 +1,5 @@
 import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredPlainStyle, getRootComputedStyle, initialStyle, computeElementStyle} from './style.js';
+import {DeclaredPlainStyle, getRootStyle, initialStyle, computeElementStyle} from './style.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
@@ -9,12 +9,12 @@ import {id} from './util.js';
 
 export type {BlockContainer, DeclaredPlainStyle};
 
-export {getRootComputedStyle};
+export {getRootStyle};
 
 export {registerFont, unregisterFont} from './text-font.js';
 
 export function generate(rootElement: HTMLElement) {
-  if (rootElement.computedStyle === initialStyle) {
+  if (rootElement.style === initialStyle) {
     throw new Error(
       'To use the hyperscript API, pass the element tree to dom() and use ' +
       'the return value as the argument to generate().'

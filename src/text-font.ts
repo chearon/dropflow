@@ -504,7 +504,7 @@ export async function registerFont(
   }
 }
 
-export function unregisterFont(url: URL) {
+export function unregisterFont(url: URL): void {
   const stringUrl = String(url);
   const blob = hbBlobs.get(stringUrl);
   if (blob) {

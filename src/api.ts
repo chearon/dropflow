@@ -13,7 +13,7 @@ export {getRootStyle};
 
 export {registerFont, unregisterFont} from './text-font.js';
 
-export function generate(rootElement: HTMLElement) {
+export function generate(rootElement: HTMLElement): BlockContainer {
   if (rootElement.style === initialStyle) {
     throw new Error(
       'To use the hyperscript API, pass the element tree to dom() and use ' +
@@ -41,7 +41,7 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
 /**
  * Old paint target for testing, not maintained much anymore
  */
-export function paintToHtml(root: BlockContainer) {
+export function paintToHtml(root: BlockContainer): string {
   const backend = new HtmlPaintBackend();
   paintBlockRoot(root, backend, true);
   return backend.s;
@@ -49,7 +49,7 @@ export function paintToHtml(root: BlockContainer) {
 
 export {eachRegisteredFont} from './text-font.js';
 
-export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D) {
+export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): void {
   const backend = new CanvasPaintBackend(ctx);
   paintBlockRoot(root, backend, true);
 }
@@ -71,15 +71,14 @@ export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density
   renderToCanvasContext(rootElement, ctx, canvas.width / density, canvas.height / density);
 }
 
-type Node = HTMLElement | TextNode;
-type HsChild = Node | string;
+type HsChild = HTMLElement | TextNode | string;
 
 interface HsData {
   style?: DeclaredPlainStyle;
   attrs?: {[k: string]: string};
 }
 
-export function dom(el: HTMLElement | HTMLElement[]) {
+export function dom(el: HTMLElement | HTMLElement[]): HTMLElement {
   let rootElement;
 
   if (el instanceof HTMLElement && el.tagName === 'html') {
@@ -133,10 +132,10 @@ function toDomChild(child: HsChild) {
 }
 
 export function h(tagName: string): HTMLElement;
-export function h(tagName: string, attrs: HsData): HTMLElement;
+export function h(tagName: string, data: HsData): HTMLElement;
 export function h(tagName: string, children: HsChild[]): HTMLElement;
 export function h(tagName: string, text: string): HTMLElement;
-export function h(tagName: string, attrs: HsData, children: HsChild[] | string): HTMLElement;
+export function h(tagName: string, data: HsData, children: HsChild[] | string): HTMLElement;
 export function h(tagName: string, arg2?: HsData | HsChild[] | string, arg3?: HsChild[] | string): HTMLElement {
   let data: HsData | undefined;
   let children: (HTMLElement | TextNode)[] | undefined;
@@ -163,7 +162,7 @@ export function h(tagName: string, arg2?: HsData | HsChild[] | string, arg3?: Hs
   return el;
 }
 
-export function staticLayoutContribution(box: BlockContainer) {
+export function staticLayoutContribution(box: BlockContainer): number {
   let intrinsicSize = 0;
 
   const definiteSize = box.getDefiniteInlineSize();

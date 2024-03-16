@@ -4,7 +4,7 @@ import {parse as StyleParser} from './parse-css.js';
 import {EMPTY_STYLE, computeElementStyle} from './style.js';
 import {id} from './util.js';
 
-export function parse(str: string) {
+export function parse(str: string): HTMLElement {
   const parents: HTMLElement[] = [];
   let rootElement: HTMLElement | null = null;
   // afterHtml is like "after after body"; inHtml is like "in body"

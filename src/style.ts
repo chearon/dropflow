@@ -195,8 +195,6 @@ export type ComputedPlainStyle = {
     : RemoveUnits<SpecifiedPlainStyle[K], 'em'>
 };
 
-type Used = Pick<ComputedPlainStyle, 'lineHeight' | 'textAlign'>;
-
 function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value: number, unit: '%'}) {
   if (typeof cssVal === 'object') {
     if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
@@ -265,8 +263,8 @@ export class Style implements ComputedPlainStyle {
   float: ComputedPlainStyle['float'];
   clear: ComputedPlainStyle['clear'];
   zIndex: ComputedPlainStyle['zIndex'];
-
-  private s: Used;
+  lineHeight: ComputedPlainStyle['lineHeight'];
+  textAlign: ComputedPlainStyle['textAlign'];
 
   constructor(style: ComputedPlainStyle) {
     // CSS properties that are already as close to the used values as they can
@@ -320,21 +318,17 @@ export class Style implements ComputedPlainStyle {
     this.clear = style.clear;
     this.zIndex = style.zIndex;
 
-    // CSS properties that can be resolved to used values given a containing
-    // block or given another CSS property
-    this.s = {
-      lineHeight: style.lineHeight,
-      textAlign: style.textAlign
-    };
+    this.lineHeight = style.lineHeight;
+    this.textAlign = style.textAlign;
   }
 
-  get lineHeight() {
-    if (typeof this.s.lineHeight === 'object') return this.s.lineHeight.value * this.fontSize;
-    return this.s.lineHeight;
+  getLineHeight() {
+    if (typeof this.lineHeight === 'object') return this.lineHeight.value * this.fontSize;
+    return this.lineHeight;
   }
 
-  get textAlign() {
-    if (this.s.textAlign === 'start') {
+  getTextAlign() {
+    if (this.textAlign === 'start') {
       if (this.direction === 'ltr') {
         return 'left';
       } else {
@@ -342,7 +336,7 @@ export class Style implements ComputedPlainStyle {
       }
     }
 
-    if (this.s.textAlign === 'end') {
+    if (this.textAlign === 'end') {
       if (this.direction === 'ltr') {
         return 'right';
       } else {
@@ -350,7 +344,7 @@ export class Style implements ComputedPlainStyle {
       }
     }
 
-    return this.s.textAlign;
+    return this.textAlign;
   }
 
   hasPadding() {

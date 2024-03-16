@@ -310,7 +310,8 @@ const metricsCache = new WeakMap<Style, WeakMap<HbFace, InlineMetrics>>();
 export function getMetrics(style: Style, match: FaceMatch): InlineMetrics {
   let metrics = metricsCache.get(style)?.get(match.face);
   if (metrics) return metrics;
-  const {fontSize, lineHeight: cssLineHeight} = style;
+  const fontSize = style.fontSize;
+  const cssLineHeight = style.getLineHeight();
   // now do CSS2 §10.8.1
   const {ascender, xHeight, descender, lineGap} = match.font.getMetrics('ltr'); // TODO vertical text
   const toPx = 1 / match.face.upem * fontSize;
@@ -1051,7 +1052,8 @@ function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
   }
 
   if (typeof block.style.verticalAlign === 'object') {
-    if (block.style.lineHeight === 'normal') {
+    const lineHeight = block.style.getLineHeight();
+    if (lineHeight === 'normal') {
       // TODO: is there a better/faster way to do this? currently struts only
       // exist if there is a paragraph, but I think spec is saying do this
       const strutCascade = getCascade(block.style, 'en');
@@ -1059,7 +1061,7 @@ function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
       const metrics = getMetrics(block.style, strutFontMatch);
       return (metrics.ascenderBox + metrics.descenderBox) * block.style.verticalAlign.value / 100;
     } else {
-      return block.style.lineHeight * block.style.verticalAlign.value / 100;
+      return lineHeight * block.style.verticalAlign.value / 100;
     }
   }
 

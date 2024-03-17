@@ -8,7 +8,7 @@ registerFontAsset('Arimo/Arimo-Regular.ttf');
 
 const rootElement = flow.parse(`
   <html style="height: 100%;">
-    <div style="background-color: #ccc; direction: ltr; font-size: 14px; height: 100%;" x-overflow-log>
+    <div style="background-color: #ccc; direction: ltr; font-size: 14px; height: 100%;" x-dropflow-log>
       abc<span style="background-color: red;">Hello</span>def
       <span style="background-color: green;">آلو</span>
 

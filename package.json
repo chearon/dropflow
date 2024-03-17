@@ -12,13 +12,13 @@
     "punycode": "^2.1.1",
     "typescript": "^5.2.2"
   },
-  "name": "@chearon/overflow",
-  "version": "0.0.0-alpha.1",
-  "description": "A small CSS2 document renderer built from specifications for learning purposes",
+  "name": "dropflow",
+  "version": "0.1.0",
+  "description": "A small CSS2 document renderer built from specifications",
   "type": "module",
   "files": [
     "dist/gen",
-    "dist/overflow.wasm",
+    "dist/dropflow.wasm",
     "dist/src"
   ],
   "exports": {

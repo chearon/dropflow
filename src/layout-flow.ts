@@ -1770,7 +1770,7 @@ function mapTree(
   }
 
   if (!bail) path.pop();
-  if ('x-overflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
+  if ('x-dropflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
   const end = text.value.length;
   const box = new Inline(start, end, el.style, children, attrs);
   el.boxes.push(box);
@@ -1801,7 +1801,7 @@ function generateInlineBox(
 function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], text: ParagraphText) {
   const anonStyle = createStyle(parentEl.style, EMPTY_STYLE);
   let attrs = Box.ATTRS.isAnonymous;
-  if ('x-overflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
+  if ('x-dropflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
   const ifc = new IfcInline(anonStyle, text.value, inlines, attrs);
   return new BlockContainer(anonStyle, [ifc], attrs);
 }
@@ -1809,7 +1809,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement): BlockContainer {
   const text: ParagraphText = {value: ''};
-  const enableLogging = 'x-overflow-log' in el.attrs;
+  const enableLogging = 'x-dropflow-log' in el.attrs;
   const blocks: BlockContainer[] = [];
   let inlines: InlineLevel[] = [];
   let attrs = 0;

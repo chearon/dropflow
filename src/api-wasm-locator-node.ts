@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 export const locatorFunction = {
   value: async (): Promise<Uint8Array> => {
-    return fs.readFileSync(new URL('../overflow.wasm', import.meta.url));
+    return fs.readFileSync(new URL('../dropflow.wasm', import.meta.url));
   }
 };
 

@@ -9,7 +9,7 @@ registerFontAsset('Arimo/Arimo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Italic.ttf');
 
 const rootElement = flow.parse(`
-  <div x-overflow-log style="font-family: Arimo; background-color: white; text-align: center;">
+  <div x-dropflow-log style="font-family: Arimo; background-color: white; text-align: center;">
     <span style="font-style: italic; font-size: 0.5em;">English:</span> Welcome<br>
     <span style="font-style: italic; font-size: 0.5em;">Arabic:</span> أهلاً و سهلاً<br>
     <span style="font-style: italic; font-size: 0.5em;">Hebrew:</span> ברוך הבא

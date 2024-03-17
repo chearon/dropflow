@@ -33,7 +33,7 @@ describe('Font Registration and Matching', function () {
   });
 
   it('distinguishes Korean and Japanese', function () {
-    // note overflow doesn't support [lang] yet so this can't be done just via script
+    // note dropflow doesn't support [lang] yet so this can't be done just via script
     registerFontAsset('Noto/NotoSansJP-Regular.otf');
     registerFontAsset('Noto/NotoSansKR-Regular.otf');
     const c1 = getCascade(style({}), 'kr');

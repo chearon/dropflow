@@ -106,10 +106,10 @@ em++ \
 	-s WARN_ON_UNDEFINED_SYMBOLS=0 \
   -s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=4MB \
-	-o dist/overflow.wasm \
+	-o dist/dropflow.wasm \
 	dist/sheenbidi.o \
 	dist/emoji-scan.o \
-	src/overflow.cc \
+	src/dropflow.cc \
 	gen/lang-script-database.cc \
 	gen/grapheme-break-trie.cc \
 	gen/line-break-trie.cc \

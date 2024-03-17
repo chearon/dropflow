@@ -2,7 +2,7 @@ export const locatorFunction = {
   value: async (): Promise<Uint8Array> => {
     throw new Error(
       'Wasm location not configured. Import setBundleLocator from ' +
-      '\'overflow/wasm-locator.js\' before importing \'overflow\' and ' +
+      '\'dropflow/wasm-locator.js\' before importing \'dropflow\' and ' +
       'pass it a function that fetches and returns a Uint8Array'
     );
   }

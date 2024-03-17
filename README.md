@@ -1,6 +1,6 @@
-# overflow
+# dropflow
 
-Overflow is a CSS layout engine created to explore the reaches of the foundational CSS standards (that is: inlines, blocks, floats, positioning and eventually tables, but not flexbox or grid). It has a high quality text layout implementation and is capable of displaying many of the languages of the world. You can use it to generate PDFs or images on the backend with Node and [node-canvas](https://github.com/Automattic/node-canvas) or render rich, wrapped text to a canvas in the browser.
+Dropflow is a CSS layout engine created to explore the reaches of the foundational CSS standards (that is: inlines, blocks, floats, positioning and eventually tables, but not flexbox or grid). It has a high quality text layout implementation and is capable of displaying many of the languages of the world. You can use it to generate PDFs or images on the backend with Node and [node-canvas](https://github.com/Automattic/node-canvas) or render rich, wrapped text to a canvas in the browser.
 
 # Features
 
@@ -83,12 +83,12 @@ Following are rules that work or will work soon. Shorthand properties are not li
 
 # Usage
 
-Overflow works off of a DOM with inherited and calculated styles, the same way
+Dropflow works off of a DOM with inherited and calculated styles, the same way
 that browsers do. You create the DOM with the familiar `h()` function, and
 specify styles as plain objects.
 
 ```ts
-import * as flow from 'overflow';
+import * as flow from 'dropflow';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
@@ -138,7 +138,7 @@ purposes. Parsing adds extra time (though it is fast thanks to @fb55) and
 increases bundle size significantly.
 
 ```ts
-import * as flow from 'overflow/with-parse.js';
+import * as flow from 'dropflow/with-parse.js';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
@@ -193,7 +193,7 @@ async function registerFont(url: URL, options?: {paint: boolean}): Promise<void>
 async function registerFont(buffer: ArrayBuffer, url: URL, options?: {paint: boolean}): Promise<void>;
 ```
 
-Registers a font to be selected by the `font` properties. Overflow **does not search system fonts**, so you must do this with at least one font.
+Registers a font to be selected by the `font` properties. Dropflow **does not search system fonts**, so you must do this with at least one font.
 
 When a URL is passed, don't forget to `await` this. If an `ArrayBuffer` is passed, there is no need to `await`. In that function signature, the `URL` is only used to provide a unique name for the font.
 
@@ -251,7 +251,7 @@ The entire `h` tree to render must be passed to this function before rendering.
 This part of the API brings in a lot more code due to the size of the HTML and CSS parsers. Import it like so:
 
 ```ts
-import flow from 'overflow/with-parse.js';
+import flow from 'dropflow/with-parse.js';
 ```
 
 Note that only the `style` HTML attribute is supported at this time. `class` does not work yet.
@@ -344,13 +344,13 @@ The intended usage is this: after laying out text into a desired size, use `stat
 
 # HarfBuzz
 
-Glyph layout is performed by [HarfBuzz](https://github.com/harfbuzz/harfbuzz) compiled to WebAssembly. This allows for a level of correctness that isn't possible by using the `measureText` API to position spans of text. If you color the "V" in the text "AV" differently in Google Sheets, you will notice kerning is lost, and the letters appear further apart than they should be. That's because two `measureText` and `fillText` calls were made on the letters, so contextual glyph advances were lost. Overflow uses HarfBuzz on more coarse shaping boundaries (not when color is changed) so that the font is more correctly supported. 
+Glyph layout is performed by [HarfBuzz](https://github.com/harfbuzz/harfbuzz) compiled to WebAssembly. This allows for a level of correctness that isn't possible by using the `measureText` API to position spans of text. If you color the "V" in the text "AV" differently in Google Sheets, you will notice kerning is lost, and the letters appear further apart than they should be. That's because two `measureText` and `fillText` calls were made on the letters, so contextual glyph advances were lost. Dropflow uses HarfBuzz on more coarse shaping boundaries (not when color is changed) so that the font is more correctly supported. 
 
 HarfBuzz compiled to WebAssembly can achieve performance metrics similar to `CanvasRenderingContext2D`'s `measureText`. It's not as fast as `measureText`, but it's not significantly slower (neither of them are the dominators in a text layout stack) and `measureText` has other correctness drawbacks. For example, a `measureText`-based text layout implementation must use a word cache to be quick, and this is what GSuite apps do. But a word cache is not able to support fonts with effects across spaces, and to support such a font would have to involve a binary search on the paragraph's break indices, which is far slower than passing the whole paragraph to HarfBuzz. Colored diacritics are not possible in any way with `measureText` either.
 
 # Shout-outs
 
-overflow doesn't have any `package.json` dependencies, but the work of many others made it possible. Javascript dependencies have been checked in and modified to varying degrees to fit this project, maintain focus, and rebel against dependency-of-dependency madness. Here are the projects I'm grateful for:
+dropflow doesn't have any `package.json` dependencies, but the work of many others made it possible. Javascript dependencies have been checked in and modified to varying degrees to fit this project, maintain focus, and rebel against dependency-of-dependency madness. Here are the projects I'm grateful for:
 
 * [harfbuzz](https://github.com/harfbuzz/harfbuzz) does font shaping and provides essential font APIs (C++)
 * [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) calculates bidi boundaries (C++)

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html style="height: 100%; overflow: hidden;">
+  <title>Dropflow Playground</title>
+  <body style="margin: 0; height: 100%;">
+    <div style="display: flex; white-space: nowrap; height: 100%;">
+      <div style="width: 50%; min-width: 0;" id="editor"></div>
+      <div style="width: 50%; min-width: 0; overflow: hidden; display: flex; flex-flow: column nowrap;">
+        <div id="wrap" style="flex: auto;">
+          <canvas style="position: absolute;"></canvas>
+        </div>
+        <div id="canvas-label" style="font: 48px/1.4 monospace; color: #aaa; padding: 0 12px; flex: none; text-align: right;">
+          &lt;canvas /&gt;
+        </div>
+      </div>
+    </div>
+  </body>
+  <script type="module" src="./index.js"></script>
+</html>

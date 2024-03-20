@@ -1,16 +1,22 @@
 {
   "devDependencies": {
+    "@codemirror/lang-html": "^6.4.8",
+    "@codemirror/state": "^6.4.1",
+    "@ddietr/codemirror-themes": "^1.4.2",
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@types/mocha": "^8.0.3",
     "@types/node": "^20.8.10",
     "canvas": "^2.11.0",
     "chai": "^4.2.0",
+    "codemirror": "^6.0.1",
     "concurrently": "^7.6.0",
     "copyfiles": "^2.4.1",
     "mitata": "^0.1.6",
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
     "punycode": "^2.1.1",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "vite": "5.2.0-beta.1"
   },
   "name": "dropflow",
   "version": "0.1.0",
@@ -34,7 +40,8 @@
       "buildtime": "./src/api-wasm-locator-browser.js",
       "browser": "./dist/src/api-wasm-locator-browser.js",
       "default": "./dist/src/api-wasm-locator-node.js"
-    }
+    },
+    "./dropflow.wasm": "./dist/dropflow.wasm"
   },
   "imports": {
     "#wasm-locator": {
@@ -53,7 +60,8 @@
     "buildcssparser": "peggy --format es src/parse-css.pegjs",
     "prebuild": "copyfiles gen.js src/\\*.js assets/\\*\\* test/\\*\\* -e assets/register\\* dist",
     "build": "concurrently tsc npm:buildcssparser",
-    "postbuild": "copyfiles src/parse-css.js dist"
+    "postbuild": "copyfiles src/parse-css.js dist",
+    "vite": "vite -c site/vite.config.js"
   },
   "keywords": [
     "css2",

@@ -601,6 +601,71 @@ export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
   },
   span: {
     display: {outer: 'inline', inner: 'flow'}
+  },
+  p: {
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 1, unit: 'em'},
+    marginBottom: {value: 1, unit: 'em'}
+  },
+  strong: {
+    fontWeight: 700
+  },
+  b: {
+    fontWeight: 700
+  },
+  em: {
+    fontStyle: 'italic'
+  },
+  i: {
+    fontStyle: 'italic'
+  },
+  sup: {
+    fontSize: {value: 1/1.2, unit: 'em'},
+    verticalAlign: 'super'
+  },
+  sub: {
+    fontSize: {value: 1/1.2, unit: 'em'},
+    verticalAlign: 'sub'
+  },
+  h1: {
+    fontSize: {value: 2, unit: 'em'},
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 0.67, unit: 'em'},
+    marginBottom: {value: 0.67, unit: 'em'}
+  },
+  h2: {
+    fontSize: {value: 1.5, unit: 'em'},
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 0.83, unit: 'em'},
+    marginBottom: {value: 0.83, unit: 'em'},
+    fontWeight: 700
+  },
+  h3: {
+    fontSize: {value: 1.17, unit: 'em'},
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 1, unit: 'em'},
+    marginBottom: {value: 1, unit: 'em'},
+    fontWeight: 700
+  },
+  h4: {
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 1.33, unit: 'em'},
+    marginBottom: {value: 1.33, unit: 'em'},
+    fontWeight: 700
+  },
+  h5: {
+    fontSize: {value: 0.83, unit: 'em'},
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 1.67, unit: 'em'},
+    marginBottom: {value: 1.67, unit: 'em'},
+    fontWeight: 700
+  },
+  h6: {
+    fontSize: {value: 0.67, unit: 'em'},
+    display: {outer: 'block', inner: 'flow'},
+    marginTop: {value: 2.33, unit: 'em'},
+    marginBottom: {value: 2.33, unit: 'em'},
+    fontWeight: 700
   }
 });
 

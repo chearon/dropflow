@@ -74,13 +74,11 @@ const LogicalMaps = Object.freeze({
 
 export type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
 
-type ValuePctPxEm = number | {value: number, unit: '%' | 'em'};
+type Length = number | {value: number, unit: 'em'};
 
-type ValuePctPxNone = number | {value: number, unit: '%' | null};
+type Percentage = {value: number, unit: '%'};
 
-type ValuePctPx = number | {value: number, unit: '%'};
-
-type ValuePxNone = number | {value: number, unit: null};
+type Number = {value: number, unit: null};
 
 type FontWeight = number | 'normal' | 'bolder' | 'lighter';
 
@@ -93,7 +91,7 @@ export type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'co
   | 'extra-expanded' | 'ultra-expanded';
 
 type VerticalAlign = 'baseline' | 'middle' | 'sub' | 'super' | 'text-top'
-  | 'text-bottom' | ValuePctPx | 'top' | 'bottom';
+  | 'text-bottom' | Length | Percentage | 'top' | 'bottom';
 
 type BackgroundClip = 'border-box' | 'padding-box' | 'content-box';
 
@@ -125,13 +123,13 @@ type Clear = 'left' | 'right' | 'both' | 'none';
 export interface DeclaredPlainStyle {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
-  fontSize?: ValuePctPxEm | Inherited | Initial;
+  fontSize?: Length | Percentage | Inherited | Initial;
   fontWeight?: FontWeight | Inherited | Initial;
   fontVariant?: FontVariant | Inherited | Initial;
   fontStyle?: FontStyle | Inherited | Initial;
   fontStretch?: FontStretch | Inherited | Initial;
   fontFamily?: string[] | Inherited | Initial;
-  lineHeight?: 'normal' | ValuePctPxNone | Inherited | Initial;
+  lineHeight?: 'normal' | Length | Percentage | Number | Inherited | Initial;
   verticalAlign?: VerticalAlign;
   backgroundColor?: Color | Inherited | Initial;
   backgroundClip?: BackgroundClip | Inherited | Initial;
@@ -150,22 +148,22 @@ export interface DeclaredPlainStyle {
   borderRightColor?: Color | Inherited | Initial;
   borderBottomColor?: Color | Inherited | Initial;
   borderLeftColor?: Color | Inherited | Initial;
-  paddingTop?: ValuePctPx | Inherited | Initial;
-  paddingRight?: ValuePctPx | Inherited | Initial;
-  paddingBottom?: ValuePctPx | Inherited | Initial;
-  paddingLeft?: ValuePctPx | Inherited | Initial;
-  marginTop?: ValuePctPx | 'auto' | Inherited | Initial;
-  marginRight?: ValuePctPx | 'auto' | Inherited | Initial;
-  marginBottom?: ValuePctPx | 'auto' | Inherited | Initial;
-  marginLeft?: ValuePctPx | 'auto' | Inherited | Initial;
-  tabSize?: ValuePxNone | Inherited | Initial;
+  paddingTop?: Length | Percentage | Inherited | Initial;
+  paddingRight?: Length | Percentage | Inherited | Initial;
+  paddingBottom?: Length | Percentage | Inherited | Initial;
+  paddingLeft?: Length | Percentage | Inherited | Initial;
+  marginTop?: Length | Percentage | 'auto' | Inherited | Initial;
+  marginRight?: Length | Percentage | 'auto' | Inherited | Initial;
+  marginBottom?: Length | Percentage | 'auto' | Inherited | Initial;
+  marginLeft?: Length | Percentage | 'auto' | Inherited | Initial;
+  tabSize?: Length | Number | Inherited | Initial;
   position?: Position | Inherited | Initial;
-  width?: ValuePctPx | 'auto' | Inherited | Initial;
-  height?: ValuePctPx | 'auto' | Inherited | Initial;
-  top?: ValuePctPx | 'auto' | Inherited | Initial;
-  right?: ValuePctPx | 'auto' | Inherited | Initial;
-  bottom?: ValuePctPx | 'auto' | Inherited | Initial;
-  left?: ValuePctPx | 'auto' | Inherited | Initial;
+  width?: Length | Percentage | 'auto' | Inherited | Initial;
+  height?: Length | Percentage | 'auto' | Inherited | Initial;
+  top?: Length | Percentage | 'auto' | Inherited | Initial;
+  right?: Length | Percentage | 'auto' | Inherited | Initial;
+  bottom?: Length | Percentage | 'auto' | Inherited | Initial;
+  left?: Length | Percentage | 'auto' | Inherited | Initial;
   boxSizing?: BoxSizing | Inherited | Initial;
   textAlign?: TextAlign | Inherited | Initial;
   float?: Float | Inherited | Initial;

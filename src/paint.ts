@@ -114,17 +114,21 @@ function drawText(
 /**
  * Paints the background and borders
  */
-function paintBlockBackground(block: BlockContainer, b: PaintBackend) {
+function paintBlockBackground(block: BlockContainer, b: PaintBackend, isRoot = false) {
   const style = block.style;
-  const {backgroundColor, backgroundClip} = style;
-  const {paddingArea, borderArea, contentArea} = block;
-  const area = backgroundClip === 'border-box' ? borderArea :
-    backgroundClip === 'padding-box' ? paddingArea :
-    contentArea;
+  const borderArea = block.borderArea;
 
-  if (backgroundColor.a > 0) {
-    b.fillColor = backgroundColor;
-    b.rect(area.x, area.y, area.width, area.height);
+  if (!isRoot) {
+    const {paddingArea, contentArea} = block;
+    const {backgroundColor, backgroundClip} = style;
+    const area = backgroundClip === 'border-box' ? borderArea :
+      backgroundClip === 'padding-box' ? paddingArea :
+      contentArea;
+
+    if (backgroundColor.a > 0) {
+      b.fillColor = backgroundColor;
+      b.rect(area.x, area.y, area.width, area.height);
+    }
   }
 
   const work = [
@@ -489,7 +493,13 @@ export default function paintBlockRoot(
     positiveRoots
   } = collectLayeredDescendents(block, undefined);
 
-  paintBlockBackground(block, b);
+  if (isRoot && block.style.backgroundColor.a > 0) {
+    const area = block.containingBlock;
+    b.fillColor = block.style.backgroundColor;
+    b.rect(area.x, area.y, area.width, area.height);
+  }
+
+  paintBlockBackground(block, b, isRoot);
   if (isRoot || block.isStackingContextRoot()) {
     paintLayeredDescendents(negativeRoots, b);
   }

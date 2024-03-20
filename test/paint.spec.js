@@ -310,4 +310,14 @@ describe('Painting', function () {
       {t: 'text', x: 50, y: 8, text: 'ice ', fillColor: '#000'}
     ]);
   });
+
+  it('forwards the background color of <html> to the icb', function () {
+    this.layout(`
+      <html style="background-color: #fad;"></html>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 640, height: 480, fillColor: '#fad'}
+    ]);
+  });
 });

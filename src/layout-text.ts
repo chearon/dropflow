@@ -1146,7 +1146,7 @@ const EMPTY_MAP = Object.freeze(new Map());
 
 class LineHeightTracker {
   ifc: IfcInline;
-  stack: Inline[];
+  parents: Inline[];
   contextStack: AlignmentContext[];
   contextRoots: Map<Inline, AlignmentContext>;
   /** Inline blocks */
@@ -1157,7 +1157,7 @@ class LineHeightTracker {
     const ctx = new AlignmentContext(ifc.metrics);
 
     this.ifc = ifc;
-    this.stack = [];
+    this.parents = [];
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
     this.blocks = [];
@@ -1177,10 +1177,10 @@ class LineHeightTracker {
   }
 
   pushInline(inline: Inline) {
-    const parent = this.stack.at(-1) || this.ifc;
+    const parent = this.parents.at(-1) || this.ifc;
     let ctx = this.contextStack.at(-1)!;
 
-    this.stack.push(inline);
+    this.parents.push(inline);
 
     if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
       if (this.contextRoots === EMPTY_MAP) this.contextRoots = new Map();
@@ -1194,13 +1194,13 @@ class LineHeightTracker {
   }
 
   popInline() {
-    const inline = this.stack.pop()!;
+    const inline = this.parents.pop()!;
 
     if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
       this.contextStack.pop()!
       this.markedContextRoots.push(inline);
     } else {
-      const parent = this.stack.at(-1) || this.ifc;
+      const parent = this.parents.at(-1) || this.ifc;
       const ctx = this.contextStack.at(-1)!;
       ctx.stepOut(parent, inline);
     }
@@ -1286,7 +1286,7 @@ class LineHeightTracker {
 
   reset() {
     const ctx = new AlignmentContext(this.ifc.metrics);
-    this.stack = [];
+    this.parents = [];
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
     this.blocks = [];
@@ -1295,12 +1295,12 @@ class LineHeightTracker {
 
   clearContents() {
     let parent: Inline = this.ifc;
-    let inline = this.stack[0];
+    let inline = this.parents[0];
     let i = 0;
 
     if (
       this.contextStack.length === 1 && // no vertical-align top or bottoms
-      this.stack.length <= 1 // one non-top/bottom/baseline parent or none at all
+      this.parents.length <= 1 // one non-top/bottom/baseline parent or none
     ) {
       const [ctx] = this.contextStack;
       ctx.reset();
@@ -1317,13 +1317,13 @@ class LineHeightTracker {
         while (inline) {
           if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
             parent = inline;
-            inline = this.stack[++i];
+            inline = this.parents[++i];
             break;
           } else {
             ctx.stepIn(parent, inline);
             ctx.stampMetrics(inline.metrics);
             parent = inline;
-            inline = this.stack[++i];
+            inline = this.parents[++i];
           }
         }
       }

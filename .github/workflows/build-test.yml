@@ -43,7 +43,7 @@ jobs:
           bun-version: 1
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - run: bun run vite build --base dropflow/
+      - run: bun run vite build --minify false --base dropflow/
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:

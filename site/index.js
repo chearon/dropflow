@@ -37,6 +37,8 @@ function render(html) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   flow.renderToCanvas(documentElement, canvas, window.devicePixelRatio);
   ctx.restore();
+
+  window.documentElement = documentElement;
 }
 
 const watch = EditorView.updateListener.of(update => {

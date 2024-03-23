@@ -1298,10 +1298,19 @@ class LineHeightTracker {
     let inline = this.stack[0];
     let i = 0;
 
-    if (this.contextStack.length === 1 && this.stack.length === 1) {
+    if (
+      this.contextStack.length === 1 && // no vertical-align top or bottoms
+      this.stack.length <= 1 // one non-top/bottom/baseline parent or none at all
+    ) {
       const [ctx] = this.contextStack;
-      ctx.stampMetrics(inline.metrics);
-    } else {
+      ctx.reset();
+      ctx.stampMetrics(parent.metrics);
+
+      if (inline) {
+        ctx.stepIn(parent, inline);
+        ctx.stampMetrics(inline.metrics);
+      }
+    } else { // slow path - this is the normative algorithm
       for (const ctx of this.contextStack) {
         ctx.reset();
 

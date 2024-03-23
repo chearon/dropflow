@@ -203,6 +203,9 @@ describe('Shaping', function () {
   before(function () {
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    // The test "it uses the font's internal leading when a shaped item is
+    // split onto a new line" relies on Cairo being registered _after_ Arimo.
+    // See the test for more info.
     registerFontAsset('Cairo/Cairo-Regular.ttf');
     registerFontAsset('Roboto/Roboto-Regular.ttf');
     registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
@@ -1273,6 +1276,20 @@ describe('Lines', function () {
         </div>
       `);
       expect(this.get('div').borderArea.height).to.equal(20);
+    });
+
+    it('uses the font\'s internal leading when a shaped item is split onto a new line', function () {
+      // This one is hard to set up. We need to cause a single ShapedItem using
+      // one font to be broken. If we specified a different font on the div, it
+      // would shape the spaces with that first (need to fix that) and cause us
+      // to be breaking in between rather than inside. We can't wrap the inner
+      // text with a span because that has a strut. Searching for a font that
+      // doesn't exist allows the itemized portion to find a font via language,
+      // (Cairo) and the div will use the first registered font (not Cairo).
+      this.layout('<div style="font: 16px XXX; width: 0;">متشرف بمعرفتك</div>');
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.lineboxes.length).to.equal(2);
+      expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(29.984, 0.001);
     });
   });
 });

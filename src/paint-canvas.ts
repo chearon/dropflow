@@ -185,8 +185,11 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.beginPath();
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     for (let i = glyphStart; i < glyphEnd; i += G_SZ) {
-      this.ctx.translate(sx + item.glyphs[i + G_DX], sy + item.glyphs[i + G_DY]);
+      const x = sx + item.glyphs[i + G_DX];
+      const y = sy + item.glyphs[i + G_DY];
+      this.ctx.translate(x, y);
       item.match.font.drawGlyph(item.glyphs[i + G_ID], this.ctx);
+      this.ctx.translate(-x, -y);
       sx += item.glyphs[i + G_AX];
       sy += item.glyphs[i + G_AY];
     }

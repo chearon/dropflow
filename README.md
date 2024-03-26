@@ -101,7 +101,7 @@ await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 const divStyle = {
   backgroundColor: {r: 28, g: 10, b: 0, a: 1},
   color: {r: 179, g: 200, b: 144, a: 1},
-  textAlign: 'center'
+  textAlign: 'center' as const
 };
 
 // Since we're creating styles directly, colors have to be defined numerically
@@ -111,10 +111,12 @@ const spanStyle = {
 };
 
 // Create a DOM
-const rootElement = flow.h('div', {style: divStyle}, [
-  'Hello, ',
-  flow.h('span', {style: spanStyle}, ['World!'])
-]);
+const rootElement = flow.dom(
+  flow.h('div', {style: divStyle}, [
+    'Hello, ',
+    flow.h('span', {style: spanStyle}, ['World!'])
+  ])
+);
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);

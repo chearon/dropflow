@@ -21,10 +21,12 @@ const spanStyle = {
 };
 
 // Create a DOM
-const rootElement = flow.h('div', {style: divStyle}, [
-  'Hello, ',
-  flow.h('span', {style: spanStyle}, ['World!'])
-]);
+const rootElement = flow.dom(
+  flow.h('div', {style: divStyle}, [
+    'Hello, ',
+    flow.h('span', {style: spanStyle}, ['World!'])
+  ])
+);
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);

@@ -34,6 +34,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>font-&zwj;style</code> | `normal`, `italic`, `oblique` | ✅&zwj;&nbsp;Works |
 | <code>font-&zwj;variant</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>font-&zwj;weight</code> | `normal`, `bolder`, `lighter` `light`, `bold`, `100`-`900` | ✅&zwj;&nbsp;Works |
+| <code>letter-&zwj;spacing</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>line-&zwj;height</code> | `normal`, `px`, `em`, `%`, `number` | ✅&zwj;&nbsp;Works |
 | <code>tab-&zwj;size</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |

@@ -22,7 +22,7 @@ const words: string[] = [];
 
 for (let i = 0; i < 10000; i++) words.push(word());
 
-const style = {whiteSpace: 'pre'} as const;
+const style: flow.DeclaredStyle = {whiteSpace: 'pre'};
 
 const canvas = createCanvas(100, 20);
 const ctx = canvas.getContext('2d');

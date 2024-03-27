@@ -1,3 +1,3 @@
-import {DeclaredPlainStyle} from './style.ts';
+import {DeclaredStyle} from './style.ts';
 
-export function parse(s: string): DeclaredPlainStyle;
+export function parse(s: string): DeclaredStyle;

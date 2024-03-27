@@ -1,5 +1,5 @@
 import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredPlainStyle, getRootStyle, initialStyle, computeElementStyle} from './style.js';
+import {DeclaredStyle, getRootStyle, initialStyle, computeElementStyle} from './style.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
@@ -7,7 +7,7 @@ import paintBlockRoot from './paint.js';
 import {BoxArea} from './layout-box.js';
 import {id} from './util.js';
 
-export type {BlockContainer, DeclaredPlainStyle};
+export type {BlockContainer, DeclaredStyle};
 
 export {getRootStyle};
 
@@ -74,7 +74,7 @@ export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density
 type HsChild = HTMLElement | string;
 
 interface HsData {
-  style?: DeclaredPlainStyle;
+  style?: DeclaredStyle;
   attrs?: {[k: string]: string};
 }
 

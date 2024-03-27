@@ -120,7 +120,7 @@ type Float = 'left' | 'right' | 'none';
 
 type Clear = 'left' | 'right' | 'both' | 'none';
 
-export interface DeclaredPlainStyle {
+export interface DeclaredStyle {
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
   fontSize?: Length | Percentage | Inherited | Initial;
@@ -171,9 +171,9 @@ export interface DeclaredPlainStyle {
   zIndex?: number | 'auto' | Inherited | Initial;
 }
 
-export const EMPTY_STYLE: DeclaredPlainStyle = {};
+export const EMPTY_STYLE: DeclaredStyle = {};
 
-type CascadedPlainStyle = DeclaredPlainStyle;
+type CascadedStyle = DeclaredStyle;
 
 type RemoveUnits<T, U> =
   T extends number ? number
@@ -181,16 +181,16 @@ type RemoveUnits<T, U> =
       V extends U ? number : number | {value: number, unit: Exclude<V, U>}
     : T;
 
-type SpecifiedPlainStyle = Required<{
-  [K in keyof DeclaredPlainStyle]: Exclude<DeclaredPlainStyle[K], Inherited | Initial>
+type SpecifiedStyle = Required<{
+  [K in keyof DeclaredStyle]: Exclude<DeclaredStyle[K], Inherited | Initial>
 }>;
 
-type ComputedPlainStyle = {
-  [K in keyof SpecifiedPlainStyle]
+type ComputedStyle = {
+  [K in keyof SpecifiedStyle]
     : K extends 'fontSize' ? number
     : K extends 'lineHeight' ? 'normal' | number | {value: number, unit: null}
     : K extends 'fontWeight' ? number
-    : RemoveUnits<SpecifiedPlainStyle[K], 'em'>
+    : RemoveUnits<SpecifiedStyle[K], 'em'>
 };
 
 function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value: number, unit: '%'}) {
@@ -207,57 +207,57 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
   return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
 }
 
-export class Style implements ComputedPlainStyle {
-  whiteSpace: ComputedPlainStyle['whiteSpace'];
-  color: ComputedPlainStyle['color'];
-  fontSize: ComputedPlainStyle['fontSize'];
-  fontWeight: ComputedPlainStyle['fontWeight'];
-  fontVariant: ComputedPlainStyle['fontVariant'];
-  fontStyle: ComputedPlainStyle['fontStyle'];
-  fontStretch: ComputedPlainStyle['fontStretch'];
-  fontFamily: ComputedPlainStyle['fontFamily'];
-  lineHeight: ComputedPlainStyle['lineHeight'];
-  verticalAlign: ComputedPlainStyle['verticalAlign'];
-  backgroundColor: ComputedPlainStyle['backgroundColor'];
-  backgroundClip: ComputedPlainStyle['backgroundClip'];
-  display: ComputedPlainStyle['display'];
-  direction: ComputedPlainStyle['direction'];
-  writingMode: ComputedPlainStyle['writingMode'];
-  borderTopWidth: ComputedPlainStyle['borderTopWidth'];
-  borderRightWidth: ComputedPlainStyle['borderRightWidth'];
-  borderBottomWidth: ComputedPlainStyle['borderBottomWidth'];
-  borderLeftWidth: ComputedPlainStyle['borderLeftWidth'];
-  borderTopStyle: ComputedPlainStyle['borderTopStyle'];
-  borderRightStyle: ComputedPlainStyle['borderRightStyle'];
-  borderBottomStyle: ComputedPlainStyle['borderBottomStyle'];
-  borderLeftStyle: ComputedPlainStyle['borderLeftStyle'];
-  borderTopColor: ComputedPlainStyle['borderTopColor'];
-  borderRightColor: ComputedPlainStyle['borderRightColor'];
-  borderBottomColor: ComputedPlainStyle['borderBottomColor'];
-  borderLeftColor: ComputedPlainStyle['borderLeftColor'];
-  paddingTop: ComputedPlainStyle['paddingTop'];
-  paddingRight: ComputedPlainStyle['paddingRight'];
-  paddingBottom: ComputedPlainStyle['paddingBottom'];
-  paddingLeft: ComputedPlainStyle['paddingLeft'];
-  marginTop: ComputedPlainStyle['marginTop'];
-  marginRight: ComputedPlainStyle['marginRight'];
-  marginBottom: ComputedPlainStyle['marginBottom'];
-  marginLeft: ComputedPlainStyle['marginLeft'];
-  tabSize: ComputedPlainStyle['tabSize'];
-  position: ComputedPlainStyle['position'];
-  width: ComputedPlainStyle['width'];
-  height: ComputedPlainStyle['height'];
-  top: ComputedPlainStyle['top'];
-  right: ComputedPlainStyle['right'];
-  bottom: ComputedPlainStyle['bottom'];
-  left: ComputedPlainStyle['left'];
-  boxSizing: ComputedPlainStyle['boxSizing'];
-  textAlign: ComputedPlainStyle['textAlign'];
-  float: ComputedPlainStyle['float'];
-  clear: ComputedPlainStyle['clear'];
-  zIndex: ComputedPlainStyle['zIndex'];
+export class Style implements ComputedStyle {
+  whiteSpace: ComputedStyle['whiteSpace'];
+  color: ComputedStyle['color'];
+  fontSize: ComputedStyle['fontSize'];
+  fontWeight: ComputedStyle['fontWeight'];
+  fontVariant: ComputedStyle['fontVariant'];
+  fontStyle: ComputedStyle['fontStyle'];
+  fontStretch: ComputedStyle['fontStretch'];
+  fontFamily: ComputedStyle['fontFamily'];
+  lineHeight: ComputedStyle['lineHeight'];
+  verticalAlign: ComputedStyle['verticalAlign'];
+  backgroundColor: ComputedStyle['backgroundColor'];
+  backgroundClip: ComputedStyle['backgroundClip'];
+  display: ComputedStyle['display'];
+  direction: ComputedStyle['direction'];
+  writingMode: ComputedStyle['writingMode'];
+  borderTopWidth: ComputedStyle['borderTopWidth'];
+  borderRightWidth: ComputedStyle['borderRightWidth'];
+  borderBottomWidth: ComputedStyle['borderBottomWidth'];
+  borderLeftWidth: ComputedStyle['borderLeftWidth'];
+  borderTopStyle: ComputedStyle['borderTopStyle'];
+  borderRightStyle: ComputedStyle['borderRightStyle'];
+  borderBottomStyle: ComputedStyle['borderBottomStyle'];
+  borderLeftStyle: ComputedStyle['borderLeftStyle'];
+  borderTopColor: ComputedStyle['borderTopColor'];
+  borderRightColor: ComputedStyle['borderRightColor'];
+  borderBottomColor: ComputedStyle['borderBottomColor'];
+  borderLeftColor: ComputedStyle['borderLeftColor'];
+  paddingTop: ComputedStyle['paddingTop'];
+  paddingRight: ComputedStyle['paddingRight'];
+  paddingBottom: ComputedStyle['paddingBottom'];
+  paddingLeft: ComputedStyle['paddingLeft'];
+  marginTop: ComputedStyle['marginTop'];
+  marginRight: ComputedStyle['marginRight'];
+  marginBottom: ComputedStyle['marginBottom'];
+  marginLeft: ComputedStyle['marginLeft'];
+  tabSize: ComputedStyle['tabSize'];
+  position: ComputedStyle['position'];
+  width: ComputedStyle['width'];
+  height: ComputedStyle['height'];
+  top: ComputedStyle['top'];
+  right: ComputedStyle['right'];
+  bottom: ComputedStyle['bottom'];
+  left: ComputedStyle['left'];
+  boxSizing: ComputedStyle['boxSizing'];
+  textAlign: ComputedStyle['textAlign'];
+  float: ComputedStyle['float'];
+  clear: ComputedStyle['clear'];
+  zIndex: ComputedStyle['zIndex'];
 
-  constructor(style: ComputedPlainStyle) {
+  constructor(style: ComputedStyle) {
     this.whiteSpace = style.whiteSpace;
     this.color = style.color;
     this.fontSize = style.fontSize;
@@ -486,7 +486,7 @@ export class Style implements ComputedPlainStyle {
 // initial values as specified in the property's specification. This is also
 // the style that's used as the root style for inheritance. These are the
 // "computed value"s as described in CSS Cascading and Inheritance Level 4 § 4.4
-const initialPlainStyle: ComputedPlainStyle = Object.freeze({
+const initialPlainStyle: ComputedStyle = Object.freeze({
   whiteSpace: 'normal',
   color: {r: 0, g: 0, b: 0, a: 1},
   fontSize: 16,
@@ -539,7 +539,7 @@ const initialPlainStyle: ComputedPlainStyle = Object.freeze({
 
 export const initialStyle = new Style(initialPlainStyle);
 
-type InheritedStyleDefinitions = {[K in keyof ComputedPlainStyle]: boolean};
+type InheritedStyleDefinitions = {[K in keyof ComputedStyle]: boolean};
 
 // Each CSS property defines whether or not it's inherited
 const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
@@ -593,7 +593,7 @@ const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
   zIndex: false
 });
 
-type UaDeclaredStyles = {[tagName: string]: DeclaredPlainStyle};
+type UaDeclaredStyles = {[tagName: string]: DeclaredStyle};
 
 export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
   div: {
@@ -669,9 +669,9 @@ export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
   }
 });
 
-const cascadedCache = new WeakMap<CascadedPlainStyle, WeakMap<CascadedPlainStyle, DeclaredPlainStyle>>();
+const cascadedCache = new WeakMap<CascadedStyle, WeakMap<CascadedStyle, DeclaredStyle>>();
 
-export function cascadeStyles(s1: DeclaredPlainStyle, s2: DeclaredPlainStyle): CascadedPlainStyle {
+export function cascadeStyles(s1: DeclaredStyle, s2: DeclaredStyle): CascadedStyle {
   let m1 = cascadedCache.get(s1);
   let m2 = m1 && m1.get(s2);
 
@@ -691,7 +691,7 @@ export function cascadeStyles(s1: DeclaredPlainStyle, s2: DeclaredPlainStyle): C
   return ret;
 }
 
-function defaultifyStyle(parentStyle: Style, style: CascadedPlainStyle) {
+function defaultifyStyle(parentStyle: Style, style: CascadedStyle) {
   const ret: any = {};
 
   for (const _ in initialPlainStyle) {
@@ -705,10 +705,10 @@ function defaultifyStyle(parentStyle: Style, style: CascadedPlainStyle) {
     }
   }
 
-  return ret as SpecifiedPlainStyle;
+  return ret as SpecifiedStyle;
 }
 
-function computeStyle(parentStyle: Style, style: SpecifiedPlainStyle) {
+function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
   const ret:{[i: string]: any} = {};
 
   for (const _ in initialPlainStyle) {
@@ -753,10 +753,10 @@ function computeStyle(parentStyle: Style, style: SpecifiedPlainStyle) {
     ret.lineHeight = style.lineHeight.value / 100 * ret.fontSize;
   }
 
-  return new Style(ret as ComputedPlainStyle);
+  return new Style(ret as ComputedStyle);
 }
 
-const styleCache = new WeakMap<DeclaredPlainStyle, WeakMap<DeclaredPlainStyle, Style>>();
+const styleCache = new WeakMap<DeclaredStyle, WeakMap<DeclaredStyle, Style>>();
 
 /**
  * Very simple property inheritance model. createStyle starts out with cascaded
@@ -767,7 +767,7 @@ const styleCache = new WeakMap<DeclaredPlainStyle, WeakMap<DeclaredPlainStyle, S
  * Used/actual styles (§4.5, §4.6) are calculated during layout, external to
  * this file.
  */
-export function createStyle(s1: Style, s2: CascadedPlainStyle) {
+export function createStyle(s1: Style, s2: CascadedStyle) {
   let m1 = styleCache.get(s1);
   let m2 = m1 && m1.get(s2);
 
@@ -789,14 +789,14 @@ export function createStyle(s1: Style, s2: CascadedPlainStyle) {
 }
 
 // required styles that always come last in the cascade
-const rootDeclaredStyle: DeclaredPlainStyle = {
+const rootDeclaredStyle: DeclaredStyle = {
   display: {
     outer: 'block',
     inner: 'flow-root'
   }
 };
 
-export function getRootStyle(style: DeclaredPlainStyle = EMPTY_STYLE) {
+export function getRootStyle(style: DeclaredStyle = EMPTY_STYLE) {
   return createStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
 }
 

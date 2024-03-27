@@ -1,6 +1,6 @@
 import {Box} from './layout-box.js';
 import {loggableText} from './util.js';
-import {Style, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './style.js';
+import {Style, DeclaredStyle, initialStyle, EMPTY_STYLE} from './style.js';
 import {query, queryAll, Adapter} from './style-query.js';
 
 export class TextNode {
@@ -25,7 +25,7 @@ export class HTMLElement {
   public id: string;
   public tagName: string;
   public style: Style;
-  public declaredStyle: DeclaredPlainStyle;
+  public declaredStyle: DeclaredStyle;
   public parent: HTMLElement | null;
   public attrs: Record<string, string>;
   public children: (TextNode | HTMLElement)[];
@@ -170,3 +170,7 @@ const adapter: Adapter<HTMLElement, HTMLElement> = {
     return false;
   }
 };
+
+
+
+

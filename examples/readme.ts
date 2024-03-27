@@ -8,14 +8,14 @@ await flow.registerFont(new URL('../assets/Roboto/Roboto-Regular.ttf', import.me
 await flow.registerFont(new URL('../assets/Roboto/Roboto-Bold.ttf', import.meta.url));
 
 // Always create styles at the top-level of your module if you can
-const divStyle = {
+const divStyle: flow.DeclaredStyle = {
   backgroundColor: {r: 28, g: 10, b: 0, a: 1},
-  textAlign: 'center' as const,
+  textAlign: 'center',
   color: {r: 179, g: 200, b: 144, a: 1}
 };
 
 // Since we're creating styles directly, colors have to be defined numerically
-const spanStyle = {
+const spanStyle: flow.DeclaredStyle = {
   color: {r: 115, g: 169, b: 173, a: 1},
   fontWeight: 700
 };

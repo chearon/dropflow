@@ -335,6 +335,84 @@ function paintToHtml(root: BlockContainer): string;
 
 Paint to HTML! Yes, this API can actually be used to go from HTML to HTML. It generates a flat list of a bunch of absolutely positioned elements. Probably don't use this, but it can be useful in development and is amusing.
 
+## DOM API
+
+The root `HTMLElement` you get from the [Hyperscript](#hyperscript) and [Parse](#parse) APIs has methods you can use to find other HTMLElements in your tree. Like the browser's `querySelector` APIs, you can search by tag name, `id` attribute, or classes from the `class` attribute.
+
+This allows you to get the render boxes associated with the element so you can do more sophisticated things like paint custom content or do hit detection.
+
+### `query`
+
+```ts
+class HTMLElement {
+  query(selector: string): HTMLElement | null;
+}
+```
+
+### `queryAll`
+
+
+```ts
+class HTMLElement {
+  queryAll(selector: string): HTMLElement[];
+}
+```
+
+### `boxes`
+
+`HTMLElement`s can have more than one render box, but will normally have just one. The two main types of boxes are `BlockContainer`s (roughly `<div>`) and `Inline`s (roughly `<span>`s).
+
+The only time you'll see more than one `Box` for an element is if the element has mixed inline and block content. In that case, the inline content gets wrapped with anonymous `BlockContainers`.
+
+A `BlockContainer` is generated for absolutely positioned elements, floated elements, inline-blocks, and block-level elements. For those elements, you can use its `contentArea`, `borderArea`, and `paddingArea`.
+
+Most of the time you can assume it's a `BlockContainer`:
+
+```ts
+const dom = flow.parse('<div id="d" style="width: 100px; height: 100px;"></div>');
+const root = flow.layout(dom);
+flow.layout(root, 200, 200);
+const [box] = root.query('#d')!.boxes as flow.BlockContainer[];
+box.contentArea.width; // 100
+box.contentArea.height; // 100
+```
+
+The supported interfaces of the classes follow:
+
+```ts
+class HTMLElement {
+  boxes: Box[];
+}
+```
+
+```ts
+class Box {
+  isInline(): this is Inline;
+  isBlockContainer(): this is BlockContainer;
+}
+```
+
+```ts
+class BlockContainer extends Box {
+  public borderArea: BoxArea;
+  public paddingArea: BoxArea;
+  public contentArea: BoxArea;
+}
+```
+
+```ts
+class Inline extends Box;
+```
+
+```ts
+class BoxArea {
+  public x: number;
+  public y: number;
+  public width: number;
+  public height: number;
+}
+```
+
 ## Other
 
 ### `staticLayoutContribution`

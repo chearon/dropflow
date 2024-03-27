@@ -17,8 +17,7 @@ describe('Flow', function () {
       oflo.layout(this.blockContainer, 300, 500);
       this.get = function (...args) {
         if (typeof args[0] === 'string') {
-          const elements = this.rootElement.query(args[0]);
-          if (elements.length) return elements[0].boxes[0];
+          return this.rootElement.query(args[0])?.boxes[0];
         } else {
           /** @type import('../src/layout-box').Box */
           let ret = this.blockContainer;

@@ -1,6 +1,7 @@
 // @ts-check
 import {expect} from 'chai';
 import {registerFontAsset} from '../assets/register.js';
+import {HTMLElement} from '../src/dom.js';
 import {h, dom, generate, layout} from '../src/api-with-parse.js';
 import {parse} from '../src/api-with-parse.js';
 
@@ -160,5 +161,29 @@ describe('Parse API', function () {
     const html = parse('<html style="font: 12px Bro;">happy </html><span>birthday</span>');
     expect(html.children[0].style.fontFamily).to.deep.equal(['Bro']);
     expect(html.children[1].style.fontFamily).to.deep.equal(['Bro']);
+  });
+});
+
+describe('DOM API', function () {
+  it('supports query', function () {
+    const html = parse('<div id="d1"></div><div class="d2"></div>');
+    expect(html.query('#d1')).to.be.instanceOf(HTMLElement);
+    expect(html.query('.d2')).to.be.instanceOf(HTMLElement);
+  });
+
+  it('supports queryAll', function () {
+    const html = parse('<div class="d1"></div><div class="d2"></div>');
+    const elements = html.queryAll('.d1, .d2');
+    expect(elements).to.have.lengthOf(2);
+    expect(elements[0]).to.be.instanceof(HTMLElement);
+    expect(elements[1]).to.be.instanceof(HTMLElement);
+  });
+
+  it('exposes boxes', function () {
+    const html = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
+    layout(generate(html));
+    const [box] = html.query('#d').boxes;
+    expect(box.contentArea.width).to.equal(100);
+    expect(box.contentArea.height).to.equal(100);
   });
 });

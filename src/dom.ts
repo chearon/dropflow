@@ -1,7 +1,7 @@
 import {Box} from './layout-box.js';
 import {loggableText} from './util.js';
 import {Style, DeclaredPlainStyle, initialStyle, EMPTY_STYLE} from './style.js';
-import selectAll, {Adapter} from './style-query.js';
+import {query, queryAll, Adapter} from './style-query.js';
 
 export class TextNode {
   public id: string;
@@ -66,8 +66,12 @@ export class HTMLElement {
     return '  '.repeat(indent) + desc + (c ? '\n' + c : '');
   }
 
-  query(selector: string) {
-    return select(this, selector);
+  query(selector: string): HTMLElement | null {
+    return query(selector, this, {adapter});
+  }
+
+  queryAll(selector: string): HTMLElement[] {
+    return queryAll(selector, this, {adapter});
   }
 }
 
@@ -105,68 +109,64 @@ function removeSubsets(nodes: HTMLElement[]) {
 	return nodes;
 }
 
-function select(root: HTMLElement, selector: string) {
-  const adapter:Adapter<HTMLElement, HTMLElement> = {
-    isTag: (node): node is HTMLElement => true,
-    existsOne(test, elems) {
-      return elems.some(elem => {
-        return test(elem) || adapter.existsOne(test, getChildren(elem));
-      });
-    },
-    getAttributeValue(elem: HTMLElement, name: string) {
-      return elem.attrs[name];
-    },
-    getChildren,
-    getName(elem) {
-      return elem.tagName;
-    },
-    getParent(elem) {
-      return elem.parent;
-    },
-    getSiblings(elem) {
-      if (!elem.parent) return [];
-      return getChildren(elem.parent);
-    },
-    getText() {
-      return '';
-    },
-    hasAttrib(elem: HTMLElement, name: string) {
-      return name in elem.attrs;
-    },
-    removeSubsets,
-    findAll(test, elems) {
-      let ret:HTMLElement[] = [];
-      for(let i = 0, j = elems.length; i < j; i++) {
-        if (test(elems[i])) ret.push(elems[i]);
-        const children = getChildren(elems[i]);
-        ret = ret.concat(adapter.findAll(test, children));
-      }
-      return ret;
-    },
-    findOne(test, elems) {
-      let elem = null;
-
-      for (let i = 0, l = elems.length; i < l && !elem; i++) {
-        if (test(elems[i])) {
-          elem = elems[i];
-        } else {
-          const children = getChildren(elems[i]);
-          if (children.length > 0) elem = adapter.findOne(test, children);
-        }
-      }
-
-      return elem;
-    },
-    isHovered() {
-      return false;
-    },
-    isVisited() {
-      return false;
-    },
-    isActive() {
-      return false;
+const adapter: Adapter<HTMLElement, HTMLElement> = {
+  isTag: (node): node is HTMLElement => true,
+  existsOne(test, elems) {
+    return elems.some(elem => {
+      return test(elem) || adapter.existsOne(test, getChildren(elem));
+    });
+  },
+  getAttributeValue(elem: HTMLElement, name: string) {
+    return elem.attrs[name];
+  },
+  getChildren,
+  getName(elem) {
+    return elem.tagName;
+  },
+  getParent(elem) {
+    return elem.parent;
+  },
+  getSiblings(elem) {
+    if (!elem.parent) return [];
+    return getChildren(elem.parent);
+  },
+  getText() {
+    return '';
+  },
+  hasAttrib(elem: HTMLElement, name: string) {
+    return name in elem.attrs;
+  },
+  removeSubsets,
+  findAll(test, elems) {
+    let ret:HTMLElement[] = [];
+    for(let i = 0, j = elems.length; i < j; i++) {
+      if (test(elems[i])) ret.push(elems[i]);
+      const children = getChildren(elems[i]);
+      ret = ret.concat(adapter.findAll(test, children));
     }
-  };
+    return ret;
+  },
+  findOne(test, elems) {
+    let elem = null;
 
-  return selectAll(selector, root, {adapter});
-}
+    for (let i = 0, l = elems.length; i < l && !elem; i++) {
+      if (test(elems[i])) {
+        elem = elems[i];
+      } else {
+        const children = getChildren(elems[i]);
+        if (children.length > 0) elem = adapter.findOne(test, children);
+      }
+    }
+
+    return elem;
+  },
+  isHovered() {
+    return false;
+  },
+  isVisited() {
+    return false;
+  },
+  isActive() {
+    return false;
+  }
+};

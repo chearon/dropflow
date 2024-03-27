@@ -1714,17 +1714,18 @@ function getSelectorFunc<Node, ElementNode extends Node, T>(
   };
 }
 
-/**
- * @template Node The generic Node type for the DOM adapter being used.
- * @template ElementNode The Node type for elements for the DOM adapter being used.
- * @param elems Elements to query. If it is an element, its children will be queried..
- * @param query can be either a CSS selector string or a compiled query function.
- * @param [options] options for querying the document.
- * @see compile for supported selector queries.
- * @returns All matching elements.
- *
- */
-const selectAll = getSelectorFunc(
+export const query = getSelectorFunc(
+  <Node, ElementNode extends Node>(
+    query: Predicate<ElementNode>,
+    elems: Node[] | null,
+    options: InternalOptions<Node, ElementNode>
+  ): ElementNode | null =>
+    query === falseFunc || !elems || elems.length === 0
+      ? null
+      : options.adapter.findOne(query, elems)
+);
+
+export const queryAll = getSelectorFunc(
   <Node, ElementNode extends Node>(
     query: Predicate<ElementNode>,
     elems: Node[] | null,
@@ -1734,5 +1735,3 @@ const selectAll = getSelectorFunc(
       ? []
       : options.adapter.findAll(query, elems)
 );
-
-export default selectAll;

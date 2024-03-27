@@ -223,7 +223,7 @@ The hyperscript API is the fastest way to generate a DOM.
 ### `h`
 
 ```ts
-type HsChild = HTMLElement | TextNode | string;
+type HsChild = HTMLElement | string;
 
 interface HsData {
   style?: DeclaredPlainStyle;
@@ -242,7 +242,9 @@ Creates an HTMLElement. Styles go on `data.style` (see `style.ts` for supported 
 ### `dom`
 
 ```ts
-function dom(el: HTMLElement | HTMLElement[]): HTMLElement
+type HsChild = HTMLElement | string;
+
+function dom(el: HsChild | HsChild[]): HTMLElement
 ```
 
 Calculates styles and wraps with `<html>` if the root `tagName` is not `"html"`.

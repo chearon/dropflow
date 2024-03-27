@@ -5,65 +5,80 @@ import {h, dom, generate, layout} from '../src/api-with-parse.js';
 import {parse} from '../src/api-with-parse.js';
 
 describe('Hyperscript API', function () {
-  it('accepts children argument', function () {
-    const div = h('div', [h('span'), 'chocolate']);
-    expect(div.tagName).to.equal('div');
-    expect(div.children).to.have.lengthOf(2);
-    expect(div.children[0].tagName).to.equal('span');
-    expect(div.children[1].text).to.equal('chocolate');
-  });
-
-  it('accepts text content argument', function () {
-    const div = h('div', 'text content');
-    expect(div.tagName).to.equal('div');
-    expect(div.children).to.have.lengthOf(1);
-    expect(div.children[0].text).to.equal('text content');
-  });
-
-  it('accepts attrs argument', function () {
-    const div = h('div', {
-      style: {fontSize: 66},
-      attrs: {direction: 'rtl'}
+  describe('h()', function () {
+    it('accepts children argument', function () {
+      const div = h('div', [h('span'), 'chocolate']);
+      expect(div.tagName).to.equal('div');
+      expect(div.children).to.have.lengthOf(2);
+      expect(div.children[0].tagName).to.equal('span');
+      expect(div.children[1].text).to.equal('chocolate');
     });
-    expect(div.declaredStyle.fontSize).to.equal(66);
-    expect(div.attrs.direction).to.equal('rtl');
+
+    it('accepts text content argument', function () {
+      const div = h('div', 'text content');
+      expect(div.tagName).to.equal('div');
+      expect(div.children).to.have.lengthOf(1);
+      expect(div.children[0].text).to.equal('text content');
+    });
+
+    it('accepts attrs argument', function () {
+      const div = h('div', {
+        style: {fontSize: 66},
+        attrs: {direction: 'rtl'}
+      });
+      expect(div.declaredStyle.fontSize).to.equal(66);
+      expect(div.attrs.direction).to.equal('rtl');
+    });
+
+    it('accepts attrs, children arguments', function () {
+      const div = h('div', {style: {lineHeight: 20}}, [h('span')]);
+      expect(div.declaredStyle.lineHeight).to.equal(20);
+      expect(div.children).to.have.lengthOf(1);
+      expect(div.children[0].tagName).to.equal('span');
+    });
+
+    it('accepts attrs, text content arguments', function () {
+      const div = h('div', {style: {display: 'inline'}}, 'text content');
+      expect(div.declaredStyle.display).to.equal('inline');
+      expect(div.children).to.have.lengthOf(1);
+      expect(div.children[0].text).to.equal('text content');
+    });
   });
 
-  it('accepts attrs, children arguments', function () {
-    const div = h('div', {style: {lineHeight: 20}}, [h('span')]);
-    expect(div.declaredStyle.lineHeight).to.equal(20);
-    expect(div.children).to.have.lengthOf(1);
-    expect(div.children[0].tagName).to.equal('span');
-  });
+  describe('dom()', function () {
+    it('sets parents', function () {
+      const div = dom(h('div', [h('div')]));
+      expect(div.children[0].parent).to.equal(div);
+      expect(div.children[0].children[0].parent).to.equal(div.children[0]);
+    });
 
-  it('accepts attrs, text content arguments', function () {
-    const div = h('div', {style: {display: 'inline'}}, 'text content');
-    expect(div.declaredStyle.display).to.equal('inline');
-    expect(div.children).to.have.lengthOf(1);
-    expect(div.children[0].text).to.equal('text content');
-  });
+    it('computes styles', function () {
+      const h1 = dom(h('div', {style: {fontSize: 99}}, 'abc'));
+      expect(h1.children[0].style.fontSize).to.equal(99);
+      const h2 = dom(h('div', {style: {lineHeight: {value: 123, unit: null}}}, [h('div')]));
+      expect(h2.children[0].style.lineHeight).to.deep.equal({value: 123, unit: null});
+    });
 
-  it('sets parents', function () {
-    const div = dom(h('div', [h('div')]));
-    expect(div.children[0].parent).to.equal(div);
-    expect(div.children[0].children[0].parent).to.equal(div.children[0]);
-  });
+    it('uses the html element', function () {
+      expect(dom(h('html', {})).children.length).to.equal(0);
+    });
 
-  it('computes styles', function () {
-    const h1 = dom(h('div', {style: {fontSize: 99}}, 'abc'));
-    expect(h1.children[0].style.fontSize).to.equal(99);
-    const h2 = dom(h('div', {style: {lineHeight: {value: 123, unit: null}}}, [h('div')]));
-    expect(h2.children[0].style.lineHeight).to.deep.equal({value: 123, unit: null});
-  });
+    it('makes the root element block-level, flow-root', function () {
+      const html = dom(h('html', {style: {display: {outer: 'inline', inner: 'flow'}}}));
+      expect(html.style.display.outer).to.equal('block');
+      expect(html.style.display.inner).to.equal('flow-root');
+    });
 
-  it('uses the html element', function () {
-    expect(dom(h('html', {})).children.length).to.equal(0);
-  });
+    it('accepts a mixed list', function () {
+      const html = dom([
+        h('div', {attrs: {div1: 'div1'}}),
+        'text1'
+      ]);
 
-  it('makes the root element block-level, flow-root', function () {
-    const html = dom(h('html', {style: {display: {outer: 'inline', inner: 'flow'}}}));
-    expect(html.style.display.outer).to.equal('block');
-    expect(html.style.display.inner).to.equal('flow-root');
+      expect(html.children).to.have.lengthOf(2);
+      expect(html.children[0].attrs.div1).to.equal('div1');
+      expect(html.children[1].text).to.equal('text1');
+    });
   });
 
   it('lays out successfully', async function () {

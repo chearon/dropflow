@@ -71,14 +71,22 @@ export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density
   renderToCanvasContext(rootElement, ctx, canvas.width / density, canvas.height / density);
 }
 
-type HsChild = HTMLElement | TextNode | string;
+type HsChild = HTMLElement | string;
 
 interface HsData {
   style?: DeclaredPlainStyle;
   attrs?: {[k: string]: string};
 }
 
-export function dom(el: HTMLElement | HTMLElement[]): HTMLElement {
+function toDomChild(child: HsChild) {
+  if (typeof child === 'string') {
+    return new TextNode(id(), child);
+  } else {
+    return child;
+  }
+}
+
+export function dom(el: HsChild | HsChild[]): HTMLElement {
   let rootElement;
 
   if (el instanceof HTMLElement && el.tagName === 'html') {
@@ -96,7 +104,7 @@ export function dom(el: HTMLElement | HTMLElement[]): HTMLElement {
     }
   } else {
     rootElement = new HTMLElement('root', 'html');
-    rootElement.children = Array.isArray(el) ? el.slice() : [el];
+    rootElement.children = Array.isArray(el) ? el.map(toDomChild) : [toDomChild(el)];
   }
 
   // Assign parents
@@ -121,14 +129,6 @@ export function dom(el: HTMLElement | HTMLElement[]): HTMLElement {
   }
 
   return rootElement;
-}
-
-function toDomChild(child: HsChild) {
-  if (typeof child === 'string') {
-    return new TextNode(id(), child);
-  } else {
-    return child;
-  }
 }
 
 export function h(tagName: string): HTMLElement;

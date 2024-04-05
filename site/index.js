@@ -5,26 +5,18 @@ import {EditorView, basicSetup} from 'codemirror';
 import {EditorState} from '@codemirror/state';
 import {html} from '@codemirror/lang-html';
 import {solarizedDark} from '@ddietr/codemirror-themes/solarized-dark.js'
-import regularUrl from '../assets/Roboto/Roboto-Regular.ttf';
-import boldUrl from '../assets/Roboto/Roboto-Bold.ttf';
-import italicUrl from '../assets/Roboto/Roboto-Italic.ttf';
-
-await Promise.all([
-  flow.registerFont(new URL(regularUrl, location.origin)),
-  flow.registerFont(new URL(boldUrl, location.origin)),
-  flow.registerFont(new URL(italicUrl, location.origin))
-]);
 
 const [canvas] = document.getElementsByTagName('canvas');
 const wrap = document.getElementById('wrap');
 const canvasLabel = document.getElementById('canvas-label');
 
-function render(html) {
+async function render(html) {
   const documentElement = flow.parse(html);
   const ctx = canvas.getContext('2d');
   const cssWidth = wrap.clientWidth;
   const cssHeight = wrap.clientHeight;
 
+  await flow.loadNotoFonts(documentElement);
   canvas.style.width = `${cssWidth}px`;
   canvas.style.height = `${cssHeight}px`;
   canvas.width = cssWidth * window.devicePixelRatio;

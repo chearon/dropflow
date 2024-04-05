@@ -207,6 +207,21 @@ In the browser, make sure the font is also loaded into page so that the paint ba
 > [!NOTE]
 > This will soon be replaced with an API that looks more like the `document.fonts` API in the browser.
 
+### `loadNotoFonts`
+
+```ts
+async function loadNotoFonts(root: HTMLElement): Promise<URL[]>;
+```
+
+Fetches and registers subsetted [Noto](https://fonts.google.com/noto) Sans fonts that, together, can display all characters in the document. The fonts are published by [FontSource](http://fontsource.org) and hosted by [jsDelivr](https://www.jsdelivr.com). Nothing needs to be done with the return value, but you can use it to unregister the fonts.
+
+For Latin, italic fonts are registered. For all scripts, one normal (400) weight and one bold (700) is registered.
+
+Since dropflow cannot use system fonts, this is similar to having fallback fonts for many languages available on your operating system.
+
+> [!NOTE]
+> While this will make the vast majority of text renderable, some scripts should be displayed with fonts made specifically for the language being displayed. For example, Chinese, Korean, and Japanese share common Unicode code points, but can render those characters differently. There is also a small cost to inspecting every character in the document. It is always better to use specific fonts when possible.
+
 ### `unregisterFont`
 
 ```ts

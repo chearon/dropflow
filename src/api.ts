@@ -1,5 +1,6 @@
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getRootStyle, initialStyle, computeElementStyle} from './style.js';
+import {registerFont, unregisterFont, getFontUrls} from './text-font.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
@@ -11,7 +12,7 @@ export type {BlockContainer, DeclaredStyle};
 
 export {getRootStyle};
 
-export {registerFont, unregisterFont} from './text-font.js';
+export {registerFont, unregisterFont};
 
 export function generate(rootElement: HTMLElement): BlockContainer {
   if (rootElement.style === initialStyle) {
@@ -197,4 +198,10 @@ export function staticLayoutContribution(box: BlockContainer): number {
     + (marginLineRight === 'auto' ? 0 : marginLineRight);
 
   return intrinsicSize;
+}
+
+export async function loadNotoFonts(root: HTMLElement): Promise<URL[]> {
+  const urls = getFontUrls(root).map(url => new URL(url));
+  await Promise.all(urls.map(url => registerFont(url)));
+  return urls;
 }

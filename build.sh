@@ -114,4 +114,5 @@ em++ \
 	gen/grapheme-break-trie.cc \
 	gen/line-break-trie.cc \
 	gen/emoji-trie.cc \
-	gen/script-trie.cc
+	gen/script-trie.cc \
+	gen/system-fonts-trie.cc

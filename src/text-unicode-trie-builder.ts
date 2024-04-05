@@ -214,7 +214,7 @@ export default class UnicodeTrieBuilder {
     }
   }
 
-  set(codepoint: number, value: number) {
+  set(codepoint: number, value: number, overwrite = true) {
     if (codepoint < 0 || codepoint > 0x10ffff) {
       throw new Error('Invalid code point');
     }
@@ -224,7 +224,10 @@ export default class UnicodeTrieBuilder {
     }
 
     const block = this.getDataBlock(codepoint);
-    this.data[block + (codepoint & DATA_MASK)] = value;
+    const i = block + (codepoint & DATA_MASK);
+    if (overwrite || this.data[i] === this.initialValue) {
+      this.data[i] = value;
+    }
     return this;
   }
 

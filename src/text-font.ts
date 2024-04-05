@@ -4,6 +4,9 @@ import wasm from './wasm.js';
 import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
 import {registerPaintFont, loadBuffer} from '#backend';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
+import subsetIdToUrls from '../gen/system-fonts-database.js';
+import UnicodeTrie from './text-unicode-trie.js';
+import {HTMLElement} from './dom.js';
 
 import type {HbBlob, HbFace, HbFont} from './text-harfbuzz.js';
 import type {Style, FontStretch} from './style.js';
@@ -465,7 +468,7 @@ export async function registerFont(
   arg2?: {paint: boolean} | URL,
   arg3?: {paint: boolean}
 ) {
-  let buffer: Uint8Array;
+  let buffer: Uint8Array | null;
   let url: URL;
   let options: {paint: boolean};
 
@@ -750,4 +753,36 @@ export function eachRegisteredFont(cb: (family: FaceMatch) => void) {
 
 export function firstCascadeItem(): FaceMatch {
   return faces.values().next().value; // TODO Why is this any?
+}
+
+const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);
+
+export function getFontUrls(root: HTMLElement) {
+  const stack = root.children.slice();
+  const subsetIds = new Set<number>();
+
+  while (stack.length) {
+    const el = stack.pop()!;
+    if (el instanceof HTMLElement) {
+      for (const child of el.children) stack.push(child);
+    } else {
+      let i = 0;
+      while (i < el.text.length) {
+        const code = el.text.charCodeAt(i++);
+        const next = el.text.charCodeAt(i);
+        let unicode = code;
+
+        // Faster than using the string's builtin iterator in Firefox
+        if ((0xd800 <= code && code <= 0xdbff) && (0xdc00 <= next && next <= 0xdfff)) {
+          i++;
+          unicode = ((code - 0xd800) * 0x400) + (next - 0xdc00) + 0x10000;
+        }
+
+        const subsetId = systemFontTrie.get(unicode);
+        if (subsetId) subsetIds.add(subsetId);
+      }
+    }
+  }
+
+  return [...subsetIds].flatMap(subsetId => subsetIdToUrls.get(subsetId)!);
 }

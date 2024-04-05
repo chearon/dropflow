@@ -130,6 +130,10 @@ export function createSet() {
   return createSetInternal();
 }
 
+export function wrapExternalSet(ptr: number) {
+  return createSetInternal(ptr);
+}
+
 export class HbBlob {
   ptr: number;
 

@@ -438,6 +438,130 @@ async function generateScriptTrie() {
   writeTrie(path.join(__dirname, 'gen/script-trie.cc'), 'script_trie', trie);
 }
 
+const excludedFonts = new Set([
+  'Noto Sans Mono', // Don't know why this is in sans-serif category
+  'Noto Sans Emoji', // Color Emoji is enough
+  'Noto Sans Display', // Don't know what it is
+  'Noto Sans HK', // I think TC is more widely applicable
+]);
+
+const priorities = new Map([ // note 50 is the default priority
+  ['Noto Sans', 0], // Just because Latin is so common
+  ['Noto Sans Arabic', 0], // Noto Sans Kufi Arabic is a traditional style
+  ['Noto Sans Math', 0], // Lots of other fonts encode math
+  ['Noto Sans TC', 90], // Seems to overwrite other fonts like Khmer
+  ['Noto Sans JP', 91], // I think Japanese should load later since it uses some Chinese
+  ['Noto Sans KR', 91], // Same for Korean
+  ['Noto Sans Mongolian', 91], // And Mongolian
+]);
+
+async function generateSystemFonts() {
+  const res = await fetch('https://api.fontsource.org/v1/fonts')
+  /** @type {Map<string, string[]>} */
+  const subsetToUrls = new Map();
+  /** @type {Map<string, number>} */
+  const subsetToSubsetId = new Map();
+
+  if (res.status !== 200) throw new Error(res.statusText);
+
+  const json = await res.json();
+  const trie = new UnicodeTrieBuilder();
+
+  function addVariants(unicodeRange, variantUrlMaps) {
+    const initialSubsets = new Set(subsetToUrls.keys());
+
+    for (const variantMap of variantUrlMaps) {
+      if (!variantMap) continue;
+      for (const [subset, data] of Object.entries(variantMap)) {
+        const ttf = data?.url?.ttf;
+        if (ttf && !initialSubsets.has(subset) && unicodeRange[subset]) {
+          const subsetUnicodeRange = unicodeRange[subset];
+
+          let urls = subsetToUrls.get(subset);
+          if (!urls) subsetToUrls.set(subset, urls = []);
+
+          let subsetId = subsetToSubsetId.get(subset);
+          if (!subsetId) subsetToSubsetId.set(subset, subsetId = subsetToSubsetId.size + 1);
+
+          for (const range of subsetUnicodeRange.split(',')) {
+            if (range.startsWith('U+')) {
+              const [u1, u2] = range.slice(2).split('-');
+              if (u2) {
+                trie.setRange(parseInt(u1, 16), parseInt(u2, 16), subsetId, false);
+              } else {
+                trie.set(parseInt(u1, 16), subsetId, false);
+              }
+            }
+          }
+
+          console.log(subset, ttf);
+
+          urls.push(ttf);
+        }
+      }
+    }
+  }
+
+  json.sort((f1, f2) => {
+    const p1 = priorities.get(f1.family) ?? 50;
+    const p2 = priorities.get(f2.family) ?? 50;
+    return p1 < p2 ? -1 : p1 > p2 ? 1 : 0;
+  });
+
+  for (const {family, category, id} of json) {
+    if (
+      family.startsWith('Noto') &&
+      !excludedFonts.has(family) &&
+      category === 'sans-serif'
+    ) {
+      const res = await fetch(`https://api.fontsource.org/v1/fonts/${id}`);
+
+      if (res.status !== 200) throw new Error(res.statusText);
+
+      const {unicodeRange, subsets, variants} = await res.json();
+
+      // Normally, all subsets are in the unicodeRange map.
+      // Noto Sans TC (and maybe JP/KR?) has keys like [0] and [1] in the
+      // unicodeRange since those fonts are, for CJK characters, normally split
+      // up into subsets on NPM. However, the URL given by the fontsource API is
+      // the full TTF, so just merge those unicode ranges and assume they go
+      // with the missing subset
+      const missingSubsets = new Set(subsets);
+      for (const subset in unicodeRange) missingSubsets.delete(subset);
+      if (missingSubsets.size === 1) {
+        const subset = missingSubsets.values().next().value;
+        let combinedRange = '';
+        for (const subset in unicodeRange) {
+          if (subset.startsWith('[') && subset.endsWith(']')) {
+            combinedRange += (combinedRange.length ? ',' : '') + unicodeRange[subset];
+          }
+        }
+        unicodeRange[subset] = combinedRange;
+      }
+
+      // Some subsetted scripts that aren't Latin have italic versions, but as
+      // far as I know, italics is a Latin-specific thing. I looked at
+      // Devanagari's italic versions and it was just a bold version.
+      addVariants(unicodeRange, [
+        variants['400']?.['normal'],
+        {latin: variants['400']?.['italic']?.['latin']},
+        variants['700']?.['normal'],
+        {latin: variants['700']?.['italic']?.['latin']}
+      ]);
+    }
+  }
+
+  let ts = '// generated from gen.js\nexport default new Map([\n';
+  for (const [subset, urls] of subsetToUrls) {
+    const subsetId = subsetToSubsetId.get(subset);
+    ts += ` ${JSON.stringify([subsetId, urls])},\n`;
+  }
+  ts += ']);\n';
+
+  fs.writeFileSync(path.join(__dirname, `gen/system-fonts-database.ts`), ts);
+  writeTrie(path.join(__dirname, 'gen/system-fonts-trie.cc'), 'system_font_trie', trie);
+}
+
 const fns = process.argv.slice(2).map(command => {
   if (command === 'line-break-trie') return generateLineBreakTrie;
   if (command === 'grapheme-break-trie') return generateGraphemeBreakTrie;
@@ -446,6 +570,7 @@ const fns = process.argv.slice(2).map(command => {
   if (command === 'emoji-trie') return generateEmojiTrie;
   if (command === 'script-trie') return generateScriptTrie;
   if (command === 'script-names') return generateScriptNames;
+  if (command === 'system-fonts') return generateSystemFonts;
   console.error(`Usage: node gen.js (cmd )+
 Available commands:
   line-break-trie
@@ -454,7 +579,8 @@ Available commands:
   entity-trie
   emoji-trie
   script-trie
-  script-names`);
+  script-names
+  system-fonts`);
   process.exit(1);
 });
 

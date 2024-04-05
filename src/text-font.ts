@@ -475,13 +475,15 @@ export async function registerFont(
     options = arg3 || {paint: true};
   } else {
     url = arg1 as any;
-    buffer = new Uint8Array(await loadBuffer(url));
+    buffer = null;
     options = arg2 as any || {paint: true};
   }
 
   const stringUrl = String(url);
 
   if (!hbBlobs.has(stringUrl)) {
+    if (!buffer) buffer = new Uint8Array(await loadBuffer(url));
+
     const blob = hb.createBlob(buffer);
 
     hbBlobs.set(stringUrl, blob);

@@ -4,8 +4,3 @@ node_modules/
 # dist. track wasm since it changes so infrequently and is complicated to build
 dist/
 !dist/dropflow.wasm
-
-# js. tests and gen script aren't typed for convenience
-*.js
-!gen.js
-!test/*.js

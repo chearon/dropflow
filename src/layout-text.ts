@@ -1559,7 +1559,6 @@ interface IfcMark {
   isBreak: boolean,
   isBreakForced: boolean,
   isItemStart: boolean,
-  isItemEnd: boolean,
   inlinePre: Inline | null,
   inlinePost: Inline | null,
   block: BlockContainer | null,
@@ -1978,7 +1977,6 @@ export class Paragraph {
     let breakMark = 0;
     // Item iterator
     let itemIndex = -1;
-    let emittedItemEnd = false;
     let itemMeasureState: MeasureState | undefined;
     let itemMark = 0;
     // Other
@@ -1990,7 +1988,6 @@ export class Paragraph {
         isBreak: false,
         isBreakForced: false,
         isItemStart: false,
-        isItemEnd: false,
         inlinePre: null,
         inlinePost: null,
         block: null,
@@ -2009,11 +2006,6 @@ export class Paragraph {
         const {advance, trailingWs} = item.measure(mark.position, 1, itemMeasureState);
         mark.advance = advance;
         mark.trailingWs = trailingWs;
-      }
-
-      if (itemIndex < this.brokenItems.length && itemMark === mark.position && !emittedItemEnd) {
-        mark.isItemEnd = itemIndex > -1;
-        emittedItemEnd = true;
       }
 
       // Consume the inline break spot if we're not on a break
@@ -2075,7 +2067,6 @@ export class Paragraph {
           itemMeasureState = item.createMeasureState();
           mark.isItemStart = true;
           mark.itemIndex += 1;
-          emittedItemEnd = false;
         }
       }
 
@@ -2137,7 +2128,6 @@ export class Paragraph {
     const lines = [];
     let floats = [];
     let blockOffset = bfc.cbBlockStart;
-    let itemInMark: ShapedItem | undefined; // TODO: merge with item?
 
     // Optimization: here we assume that (1) doTextLayout will never be called
     // on the same ifc with a 'normal' mode twice and (2) that when the mode is
@@ -2165,11 +2155,11 @@ export class Paragraph {
       const parent = parents[parents.length - 1] || this.ifc;
       const item = this.brokenItems[mark.itemIndex];
 
-      if (mark.isItemEnd) itemInMark = undefined;
-
       if (mark.inlinePre) {
         candidates.height.pushInline(mark.inlinePre);
-        if (itemInMark) candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, itemInMark.match));
+        if (item && item.offset <= mark.inlinePre.start && item.end() > mark.inlinePre.start) {
+          candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.match));
+        }
         parents.push(mark.inlinePre);
       }
 
@@ -2305,8 +2295,7 @@ export class Paragraph {
         item.inlines = parents.slice();
         for (const p of parents) p.nshaped += 1;
         candidates.push(item);
-        itemInMark = item;
-        candidates.height.stampMetrics(getMetrics(parent.style, itemInMark.match));
+        candidates.height.stampMetrics(getMetrics(parent.style, item.match));
       }
 
       // Handle a span that starts inside a shaped item

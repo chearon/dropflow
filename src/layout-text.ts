@@ -2117,16 +2117,19 @@ export class Paragraph {
 
   createLineboxes(ctx: LayoutContext) {
     const bfc = ctx.bfc;
+    /** Holds shaped items, width and height trackers for the current word */
     const candidates = new LineCandidates(this.ifc);
+    /** Tracks the width of the line being worked on */
     const width = new LineWidthTracker();
+    /** Tracks the height, ascenders and descenders of the line being worked on */
     const height = new LineHeightTracker(this.ifc);
     const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
     const basedir = this.ifc.style.direction;
-    const parents:Inline[] = [];
+    const parents: Inline[] = [];
     let line: Linebox | null = null;
     let lastBreakMark: IfcMark | undefined;
     const lines = [];
-    let floats = [];
+    let floatsInWord = [];
     let blockOffset = bfc.cbBlockStart;
 
     // Optimization: here we assume that (1) doTextLayout will never be called
@@ -2173,14 +2176,20 @@ export class Paragraph {
       const wouldHaveContent = width.hasContent() || candidates.width.hasContent();
 
       if (mark.block?.isFloat()) {
-        if (!wouldHaveContent || lastBreakMark && lastBreakMark.position === mark.position) {
+        if (
+          // No text content yet on the hypothetical line
+          !wouldHaveContent ||
+          // No text between the last break and the float
+          lastBreakMark && lastBreakMark.position === mark.position
+        ) {
           const lineWidth = line ? width.forFloat() : 0;
           const lineIsEmpty = line ? !candidates.head && !line.head : true;
           const fctx = bfc.ensureFloatContext(blockOffset);
           layoutFloatBox(mark.block, ctx);
           fctx.placeFloat(lineWidth, lineIsEmpty, mark.block);
         } else {
-          floats.push(mark.block);
+          // Have to place after the word
+          floatsInWord.push(mark.block);
         }
       }
 
@@ -2217,7 +2226,17 @@ export class Paragraph {
         for (const p of parents) p.nshaped += 1;
       }
 
-      if (mark.isBreak && (wouldHaveContent && !nowrap || mark.isBreakForced || mark.position === this.length())) {
+      if (
+        // Is a unicode soft wrap or before/after inline-block
+        mark.isBreak && (
+          // There is content on the hypothetical line and CSS allows wrapping
+          wouldHaveContent && !nowrap ||
+          // A <br> or preserved \n always creates a new line
+          mark.isBreakForced ||
+          // The end of the paragraph always ensures there's a line
+          mark.position === this.length()
+        )
+      ) {
         if (!line) {
           lines.push(line = new Linebox(0, this));
           bfc.fctx?.preTextContent();
@@ -2278,12 +2297,12 @@ export class Paragraph {
         candidates.clearContents();
         lastBreakMark = mark;
 
-        for (const float of floats) {
+        for (const float of floatsInWord) {
           const fctx = bfc.ensureFloatContext(blockOffset);
           layoutFloatBox(float, ctx);
           fctx.placeFloat(width.forFloat(), false, float);
         }
-        floats = [];
+        if (floatsInWord.length) floatsInWord = [];
 
         if (mark.isBreakForced) {
           finishLine(line);
@@ -2310,7 +2329,7 @@ export class Paragraph {
       }
     }
 
-    for (const float of floats) {
+    for (const float of floatsInWord) {
       const fctx = bfc.ensureFloatContext(blockOffset);
       layoutFloatBox(float, ctx);
       fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);

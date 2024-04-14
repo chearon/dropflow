@@ -773,6 +773,10 @@ export class ShapedItem implements IfcRenderItem {
     return this.offset + this.length;
   }
 
+  hasCharacterInside(ci: number) {
+    return ci > this.offset && ci < this.end();
+  }
+
   // only use this in debugging or tests
   text() {
     return this.paragraph.string.slice(this.offset, this.offset + this.length);
@@ -2264,11 +2268,8 @@ export class Paragraph {
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(lastBreakMark.position, this));
           const lastBreakMarkItem = this.brokenItems[lastBreakMark.itemIndex];
-          if (
-            lastBreakMarkItem &&
-            lastBreakMark.position > lastBreakMarkItem.offset &&
-            lastBreakMark.position < lastBreakMarkItem.end()
-          ) {
+
+          if (lastBreakMarkItem?.hasCharacterInside(lastBreakMark.position)) {
             this.split(lastBreakMark.itemIndex, lastBreakMark.position);
             lastBreakMark.split(mark);
             candidates.unshift(this.brokenItems[lastBreakMark.itemIndex]);

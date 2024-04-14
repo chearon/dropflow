@@ -2272,14 +2272,12 @@ export class Paragraph {
             this.split(lastBreakMark.itemIndex, lastBreakMark.position);
             lastBreakMark.split(mark);
             candidates.unshift(this.brokenItems[lastBreakMark.itemIndex]);
-          }
-          finishLine(lastLine);
-
-          if (!line.head) { // if we just split a ShapedItem above
             // Stamp the brand new line with its metrics, since the only other
             // place this happens is mark.itemStart
             candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.match));
           }
+
+          finishLine(lastLine);
         }
 
         if (!line.hasContent() /* line was just added */) {

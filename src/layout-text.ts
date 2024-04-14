@@ -89,6 +89,17 @@ export class Run extends RenderItem {
     return isWsCollapsible(this.style.whiteSpace);
   }
 
+  wrapsOverflowAnywhere(mode: 'min-content' | 'max-content' | 'normal') {
+    if (mode === 'min-content') {
+      return this.style.overflowWrap === 'anywhere'
+        || this.style.wordBreak === 'break-word';
+    } else {
+      return this.style.overflowWrap === 'anywhere'
+        || this.style.overflowWrap === 'break-word'
+        || this.style.wordBreak === 'break-word';
+    }
+  }
+
   isRun(): this is Run {
     return true;
   }
@@ -1559,17 +1570,18 @@ class ContiguousBoxBuilder {
 }
 
 interface IfcMark {
-  position: number,
-  isBreak: boolean,
-  isBreakForced: boolean,
-  isItemStart: boolean,
-  inlinePre: Inline | null,
-  inlinePost: Inline | null,
-  block: BlockContainer | null,
-  advance: number,
-  trailingWs: number,
-  itemIndex: number,
-  split: (this: IfcMark, mark: IfcMark) => void
+  position: number;
+  isBreak: boolean;
+  isGraphemeBreak: boolean;
+  isBreakForced: boolean;
+  isItemStart: boolean;
+  inlinePre: Inline | null;
+  inlinePost: Inline | null;
+  block: BlockContainer | null;
+  advance: number;
+  trailingWs: number;
+  itemIndex: number;
+  split: (this: IfcMark, mark: IfcMark) => void;
 }
 
 function isink(c: string) {
@@ -1968,7 +1980,7 @@ export class Paragraph {
     }
   }
 
-  createMarkIterator() {
+  createMarkIterator(ctx: LayoutContext) {
     // Inline iterator
     const inlineIterator = createInlineIterator(this.ifc);
     let inline = inlineIterator.next();
@@ -1983,13 +1995,16 @@ export class Paragraph {
     let itemIndex = -1;
     let itemMeasureState: MeasureState | undefined;
     let itemMark = 0;
+    // Grapheme iterator
+    let graphemeBreakMark = 0;
     // Other
     const end = this.length();
 
     const next = (): {done: true} | {done: false, value: IfcMark} => {
       const mark: IfcMark = {
-        position: Math.min(inlineMark, itemMark, breakMark),
+        position: Math.min(inlineMark, itemMark, breakMark, graphemeBreakMark),
         isBreak: false,
+        isGraphemeBreak: false,
         isBreakForced: false,
         isItemStart: false,
         inlinePre: null,
@@ -2048,6 +2063,9 @@ export class Paragraph {
         if (!inline.done) {
           if (inline.value.state === 'text') {
             inlineMark += inline.value.item.length;
+            if (!inline.value.item.wrapsOverflowAnywhere(ctx.mode)) {
+              graphemeBreakMark = inlineMark;
+            }
             inline = inlineIterator.next();
           } else if (inline.value.state === 'break') {
             mark.isBreak = true;
@@ -2094,6 +2112,11 @@ export class Paragraph {
         }
       }
 
+      if (graphemeBreakMark === mark.position && this.ifc.hasText()) {
+        mark.isGraphemeBreak = true;
+        graphemeBreakMark = nextGraphemeBreak(this.string, graphemeBreakMark);
+      }
+
       if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakspot') {
         inline = inlineIterator.next();
       }
@@ -2135,6 +2158,7 @@ export class Paragraph {
     const lines = [];
     let floatsInWord = [];
     let blockOffset = bfc.cbBlockStart;
+    let lineHasWord = false;
 
     // Optimization: here we assume that (1) doTextLayout will never be called
     // on the same ifc with a 'normal' mode twice and (2) that when the mode is
@@ -2156,9 +2180,10 @@ export class Paragraph {
       bfc.fctx?.postLine(line, true);
       blockOffset += blockSize;
       bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+      lineHasWord = false;
     };
 
-    for (const mark of this.createMarkIterator()) {
+    for (const mark of this.createMarkIterator(ctx)) {
       const parent = parents[parents.length - 1] || this.ifc;
       const item = this.brokenItems[mark.itemIndex];
 
@@ -2230,9 +2255,13 @@ export class Paragraph {
         for (const p of parents) p.nshaped += 1;
       }
 
+      // Either a Unicode soft wrap, before/after an inline-block, or cluster
+      // boundary enabled by overflow-wrap
+      const isBreak = mark.isBreak || mark.isGraphemeBreak;
+
       if (
-        // Is a unicode soft wrap or before/after inline-block
-        mark.isBreak && (
+        // Is an opportunity for soft wrapping
+        isBreak && (
           // There is content on the hypothetical line and CSS allows wrapping
           wouldHaveContent && !nowrap ||
           // A <br> or preserved \n always creates a new line
@@ -2294,23 +2323,28 @@ export class Paragraph {
           }
         }
 
-        line.addCandidates(candidates, mark.position);
-        width.concat(candidates.width);
-        height.concat(candidates.height);
+        // Add at each normal wrapping opportunity. Inside overflow-wrap
+        // segments, we add each character while the line doesn't have a word.
+        if (mark.isBreak || !lineHasWord) {
+          if (mark.isBreak) lineHasWord = true;
+          line.addCandidates(candidates, mark.position);
+          width.concat(candidates.width);
+          height.concat(candidates.height);
 
-        candidates.clearContents();
-        lastBreakMark = mark;
+          candidates.clearContents();
+          lastBreakMark = mark;
 
-        for (const float of floatsInWord) {
-          const fctx = bfc.ensureFloatContext(blockOffset);
-          layoutFloatBox(float, ctx);
-          fctx.placeFloat(width.forFloat(), false, float);
-        }
-        if (floatsInWord.length) floatsInWord = [];
+          for (const float of floatsInWord) {
+            const fctx = bfc.ensureFloatContext(blockOffset);
+            layoutFloatBox(float, ctx);
+            fctx.placeFloat(width.forFloat(), false, float);
+          }
+          if (floatsInWord.length) floatsInWord = [];
 
-        if (mark.isBreakForced) {
-          finishLine(line);
-          lines.push(line = new Linebox(mark.position, this));
+          if (mark.isBreakForced) {
+            finishLine(line);
+            lines.push(line = new Linebox(mark.position, this));
+          }
         }
       }
 

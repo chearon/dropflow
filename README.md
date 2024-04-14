@@ -42,7 +42,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>unicode-&zwj;bidi</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>vertical-&zwj;align</code> | `baseline`, `middle`, `sub`, `super`, `text-top`, `text-bottom`, `%`, `px` etc, `top`, `bottom` | ✅&zwj;&nbsp;Works |
 | <code>white-&zwj;space</code> | `normal`, `nowrap`, `pre`, `pre-wrap`, `pre-line` | ✅&zwj;&nbsp;Works |
-| <code>word-&zwj;break</code> | `break-word`, `normal` | 🚧&zwj;&nbsp;Planned |
+| <code>word-&zwj;break</code><br><code>overflow-&zwj;wrap</code>,<code>word-&zwj;wrap</code> | `break-word`, `normal`<br>`anywhere`, `normal` | ✅&zwj;&nbsp;Works |
 
 ## Block formatting
 

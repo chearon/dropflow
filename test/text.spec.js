@@ -447,6 +447,7 @@ describe('Lines', function () {
     registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
     registerFontAsset('Raleway/Raleway-Regular.ttf');
     registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+    registerFontAsset('Ahem/Ahem.ttf');
   });
 
   after(function () {
@@ -457,6 +458,7 @@ describe('Lines', function () {
     unregisterFontAsset('Noto/NotoSansHebrew-Regular.ttf');
     unregisterFontAsset('Raleway/Raleway-Regular.ttf');
     unregisterFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+    unregisterFontAsset('Ahem/Ahem.ttf');
   });
 
   afterEach(logIfFailed);
@@ -1289,6 +1291,102 @@ describe('Lines', function () {
       const [ifc] = this.get('div').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(2);
       expect(ifc.paragraph.lineboxes[1].height()).to.be.approximately(29.984, 0.001);
+    });
+  });
+
+  describe('Overflow-wrap', function () {
+    it('breaks inlines that have the rule, not ones that don\'t', function () {
+      this.layout(`
+        <div id="t" style="width: 50px; font: 10px Ahem;">
+          guided by
+          <span style="overflow-wrap: anywhere;">voices</span>
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+
+      expect(ifc.paragraph.lineboxes.length).to.equal(4);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(8);
+      expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(11);
+      expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(16);
+    });
+
+    it('word-break: break-word functions as anywhere', function () {
+      this.layout(`
+        <div id="t" style="font: 10px Ahem; word-break: break-word; width: 90px;">
+          Is it springtime today yet?
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+
+      expect(ifc.paragraph.lineboxes.length).to.equal(4);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(7);
+      expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(16);
+      expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(24);
+    });
+
+    it('places floats after broken words', function () {
+      // https://bugs.webkit.org/show_bug.cgi?id=272534
+      // ab | cd◾️ | ef
+      this.layout(`
+        <div id="t1" style="font: 10px/1 Ahem; width: 25px; overflow-wrap: anywhere;">
+          abcd<div id="t2" style="float: left; width: 5px; height: 5px;"></div>ef
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get('#t1').children;
+
+      expect(ifc.paragraph.lineboxes.length).to.equal(3);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(3);
+      expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(5);
+
+      expect(this.get('#t2').contentArea.x).to.equal(0);
+      expect(this.get('#t2').contentArea.y).to.equal(10);
+    });
+
+    it('measures and places inlines inside break-word correctly', function () {
+      // big | [ro | om] | bar
+      this.layout(`
+        <div id="t" style="font: 10px Ahem; width: 30px; overflow-wrap: anywhere;">
+          big <span style="padding: 0 10px;">room</span> bar
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get('#t').children;
+
+      expect(ifc.paragraph.lineboxes.length).to.equal(4);
+      expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
+      expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(5);
+      expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(7);
+      expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(10);
+    });
+
+    it('anywhere affects min-content', function () {
+      this.layout(`
+        <div style="width: 0;">
+          <div id="t" style="font: 10px Ahem; overflow-wrap: anywhere; float: left;">abcde</div>
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.width).to.equal(10);
+    });
+
+    it('break-word doesn\'t affect min-content', function () {
+      this.layout(`
+        <div style="width: 0;">
+          <div id="t" style="font: 10px Ahem; overflow-wrap: break-word; float: left;">abcde</div>
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.width).to.equal(50);
     });
   });
 });

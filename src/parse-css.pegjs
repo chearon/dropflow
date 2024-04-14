@@ -150,6 +150,8 @@ declaration
   / float_dec
   / clear_dec
   / z_index_dec
+  / word_break_dec
+  / overflow_wrap_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -750,7 +752,17 @@ clear_dec
 
 z_index_dec
   = 'z-index'i S* ':' S* zIndex:('auto' / NUMBER / default) {
-    return {zIndex}
+    return {zIndex};
+  }
+
+word_break_dec
+  = 'word-break'i S* ':' S* wordBreak:('normal' / 'break-word' / default) {
+    return {wordBreak};
+  }
+
+overflow_wrap_dec
+  = ('overflow-wrap'i / 'word-wrap'i) S* ':' S* overflowWrap:('normal' / 'anywhere' / 'break-word' / default) {
+    return {overflowWrap};
   }
 
 width_dec

@@ -2259,10 +2259,15 @@ export class Paragraph {
           }
         }
 
+        // Conditions to finish the current line and start a new one
+        // This is for soft wraps. Hard wraps are followed again later.
         if (
-          line.hasContent() && // the line has non-whitespace text or inline-blocks
-          candidates.width.hasContent() && // this isn't just whitespace
-          width.forWord() + candidates.width.asWord() > vacancy.inlineSize // overflows
+          // The line has non-whitespace text or inline-blocks
+          line.hasContent() &&
+          // The word being added isn't just whitespace
+          candidates.width.hasContent() &&
+          // The line would overflow if we added the word
+          width.forWord() + candidates.width.asWord() > vacancy.inlineSize
         ) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');

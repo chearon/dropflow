@@ -2112,9 +2112,13 @@ export class Paragraph {
         }
       }
 
-      if (graphemeBreakMark === mark.position && this.ifc.hasText()) {
-        mark.isGraphemeBreak = true;
-        graphemeBreakMark = nextGraphemeBreak(this.string, graphemeBreakMark);
+      if (graphemeBreakMark === mark.position) {
+        if (this.ifc.hasText()) {
+          mark.isGraphemeBreak = true;
+          graphemeBreakMark = nextGraphemeBreak(this.string, graphemeBreakMark);
+        } else {
+          graphemeBreakMark = end;
+        }
       }
 
       if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakspot') {

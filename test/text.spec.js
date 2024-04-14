@@ -1388,6 +1388,14 @@ describe('Lines', function () {
 
       expect(this.get('#t').contentArea.width).to.equal(50);
     });
+
+    it('anywhere doesn\'t infinite loop on an ifc with only floats', function () {
+      this.layout(`
+        <div style="overflow-wrap: anywhere;">
+          <div style="float: left;"></div>
+        </div>
+      `);
+    });
   });
 });
 

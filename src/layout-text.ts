@@ -2393,7 +2393,7 @@ export class Paragraph {
     }
 
     if (this.ifc.loggingEnabled()) {
-      console.log(`Paragraph ${this.ifc.id}:`);
+      console.log(`Paragraph ${this.ifc.id} (layout mode ${ctx.mode}):`);
       logParagraph(this.brokenItems);
       for (const [i, line] of lines.entries()) {
         const W = line.width.toFixed(2);

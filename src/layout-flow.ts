@@ -380,7 +380,7 @@ class FloatSide {
     let max = 0;
     for (let i = start; i < end; ++i) {
       if (this.floatCounts[i] > 0) {
-        max = Math.max(max, inlineOffset + this.inlineSizes[i] - this.inlineOffsets[i]);
+        max = Math.max(max, inlineOffset + this.inlineSizes[i] + this.inlineOffsets[i]);
       }
     }
     return max;
@@ -500,10 +500,10 @@ class FloatSide {
 
     for (let track = startTrack; track < endTrack; track += 1) {
       if (this.floatCounts[track] === 0) {
-        this.inlineOffsets[track] = -cbOffset;
+        this.inlineOffsets[track] = cbOffset;
         this.inlineSizes[track] = marginOffset + box.borderArea.width + marginEnd;
       } else {
-        this.inlineSizes[track] = this.inlineOffsets[track] + cbOffset + marginOffset + box.borderArea.width + marginEnd;
+        this.inlineSizes[track] = cbOffset - this.inlineOffsets[track] + marginOffset + box.borderArea.width + marginEnd;
       }
       this.floatCounts[track] += 1;
     }

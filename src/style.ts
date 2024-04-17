@@ -109,7 +109,7 @@ type OuterDisplay = 'inline' | 'block' | 'none';
 
 type InnerDisplay = 'flow' | 'flow-root' | 'none';
 
-type BorderStyle = 'none' | 'hiden' | 'dotted' | 'dashed' | 'solid'
+type BorderStyle = 'none' | 'hidden' | 'dotted' | 'dashed' | 'solid'
   | 'double' | 'groove' | 'ridge' | 'inset' | 'outset'
 
 type BoxSizing = 'border-box' | 'content-box' | 'padding-box';

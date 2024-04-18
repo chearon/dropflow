@@ -1087,6 +1087,23 @@ describe('Flow', function () {
       expect(ifc.paragraph.lineboxes[0].head.value.x).to.be.approximately(6.674, 0.001);
     });
 
+    it('multiple layout passes don\'t cause issues with box areas', function () {
+      // Layout for the outer div requires layout for its contents. Descending
+      // to the contents sets the containing block, but sizing the outer div
+      // afterwords split the containing block into padding and content. But the
+      // inner div's containing block is still linked to the padding area.
+      //
+      // Once contianing blocks start getting assigned in generate(), this becomes
+      // impossible
+      this.layout(`
+        <div style="float: left; padding: 10px;">
+          <div id="t" style="float: right; width: 10px; height: 10px;"></div>
+        </div>
+      `);
+
+      expect(this.get('#t').contentArea.x).to.equal(10);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

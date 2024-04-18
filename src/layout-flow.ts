@@ -730,13 +730,20 @@ export class BlockContainer extends Box {
     this.borderArea = area;
     this.paddingArea = area;
     this.contentArea = area;
+
+    if (this.style.hasBorder()) {
+      this.contentArea = this.paddingArea = this.borderArea.clone();
+    }
+
+    if (this.style.hasPadding()) {
+      this.contentArea = this.paddingArea.clone();
+    }
   }
 
   fillAreas() {
     if (this.style.hasBorder()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      this.contentArea = this.paddingArea = this.borderArea.clone();
       this.paddingArea.blockStart = borderBlockStartWidth;
       this.paddingArea.lineLeft = borderLineLeftWidth;
       this.paddingArea.setParent(this.borderArea);
@@ -745,7 +752,6 @@ export class BlockContainer extends Box {
     if (this.style.hasPadding()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(this);
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
-      this.contentArea = this.paddingArea.clone();
       this.contentArea.blockStart = paddingBlockStart;
       this.contentArea.lineLeft = paddingLineLeft;
       this.contentArea.setParent(this.paddingArea);
@@ -784,14 +790,14 @@ export class BlockContainer extends Box {
   setBlockSize(size: number) {
     this.contentArea.blockSize = size;
 
-    if (this.contentArea !== this.paddingArea) {
+    if (this.style.hasPadding()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(this);
       const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
       const paddingSize = size + paddingBlockStart + paddingBlockEnd
       this.paddingArea.blockSize = paddingSize;
     }
 
-    if (this.paddingArea !== this.borderArea) {
+    if (this.style.hasBorder()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
       const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
       const borderSize = this.paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
@@ -806,14 +812,14 @@ export class BlockContainer extends Box {
   setInlineOuterSize(size: number) {
     this.borderArea.inlineSize = size;
 
-    if (this.paddingArea !== this.borderArea) {
+    if (this.style.hasBorder()) {
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
       const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
       const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
       this.paddingArea.inlineSize = paddingSize;
     }
 
-    if (this.contentArea !== this.paddingArea) {
+    if (this.style.hasPadding()) {
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
       const paddingLineRight = this.style.getPaddingLineRight(this);
       const contentSize = this.paddingArea.inlineSize - paddingLineLeft - paddingLineRight;

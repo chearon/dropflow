@@ -1104,6 +1104,23 @@ describe('Flow', function () {
       expect(this.get('#t').contentArea.x).to.equal(10);
     });
 
+    it('doesn\'t infinite loop in a specific case', function () {
+      // The float lazily-creates the FloatContext which can only search the
+      // block direction at or after the block offset it's created at. The
+      // intrinsics pass had wrong BFC offsets that got passed to the
+      // FloatContext causing infinite looping in findLinePosition in this case.
+      // (this happened in the min-content phase)
+      this.layout(`
+        <div style="float: left;">
+          First, there was this guy.
+          <div style="float: right;">
+            His name was
+          </div>
+          <div>Baxter Fennel</div>
+        </div>
+      `);
+    });
+
     // §9.5.1
     // some of the rules don't really make sense to test alone - they all work
     // together to create a single concept - but most of them do, and it's a way

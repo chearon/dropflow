@@ -1163,9 +1163,10 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
 
   if (box.isBfcRoot()) cctx.bfc = new BlockFormattingContext(mode === 'min-content' ? 0 : Infinity);
 
+  ctx.bfc.boxStart(box, cctx);
+
   if (box.isBlockContainerOfInlines()) {
     const [ifc] = box.children;
-    box.doTextLayout(cctx);
     for (const line of ifc.paragraph.lineboxes) {
       intrinsicSize = Math.max(intrinsicSize, line.width);
     }
@@ -1189,6 +1190,8 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
       }
     }
   }
+
+  ctx.bfc.boxEnd(box);
 
   const marginLineLeft = box.style.getMarginLineLeft(box);
   const marginLineRight = box.style.getMarginLineRight(box);
@@ -1219,13 +1222,15 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   let inlineSize = box.getDefiniteInlineSize();
 
   if (inlineSize === undefined) {
+    const cctx = {...ctx};
+    cctx.bfc = new BlockFormattingContext(0); // Not used, but children call it
     if (ctx.mode === 'min-content') {
-      inlineSize = layoutContribution(box, ctx, 'min-content');
+      inlineSize = layoutContribution(box, cctx, 'min-content');
     } else if (ctx.mode === 'max-content') {
-      inlineSize = layoutContribution(box, ctx, 'max-content');
+      inlineSize = layoutContribution(box, cctx, 'max-content');
     } else {
-      const minContent = layoutContribution(box, ctx, 'min-content');
-      const maxContent = layoutContribution(box, ctx, 'max-content');
+      const minContent = layoutContribution(box, cctx, 'min-content');
+      const maxContent = layoutContribution(box, cctx, 'max-content');
       const availableSpace = box.containingBlock.inlineSize;
       inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
     }

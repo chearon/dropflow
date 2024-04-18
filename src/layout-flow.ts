@@ -754,7 +754,7 @@ export class BlockContainer extends Box {
 
   sym() {
     if (this.isFloat()) {
-      return '';
+      return '○︎';
     } else if (this.isInlineLevel()) {
       return '▬';
     } else {

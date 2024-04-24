@@ -1,6 +1,6 @@
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getRootStyle, initialStyle, computeElementStyle} from './style.js';
-import {registerFont, unregisterFont, getFontUrls} from './text-font.js';
+import {registerFont, unregisterFont, getFontUrls, RegisterFontOptions} from './text-font.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
@@ -204,8 +204,8 @@ export function staticLayoutContribution(box: BlockContainer): number {
   return intrinsicSize;
 }
 
-export async function loadNotoFonts(root: HTMLElement): Promise<URL[]> {
+export async function loadNotoFonts(root: HTMLElement, options?: RegisterFontOptions): Promise<URL[]> {
   const urls = getFontUrls(root).map(url => new URL(url));
-  await Promise.all(urls.map(url => registerFont(url)));
+  await Promise.all(urls.map(url => registerFont(url, options)));
   return urls;
 }

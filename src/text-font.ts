@@ -461,16 +461,20 @@ const hbFaces = new Map<string, HbFace>();
 const hbFonts = new Map<string, HbFont>();
 const faces = new Map<string, FaceMatch>();
 
-export async function registerFont(url: URL, options?: {paint: boolean}): Promise<void>;
-export async function registerFont(buffer: ArrayBuffer, url: URL, options?: {paint: boolean}): Promise<void>;
+export interface RegisterFontOptions {
+  paint?: boolean;
+}
+
+export async function registerFont(url: URL, options?: RegisterFontOptions): Promise<void>;
+export async function registerFont(buffer: ArrayBuffer, url: URL, options?: RegisterFontOptions): Promise<void>;
 export async function registerFont(
   arg1: URL | ArrayBuffer,
-  arg2?: {paint: boolean} | URL,
-  arg3?: {paint: boolean}
+  arg2?: RegisterFontOptions | URL,
+  arg3?: RegisterFontOptions
 ) {
   let buffer: Uint8Array | null;
   let url: URL;
-  let options: {paint: boolean};
+  let options: RegisterFontOptions;
 
   if (arg1 instanceof ArrayBuffer) {
     buffer = new Uint8Array(arg1);

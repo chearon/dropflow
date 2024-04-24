@@ -520,6 +520,8 @@ export class IfcVacancy {
   leftFloatCount: number;
   rightFloatCount: number;
 
+  static EPSILON = 1 / 64;
+
   constructor(
     leftOffset: number,
     rightOffset: number,
@@ -534,6 +536,14 @@ export class IfcVacancy {
     this.inlineSize = inlineSize;
     this.leftFloatCount = leftFloatCount;
     this.rightFloatCount = rightFloatCount;
+  }
+
+  fits(inlineSize: number) {
+    return inlineSize - this.inlineSize < IfcVacancy.EPSILON;
+  }
+
+  hasFloats() {
+    return this.leftFloatCount > 0 || this.rightFloatCount > 0;
   }
 };
 
@@ -564,7 +574,7 @@ export class FloatContext {
     return new IfcVacancy(leftOffset, rightOffset, blockOffset, inlineSize, 0, 0);
   }
 
-  getVacancyForBox(box: BlockContainer) {
+  getVacancyForBox(box: BlockContainer, lineWidth: number) {
     const float = box.style.float;
     const floats = float === 'left' ? this.leftFloats : this.rightFloats;
     const oppositeFloats = float === 'left' ? this.rightFloats : this.leftFloats;
@@ -579,7 +589,7 @@ export class FloatContext {
     const oppositeInlineSpace = oppositeFloats.getSizeOfTracks(oppositeStartTrack, oppositeEndTrack, oppositeInlineOffset);
     const leftOffset = this.bfc.cbLineLeft + (float === 'left' ? inlineSpace : oppositeInlineSpace);
     const rightOffset = this.bfc.cbLineRight + (float === 'right' ? inlineSpace : oppositeInlineSpace);
-    const inlineSize = this.bfc.inlineSize - leftOffset - rightOffset;
+    const inlineSize = this.bfc.inlineSize - leftOffset - rightOffset - lineWidth;
     const floatCount = floats.getFloatCountOfTracks(startTrack, endTrack);
     const oppositeFloatCount = oppositeFloats.getFloatCountOfTracks(oppositeStartTrack, oppositeEndTrack);
     const leftFloatCount = float === 'left' ? floatCount : oppositeFloatCount;
@@ -652,18 +662,16 @@ export class FloatContext {
         side.dropShelf(this.rightFloats.getBottom());
       }
 
-      const vacancy = this.getVacancyForBox(box);
+      const vacancy = this.getVacancyForBox(box, lineWidth);
       const margins = box.getMarginsAutoIsZero();
-      const inlineMargin = margins.lineLeft + margins.lineRight;
+      const inlineSize = box.borderArea.width + margins.lineLeft + margins.lineRight;
 
-      if (
-        box.borderArea.width + inlineMargin <= vacancy.inlineSize - lineWidth ||
-        lineIsEmpty && vacancy.leftFloatCount === 0 && vacancy.rightFloatCount === 0
-      ) {
+      if (vacancy.fits(inlineSize) || lineIsEmpty && !vacancy.hasFloats()) {
         box.setBlockPosition(side.shelfBlockOffset + margins.blockStart - this.bfc.cbBlockStart);
         side.placeFloat(box, vacancy, this.bfc.cbLineLeft, this.bfc.cbLineRight);
       } else {
-        if (box.borderArea.width + inlineMargin > vacancy.inlineSize) {
+        const vacancy = this.getVacancyForBox(box, 0);
+        if (!vacancy.fits(inlineSize)) {
           const count = box.style.float === 'left' ? vacancy.leftFloatCount : vacancy.rightFloatCount;
           const oppositeCount = box.style.float === 'left' ? vacancy.rightFloatCount : vacancy.leftFloatCount;
           if (count > 0) {

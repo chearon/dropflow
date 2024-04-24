@@ -1309,6 +1309,18 @@ describe('Flow', function () {
       expect(float4.borderArea.y).to.equal(60);
     });
 
+    it('tightly fits around content when there could be float error', function () {
+      this.layout(`
+        <div style="float: left;">
+          <div style="float: left; width: 0.6px; height: 1px;"></div>
+          <div style="float: left; width: 4.3px; height: 1px;"></div>
+          <div id="t" style="float: left; width: 0.1px; height: 1px;"></div>
+        </div>
+      `);
+
+      expect(this.get('#t').borderArea.y).to.equal(0);
+    });
+
     describe('Intrinsics', function () {
       it('lays out text under max-content constraint', function () {
         this.layout(`

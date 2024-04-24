@@ -2300,7 +2300,7 @@ export class Paragraph {
           // The word being added isn't just whitespace
           candidates.width.hasContent() &&
           // The line would overflow if we added the word
-          width.forWord() + candidates.width.asWord() > vacancy.inlineSize
+          !vacancy.fits(width.forWord() + candidates.width.asWord())
         ) {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');

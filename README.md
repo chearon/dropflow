@@ -343,6 +343,22 @@ function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): voi
 
 Paints the layout to a browser canvas, node-canvas, or similar standards-compliant context.
 
+### `paintToSvg`
+
+```ts
+function paintToSvg(root: BlockContainer): string;
+```
+
+Paints the layout to an SVG string, with `@font-face` rules referencing the URL you passed to `registerFont`.
+
+### `paintToSvgElements`
+
+```ts
+function paintToSvgElements(root: BlockContainer): string;
+```
+
+Similar to `paintToSvg`, but doesn't add `<svg>` or `@font-face` rules. Useful if you're painting inside of an already-existing SVG element.
+
 ### `paintToHtml`
 
 ```ts

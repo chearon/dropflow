@@ -3,6 +3,7 @@ import {DeclaredStyle, getRootStyle, initialStyle, computeElementStyle} from './
 import {registerFont, unregisterFont, getFontUrls, RegisterFontOptions} from './text-font.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
+import SvgPaintBackend from './paint-svg.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paintBlockRoot from './paint.js';
 import {BoxArea} from './layout-box.js';
@@ -48,6 +49,41 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
  */
 export function paintToHtml(root: BlockContainer): string {
   const backend = new HtmlPaintBackend();
+  paintBlockRoot(root, backend, true);
+  return backend.s;
+}
+
+export function paintToSvg(root: BlockContainer): string {
+  const backend = new SvgPaintBackend();
+  const {width, height} = root.containingBlock;
+  let cssFonts = '';
+
+  paintBlockRoot(root, backend, true);
+
+  for (const [src, match] of backend.usedFonts) {
+    const {family, weight, style, stretch} = match.toCssDescriptor();
+    cssFonts +=
+`@font-face {
+  font-family: "${family}";
+  font-weight: ${weight};
+  font-style: ${style};
+  font-stretch: ${stretch};
+  src: url("${src}") format("opentype");
+}\n`;
+  }
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
+  <style type="text/css">
+    ${cssFonts}
+  </style>
+  ${backend.s}
+</svg>
+  `.trim();
+}
+
+export function paintToSvgElements(root: BlockContainer): string {
+  const backend = new SvgPaintBackend();
   paintBlockRoot(root, backend, true);
   return backend.s;
 }

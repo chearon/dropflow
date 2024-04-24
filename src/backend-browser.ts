@@ -13,7 +13,3 @@ export function registerPaintFont(match: FaceMatch, buffer: Uint8Array, filename
   const face = new FontFace(descriptor.family, buffer, descriptor);
   document.fonts.add(face);
 }
-
-export async function loadBuffer(path: URL) {
-  return await fetch(path).then((res: any) => res.arrayBuffer());
-}

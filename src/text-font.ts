@@ -2,7 +2,7 @@ import * as hb from './text-harfbuzz.js';
 import langCoverage from '../gen/lang-script-coverage.js';
 import wasm from './wasm.js';
 import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
-import {registerPaintFont, loadBuffer} from '#backend';
+import {registerPaintFont} from '#backend';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
 import subsetIdToUrls from '../gen/system-fonts-database.js';
 import UnicodeTrie from './text-unicode-trie.js';
@@ -489,7 +489,10 @@ export async function registerFont(
   const stringUrl = String(url);
 
   if (!hbBlobs.has(stringUrl)) {
-    if (!buffer) buffer = new Uint8Array(await loadBuffer(url));
+    if (!buffer) {
+      const arrayBuffer = await fetch(url).then(res => res.arrayBuffer());
+      buffer = new Uint8Array(arrayBuffer);
+    }
 
     const blob = hb.createBlob(buffer);
 

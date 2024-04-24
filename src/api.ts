@@ -10,7 +10,11 @@ import {id} from './util.js';
 
 export type {BlockContainer, DeclaredStyle};
 
+export type {HTMLElement};
+
 export {getRootStyle};
+
+export {cascadeStyles} from './style.js';
 
 export {registerFont, unregisterFont};
 

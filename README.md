@@ -331,9 +331,11 @@ In more detail, layout involves:
 
 ## Paint
 
-This step paints the layout to a target. Painting can be done as many times as needed (for example, every time you clear and render all of your scene to the canvas).
+This step paints the layout to a target. Painting can be done as many times as needed (for example, every time you render your scene to the canvas).
 
-Canvas is currently the only seriously supported target, but other targets will be added, like pdf.js and SVG. There is also a toy HTML target that was used early on in development, and kept around for fun.
+Canvas and SVG are currently supported. If you need to paint to a new kind of surface, contributions are welcome. It is relatively easy to add a new paint target (see the `PaintBackend` interface in `src/paint.ts`).
+
+There is also a toy HTML target that was used early on in development, and kept around for fun.
 
 ### `paintToCanvas`
 

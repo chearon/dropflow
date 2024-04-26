@@ -1897,6 +1897,7 @@ export class Paragraph {
           while (!hbClusterState.done) {
             nextGlyph(hbClusterState);
 
+            // If the current font does not support emojis, should fallback to the next match font.
             if (attrs.isEmoji && hbClusterState.needsReshape) {
               nextShapeWork.push({offset, length});
               break;

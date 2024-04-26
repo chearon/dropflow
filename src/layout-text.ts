@@ -1759,6 +1759,11 @@ export class Paragraph {
         const word = this.string.slice(wordStart, wordStart + wordLen);
         let wordGlyphs = wordCacheGet(font, word);
 
+        // Why the buffer is empty?
+        if (this.buffer.array.length === 0) {
+          this.buffer = createIfcBuffer(this.string);
+        }
+
         if (!wordGlyphs) {
           if (wordCacheSize > 10_000) clearWordCache();
           hbBuffer.setLength(0);
@@ -1888,8 +1893,14 @@ export class Paragraph {
           log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
           log?.('    Shaper returned: ' + logGlyphs(shapedPart) + '\n');
 
+
           while (!hbClusterState.done) {
             nextGlyph(hbClusterState);
+
+            if (attrs.isEmoji && hbClusterState.needsReshape) {
+              nextShapeWork.push({offset, length});
+              break;
+            }
 
             if (needsReshape !== hbClusterState.needsReshape || hbClusterState.done) {
               // flush the segment
@@ -2621,7 +2632,8 @@ export class Paragraph {
 }
 
 export function createParagraph(ifc: IfcInline) {
-  const buffer = createIfcBuffer(ifc.text)
+  const buffer = createIfcBuffer(ifc.text);
+
   return new Paragraph(ifc, buffer);
 }
 

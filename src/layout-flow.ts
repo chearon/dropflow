@@ -1502,7 +1502,6 @@ export class IfcInline extends Inline {
 
   postprocess() {
     super.postprocess();
-
     this.paragraph.destroy();
 
     if (this.hasPositionedInline()) {

@@ -1,5 +1,5 @@
 name: Build and test
-on: push
+on: workflow_call
 jobs:
   node:
     runs-on: ubuntu-latest
@@ -24,30 +24,3 @@ jobs:
     - run: bun install --frozen-lockfile
     - run: bun run build
     - run: bun run test
-  deploy:
-    needs: bun
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Bun v1
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: 1
-      - run: bun install --frozen-lockfile
-      - run: bun run build
-      - run: bun run vite build --minify false --base dropflow/
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          name: github-pages
-          path: dist/site/
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4

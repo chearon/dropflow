@@ -1,0 +1,5 @@
+name: Pull Request Created
+on: pull_request
+jobs:
+  build-test:
+    uses: ./.github/workflows/build-test.yml

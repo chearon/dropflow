@@ -1,0 +1,8 @@
+name: Pushed
+on:
+  push:
+    branches:
+      - '**'
+jobs:
+  build-test:
+    uses: ./.github/workflows/build-test.yml

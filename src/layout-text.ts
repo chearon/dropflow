@@ -1899,7 +1899,12 @@ export class Paragraph {
 
             // If the current font does not support emojis, should fallback to the next match font.
             if (attrs.isEmoji && hbClusterState.needsReshape) {
-              nextShapeWork.push({offset, length});
+              // if this is the last match, we can't fallback, so just finished with a tofu glyph.
+              if (isLastMatch) {
+                items.push(new ShapedItem(this, match, shapedPart, offset, length, {...attrs}));
+              } else {
+                nextShapeWork.push({offset, length});
+              }
               break;
             }
 

@@ -1,5 +1,6 @@
 # yarn.
 node_modules/
+src/parse-css.js
 
 # dist. track wasm since it changes so infrequently and is complicated to build
 dist/

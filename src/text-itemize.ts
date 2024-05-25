@@ -1,16 +1,11 @@
-import UnicodeTrie from './text-unicode-trie.js';
 import wasm from './wasm.js';
 import {onWasmMemoryResized} from './wasm-env.js';
 import {codeToName} from '../gen/script-names.js';
 import {IfcInline, InlineLevel, Inline} from './layout-flow.js';
 import {Style} from './style.js';
 import * as hb from './text-harfbuzz.js';
-
-// I don't know why the pointer value is stored directly in the .value here.
-// It must be an emscripten weirdness, so watch out in the future
-const emojiTrie = new UnicodeTrie(wasm.instance.exports.emoji_trie.value);
-
-const scriptTrie = new UnicodeTrie(wasm.instance.exports.script_trie.value);
+import * as EmojiTrie from './trie-emoji.js';
+import * as ScriptTrie from './trie-script.js';
 
 const {
   // SheenBidi
@@ -137,12 +132,6 @@ export function bidiIteratorNext(state: BidiIteratorState) {
   }
 }
 
-// Used for the trie
-export const Emoji = 1;
-export const Emoji_Presentation = 2;
-export const Emoji_Modifier = 3;
-export const Emoji_Modifier_Base = 4;
-
 // Some unicode char constants from Pango
 const kCombiningEnclosingCircleBackslashCharacter = 0x20E0;
 const kCombiningEnclosingKeycapCharacter = 0x20E3;
@@ -216,19 +205,22 @@ export function createEmojiIteratorState(
       types.push(TAG_SEQUENCE);
     } else if (code === 0xE007F) {
       types.push(TAG_TERM);
-    } else if (emojiTrie.get(code) === Emoji_Modifier_Base) {
+    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Modifier_Base) {
       types.push(EMOJI_MODIFIER_BASE);
-    } else if (emojiTrie.get(code) === Emoji_Modifier) {
+    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Modifier) {
       types.push(EMOJI_MODIFIER);
     } else if (code >= 0x1f1e6 && code <= 0x1f1ff) {
       types.push(REGIONAL_INDICATOR);
     } else if ((code >= 48 && code <= 57) || code === 35 || code === 42) {
       types.push(KEYCAP_BASE);
-    } else if (emojiTrie.get(code) === Emoji_Presentation) {
+    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Presentation) {
       types.push(EMOJI_EMOJI_PRESENTATION);
-    } else if (emojiTrie.get(code) === Emoji && emojiTrie.get(code) !== Emoji_Presentation) {
+    } else if (
+      EmojiTrie.trie.get(code) === EmojiTrie.Emoji &&
+      EmojiTrie.trie.get(code) !== EmojiTrie.Emoji_Presentation
+    ) {
       types.push(EMOJI_TEXT_PRESENTATION);
-    } else if (emojiTrie.get(code) === Emoji) {
+    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji) {
       types.push(EMOJI);
     } else {
       types.push(kMaxEmojiScannerCategory);
@@ -403,7 +395,7 @@ export function scriptIteratorNext(state: ScriptIteratorState) {
       code = ((code - 0xd800) * 0xd400) + (next - 0xdc00) + 0x10000;
     }
 
-    let script = codeToName.get(scriptTrie.get(code)) || 'Common';
+    let script = codeToName.get(ScriptTrie.trie.get(code)) || 'Common';
     const pairIndex = script !== 'Common' ? -1 : getPairIndex(code);
 
     // Paired character handling:

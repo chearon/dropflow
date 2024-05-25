@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import * as lbClasses from './dist/src/text-line-break.js';
-import * as gbClasses from './dist/src/text-grapheme-break.js';
-import * as mjClasses from './dist/src/text-itemize.js';
+import * as LineBreakTrie from './dist/src/trie-line-break.js';
+import * as GraphemeBreakTrie from './dist/src/trie-grapheme-break.js';
+import * as EmojiTrie from './dist/src/trie-emoji.js';
 import UnicodeTrieBuilder from './dist/src/text-unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './dist/src/string-trie-encode.js';
 import {hb_tag} from './dist/src/text-harfbuzz.js';
@@ -30,7 +30,7 @@ async function generateLineBreakTrie() {
   let start = null;
   let end = null;
   let type = null;
-  const trie = new UnicodeTrieBuilder(lbClasses.XX, 0);
+  const trie = new UnicodeTrieBuilder(LineBreakTrie.XX, 0);
 
   // collect entries in the linebreaking table into ranges
   // to keep things smaller.
@@ -48,10 +48,10 @@ async function generateLineBreakTrie() {
     }
 
     if ((type != null) && (rangeType !== type)) {
-      if (typeof lbClasses[type] !== 'number') {
+      if (typeof LineBreakTrie[type] !== 'number') {
         throw new Error(`Class ${type} not found; update text-line-break.ts?`);
       }
-      trie.setRange(parseInt(start, 16), parseInt(end, 16), lbClasses[type], true);
+      trie.setRange(parseInt(start, 16), parseInt(end, 16), LineBreakTrie[type], true);
       type = null;
     }
 
@@ -63,7 +63,7 @@ async function generateLineBreakTrie() {
     end = rangeEnd;
   }
 
-  trie.setRange(parseInt(start, 16), parseInt(end, 16), lbClasses[type], true);
+  trie.setRange(parseInt(start, 16), parseInt(end, 16), LineBreakTrie[type], true);
   
   writeTrie(path.join(__dirname, 'gen/line-break-trie.cc'), 'line_break_trie', trie);
 }
@@ -75,7 +75,7 @@ async function generateGraphemeBreakTrie() {
   let match;
   const re = /^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Za-z_]+)/gm;
 
-  const trie = new UnicodeTrieBuilder(gbClasses.Other, 0);
+  const trie = new UnicodeTrieBuilder(GraphemeBreakTrie.Other, 0);
 
   // collect entries in the table into ranges
   // to keep things smaller.
@@ -83,11 +83,11 @@ async function generateGraphemeBreakTrie() {
     const start = match[1];
     const end = match[2] != null ? match[2] : start;
     const type = match[3];
-    if (typeof gbClasses[type] !== 'number') {
+    if (typeof GraphemeBreakTrie[type] !== 'number') {
       throw new Error(`Class ${type} not found; update text-grapheme-break.ts?`);
     }
 
-    trie.setRange(parseInt(start, 16), parseInt(end, 16), gbClasses[type]);
+    trie.setRange(parseInt(start, 16), parseInt(end, 16), GraphemeBreakTrie[type]);
   }
 
   writeTrie(path.join(__dirname, 'gen/grapheme-break-trie.cc'), 'grapheme_break_trie', trie);
@@ -368,8 +368,8 @@ async function generateEmojiTrie() {
     const start = match[1];
     const end = match[2] != null ? match[2] : start;
     const type = match[3];
-    if (typeof mjClasses[type] !== 'number') continue;
-    trie.setRange(parseInt(start, 16), parseInt(end, 16), mjClasses[type]);
+    if (typeof EmojiTrie[type] !== 'number') continue;
+    trie.setRange(parseInt(start, 16), parseInt(end, 16), EmojiTrie[type]);
   }
 
   writeTrie(path.join(__dirname, 'gen/emoji-trie.cc'), 'emoji_trie', trie);

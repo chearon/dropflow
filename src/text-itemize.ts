@@ -204,17 +204,17 @@ export function createEmojiIteratorState(
       types.push(TAG_SEQUENCE);
     } else if (code === 0xE007F) {
       types.push(TAG_TERM);
-    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Modifier_Base) {
+    } else if (EmojiTrie.trie.get(code) & EmojiTrie.Emoji_Modifier_Base) {
       types.push(EMOJI_MODIFIER_BASE);
-    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Modifier) {
+    } else if (EmojiTrie.trie.get(code) & EmojiTrie.Emoji_Modifier) {
       types.push(EMOJI_MODIFIER);
     } else if (code >= 0x1f1e6 && code <= 0x1f1ff) {
       types.push(REGIONAL_INDICATOR);
     } else if ((code >= 48 && code <= 57) || code === 35 || code === 42) {
       types.push(KEYCAP_BASE);
-    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Presentation) {
+    } else if (EmojiTrie.trie.get(code) & EmojiTrie.Emoji_Presentation) {
       types.push(EMOJI_EMOJI_PRESENTATION);
-    } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji) {
+    } else if (EmojiTrie.trie.get(code) & EmojiTrie.Emoji) {
       types.push(EMOJI_TEXT_PRESENTATION);
     } else {
       types.push(kMaxEmojiScannerCategory);

@@ -365,11 +365,14 @@ async function generateEmojiTrie() {
   let match;
 
   while ((match = re.exec(text))) {
-    const start = match[1];
-    const end = match[2] != null ? match[2] : start;
+    const start = parseInt(match[1], 16);
+    const end = match[2] != null ? parseInt(match[2], 16) : start;
     const type = match[3];
     if (typeof EmojiTrie[type] !== 'number') continue;
-    trie.setRange(parseInt(start, 16), parseInt(end, 16), EmojiTrie[type]);
+    for (let i = start; i <= end; i++) {
+      const current = trie.get(i);
+      trie.set(i, current | EmojiTrie[type]);
+    }
   }
 
   writeTrie(path.join(__dirname, 'gen/emoji-trie.cc'), 'emoji_trie', trie);

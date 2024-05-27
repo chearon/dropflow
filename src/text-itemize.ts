@@ -140,7 +140,6 @@ const kVariationSelector16Character = 0xFE0F;
 const kZeroWidthJoinerCharacter = 0x200D;
 
 // Scanner categories
-const EMOJI = 0;
 const EMOJI_TEXT_PRESENTATION = 1;
 const EMOJI_EMOJI_PRESENTATION = 2;
 const EMOJI_MODIFIER_BASE = 3;
@@ -215,13 +214,8 @@ export function createEmojiIteratorState(
       types.push(KEYCAP_BASE);
     } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji_Presentation) {
       types.push(EMOJI_EMOJI_PRESENTATION);
-    } else if (
-      EmojiTrie.trie.get(code) === EmojiTrie.Emoji &&
-      EmojiTrie.trie.get(code) !== EmojiTrie.Emoji_Presentation
-    ) {
-      types.push(EMOJI_TEXT_PRESENTATION);
     } else if (EmojiTrie.trie.get(code) === EmojiTrie.Emoji) {
-      types.push(EMOJI);
+      types.push(EMOJI_TEXT_PRESENTATION);
     } else {
       types.push(kMaxEmojiScannerCategory);
     }

@@ -6,7 +6,6 @@ import wasm from './wasm.js';
 // It must be an emscripten weirdness, so watch out in the future
 export const trie = new UnicodeTrie(wasm.instance.exports.grapheme_break_trie.value);
 
-export const Other = 0;
 export const CR = 1;
 export const LF = 2;
 export const Control = 3;
@@ -18,3 +17,5 @@ export const V = 8;
 export const T = 9;
 export const LV = 10;
 export const LVT = 11;
+export const Prepend = 12;
+export const ZWJ = 13;

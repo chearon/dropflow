@@ -3,6 +3,7 @@ import path from 'path';
 import * as LineBreakTrie from './dist/src/trie-line-break.js';
 import * as GraphemeBreakTrie from './dist/src/trie-grapheme-break.js';
 import * as EmojiTrie from './dist/src/trie-emoji.js';
+import * as DerivedCorePropertiesTrie from './dist/src/trie-derived-core-properties.js';
 import UnicodeTrieBuilder from './dist/src/text-unicode-trie-builder.js';
 import {getTrie, encodeTrie} from './dist/src/string-trie-encode.js';
 import {hb_tag} from './dist/src/text-harfbuzz.js';
@@ -69,7 +70,7 @@ async function generateLineBreakTrie() {
 }
 
 async function generateGraphemeBreakTrie() {
-  const res = await fetch(`http://www.unicode.org/Public/8.0.0/ucd/auxiliary/GraphemeBreakProperty.txt`);
+  const res = await fetch(`https://www.unicode.org/Public/15.1.0/ucd/auxiliary/GraphemeBreakProperty.txt`);
   if (res.status !== 200) throw new Error(res.status);
   const data = await res.text();
   let match;
@@ -93,6 +94,29 @@ async function generateGraphemeBreakTrie() {
   writeTrie(path.join(__dirname, 'gen/grapheme-break-trie.cc'), 'grapheme_break_trie', trie);
 }
 
+async function generateDerivedCorePropertiesTrie() {
+  const res = await fetch(`https://www.unicode.org/Public/15.1.0/ucd/DerivedCoreProperties.txt`);
+  if (res.status !== 200) throw new Error(response.status);
+  const data = await res.text();
+
+  let match;
+  const re = /^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Za-z_]+)(;?\s*([A-Za-z_]+))?/gm;
+
+  const trie = new UnicodeTrieBuilder();
+
+  while ((match = re.exec(data))) {
+    const start = match[1];
+    const end = match[2] != null ? match[2] : start;
+    const type = match[3];
+    const subtype = match[5];
+    const varname = subtype ? `${type}_${subtype}` : type;
+    if (typeof DerivedCorePropertiesTrie[varname] === 'number') {
+      trie.setRange(parseInt(start, 16), parseInt(end, 16), DerivedCorePropertiesTrie[varname]);
+    }
+  }
+
+  writeTrie(path.join(__dirname, 'gen/derived-core-properties-trie.cc'), 'derived_core_properties_trie', trie);
+}
 async function generateLangScriptDatabase() {
   // To update, clone fontconfig and ls fc-lang/*.orth
   const langs = ['aa', 'bg', 'co', 'fat', 'hif', 'ka', 'ky', 'mjw', 'nn', 'pt', 'shn', 'szl', 'ug', 'yuw', 'ab', 'bh', 'crh', 'ff', 'hne', 'kaa', 'la', 'mk', 'no', 'qu', 'shs', 'ta', 'uk', 'za', 'af', 'bhb', 'cs', 'fi', 'ho', 'kab', 'lah', 'ml', 'nqo', 'quz', 'si', 'tcy', 'und_zmth', 'zh_cn', 'agr', 'bho', 'csb', 'fil', 'hr', 'ki', 'lb', 'mn_cn', 'nr', 'raj', 'sid', 'te', 'und_zsye', 'zh_hk', 'ak', 'bi', 'cu', 'fj', 'hsb', 'kj', 'lez', 'mn_mn', 'nso', 'rif', 'sk', 'tg', 'unm', 'zh_mo', 'am', 'bin', 'cv', 'fo', 'ht', 'kk', 'lg', 'mni', 'nv', 'rm', 'sl', 'th', 'ur', 'zh_sg', 'an', 'bm', 'cy', 'fr', 'hu', 'kl', 'li', 'mnw', 'ny', 'rn', 'sm', 'the', 'uz', 'zh_tw', 'anp', 'bn', 'da', 'fur', 'hy', 'km', 'lij', 'mo', 'oc', 'ro', 'sma', 'ti_er', 've', 'zu', 'ar', 'bo', 'de', 'fy', 'hz', 'kn', 'ln', 'mr', 'om', 'ru', 'smj', 'ti_et', 'vi', 'as', 'br', 'doi', 'ga', 'ia', 'ko', 'lo', 'ms', 'or', 'rw', 'smn', 'tig', 'vo', 'ast', 'brx', 'dsb', 'gd', 'id', 'kok', 'lt', 'mt', 'os', 'sa', 'sms', 'tk', 'vot', 'av', 'bs', 'dv', 'gez', 'ie', 'kr', 'lv', 'my', 'ota', 'sah', 'sn', 'tl', 'wa', 'ay', 'bua', 'dz', 'gl', 'ig', 'ks', 'lzh', 'na', 'pa', 'sat', 'so', 'tn', 'wae', 'ayc', 'byn', 'ee', 'gn', 'ii', 'ku_am', 'mag', 'nan', 'pa_pk', 'sc', 'sq', 'to', 'wal', 'az_az', 'ca', 'el', 'gu', 'ik', 'ku_iq', 'mai', 'nb', 'pap_an', 'sco', 'sr', 'tpi', 'wen', 'az_ir', 'ce', 'en', 'gv', 'io', 'ku_ir', 'mfe', 'nds', 'pap_aw', 'sd', 'ss', 'tr', 'wo', 'ba', 'ch', 'eo', 'ha', 'is', 'ku_tr', 'mg', 'ne', 'pes', 'se', 'st', 'ts', 'xh', 'be', 'chm', 'es', 'hak', 'it', 'kum', 'mh', 'ng', 'pl', 'sel', 'su', 'tt', 'yap', 'bem', 'chr', 'et', 'haw', 'iu', 'kv', 'mhr', 'nhn', 'prs', 'sg', 'sv', 'tw', 'yi', 'ber_dz', 'ckb', 'eu', 'he', 'ja', 'kw', 'mi', 'niu', 'ps_af', 'sgs', 'sw', 'ty', 'yo', 'ber_ma', 'cmn', 'fa', 'hi', 'jv', 'kwm', 'miq', 'nl', 'ps_pk', 'sh', 'syr', 'tyv', 'yue'];
@@ -574,6 +598,7 @@ const fns = process.argv.slice(2).map(command => {
   if (command === 'script-trie') return generateScriptTrie;
   if (command === 'script-names') return generateScriptNames;
   if (command === 'system-fonts') return generateSystemFonts;
+  if (command === 'derived-core-properties-trie') return generateDerivedCorePropertiesTrie;
   console.error(`Usage: node gen.js (cmd )+
 Available commands:
   line-break-trie
@@ -583,7 +608,8 @@ Available commands:
   emoji-trie
   script-trie
   script-names
-  system-fonts`);
+  system-fonts
+  derived-core-properties-trie`);
   process.exit(1);
 });
 

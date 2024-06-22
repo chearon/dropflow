@@ -149,9 +149,9 @@ export class FaceMatch {
   defaultSubSpaceFeatures: Uint32Array;
   nonDefaultSubSpaceFeatures: Uint32Array;
 
-  constructor(face: HbFace, font: HbFont, filename: string, index: number) {
-    this.face = face;
-    this.font = font;
+  constructor(blob: HbBlob, index: number, filename: string) {
+    this.face = hb.createFace(blob, index);
+    this.font = hb.createFont(this.face);
     this.filename = filename;
     this.index = index;
     this.languages = this.getLanguages();
@@ -165,6 +165,11 @@ export class FaceMatch {
     this.spaceFeatures = UninitializedSpaceFeatures;
     this.defaultSubSpaceFeatures = new Uint32Array(Math.ceil(nameToCode.size / 32));
     this.nonDefaultSubSpaceFeatures = new Uint32Array(Math.ceil(nameToCode.size / 32));
+  }
+
+  destroy() {
+    this.face.destroy();
+    this.font.destroy();
   }
 
   getExclusiveLanguage() {
@@ -456,10 +461,7 @@ export class FaceMatch {
   }
 }
 
-const hbBlobs = new Map<string, HbBlob>();
-const hbFaces = new Map<string, HbFace>();
-const hbFonts = new Map<string, HbFont>();
-const faces = new Map<string, FaceMatch>();
+const registeredFonts = new Map<string, FaceMatch[]>();
 
 export interface RegisterFontOptions {
   paint?: boolean;
@@ -488,23 +490,17 @@ export async function registerFont(
 
   const stringUrl = String(url);
 
-  if (!hbBlobs.has(stringUrl)) {
+  if (!registeredFonts.has(stringUrl)) {
     if (!buffer) {
       const arrayBuffer = await fetch(url).then(res => res.arrayBuffer());
       buffer = new Uint8Array(arrayBuffer);
     }
 
     const blob = hb.createBlob(buffer);
-
-    hbBlobs.set(stringUrl, blob);
+    const matches: FaceMatch[] = [];
 
     for (let i = 0, l = blob.countFaces(); i < l; ++i) {
-      const face = hb.createFace(blob, i);
-      const font = hb.createFont(face);
-      const match = new FaceMatch(face, font, stringUrl, i);
-      hbFaces.set(stringUrl + i, face);
-      hbFonts.set(stringUrl + i, font);
-      faces.set(stringUrl + i, match);
+      const match = new FaceMatch(blob, i, stringUrl);
 
       // Browsers don't support registering collections because there would be
       // no way to clearly associate one description with one buffer. I suppose
@@ -512,24 +508,22 @@ export async function registerFont(
       if (options.paint && i === 0 && l === 1) {
         registerPaintFont(match, buffer, url);
       }
+
+      matches.push(match);
     }
+
+    registeredFonts.set(stringUrl, matches);
+
+    blob.destroy();
   }
 }
 
 export function unregisterFont(url: URL): void {
   const stringUrl = String(url);
-  const blob = hbBlobs.get(stringUrl);
-  if (blob) {
-    for (let i = 0, l = blob.countFaces(); i < l; i++) {
-      const face = hbFaces.get(stringUrl + i)!;
-      const font = hbFonts.get(stringUrl + i)!;
-      blob.destroy();
-      face.destroy();
-      font.destroy();
-      hbFaces.delete(stringUrl + i);
-      faces.delete(stringUrl + i);
-    }
-    hbBlobs.delete(stringUrl);
+  const matches = registeredFonts.get(stringUrl);
+  if (matches) {
+    for (const match of matches) match.destroy();
+    registeredFonts.delete(stringUrl);
   }
   cascades = new WeakMap();
 }
@@ -543,9 +537,11 @@ class FontCascade {
     this.style = style;
   }
 
-  static fromSet(set: Map<string, FaceMatch>, style: Style) {
+  static fromSet(set: Map<string, FaceMatch[]>, style: Style) {
     const list: FaceMatch[] = [];
-    for (const match of set.values()) list.push(match);
+    for (const matches of set.values()) {
+      for (const match of matches) list.push(match);
+    }
     return new FontCascade(list, style);
   }
 
@@ -745,7 +741,7 @@ export function getCascade(style: Style, lang: string) {
   if (!cascade) {
     let map1 = cascades.get(style);
     if (!map1) cascades.set(style, map1 = new Map());
-    cascade = FontCascade.fromSet(faces, style);
+    cascade = FontCascade.fromSet(registeredFonts, style);
     cascade.sort(style, lang);
     map1.set(lang, cascade);
   }
@@ -753,13 +749,13 @@ export function getCascade(style: Style, lang: string) {
 }
 
 export function eachRegisteredFont(cb: (family: FaceMatch) => void) {
-  for (const match of faces.values()) {
-    cb(match);
+  for (const matches of registeredFonts.values()) {
+    for (const match of matches) cb(match);
   }
 }
 
 export function firstCascadeItem(): FaceMatch {
-  return faces.values().next().value; // TODO Why is this any?
+  return registeredFonts.values().next().value; // TODO Why is this any?
 }
 
 const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);

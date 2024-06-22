@@ -173,13 +173,14 @@ export class FaceMatch {
   }
 
   getExclusiveLanguage() {
-    const os2 = this.face.reference_table('OS/2');
+    const os2 = this.face.referenceTable('OS/2');
     if (os2) {
-      const words = new Uint16Array(os2);
+      const buffer = os2.getData();
+      const words = new Uint16Array(buffer);
       const [version] = words;
 
       if (version === 1 || version === 2 || version === 3 || version == 4 || version === 5) {
-        const codePageRange1 = os2[78 /* bytes */ / 2];
+        const codePageRange1 = buffer[78 /* bytes */ / 2];
         const bits17to20 = codePageRange1 & 0x1E0000;
         if ((codePageRange1 & (1 << 17)) === bits17to20) return 'ja';
         if ((codePageRange1 & (1 << 18)) === bits17to20) return 'zh-cn';

@@ -148,6 +148,12 @@ export class HbBlob {
   countFaces(): number {
     return exports.hb_face_count(this.ptr);
   }
+
+  getData() {
+    const length = exports.hb_blob_get_length(this.ptr);
+    const ptr = exports.hb_blob_get_data(this.ptr, null);
+    return heapu8.subarray(ptr, ptr + length);
+  }
 }
 
 export function createBlob(blob: Uint8Array) {
@@ -187,14 +193,6 @@ export class HbFace {
   constructor(ptr: number) {
     this.ptr = ptr;
     this.upem = exports.hb_face_get_upem(ptr);
-  }
-
-  reference_table(table: string) {
-    const blob = exports.hb_face_reference_table(this.ptr, hb_tag(table));
-    const length = exports.hb_blob_get_length(blob);
-    if (!length) return;
-    const blobptr = exports.hb_blob_get_data(blob, null);
-    return heapu8.subarray(blobptr, blobptr + length);
   }
 
   getAxisInfos() {
@@ -243,6 +241,10 @@ export class HbFace {
 
   hasPositioning(): boolean {
     return exports.hb_ot_layout_has_positioning(this.ptr);
+  }
+
+  referenceTable(tag: string) {
+    return new HbBlob(exports.hb_face_reference_table(this.ptr, hb_tag(tag)));
   }
 
   getScripts() {

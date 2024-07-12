@@ -719,20 +719,33 @@ function defaultifyStyle(parentStyle: Style, style: CascadedStyle) {
 }
 
 function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
-  const ret:{[i: string]: any} = {};
+  const computed: any = {};
+
+  // Compute fontSize first since em values depend on it
+  if (typeof style.fontSize === 'object') {
+    if (style.fontSize.unit === '%') {
+      computed.fontSize = parentStyle.fontSize * style.fontSize.value / 100;
+    } else {
+      computed.fontSize = parentStyle.fontSize * style.fontSize.value;
+    }
+  } else {
+    computed.fontSize = style.fontSize;
+  }
 
   for (const _ in initialPlainStyle) {
     const p = _ as keyof typeof initialPlainStyle;
     const value = style[p];
 
+    if (p === 'fontSize') continue;
+
     if (typeof value === 'object' && 'unit' in value) {
       if (value.unit === 'em') {
-        ret[p] = parentStyle.fontSize * value.value;
+        computed[p] = computed.fontSize * value.value;
       } else {
-        ret[p] = value;
+        computed[p] = value;
       }
     } else {
-      ret[p] = value;
+      computed[p] = value;
     }
   }
 
@@ -741,29 +754,25 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
     const bolder = style.fontWeight === 'bolder';
     const pWeight = parentStyle.fontWeight;
     if (pWeight < 100) {
-      ret.fontWeight = bolder ? 400 : parentStyle.fontWeight;
+      computed.fontWeight = bolder ? 400 : parentStyle.fontWeight;
     } else if (pWeight >= 100 && pWeight < 350) {
-      ret.fontWeight = bolder ? 400 : 100;
+      computed.fontWeight = bolder ? 400 : 100;
     } else if (pWeight >= 350 && pWeight < 550) {
-      ret.fontWeight = bolder ? 700 : 100;
+      computed.fontWeight = bolder ? 700 : 100;
     } else if (pWeight >= 550 && pWeight < 750) {
-      ret.fontWeight = bolder ? 900 : 400;
+      computed.fontWeight = bolder ? 900 : 400;
     } else if (pWeight >= 750 && pWeight < 900) {
-      ret.fontWeight = bolder ? 900 : 700;
+      computed.fontWeight = bolder ? 900 : 700;
     } else {
-      ret.fontWeight = bolder ? parentStyle.fontWeight : 700;
+      computed.fontWeight = bolder ? parentStyle.fontWeight : 700;
     }
   }
 
-  if (typeof style.fontSize === 'object' && style.fontSize.unit === '%') {
-    ret.fontSize = parentStyle.fontSize * style.fontSize.value / 100;
-  }
-
   if (typeof style.lineHeight === 'object' && style.lineHeight.unit === '%') {
-    ret.lineHeight = style.lineHeight.value / 100 * ret.fontSize;
+    computed.lineHeight = style.lineHeight.value / 100 * computed.fontSize;
   }
 
-  return new Style(ret as ComputedStyle);
+  return new Style(computed);
 }
 
 const styleCache = new WeakMap<DeclaredStyle, WeakMap<DeclaredStyle, Style>>();

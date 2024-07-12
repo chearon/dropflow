@@ -138,5 +138,17 @@ describe('CSS Style', function () {
 
   it('defaultifies correctly if the style has a zero', function () {
     expect(createStyle(initialStyle, {width: 0}).width).to.equal(0);
-  })
+  });
+
+  it('resolves em on the element itself', function () {
+    const parentComputed = createStyle(initialStyle, {fontSize: 16});
+    const childComputed = createStyle(parentComputed, {fontSize: 64, marginTop: {value: 1, unit: 'em'}});
+    expect(childComputed.marginTop).to.equal(64);
+  });
+
+  it('resolves em on the parent when font-size is used', function () {
+    const parentComputed = createStyle(initialStyle, {fontSize: 16});
+    const childComputed = createStyle(parentComputed, {fontSize: {value: 2, unit: 'em'}});
+    expect(childComputed.fontSize).to.equal(32);
+  });
 });

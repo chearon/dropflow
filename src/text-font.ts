@@ -347,6 +347,10 @@ export class FaceMatch {
       }
     }
 
+    specificLookups.destroy();
+    otherLookups.destroy();
+    glyphs.destroy();
+
     return {inSpecific, inNonSpecific};
   }
 

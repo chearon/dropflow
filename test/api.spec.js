@@ -1,6 +1,6 @@
 // @ts-check
 import {expect} from 'chai';
-import {registerFontAsset} from '../assets/register.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {HTMLElement} from '../src/dom.js';
 import {h, dom, generate, layout} from '../src/api-with-parse.js';
 import {parse} from '../src/api-with-parse.js';
@@ -105,6 +105,7 @@ describe('Hyperscript API', function () {
     expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(43);
     expect(ifc.paragraph.lineboxes[3].blockOffset).to.equal(60);
     expect(ifc.paragraph.height).to.equal(80);
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   it('layout twice is successful', async function () {
@@ -122,6 +123,7 @@ describe('Hyperscript API', function () {
     layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 });
 

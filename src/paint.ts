@@ -160,13 +160,7 @@ function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBacke
     }
     for (let i = block.children.length - 1; i >= 0; i--) {
       const child = block.children[i];
-      if (
-        child.isBox() &&
-        !child.isPositioned() &&
-        !(child.isBlockContainer() && child.isFloat())
-      ) {
-        stack.push(child);
-      }
+      if (child.isBox() && !child.isPaintRoot()) stack.push(child);
     }
   }
 }
@@ -313,7 +307,7 @@ function paintInlinesAndDescendents(block: BlockContainer, b: PaintBackend) {
     if (box.isBlockContainer()) {
       for (let i = box.children.length - 1; i >= 0; i--) {
         const child = box.children[i];
-        if (!child.isPositioned()) stack.push(child);
+        if (!child.isPaintRoot()) stack.push(child);
       }
     } else {
       paintInlines(box, b);

@@ -123,6 +123,10 @@ export class Box extends RenderItem {
     return this.isPositioned() && this.style.zIndex !== 'auto';
   }
 
+  isPaintRoot(): boolean {
+    return this.isBlockContainer() && this.isFloat() || this.isPositioned();
+  }
+
   getRelativeVerticalShift() {
     const height = this.containingBlock.height;
     let {top, bottom} = this.style;

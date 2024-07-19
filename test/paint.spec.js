@@ -334,4 +334,16 @@ describe('Painting', function () {
       {t: 'text', x: 0, y: 8, text: 'twice', fillColor: '#000'}
     ]);
   });
+
+  it('doesn\'t paint text inside of floats inside of positioned twice', function () {
+    this.layout(`
+      <div style="position: relative; font-size: 10px;">
+        <div style="float: left;">twice</div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 8, text: 'twice', fillColor: '#000'}
+    ]);
+  });
 });

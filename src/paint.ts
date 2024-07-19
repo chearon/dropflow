@@ -1,7 +1,7 @@
 import {BlockContainer, Inline, InlineLevel, IfcInline} from './layout-flow.js';
 import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './layout-text.js';
 import {Color} from './style.js';
-import {BoxArea} from './layout-box.js';
+import {Box, BoxArea} from './layout-box.js';
 import {binarySearchOf} from './util.js';
 
 import type {FaceMatch} from './text-font.js';
@@ -321,18 +321,22 @@ function collectLayeredDescendents(
   paragraph: Paragraph | undefined
 ) {
   const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
-  const parents: InlineLevel[] = [];
+  const parents: Box[] = [];
   const negativeRoots: [BlockContainer | Inline, Paragraph | undefined][] = []
   const floats: [BlockContainer, undefined][] = [];
   const positionedBoxes: [BlockContainer | Inline, Paragraph | undefined][] = [];
   const positiveRoots: [BlockContainer | Inline, Paragraph | undefined][] = []
+  let paintRoots = 0;
 
   while (stack.length) {
     const box = stack.pop()!;
 
     if ('sentinel' in box) {
-      parents.pop();
+      const parent = parents.pop()!;
+      if (parent.isPaintRoot()) paintRoots -= 1;
     } else if (box.isBox()) {
+      const contentOk = paintRoots === 0;
+
       if (box.isPositioned()) {
         let nearestParagraph = paragraph;
 
@@ -358,11 +362,12 @@ function collectLayeredDescendents(
         } else {
           positionedBoxes.push([box, nearestParagraph]);
         }
-      } else if (box.isBlockContainer() && box.isFloat()) {
+      } else if (contentOk && box.isBlockContainer() && box.isFloat()) {
         floats.push([box, undefined]);
       }
 
       if (!box.isStackingContextRoot()) {
+        if (box.isPaintRoot()) paintRoots += 1;
         stack.push({sentinel: true});
         parents.push(box);
         for (let i = box.children.length - 1; i >= 0; i--) {

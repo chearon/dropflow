@@ -299,15 +299,16 @@ function paintInlines(ifc: IfcInline, b: PaintBackend) {
   }
 }
 
-function paintInlinesAndDescendents(block: BlockContainer, b: PaintBackend) {
-  const stack: (IfcInline | BlockContainer)[] = block.children.slice().reverse();
+function paintInlinesAndDescendents(root: BlockContainer, b: PaintBackend) {
+  const stack: (IfcInline | BlockContainer)[] = [root];
   while (stack.length) {
     const box = stack.pop()!;
 
     if (box.isBlockContainer()) {
-      for (let i = box.children.length - 1; i >= 0; i--) {
-        const child = box.children[i];
-        if (!child.isPaintRoot()) stack.push(child);
+      if (box === root || !box.isPaintRoot())  {
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
       }
     } else {
       paintInlines(box, b);

@@ -320,4 +320,18 @@ describe('Painting', function () {
       {t: 'rect', x: 0, y: 0, width: 640, height: 480, fillColor: '#fad'}
     ]);
   });
+
+  it('doesn\'t paint text inside of positioned inside of positioned twice', function () {
+    this.layout(`
+      <div style="position: relative; font-size: 10px;">
+        <div style="position: relative;">
+          twice
+        </div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 8, text: 'twice', fillColor: '#000'}
+    ]);
+  });
 });

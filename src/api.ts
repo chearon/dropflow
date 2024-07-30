@@ -203,6 +203,10 @@ export function h(tagName: string, arg2?: HsData | HsChild[] | string, arg3?: Hs
   return el;
 }
 
+export function t(text: string): TextNode {
+  return new TextNode(id(), text);
+}
+
 export function staticLayoutContribution(box: BlockContainer): number {
   let intrinsicSize = 0;
 

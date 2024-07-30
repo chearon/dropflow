@@ -234,12 +234,20 @@ Removes a font from the internal list so that it won't be picked by the `font` p
 
 ## Hyperscript
 
-The hyperscript API is the fastest way to generate a DOM.
+The hyperscript API is the fastest way to generate a DOM. The DOM is composed of `HTMLElement`s and `TextNode`s. The relevant properties of them are shown below. More supported properties are described in the [#dom-api](DOM API section).
 
 ### `h`
 
 ```ts
 type HsChild = HTMLElement | string;
+
+class HTMLElement {
+  children: (HTMLElement | TextNode)[];
+}
+
+class TextNode {
+  text: string;
+}
 
 interface HsData {
   style?: DeclaredPlainStyle;
@@ -254,6 +262,14 @@ function h(tagName: string, data: HsData, children: HsChild[] | string): HTMLEle
 ```
 
 Creates an HTMLElement. Styles go on `data.style` (see `style.ts` for supported values and their types). 
+
+### `t`
+
+```ts
+function t(text: string): TextNode;
+```
+
+Creates a TextNode. Normally you don't need to do this, just pass a string as an `HsChild` to `flow.h`. If you need to build a DOM breadth-first, such as in a custom parser, you can use this and mutate the `text` property on the returned value.
 
 ### `dom`
 

@@ -1,0 +1,37 @@
+export default class UnicodeTrieBuilder {
+    initialValue: number;
+    errorValue: number;
+    index1: Int32Array;
+    index2: Int32Array;
+    index2NullOffset: number;
+    index2Length: number;
+    highStart: number;
+    data: Uint32Array;
+    dataCapacity: number;
+    firstFreeBlock: number;
+    isCompacted: boolean;
+    map: Int32Array;
+    dataNullOffset: number;
+    dataLength: number;
+    constructor(initialValue?: number, errorValue?: number);
+    set(codepoint: number, value: number, overwrite?: boolean): this;
+    setRange(start: number, end: number, value: number, overwrite?: boolean): this;
+    get(c: number): number;
+    private isInNullBlock;
+    private allocIndex2Block;
+    private getIndex2Block;
+    private isWritableBlock;
+    private allocDataBlock;
+    private releaseDataBlock;
+    private setIndex2Entry;
+    private getDataBlock;
+    private fillBlock;
+    private writeBlock;
+    private findHighStart;
+    private findSameDataBlock;
+    private findSameIndex2Block;
+    private compactData;
+    private compactIndex2;
+    private compact;
+    toBuffer(): Uint32Array;
+}

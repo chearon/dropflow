@@ -1,0 +1,15 @@
+import UnicodeTrie from './text-unicode-trie.js';
+export declare const trie: UnicodeTrie;
+export declare const CR = 1;
+export declare const LF = 2;
+export declare const Control = 3;
+export declare const Extend = 4;
+export declare const Regional_Indicator = 5;
+export declare const SpacingMark = 6;
+export declare const L = 7;
+export declare const V = 8;
+export declare const T = 9;
+export declare const LV = 10;
+export declare const LVT = 11;
+export declare const Prepend = 12;
+export declare const ZWJ = 13;

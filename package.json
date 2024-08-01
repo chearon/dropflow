@@ -19,7 +19,7 @@
     "vite": "5.2.0-beta.1"
   },
   "name": "dropflow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A small CSS2 document renderer built from specifications",
   "type": "module",
   "files": [

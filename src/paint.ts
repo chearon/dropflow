@@ -139,7 +139,7 @@ function paintBlockBackground(block: BlockContainer, b: PaintBackend, isRoot = f
   ] as const;
 
   for (const [side, lineWidth, color] of work) {
-    if (lineWidth === 0) continue;
+    if (lineWidth === 0 || color.a === 0) continue;
     const length = side === 'top' || side === 'bottom' ? borderArea.width : borderArea.height;
     let x = side === 'right' ? borderArea.x + borderArea.width - lineWidth: borderArea.x;
     let y = side === 'bottom' ? borderArea.y + borderArea.height - lineWidth : borderArea.y;

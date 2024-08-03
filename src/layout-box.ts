@@ -14,6 +14,7 @@ export interface ReprOptions {
   containingBlocks?: boolean;
   css?: keyof Style
   paragraphText?: string;
+  bits?: boolean;
 }
 
 export abstract class RenderItem {
@@ -74,6 +75,10 @@ export abstract class RenderItem {
       extra += ` (${options.css}: ${css && JSON.stringify(css)})`;
     }
 
+    if (options?.bits && this.isBox()) {
+      extra += ` (bf: ${this.stringifyBitfield()})`;
+    }
+
     return '  '.repeat(indent) + this.sym() + ' ' + this.desc(options) + extra + c;
   }
 }
@@ -81,29 +86,25 @@ export abstract class RenderItem {
 export class Box extends RenderItem {
   public id: string;
   public children: RenderItem[];
-  public attrs: number;
   public containingBlock: BoxArea;
+  /**
+   * General bitfield for booleans. The first 4 are reserved for attributes
+   * belonging to Box. The later 24 can be used by subclasses.
+   */
+  protected bitfield: number;
 
   static ATTRS = {
     isAnonymous:   1 << 0,
-    // Inline or block-level: we can't use the style for this since anonymously
-    // created block containers are block-level but their style is inline (the
-    // initial value). Potentially we could remove this and say that it's block
-    // level if it's anonymous.
-    //
-    // Other CSS rules that affect how a block container is treated during
-    // layout do not have this problem (position: absolute, display: inline-
-    // block) because anonymously created boxes cannot invoke those modes.
-    isInline:      1 << 1,
-    isBfcRoot:     1 << 2,
-    enableLogging: 1 << 3,
+    enableLogging: 1 << 1
   };
+
+  static BITFIELD_END = 4;
 
   constructor(style: Style, children: RenderItem[], attrs: number) {
     super(style);
     this.id = id();
     this.children = children;
-    this.attrs = attrs;
+    this.bitfield = attrs;
     this.containingBlock = EmptyContainingBlock;
   }
 
@@ -112,7 +113,7 @@ export class Box extends RenderItem {
   }
 
   isAnonymous() {
-    return Boolean(this.attrs & Box.ATTRS.isAnonymous);
+    return Boolean(this.bitfield & Box.ATTRS.isAnonymous);
   }
 
   isPositioned() {
@@ -163,6 +164,17 @@ export class Box extends RenderItem {
 
   sym() {
     return '◼︎';
+  }
+
+  stringifyBitfield() {
+    const thirty2 = this.bitfield.toString(2);
+    let s = '';
+    for (let i = thirty2.length - 1; i >= 0; i--) {
+      s = thirty2[i] + s;
+      if (i > 0 && (s.length - 4) % 5 === 0) s = '_' + s;
+    }
+    s = '0b' + s;
+    return s;
   }
 }
 

@@ -35,7 +35,7 @@ describe('Painting', function () {
       let indent = 0, t = this.currentTest;
       while (t = t.parent) indent += 1;
       console.log('  '.repeat(indent) + 'Box tree:');
-      console.log(this.currentTest.ctx.blockContainer.repr(indent));
+      console.log(this.currentTest.ctx.blockContainer.repr(indent, {bits: true}));
     }
   });
 

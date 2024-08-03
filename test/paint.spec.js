@@ -2,7 +2,7 @@
 import {expect} from 'chai';
 import * as flow from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import paintBlockContainer from '../src/paint.js';
+import paint from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
 
 function setupLayoutTests() {
@@ -14,7 +14,7 @@ function setupLayoutTests() {
 
   this.paint = function () {
     const b = new PaintSpy();
-    paintBlockContainer(this.blockContainer, b, true);
+    paint(this.blockContainer, b);
     return b;
   };
 }

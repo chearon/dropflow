@@ -48,6 +48,68 @@ export abstract class RenderItem {
     return false;
   }
 
+  /**
+   * A layer is a stacking context root or an element that CSS 2.1 appendix E
+   * says to treat like one.
+   */
+  isLayerRoot(): boolean {
+    return this.isBlockContainer() && this.isFloat() || this.isBox() && this.isPositioned();
+  }
+
+  /**
+   * Does this paint anything in the background layer? Borders, box-shadow, etc.
+   */
+  hasBackground() {
+    return false;
+  }
+
+  /**
+   * Does this paint anything in the foreground layer? Text, images, etc.
+   */
+  hasForeground() {
+    return false;
+  }
+
+  /**
+   * There is a background in some descendent that is part of the same paint
+   * layer (not necessarily in the subject). (See also isLayerRoot).
+   *
+   * A background is a background-color or anything CSS 2.1 appendix E groups
+   * with it.
+   */
+  hasBackgroundInLayerRoot() {
+    return false;
+  }
+
+  /**
+   * There is a foreground in some descendent that is part of the same paint
+   * layer (not necessarily in the subject). (See also isLayerRoot).
+   *
+   * A foreground is a text run or anything CSS 2.1 appendix E groups with it
+   */
+  hasForegroundInLayerRoot() {
+    return false;
+  }
+
+  /**
+   * There is a background somewhere beneath this node
+   *
+   * A background is a background-color or anything CSS 2.1 appendix E groups
+   * with it
+   */
+  hasBackgroundInDescendent() {
+    return false;
+  }
+
+  /**
+   * There is a foreground somewhere beneath this node
+   *
+   * A foreground is a text run or anything CSS 2.1 appendix E groups with it
+   */
+  hasForegroundInDescendent() {
+    return false;
+  }
+
   abstract desc(options?: ReprOptions): string;
 
   abstract sym(): string;
@@ -81,6 +143,10 @@ export abstract class RenderItem {
 
     return '  '.repeat(indent) + this.sym() + ' ' + this.desc(options) + extra + c;
   }
+
+  preprocess() {
+    // should be overridden
+  }
 }
 
 export class Box extends RenderItem {
@@ -88,17 +154,21 @@ export class Box extends RenderItem {
   public children: RenderItem[];
   public containingBlock: BoxArea;
   /**
-   * General bitfield for booleans. The first 4 are reserved for attributes
+   * General bitfield for booleans. The first 8 are reserved for attributes
    * belonging to Box. The later 24 can be used by subclasses.
    */
   protected bitfield: number;
 
   static ATTRS = {
-    isAnonymous:   1 << 0,
-    enableLogging: 1 << 1
+    isAnonymous:               1 << 0,
+    enableLogging:             1 << 1,
+    hasBackgroundInLayer:      1 << 4,
+    hasForegroundInLayer:      1 << 5,
+    hasBackgroundInDescendent: 1 << 6,
+    hasForegroundInDescendent: 1 << 7
   };
 
-  static BITFIELD_END = 4;
+  static BITFIELD_END = 8;
 
   constructor(style: Style, children: RenderItem[], attrs: number) {
     super(style);
@@ -106,6 +176,30 @@ export class Box extends RenderItem {
     this.children = children;
     this.bitfield = attrs;
     this.containingBlock = EmptyContainingBlock;
+  }
+
+  preprocess() {
+    for (const child of this.children) {
+      child.preprocess();
+
+      if (!child.isLayerRoot()) {
+        if (child.hasBackground() || child.hasBackgroundInLayerRoot()) {
+          this.bitfield |= Box.ATTRS.hasBackgroundInLayer;
+        }
+
+        if (child.hasForeground() || child.hasForegroundInLayerRoot()) {
+          this.bitfield |= Box.ATTRS.hasForegroundInLayer;
+        }
+      }
+
+      if (child.hasBackground() || child.hasBackgroundInDescendent()) {
+        this.bitfield |= Box.ATTRS.hasBackgroundInDescendent;
+      }
+
+      if (child.hasForeground() || child.hasForegroundInDescendent()) {
+        this.bitfield |= Box.ATTRS.hasForegroundInDescendent;
+      }
+    }
   }
 
   isBox(): this is Box {
@@ -124,8 +218,20 @@ export class Box extends RenderItem {
     return this.isPositioned() && this.style.zIndex !== 'auto';
   }
 
-  isPaintRoot(): boolean {
-    return this.isBlockContainer() && this.isFloat() || this.isPositioned();
+  hasBackgroundInLayerRoot() {
+    return Boolean(this.bitfield & Box.ATTRS.hasBackgroundInLayer);
+  }
+
+  hasForegroundInLayerRoot() {
+    return Boolean(this.bitfield & Box.ATTRS.hasForegroundInLayer);
+  }
+
+  hasBackgroundInDescendent() {
+    return Boolean(this.bitfield & Box.ATTRS.hasBackgroundInDescendent);
+  }
+
+  hasForegroundInDescendent() {
+    return Boolean(this.bitfield & Box.ATTRS.hasForegroundInDescendent);
   }
 
   getRelativeVerticalShift() {

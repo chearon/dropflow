@@ -152,15 +152,20 @@ function paintBlockBackground(block: BlockContainer, b: PaintBackend, isRoot = f
 }
 
 function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBackend) {
-  const stack = [root];
+  const stack: (BlockContainer | Inline)[] = [root];
+
   while (stack.length) {
-    const block = stack.pop()!;
-    if (block.isBlockContainer() && !block.isInlineLevel() && block !== root) {
-      paintBlockBackground(block, b);
+    const box = stack.pop()!;
+
+    if (box.isBlockContainer() && !box.isInlineLevel() && box !== root) {
+      paintBlockBackground(box, b);
     }
-    for (let i = block.children.length - 1; i >= 0; i--) {
-      const child = block.children[i];
-      if (child.isBox() && !child.isPaintRoot()) stack.push(child);
+
+    if (box.hasBackgroundInLayerRoot()) {
+      for (let i = box.children.length - 1; i >= 0; i--) {
+        const child = box.children[i];
+        if (child.isBox() && !child.isLayerRoot()) stack.push(child);
+      }
     }
   }
 }
@@ -256,7 +261,11 @@ function paintInlineBackground(
   }
 }
 
-function paintInlines(ifc: IfcInline, b: PaintBackend) {
+function paintInlines(
+  ifc: IfcInline,
+  inlineBlockRoots: Map<BlockContainer, BlockLayerRoot>,
+  b: PaintBackend
+) {
   const colors = ifc.paragraph.getColors();
   const lineboxes = ifc.paragraph.lineboxes;
   const painted = new Set<Inline>();
@@ -273,7 +282,7 @@ function paintInlines(ifc: IfcInline, b: PaintBackend) {
     }
 
     for (const inline of item.inlines) {
-      if (inline.isPositioned()) {
+      if (inline.isLayerRoot()) {
         hasPositionedParent = true;
         break;
       } else if (!painted.has(inline)) {
@@ -293,110 +302,41 @@ function paintInlines(ifc: IfcInline, b: PaintBackend) {
       if (item instanceof ShapedItem) {
         drawText(ifc.containingBlock, item, colors, b);
       } else if (item.block) {
-        paintBlockRoot(item.block, b);
+        const layerRoot = inlineBlockRoots.get(item.block)!;
+        paintBlockLayerRoot(layerRoot, inlineBlockRoots, b);
       }
     }
   }
 }
 
-function paintInlinesAndDescendents(root: BlockContainer, b: PaintBackend) {
+function paintBlockForeground(
+  root: BlockContainer,
+  inlineBlockRoots: Map<BlockContainer, BlockLayerRoot>,
+  b: PaintBackend
+) {
   const stack: (IfcInline | BlockContainer)[] = [root];
+
   while (stack.length) {
     const box = stack.pop()!;
 
     if (box.isBlockContainer()) {
-      if (box === root || !box.isPaintRoot())  {
+      if ((box === root || !box.isLayerRoot()) && box.hasForegroundInLayerRoot())  {
         for (let i = box.children.length - 1; i >= 0; i--) {
           stack.push(box.children[i]);
         }
       }
     } else {
-      paintInlines(box, b);
+      paintInlines(box, inlineBlockRoots, b);
     }
   }
 }
 
-function collectLayeredDescendents(
-  box: BlockContainer | Inline,
-  paragraph: Paragraph | undefined
-) {
-  const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
-  const parents: Box[] = [];
-  const negativeRoots: [BlockContainer | Inline, Paragraph | undefined][] = []
-  const floats: [BlockContainer, undefined][] = [];
-  const positionedBoxes: [BlockContainer | Inline, Paragraph | undefined][] = [];
-  const positiveRoots: [BlockContainer | Inline, Paragraph | undefined][] = []
-  let paintRoots = 0;
-
-  while (stack.length) {
-    const box = stack.pop()!;
-
-    if ('sentinel' in box) {
-      const parent = parents.pop()!;
-      if (parent.isPaintRoot()) paintRoots -= 1;
-    } else if (box.isBox()) {
-      const contentOk = paintRoots === 0;
-
-      if (box.isPositioned()) {
-        let nearestParagraph = paragraph;
-
-        if (box.isInline()) {
-          for (let i = parents.length - 1; i >= 0; i--) {
-            const parent = parents[i];
-            if (parent.isIfcInline()) {
-              nearestParagraph = parent.paragraph;
-              break;
-            }
-          }
-        }
-
-        if (box.isStackingContextRoot()) {
-          const zIndex = box.style.zIndex as number;
-          if (zIndex < 0) {
-            negativeRoots.push([box, nearestParagraph]);
-          } else if (zIndex > 0) {
-            positiveRoots.push([box, nearestParagraph]);
-          } else {
-            positionedBoxes.push([box, nearestParagraph]);
-          }
-        } else {
-          positionedBoxes.push([box, nearestParagraph]);
-        }
-      } else if (contentOk && box.isBlockContainer() && box.isFloat()) {
-        floats.push([box, undefined]);
-      }
-
-      if (!box.isStackingContextRoot()) {
-        if (box.isPaintRoot()) paintRoots += 1;
-        stack.push({sentinel: true});
-        parents.push(box);
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
-        }
-      }
-    }
-  }
-
-  negativeRoots.sort(([a], [b]) => (a.style.zIndex as number) - (b.style.zIndex as number));
-  positiveRoots.sort(([a], [b]) => (a.style.zIndex as number) - (b.style.zIndex as number));
-
-  return {negativeRoots, floats, positionedBoxes, positiveRoots};
-}
-
-function paintLayeredDescendents(
-  descendents: [BlockContainer | Inline, Paragraph | undefined][],
+function paintInline(
+  inline: Inline,
+  paragraph: Paragraph,
+  inlineBlockRoots: Map<BlockContainer, BlockLayerRoot>,
   b: PaintBackend
 ) {
-  for (const [box, paragraph] of descendents) {
-    if (box.isInline()) {
-      paintInlineRoot(box, paragraph!, b);
-    } else {
-      paintBlockRoot(box, b);
-    }
-  }
-}
-
-function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
   const colors = paragraph.getColors();
   const containingBlock = paragraph.ifc.containingBlock;
   const treeItems = paragraph.treeItems;
@@ -413,7 +353,7 @@ function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
         let hasPositionedParent = false;
         for (let i = item.inlines.length - 1; i >= 0; i--) {
           if (item.inlines[i] === inline) break;
-          if (item.inlines[i].isPositioned()) {
+          if (item.inlines[i].isLayerRoot()) {
             hasPositionedParent = true;
             break;
           }
@@ -442,8 +382,9 @@ function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
           stack.push(box.children[i]);
         }
       } else if (box.isBlockContainer()) {
+        const layerRoot = inlineBlockRoots.get(box)!;
         paintRanges();
-        paintBlockRoot(box, b);
+        paintBlockLayerRoot(layerRoot, inlineBlockRoots, b);
       }
     }
   }
@@ -451,63 +392,260 @@ function paintInline(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
   paintRanges();
 }
 
-function paintInlineRoot(inline: Inline, paragraph: Paragraph, b: PaintBackend) {
-  const {
-    negativeRoots,
-    floats,
-    positionedBoxes,
-    positiveRoots
-  } = collectLayeredDescendents(inline, paragraph);
+class LayerRoot {
+  box: BlockContainer | Inline;
+  negativeRoots: LayerRoot[];
+  floats: LayerRoot[];
+  positionedRoots: LayerRoot[];
+  positiveRoots: LayerRoot[];
 
-  if (inline.isStackingContextRoot()) {
-    paintLayeredDescendents(negativeRoots, b);
+  constructor(box: BlockContainer | Inline) {
+    this.box = box;
+    this.negativeRoots = [];
+    this.floats = [];
+    this.positionedRoots = [];
+    this.positiveRoots = [];
   }
-  paintBackgroundDescendents(inline, b);
-  paintLayeredDescendents(floats, b);
-  const backgrounds = paragraph.backgroundBoxes.get(inline);
-  if (backgrounds) {
-    for (const background of backgrounds) {
-      paintInlineBackground(background, inline, paragraph, b);
+
+  get zIndex() {
+    const zIndex = this.box.style.zIndex;
+    return zIndex === 'auto' ? 0 : zIndex;
+  }
+
+  finalize(preorderScores: Map<Box, number>) {
+    this.negativeRoots.sort((a, b) => a.zIndex - b.zIndex);
+    this.floats.sort((a, b) => preorderScores.get(a.box)! - preorderScores.get(b.box)!);
+    this.positionedRoots.sort((a, b) => preorderScores.get(a.box)! - preorderScores.get(b.box)!);
+    this.positiveRoots.sort((a, b) => a.zIndex - b.zIndex);
+  }
+
+  isEmpty() {
+    return !this.box.hasBackground()
+      && !this.box.hasForeground()
+      && !this.box.hasBackgroundInLayerRoot()
+      && !this.box.hasForegroundInLayerRoot()
+      && this.negativeRoots.length === 0
+      && this.floats.length === 0
+      && this.positionedRoots.length === 0
+      && this.positiveRoots.length === 0;
+  }
+
+  isBlockLayerRoot(): this is BlockLayerRoot {
+    return false;
+  }
+
+  isInlineLayerRoot(): this is InlineLayerRoot {
+    return false;
+  }
+}
+
+class BlockLayerRoot extends LayerRoot {
+  box: BlockContainer;
+
+  constructor(box: BlockContainer) {
+    super(box);
+    this.box = box;
+  }
+
+  isBlockLayerRoot(): this is BlockLayerRoot {
+    return true;
+  }
+}
+
+class InlineLayerRoot extends LayerRoot {
+  box: Inline;
+  paragraph: Paragraph;
+
+  constructor(box: Inline, paragraph: Paragraph) {
+    super(box);
+    this.box = box;
+    this.paragraph = paragraph;
+  }
+
+  isInlineLayerRoot(): this is InlineLayerRoot {
+    return true;
+  }
+}
+
+function createLayerRoot(box: BlockContainer) {
+  const layerRoot = new BlockLayerRoot(box);
+  const inlineBlockRoots = new Map<BlockContainer, BlockLayerRoot>();
+  const preorderIndices = new Map<Box, number>();
+  const parentRoots: LayerRoot[] = [layerRoot];
+  const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
+  const parents: Box[] = [];
+  let preorderIndex = 0;
+
+  while (stack.length) {
+    const box = stack.pop()!;
+    let layerRoot;
+
+    if ('sentinel' in box) {
+      const layerRoot = parentRoots.at(-1)!;
+      const box = parents.pop()!;
+
+      if (layerRoot.box === box) {
+        if (!layerRoot.isEmpty()) {
+          let parentRootIndex = parentRoots.length - 2;
+          let parentRoot = parentRoots[parentRootIndex];
+
+          if (box.isPositioned()) {
+            const zIndex = box.style.zIndex as number;
+
+            while (
+              parentRootIndex > 0 &&
+              !parentRoots[parentRootIndex].box.isStackingContextRoot()
+            ) {
+              parentRoot = parentRoots[--parentRootIndex];
+            }
+
+            if (zIndex < 0) {
+              parentRoot.negativeRoots.push(layerRoot);
+            } else if (zIndex > 0) {
+              parentRoot.positiveRoots.push(layerRoot);
+            } else {
+              parentRoot.positionedRoots.push(layerRoot);
+            }
+          } else if (box.isBlockContainer() && box.isFloat()) {
+            parentRoot.floats.push(layerRoot);
+          }
+
+          layerRoot.finalize(preorderIndices);
+        }
+
+        parentRoots.pop();
+      }
+    } else if (box.isBox()) {
+      preorderIndices.set(box, preorderIndex++);
+
+      if (box.isPositioned()) {
+        let nearestParagraph;
+
+        if (box.isInline()) {
+          for (let i = parents.length - 1; i >= 0; i--) {
+            const parent = parents[i];
+            if (parent.isIfcInline()) {
+              nearestParagraph = parent.paragraph;
+              break;
+            }
+          }
+        }
+
+        if (box.isInline()) {
+          layerRoot = new InlineLayerRoot(box, nearestParagraph!);
+        } else {
+          layerRoot = new BlockLayerRoot(box);
+        }
+      } else if (box.isBlockContainer()) {
+        const parent = parents.at(-1);
+        const isInlineBlock = box.isInlineBlock() && parent?.isInline();
+        if (box.isFloat() || isInlineBlock) {
+          layerRoot = new BlockLayerRoot(box);
+          if (isInlineBlock) inlineBlockRoots.set(box, layerRoot);
+        }
+      }
+
+      if (
+        box.hasBackgroundInDescendent() ||
+        box.hasForegroundInDescendent() ||
+        box.hasBackground() ||
+        box.hasForeground()
+      ) {
+        stack.push({sentinel: true});
+        parents.push(box);
+        if (layerRoot) parentRoots.push(layerRoot);
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
+      }
     }
   }
-  paintInline(inline, paragraph, b);
-  if (inline.isStackingContextRoot()) {
-    paintLayeredDescendents(positionedBoxes, b);
-    paintLayeredDescendents(positiveRoots, b);
+
+  layerRoot.finalize(preorderIndices);
+
+  return {layerRoot, inlineBlockRoots};
+}
+
+function paintInlineLayerRoot(
+  root: InlineLayerRoot,
+  inlineBlockRoots: Map<BlockContainer, BlockLayerRoot>,
+  b: PaintBackend
+) {
+  for (const r of root.negativeRoots) paintLayerRoot(r, inlineBlockRoots, b);
+
+  if (root.box.hasBackgroundInLayerRoot()) {
+    paintBackgroundDescendents(root.box, b);
+  }
+
+  for (const r of root.floats) paintLayerRoot(r, inlineBlockRoots, b);
+
+  const backgrounds = root.paragraph.backgroundBoxes.get(root.box);
+  if (backgrounds) {
+    for (const background of backgrounds) {
+      paintInlineBackground(background, root.box, root.paragraph, b);
+    }
+  }
+
+  if (root.box.hasForeground()) {
+    paintInline(root.box, root.paragraph, inlineBlockRoots, b);
+  }
+
+  for (const r of root.positionedRoots) paintLayerRoot(r, inlineBlockRoots, b);
+
+  for (const r of root.positiveRoots) paintLayerRoot(r, inlineBlockRoots, b);
+}
+
+function paintBlockLayerRoot(
+  root: BlockLayerRoot,
+  inlineBlockRoots: Map<BlockContainer, BlockLayerRoot>,
+  b: PaintBackend,
+  isRoot = false
+) {
+  if (root.box.hasBackground() && !isRoot) paintBlockBackground(root.box, b);
+
+  for (const r of root.negativeRoots) paintLayerRoot(r, inlineBlockRoots, b);
+
+  if (root.box.hasBackgroundInLayerRoot()) {
+    paintBackgroundDescendents(root.box, b);
+  }
+
+  for (const r of root.floats) paintLayerRoot(r, inlineBlockRoots, b);
+
+  if (root.box.hasForegroundInLayerRoot()) {
+    paintBlockForeground(root.box, inlineBlockRoots, b);
+  }
+
+  for (const r of root.positionedRoots) paintLayerRoot(r, inlineBlockRoots, b);
+
+  for (const r of root.positiveRoots) paintLayerRoot(r, inlineBlockRoots, b);
+}
+
+function paintLayerRoot(
+  paintRoot: LayerRoot, inlineBlockRoots: Map<BlockContainer, BlockLayerRoot>,
+  b: PaintBackend
+) {
+  if (paintRoot.isBlockLayerRoot()) {
+    paintBlockLayerRoot(paintRoot, inlineBlockRoots, b);
+  } else if (paintRoot.isInlineLayerRoot()) {
+    paintInlineLayerRoot(paintRoot, inlineBlockRoots, b);
   }
 }
 
 /**
- * Paint a stacking context root
+ * Paint the root element
  * https://www.w3.org/TR/CSS22/zindex.html
  */
-export default function paintBlockRoot(
-  block: BlockContainer,
-  b: PaintBackend,
-  isRoot = false
-) {
-  const {
-    negativeRoots,
-    floats,
-    positionedBoxes,
-    positiveRoots
-  } = collectLayeredDescendents(block, undefined);
+export default function paint(block: BlockContainer, b: PaintBackend) {
+  const {layerRoot, inlineBlockRoots} = createLayerRoot(block);
 
-  if (isRoot && block.style.backgroundColor.a > 0) {
-    const area = block.containingBlock;
-    b.fillColor = block.style.backgroundColor;
-    b.rect(area.x, area.y, area.width, area.height);
-  }
+  if (!layerRoot.isEmpty()) {
+    // Propagate background color and overflow to the viewport
+    if (block.style.backgroundColor.a > 0) {
+      const area = block.containingBlock;
+      b.fillColor = block.style.backgroundColor;
+      b.rect(area.x, area.y, area.width, area.height);
+    }
 
-  paintBlockBackground(block, b, isRoot);
-  if (isRoot || block.isStackingContextRoot()) {
-    paintLayeredDescendents(negativeRoots, b);
-  }
-  paintBackgroundDescendents(block, b);
-  paintLayeredDescendents(floats, b);
-  paintInlinesAndDescendents(block, b);
-  if (isRoot || block.isStackingContextRoot()) {
-    paintLayeredDescendents(positionedBoxes, b);
-    paintLayeredDescendents(positiveRoots, b);
+    paintBlockLayerRoot(layerRoot, inlineBlockRoots, b, true);
   }
 }

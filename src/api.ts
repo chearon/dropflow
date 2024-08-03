@@ -5,7 +5,7 @@ import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockCon
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
-import paintBlockRoot from './paint.js';
+import paint from './paint.js';
 import {BoxArea} from './layout-box.js';
 import {id} from './util.js';
 
@@ -49,7 +49,7 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
  */
 export function paintToHtml(root: BlockContainer): string {
   const backend = new HtmlPaintBackend();
-  paintBlockRoot(root, backend, true);
+  paint(root, backend);
   return backend.s;
 }
 
@@ -58,7 +58,7 @@ export function paintToSvg(root: BlockContainer): string {
   const {width, height} = root.containingBlock;
   let cssFonts = '';
 
-  paintBlockRoot(root, backend, true);
+  paint(root, backend);
 
   for (const [src, match] of backend.usedFonts) {
     const {family, weight, style, stretch} = match.toCssDescriptor();
@@ -84,7 +84,7 @@ export function paintToSvg(root: BlockContainer): string {
 
 export function paintToSvgElements(root: BlockContainer): string {
   const backend = new SvgPaintBackend();
-  paintBlockRoot(root, backend, true);
+  paint(root, backend);
   return backend.s;
 }
 
@@ -92,7 +92,7 @@ export {eachRegisteredFont} from './text-font.js';
 
 export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): void {
   const backend = new CanvasPaintBackend(ctx);
-  paintBlockRoot(root, backend, true);
+  paint(root, backend);
 }
 
 export function renderToCanvasContext(

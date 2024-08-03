@@ -998,12 +998,6 @@ export class BlockContainer extends Box {
     return !this.isBlockContainerOfInlines();
   }
 
-  preprocess() {
-    for (const child of this.children) {
-      child.preprocess();
-    }
-  }
-
   postprocess() {
     this.borderArea.absolutify();
 
@@ -1024,6 +1018,24 @@ export class BlockContainer extends Box {
     const blockSize = this.style.getBlockSize(this);
     ifc.doTextLayout(ctx);
     if (blockSize === 'auto') this.setBlockSize(ifc.paragraph.height);
+  }
+
+  hasBackground() {
+    return this.style.backgroundColor.a > 0
+      || this.style.borderTopWidth > 0
+      || this.style.borderRightWidth > 0
+      || this.style.borderBottomWidth > 0
+      || this.style.borderLeftWidth > 0;
+  }
+
+  hasForeground() {
+    if (this.isInlineBlock()) {
+      return this.hasBackground()
+        || this.hasBackgroundInLayerRoot()
+        || this.hasForegroundInLayerRoot();
+    } else {
+      return false;
+    }
   }
 }
 
@@ -1310,10 +1322,8 @@ export class Inline extends Box {
   }
 
   preprocess() {
+    super.preprocess();
     this.metrics = getFontMetrics(this);
-    for (const child of this.children) {
-      if (child.isInline() || child.isBlockContainer()) child.preprocess();
-    }
   }
 
   postprocess() {
@@ -1369,6 +1379,10 @@ export class Inline extends Box {
 
   absolutify() {
     // noop: inlines are painted in a different way than block containers
+  }
+
+  hasForeground() {
+    return true;
   }
 }
 
@@ -1650,6 +1664,10 @@ export class IfcInline extends Inline {
 
   hasColoredInline() {
     return this.bitfield & IfcInline.ANALYSIS.hasColoredInline;
+  }
+
+  hasForeground() {
+    return Boolean(this.hasTextOrSizedInline());
   }
 }
 

@@ -79,7 +79,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>position</code> | `fixed` | 🚧&zwj;&nbsp;Planned |
 | <code>position</code> | `relative` | ✅&zwj;&nbsp;Works |
 | <code>transform</code> | | 🚧&zwj;&nbsp;Planned |
-| <code>overflow</code> | | 🚧&zwj;&nbsp;Planned |
+| <code>overflow</code> | `hidden`, `visible` | ✅&zwj;&nbsp;Works |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>z-index</code> | `number`, `auto` | ✅&zwj;&nbsp;Works |
 

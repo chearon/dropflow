@@ -52,6 +52,8 @@ export type CanvasRenderingContext2D = Pick<NodeCanvasRenderingContext2D,
   | 'fillStyle'
   | 'lineWidth'
   | 'font'
+  | 'rect'
+  | 'clip'
 >;
 
 export interface Canvas {
@@ -253,5 +255,16 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.beginPath();
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     this.ctx.fillRect(rx, ry, rw, rh);
+  }
+
+  pushClip(x: number, y: number, w: number, h: number) {
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(x, y, w, h);
+    this.ctx.clip();
+  }
+
+  popClip() {
+    this.ctx.restore();
   }
 }

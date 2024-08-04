@@ -2078,4 +2078,19 @@ describe('Inline Blocks', function () {
     expect(t2.contentArea.y).to.be.approximately(35.547, 0.001);
     expect(t2.contentArea.x).to.equal(100);
   });
+
+  it('uses the bottom margin edge if overflow is hidden', function () {
+    this.layout(`
+      <div id="t1" style="font: 16px/20px Arimo; width: 300px;">
+        give a dog a <div id="t2" style="display: inline-block; overflow: hidden;">bone</div>
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow').IfcInline[] */
+    const [ifc] = this.get('#t1').children;
+    expect(ifc.paragraph.lineboxes[0].ascender).to.equal(20);
+    /** @type import('../src/layout-flow').BlockContainer */
+    const t2 = this.get('#t2');
+    expect(t2.borderArea.y).to.equal(0);
+  });
 });

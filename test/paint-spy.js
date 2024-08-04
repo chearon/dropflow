@@ -57,6 +57,14 @@ export default class PaintSpy {
     return ret;
   }
 
+  pushClip(x, y, width, height) {
+    this.calls.push({t: 'pushClip', x, y, width, height});
+  }
+
+  popClip() {
+    this.calls.push({t: 'popClip'});
+  }
+
   getCalls() {
     return this.calls.map(call => {
       if (call.t === 'rect' || call.t === 'text') {

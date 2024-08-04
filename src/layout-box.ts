@@ -162,6 +162,8 @@ export class Box extends RenderItem {
   static ATTRS = {
     isAnonymous:               1 << 0,
     enableLogging:             1 << 1,
+    reserved1:                 1 << 2, // this padding makes the logs easier to
+    reserved2:                 1 << 3, // read (distinguish attrs from has bits)
     hasBackgroundInLayer:      1 << 4,
     hasForegroundInLayer:      1 << 5,
     hasBackgroundInDescendent: 1 << 6,

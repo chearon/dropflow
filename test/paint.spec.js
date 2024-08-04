@@ -346,4 +346,188 @@ describe('Painting', function () {
       {t: 'text', x: 0, y: 8, text: 'twice', fillColor: '#000'}
     ]);
   });
+
+  it('clips to overflow to padding area', function () {
+    this.layout(`
+      <div style="font-size: 10px; width: 50px;">
+        <div style="overflow: hidden; border: 10px solid transparent; padding: 10px; height: 10px;">
+          Ada
+        </div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'pushClip', x: 10, y: 10, width: 30, height: 30},
+      {t: 'text', x: 20, y: 28, text: 'Ada', fillColor: '#000'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('clips overflow of inline-blocks', function () {
+    this.layout(`
+      <div style="font-size: 10px; width: 200px;">
+        NextStep Logo:<div style="display: inline-block; overflow: hidden;">ne<br>xt</div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 20, text: 'NextStep Logo:', fillColor: '#000'},
+      {t: 'pushClip', x: 140, y: 0, width: 20, height: 20},
+      {t: 'text', x: 140, y: 8, text: 'ne', fillColor: '#000'},
+      {t: 'text', x: 140, y: 18, text: 'xt', fillColor: '#000'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('clips overflow of floats', function () {
+    this.layout(`
+      <div style="font-size: 10px; width: 200px; background-color: #567; display: flow-root;">
+        <div style="float: left; overflow: hidden;">sleepy<br>puppy</div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 200, height: 20, fillColor: '#567'},
+      {t: 'pushClip', x: 0, y: 0, width: 60, height: 20},
+      {t: 'text', x: 0, y: 8, text: 'sleepy', fillColor: '#000'},
+      {t: 'text', x: 0, y: 18, text: 'puppy', fillColor: '#000'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('propagates the overflow property to the viewport', function () {
+    const rootElement = flow.parse(`
+      <html style="overflow: hidden;">
+        <div style="background-color: #321; width: 100px; height: 100px;"></div>
+      </html>
+    `);
+    const blockContainer = flow.generate(rootElement);
+    const b = new PaintSpy();
+    flow.layout(blockContainer, 20, 20);
+    paint(blockContainer, b);
+
+    expect(b.getCalls()).to.deep.equal([
+      {t: 'pushClip', x: 0, y: 0, width: 20, height: 20},
+      {t: 'rect', x: 0, y: 0, width: 100, height: 100, fillColor: '#321'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('nests clipping calls in the same stacking context', function () {
+    this.layout(`
+      <div style="overflow: hidden; width: 10px; background-color: #123;">
+        <div style="overflow: hidden; height: 10px; font-size: 20px;">
+          ohnoyouwontseeme
+        </div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 10, height: 10, fillColor: '#123'},
+      {t: 'pushClip', x: 0, y: 0, width: 10, height: 10},
+      {t: 'pushClip', x: 0, y: 0, width: 10, height: 10},
+      {t: 'text', x: 0, y: 16, text: 'ohnoyouwontseeme', fillColor: '#000'},
+      {t: 'popClip'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('clips stacking context roots by their overflow and their parents\'', function () {
+    this.layout(`
+      <div style="overflow: hidden; width: 20px; height: 20px; font-size: 10px;">
+        <div style="overflow: hidden; width: 30px; height: 30px; position: relative; left: 10px; top: 10px;">
+          <div style="overflow: hidden; width: 5px; height: 5px; position: relative; z-index: -1;">
+            ohno
+          </div>
+        </div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'pushClip', x: 0, y: 0, width: 20, height: 20},
+      {t: 'pushClip', x: 10, y: 10, width: 30, height: 30},
+      {t: 'pushClip', x: 10, y: 10, width: 5, height: 5},
+      {t: 'text', x: 10, y: 18, text: 'ohno', fillColor: '#000'},
+      {t: 'popClip'},
+      {t: 'popClip'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('clips by parents across multiple layers', function () {
+    this.layout(`
+      <div style="overflow: hidden; width: 200px; font-size: 10px;">
+        <div style="display: inline-block; background-color: #456; overflow: hidden; width: 150px;">
+          <div style="position: relative; z-index: -1;">negative nancy</div>
+        </div>
+        <div style="background-color: #789; height: 10px;"></div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'pushClip', x: 0, y: 0, width: 200, height: 22},
+      {t: 'pushClip', x: 0, y: 0, width: 150, height: 10},
+      {t: 'text', x: 0, y: 8, text: 'negative nancy', fillColor: '#000'},
+      {t: 'popClip'},
+      {t: 'popClip'},
+      {t: 'pushClip', x: 0, y: 0, width: 200, height: 22},
+      {t: 'rect', x: 0, y: 12, width: 200, height: 10, fillColor: '#789'},
+      {t: 'popClip'},
+      {t: 'pushClip', x: 0, y: 0, width: 200, height: 22},
+      {t: 'rect', x: 0, y: 0, width: 150, height: 10, fillColor: '#456'},
+      {t: 'pushClip', x: 0, y: 0, width: 150, height: 10},
+      {t: 'popClip'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('doesn\'t try to clip around non-existant foreground', function () {
+    this.layout(`
+      <div style="overflow: hidden; width: 1px; height: 1px; padding: 1px;">
+        <div style="width: 1px; height: 1px; background-color: #dedbef;"></div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'pushClip', x: 0, y: 0, width: 3, height: 3},
+      {t: 'rect', x: 1, y: 1, width: 1, height: 1, fillColor: '#dedbef'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('doesn\'t overflow the border of the box itself when it\'s a layer root', function () {
+    this.layout(`
+      <div style="position: relative; overflow: hidden; border: 1px solid #000; width: 1px; height: 1px;">
+        <div style="width: 1px; height: 1px; background-color: #dedbef;"></div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 0.5, length: 3, side: 'top', strokeColor: '#000', lineWidth: 1},
+      {t: 'edge', x: 2.5, y: 0, length: 3, side: 'right', strokeColor: '#000', lineWidth: 1},
+      {t: 'edge', x: 0, y: 2.5, length: 3, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'edge', x: 0.5, y: 0, length: 3, side: 'left', strokeColor: '#000', lineWidth: 1},
+      {t: 'pushClip', x: 1, y: 1, width: 1, height: 1},
+      {t: 'rect', x: 1, y: 1, width: 1, height: 1, fillColor: '#dedbef'},
+      {t: 'popClip'}
+    ]);
+  });
+
+  it('paints inline layer roots inside of an overflow: hidden', function () {
+    this.layout(`
+      <div style="width: 300px; font-size: 10px; height: 10px; overflow: hidden;">
+        a <span style="position: relative; top: 5px;">tired</span> puppy is a good puppy
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'pushClip', x: 0, y: 0, width: 300, height: 10},
+      {t: 'text', x: 0, y: 8, text: 'a ', fillColor: '#000'},
+      {t: 'text', x: 70, y: 8, text: ' puppy is a good puppy', fillColor: '#000'},
+      {t: 'popClip'},
+      {t: 'pushClip', x: 0, y: 0, width: 300, height: 10},
+      {t: 'text', x: 20, y: 13, text: 'tired', fillColor: '#000'},
+      {t: 'popClip'}
+    ]);
+  });
 });

@@ -171,6 +171,7 @@ export interface DeclaredStyle {
   zIndex?: number | 'auto' | Inherited | Initial;
   wordBreak?: 'break-word' | 'normal' | Inherited | Initial;
   overflowWrap?: 'anywhere' | 'break-word' | 'normal' | Inherited | Initial;
+  overflow?: 'visible' | 'hidden';
 }
 
 export const EMPTY_STYLE: DeclaredStyle = {};
@@ -260,6 +261,7 @@ export class Style implements ComputedStyle {
   zIndex: ComputedStyle['zIndex'];
   wordBreak: ComputedStyle['wordBreak'];
   overflowWrap: ComputedStyle['overflowWrap'];
+  overflow: ComputedStyle['overflow'];
 
   constructor(style: ComputedStyle) {
     this.whiteSpace = style.whiteSpace;
@@ -312,6 +314,7 @@ export class Style implements ComputedStyle {
     this.zIndex = style.zIndex;
     this.wordBreak = style.wordBreak;
     this.overflowWrap = style.overflowWrap;
+    this.overflow = style.overflow;
   }
 
   getLineHeight() {
@@ -542,7 +545,8 @@ const initialPlainStyle: ComputedStyle = Object.freeze({
   clear: 'none',
   zIndex: 'auto',
   wordBreak: 'normal',
-  overflowWrap: 'normal'
+  overflowWrap: 'normal',
+  overflow: 'visible'
 });
 
 export const initialStyle = new Style(initialPlainStyle);
@@ -600,7 +604,8 @@ const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
   clear: false,
   zIndex: false,
   wordBreak: true,
-  overflowWrap: true
+  overflowWrap: true,
+  overflow: false
 });
 
 type UaDeclaredStyles = {[tagName: string]: DeclaredStyle};

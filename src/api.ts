@@ -77,7 +77,7 @@ export function paintToSvg(root: BlockContainer): string {
   <style type="text/css">
     ${cssFonts}
   </style>
-  ${backend.s}
+  ${backend.body()}
 </svg>
   `.trim();
 }
@@ -85,7 +85,7 @@ export function paintToSvg(root: BlockContainer): string {
 export function paintToSvgElements(root: BlockContainer): string {
   const backend = new SvgPaintBackend();
   paint(root, backend);
-  return backend.s;
+  return backend.main;
 }
 
 export {eachRegisteredFont} from './text-font.js';

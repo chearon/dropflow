@@ -362,6 +362,19 @@ describe('Flow', function () {
         </div>
       `);
     });
+
+    it('doesn\'t collapse margins through an element with overflow: hidden', function () {
+      this.layout(`
+        <div id="t" style="display: flow-root;">
+          <div style="margin: 10px 0; overflow: hidden;">
+            <div style="margin: 20px 0;"></div>
+          </div>
+        </div>
+      `);
+
+      const t = this.get('#t');
+      expect(t.contentArea.height).to.equal(40);
+    });
   });
 
   describe('Automatic width, height, and offsets', function () {

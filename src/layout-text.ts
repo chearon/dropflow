@@ -1017,7 +1017,7 @@ function baselineStep(parent: Inline, inline: Inline) {
 
 export function inlineBlockMetrics(block: BlockContainer) {
   const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = block.getMarginsAutoIsZero();
-  const baseline = block.getLastBaseline();
+  const baseline = block.style.overflow === 'hidden' ? undefined : block.getLastBaseline();
   let ascender, descender;
 
   if (baseline !== undefined) {
@@ -1037,6 +1037,10 @@ export function inlineBlockMetrics(block: BlockContainer) {
 }
 
 function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
+  if (block.style.overflow === 'hidden') {
+    return 0;
+  }
+
   if (block.style.verticalAlign === 'baseline') {
     return 0;
   }

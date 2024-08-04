@@ -966,11 +966,8 @@ export class BlockContainer extends Box {
     return this.style.float !== 'none';
   }
 
-  // Note that this doesn't check isInlineLevel because that's really only used
-  // for logging. What really determines if a block is inline or block-level is
-  // whether it's inside a block of blocks or a block of inlines.
   isInlineBlock() {
-    return this.style.float === 'none';
+    return this.isInlineLevel() && this.style.float === 'none';
   }
 
   loggingEnabled() {
@@ -1870,6 +1867,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
   // generatesBreak, etc
   if (
     el.style.float !== 'none' ||
+    el.style.overflow === 'hidden' ||
     el.style.display.inner === 'flow-root' ||
     el.parent && writingModeInlineAxis(el) !== writingModeInlineAxis(el.parent)
   ) {

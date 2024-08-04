@@ -93,4 +93,12 @@ export default class HtmlPaintBackend implements PaintBackend {
     });
     this.s += `<div style="${style}"></div>`;
   }
+
+  pushClip(x: number, y: number, width: number, height: number) {
+    this.s += `<div style="position: absolute; clip: rect(${y}px, ${x + width}px, ${y + height}px, ${x}px);">`;
+  }
+
+  popClip() {
+    this.s += '</div>';
+  }
 }

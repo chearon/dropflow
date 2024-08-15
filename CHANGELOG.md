@@ -9,9 +9,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ==================
 ### Changed
 ### Added
-* Support for `overflow`
-
 ### Fixed
+
+0.4.0
+==================
+### Added
+* Support for `overflow`
+* Added CHANGELOG.md
 
 0.3.0
 ==================

@@ -23,6 +23,7 @@
   "description": "A small CSS2 document renderer built from specifications",
   "type": "module",
   "files": [
+    "assets/images",
     "dist/gen",
     "dist/dropflow.wasm",
     "dist/src"

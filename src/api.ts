@@ -36,7 +36,7 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
   root.containingBlock = initialContainingBlock;
   root.preprocess();
   layoutBlockBox(root, {
-    bfc: new BlockFormattingContext(300),
+    bfc: new BlockFormattingContext(0),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
     mode: 'normal'

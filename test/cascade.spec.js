@@ -93,7 +93,7 @@ describe('CSS Style', function () {
   it('computes unitless line-height', function () {
     const parentComputed = createStyle(initialStyle, {fontSize: 10});
     const childComputed = createStyle(parentComputed, {lineHeight: {value: 2, unit: null}});
-    expect(childComputed.lineHeight).to.deep.equal({value: 2, unit: null});
+    expect(childComputed.lineHeight).to.deep.equal(20);
   });
 
   it('computes line-height as a percentage', function () {

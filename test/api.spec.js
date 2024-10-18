@@ -58,7 +58,7 @@ describe('Hyperscript API', function () {
       const h1 = dom(h('div', {style: {fontSize: 99}}, 'abc'));
       expect(h1.children[0].style.fontSize).to.equal(99);
       const h2 = dom(h('div', {style: {lineHeight: {value: 123, unit: null}}}, [h('div')]));
-      expect(h2.children[0].style.lineHeight).to.deep.equal({value: 123, unit: null});
+      expect(h2.children[0].style.lineHeight).to.deep.equal(123 * 16);
     });
 
     it('uses the html element', function () {

@@ -301,6 +301,8 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
 }
 
 export class Style {
+  computed: ComputedStyle;
+
   whiteSpace: WhiteSpace;
   color: Color;
   fontSize: number;
@@ -309,7 +311,7 @@ export class Style {
   fontStyle: FontStyle;
   fontStretch: FontStretch;
   fontFamily: string[];
-  lineHeight: 'normal' | number | {value: number, unit: null};
+  lineHeight: 'normal' | number;
   verticalAlign: VerticalAlign;
   backgroundColor: Color;
   backgroundClip: BackgroundClip;
@@ -353,7 +355,20 @@ export class Style {
   overflowWrap: 'anywhere' | 'break-word' | 'normal';
   overflow: 'visible' | 'hidden';
 
+  // This section reduces to used values as much as possible
+  // Be careful accessing off of "this" since these are called in the ctor
+
+  private usedLineHeight(style: ComputedStyle) {
+    if (typeof style.lineHeight === 'object') {
+      return style.lineHeight.value * this.fontSize;
+    } else {
+      return style.lineHeight;
+    }
+  }
+
   constructor(style: ComputedStyle) {
+    this.computed = style;
+
     this.whiteSpace = style.whiteSpace;
     this.color = style.color;
     this.fontSize = style.fontSize;
@@ -362,7 +377,7 @@ export class Style {
     this.fontStyle = style.fontStyle;
     this.fontStretch = style.fontStretch;
     this.fontFamily = style.fontFamily;
-    this.lineHeight = style.lineHeight;
+    this.lineHeight = this.usedLineHeight(style);
     this.verticalAlign = style.verticalAlign;
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
@@ -405,11 +420,6 @@ export class Style {
     this.wordBreak = style.wordBreak;
     this.overflowWrap = style.overflowWrap;
     this.overflow = style.overflow;
-  }
-
-  getLineHeight() {
-    if (typeof this.lineHeight === 'object') return this.lineHeight.value * this.fontSize;
-    return this.lineHeight;
   }
 
   getTextAlign() {
@@ -802,7 +812,7 @@ function defaultifyStyle(parentStyle: Style, style: CascadedStyle) {
   for (const _ in initialPlainStyle) {
     const p = _ as keyof typeof initialPlainStyle;
     if (style[p] === inherited || !(p in style) && inheritedStyle[p]) {
-      ret[p] = parentStyle[p];
+      ret[p] = parentStyle.computed[p];
     } else if (style[p] === initial || !(p in style) && !inheritedStyle[p]) {
       ret[p] = initialPlainStyle[p];
     } else {
@@ -819,9 +829,9 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
   // Compute fontSize first since em values depend on it
   if (typeof style.fontSize === 'object') {
     if (style.fontSize.unit === '%') {
-      computed.fontSize = parentStyle.fontSize * style.fontSize.value / 100;
+      computed.fontSize = parentStyle.computed.fontSize * style.fontSize.value / 100;
     } else {
-      computed.fontSize = parentStyle.fontSize * style.fontSize.value;
+      computed.fontSize = parentStyle.computed.fontSize * style.fontSize.value;
     }
   } else {
     computed.fontSize = style.fontSize;
@@ -847,9 +857,9 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
   // https://www.w3.org/TR/css-fonts-4/#relative-weights
   if (style.fontWeight === 'bolder' || style.fontWeight === 'lighter') {
     const bolder = style.fontWeight === 'bolder';
-    const pWeight = parentStyle.fontWeight;
+    const pWeight = parentStyle.computed.fontWeight;
     if (pWeight < 100) {
-      computed.fontWeight = bolder ? 400 : parentStyle.fontWeight;
+      computed.fontWeight = bolder ? 400 : parentStyle.computed.fontWeight;
     } else if (pWeight >= 100 && pWeight < 350) {
       computed.fontWeight = bolder ? 400 : 100;
     } else if (pWeight >= 350 && pWeight < 550) {
@@ -859,7 +869,7 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
     } else if (pWeight >= 750 && pWeight < 900) {
       computed.fontWeight = bolder ? 900 : 700;
     } else {
-      computed.fontWeight = bolder ? parentStyle.fontWeight : 700;
+      computed.fontWeight = bolder ? parentStyle.computed.fontWeight : 700;
     }
   }
 

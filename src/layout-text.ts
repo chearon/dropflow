@@ -322,12 +322,11 @@ export function getMetrics(style: Style, match: FaceMatch): InlineMetrics {
   let metrics = metricsCache.get(style)?.get(match.face);
   if (metrics) return metrics;
   const fontSize = style.fontSize;
-  const cssLineHeight = style.getLineHeight();
   // now do CSS2 §10.8.1
   const {ascender, xHeight, descender, lineGap} = match.font.getMetrics('ltr'); // TODO vertical text
   const toPx = 1 / match.face.upem * fontSize;
   const pxHeight = (ascender - descender) * toPx;
-  const lineHeight = cssLineHeight === 'normal' ? pxHeight + lineGap * toPx : cssLineHeight;
+  const lineHeight = style.lineHeight === 'normal' ? pxHeight + lineGap * toPx : style.lineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
   const ascenderPx = ascender * toPx;
   const descenderPx = -descender * toPx;
@@ -1071,7 +1070,7 @@ function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
   }
 
   if (typeof block.style.verticalAlign === 'object') {
-    const lineHeight = block.style.getLineHeight();
+    const lineHeight = block.style.lineHeight;
     if (lineHeight === 'normal') {
       // TODO: is there a better/faster way to do this? currently struts only
       // exist if there is a paragraph, but I think spec is saying do this

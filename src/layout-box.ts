@@ -155,7 +155,7 @@ export class Box extends RenderItem {
   public containingBlock: BoxArea;
   /**
    * General bitfield for booleans. The first 8 are reserved for attributes
-   * belonging to Box. The later 24 can be used by subclasses.
+   * belonging to Box. The latter 24 can be used by subclasses.
    */
   protected bitfield: number;
 

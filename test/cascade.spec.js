@@ -1,13 +1,13 @@
 //@ts-check
 
-import {createStyle, initialStyle, Style, inherited, initial} from '../src/style.js';
+import {createStyle, initialStyle, inherited, initial} from '../src/style.js';
 import {BlockContainer} from '../src/layout-flow.js';
 import {BoxArea} from '../src/layout-box.js';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {
   it('calculates used value for border width', function () {
-    const computed = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, {
       borderTopWidth: 1,
       borderTopStyle: 'none',
       borderRightWidth: 1,
@@ -18,7 +18,6 @@ describe('CSS Style', function () {
       borderLeftStyle: 'none'
     });
 
-    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
 
@@ -29,7 +28,7 @@ describe('CSS Style', function () {
   });
 
   it('calculates used values for percentages', function () {
-    const computed = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, {
       paddingTop: {value: 50, unit: '%'},
       paddingRight: {value: 50, unit: '%'},
       paddingBottom: {value: 50, unit: '%'},
@@ -42,8 +41,7 @@ describe('CSS Style', function () {
       marginLeft: {value: 50, unit: '%'}
     });
 
-    const style = new Style(computed);
-    const documentElement = new BlockContainer(new Style(createStyle(initialStyle, {width: 100, height: 200})), [], 0);
+    const documentElement = new BlockContainer(createStyle(initialStyle, {width: 100, height: 200}), [], 0);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(documentElement, 0, 0, 100, 200);
 
@@ -60,7 +58,7 @@ describe('CSS Style', function () {
   });
 
   it('normalizes border-box to content-box', function () {
-    const computed = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, {
       width: 100,
       borderLeftWidth: 10,
       borderLeftStyle: 'solid',
@@ -71,14 +69,13 @@ describe('CSS Style', function () {
       boxSizing: 'border-box'
     });
 
-    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
     expect(style.getInlineSize(box)).to.equal(60);
   });
 
   it('normalizes padding-box to content-box', function () {
-    const computed = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, {
       width: 100,
       borderLeftWidth: 10,
       borderRightWidth: 10,
@@ -87,7 +84,6 @@ describe('CSS Style', function () {
       boxSizing: 'padding-box'
     });
 
-    const style = new Style(computed);
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
 

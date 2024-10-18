@@ -136,10 +136,10 @@ export interface DeclaredStyle {
   display?: Display | Inherited | Initial;
   direction?: Direction | Inherited | Initial;
   writingMode?: WritingMode | Inherited | Initial;
-  borderTopWidth?: number | Inherited | Initial; // TODO take off unit?
-  borderRightWidth?: number | Inherited | Initial; // TODO take off unit?
-  borderBottomWidth?: number | Inherited | Initial; // TODO take off unit?
-  borderLeftWidth?: number | Inherited | Initial; // TODO take off unit?
+  borderTopWidth?: number | Inherited | Initial;
+  borderRightWidth?: number | Inherited | Initial;
+  borderBottomWidth?: number | Inherited | Initial;
+  borderLeftWidth?: number | Inherited | Initial;
   borderTopStyle?: BorderStyle | Inherited | Initial;
   borderRightStyle?: BorderStyle | Inherited | Initial;
   borderBottomStyle?: BorderStyle | Inherited | Initial;
@@ -178,23 +178,113 @@ export const EMPTY_STYLE: DeclaredStyle = {};
 
 type CascadedStyle = DeclaredStyle;
 
-type RemoveUnits<T, U> =
-  T extends number ? number
-    : T extends {value: number, unit: infer V} | number ?
-      V extends U ? number : number | {value: number, unit: Exclude<V, U>}
-    : T;
+interface SpecifiedStyle {
+  whiteSpace: WhiteSpace;
+  color: Color;
+  fontSize: Length | Percentage;
+  fontWeight: FontWeight;
+  fontVariant: FontVariant;
+  fontStyle: FontStyle;
+  fontStretch: FontStretch;
+  fontFamily: string[];
+  lineHeight: 'normal' | Length | Percentage | Number;
+  verticalAlign: VerticalAlign;
+  backgroundColor: Color;
+  backgroundClip: BackgroundClip;
+  display: Display;
+  direction: Direction;
+  writingMode: WritingMode;
+  borderTopWidth: number;
+  borderRightWidth: number;
+  borderBottomWidth: number;
+  borderLeftWidth: number;
+  borderTopStyle: BorderStyle;
+  borderRightStyle: BorderStyle;
+  borderBottomStyle: BorderStyle;
+  borderLeftStyle: BorderStyle;
+  borderTopColor: Color;
+  borderRightColor: Color;
+  borderBottomColor: Color;
+  borderLeftColor: Color;
+  paddingTop: Length | Percentage;
+  paddingRight: Length | Percentage;
+  paddingBottom: Length | Percentage;
+  paddingLeft: Length | Percentage;
+  marginTop: Length | Percentage | 'auto';
+  marginRight: Length | Percentage | 'auto';
+  marginBottom: Length | Percentage | 'auto';
+  marginLeft: Length | Percentage | 'auto';
+  tabSize: Length | Number;
+  position: Position;
+  width: Length | Percentage | 'auto';
+  height: Length | Percentage | 'auto';
+  top: Length | Percentage | 'auto';
+  right: Length | Percentage | 'auto';
+  bottom: Length | Percentage | 'auto';
+  left: Length | Percentage | 'auto';
+  boxSizing: BoxSizing;
+  textAlign: TextAlign;
+  float: Float;
+  clear: Clear;
+  zIndex: number | 'auto';
+  wordBreak: 'break-word' | 'normal';
+  overflowWrap: 'anywhere' | 'break-word' | 'normal';
+  overflow: 'visible' | 'hidden';
+}
 
-type SpecifiedStyle = Required<{
-  [K in keyof DeclaredStyle]: Exclude<DeclaredStyle[K], Inherited | Initial>
-}>;
-
-type ComputedStyle = {
-  [K in keyof SpecifiedStyle]
-    : K extends 'fontSize' ? number
-    : K extends 'lineHeight' ? 'normal' | number | {value: number, unit: null}
-    : K extends 'fontWeight' ? number
-    : RemoveUnits<SpecifiedStyle[K], 'em'>
-};
+interface ComputedStyle {
+  whiteSpace: WhiteSpace;
+  color: Color;
+  fontSize: number;
+  fontWeight: number;
+  fontVariant: FontVariant;
+  fontStyle: FontStyle;
+  fontStretch: FontStretch;
+  fontFamily: string[];
+  lineHeight: 'normal' | number | {value: number, unit: null};
+  verticalAlign: VerticalAlign;
+  backgroundColor: Color;
+  backgroundClip: BackgroundClip;
+  display: Display;
+  direction: Direction;
+  writingMode: WritingMode;
+  borderTopWidth: number;
+  borderRightWidth: number;
+  borderBottomWidth: number;
+  borderLeftWidth: number;
+  borderTopStyle: BorderStyle;
+  borderRightStyle: BorderStyle;
+  borderBottomStyle: BorderStyle;
+  borderLeftStyle: BorderStyle;
+  borderTopColor: Color;
+  borderRightColor: Color;
+  borderBottomColor: Color;
+  borderLeftColor: Color;
+  paddingTop: number | Percentage;
+  paddingRight: number | Percentage;
+  paddingBottom: number | Percentage;
+  paddingLeft: number | Percentage;
+  marginTop: number | Percentage | 'auto';
+  marginRight: number | Percentage | 'auto';
+  marginBottom: number | Percentage | 'auto';
+  marginLeft: number | Percentage | 'auto';
+  tabSize: number | Number;
+  position: Position;
+  width: number | Percentage | 'auto';
+  height: number | Percentage | 'auto';
+  top: number | Percentage | 'auto';
+  right: number | Percentage | 'auto';
+  bottom: number | Percentage | 'auto';
+  left: number | Percentage | 'auto';
+  boxSizing: BoxSizing;
+  textAlign: TextAlign;
+  float: Float;
+  clear: Clear;
+  zIndex: number | 'auto';
+  wordBreak: 'break-word' | 'normal';
+  overflowWrap: 'anywhere' | 'break-word' | 'normal';
+  overflow: 'visible' | 'hidden';
+}
 
 function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value: number, unit: '%'}) {
   if (typeof cssVal === 'object') {
@@ -210,58 +300,58 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
   return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
 }
 
-export class Style implements ComputedStyle {
-  whiteSpace: ComputedStyle['whiteSpace'];
-  color: ComputedStyle['color'];
-  fontSize: ComputedStyle['fontSize'];
-  fontWeight: ComputedStyle['fontWeight'];
-  fontVariant: ComputedStyle['fontVariant'];
-  fontStyle: ComputedStyle['fontStyle'];
-  fontStretch: ComputedStyle['fontStretch'];
-  fontFamily: ComputedStyle['fontFamily'];
-  lineHeight: ComputedStyle['lineHeight'];
-  verticalAlign: ComputedStyle['verticalAlign'];
-  backgroundColor: ComputedStyle['backgroundColor'];
-  backgroundClip: ComputedStyle['backgroundClip'];
-  display: ComputedStyle['display'];
-  direction: ComputedStyle['direction'];
-  writingMode: ComputedStyle['writingMode'];
-  borderTopWidth: ComputedStyle['borderTopWidth'];
-  borderRightWidth: ComputedStyle['borderRightWidth'];
-  borderBottomWidth: ComputedStyle['borderBottomWidth'];
-  borderLeftWidth: ComputedStyle['borderLeftWidth'];
-  borderTopStyle: ComputedStyle['borderTopStyle'];
-  borderRightStyle: ComputedStyle['borderRightStyle'];
-  borderBottomStyle: ComputedStyle['borderBottomStyle'];
-  borderLeftStyle: ComputedStyle['borderLeftStyle'];
-  borderTopColor: ComputedStyle['borderTopColor'];
-  borderRightColor: ComputedStyle['borderRightColor'];
-  borderBottomColor: ComputedStyle['borderBottomColor'];
-  borderLeftColor: ComputedStyle['borderLeftColor'];
-  paddingTop: ComputedStyle['paddingTop'];
-  paddingRight: ComputedStyle['paddingRight'];
-  paddingBottom: ComputedStyle['paddingBottom'];
-  paddingLeft: ComputedStyle['paddingLeft'];
-  marginTop: ComputedStyle['marginTop'];
-  marginRight: ComputedStyle['marginRight'];
-  marginBottom: ComputedStyle['marginBottom'];
-  marginLeft: ComputedStyle['marginLeft'];
-  tabSize: ComputedStyle['tabSize'];
-  position: ComputedStyle['position'];
-  width: ComputedStyle['width'];
-  height: ComputedStyle['height'];
-  top: ComputedStyle['top'];
-  right: ComputedStyle['right'];
-  bottom: ComputedStyle['bottom'];
-  left: ComputedStyle['left'];
-  boxSizing: ComputedStyle['boxSizing'];
-  textAlign: ComputedStyle['textAlign'];
-  float: ComputedStyle['float'];
-  clear: ComputedStyle['clear'];
-  zIndex: ComputedStyle['zIndex'];
-  wordBreak: ComputedStyle['wordBreak'];
-  overflowWrap: ComputedStyle['overflowWrap'];
-  overflow: ComputedStyle['overflow'];
+export class Style {
+  whiteSpace: WhiteSpace;
+  color: Color;
+  fontSize: number;
+  fontWeight: number;
+  fontVariant: FontVariant;
+  fontStyle: FontStyle;
+  fontStretch: FontStretch;
+  fontFamily: string[];
+  lineHeight: 'normal' | number | {value: number, unit: null};
+  verticalAlign: VerticalAlign;
+  backgroundColor: Color;
+  backgroundClip: BackgroundClip;
+  display: Display;
+  direction: Direction;
+  writingMode: WritingMode;
+  borderTopWidth: number;
+  borderRightWidth: number;
+  borderBottomWidth: number;
+  borderLeftWidth: number;
+  borderTopStyle: BorderStyle;
+  borderRightStyle: BorderStyle;
+  borderBottomStyle: BorderStyle;
+  borderLeftStyle: BorderStyle;
+  borderTopColor: Color;
+  borderRightColor: Color;
+  borderBottomColor: Color;
+  borderLeftColor: Color;
+  paddingTop: number | Percentage;
+  paddingRight: number | Percentage;
+  paddingBottom: number | Percentage;
+  paddingLeft: number | Percentage;
+  marginTop: number | Percentage | 'auto';
+  marginRight: number | Percentage | 'auto';
+  marginBottom: number | Percentage | 'auto';
+  marginLeft: number | Percentage | 'auto';
+  tabSize: number | Number;
+  position: Position;
+  width: number | Percentage | 'auto';
+  height: number | Percentage | 'auto';
+  top: number | Percentage | 'auto';
+  right: number | Percentage | 'auto';
+  bottom: number | Percentage | 'auto';
+  left: number | Percentage | 'auto';
+  boxSizing: BoxSizing;
+  textAlign: TextAlign;
+  float: Float;
+  clear: Clear;
+  zIndex: number | 'auto';
+  wordBreak: 'break-word' | 'normal';
+  overflowWrap: 'anywhere' | 'break-word' | 'normal';
+  overflow: 'visible' | 'hidden';
 
   constructor(style: ComputedStyle) {
     this.whiteSpace = style.whiteSpace;

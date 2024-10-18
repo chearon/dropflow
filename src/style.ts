@@ -171,7 +171,7 @@ export interface DeclaredStyle {
   zIndex?: number | 'auto' | Inherited | Initial;
   wordBreak?: 'break-word' | 'normal' | Inherited | Initial;
   overflowWrap?: 'anywhere' | 'break-word' | 'normal' | Inherited | Initial;
-  overflow?: 'visible' | 'hidden';
+  overflow?: 'visible' | 'hidden' | Inherited | Initial;
 }
 
 export const EMPTY_STYLE: DeclaredStyle = {};

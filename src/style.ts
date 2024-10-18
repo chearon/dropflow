@@ -121,6 +121,7 @@ type Float = 'left' | 'right' | 'none';
 type Clear = 'left' | 'right' | 'both' | 'none';
 
 export interface DeclaredStyle {
+  zoom?: number | Percentage | Inherited | Initial;
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
   fontSize?: Length | Percentage | Inherited | Initial;
@@ -179,6 +180,7 @@ export const EMPTY_STYLE: DeclaredStyle = {};
 type CascadedStyle = DeclaredStyle;
 
 interface SpecifiedStyle {
+  zoom: number | Percentage;
   whiteSpace: WhiteSpace;
   color: Color;
   fontSize: Length | Percentage;
@@ -233,6 +235,7 @@ interface SpecifiedStyle {
 }
 
 interface ComputedStyle {
+  zoom: number;
   whiteSpace: WhiteSpace;
   color: Color;
   fontSize: number;
@@ -303,6 +306,7 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
 export class Style {
   computed: ComputedStyle;
 
+  zoom: number;
   whiteSpace: WhiteSpace;
   color: Color;
   fontSize: number;
@@ -361,17 +365,28 @@ export class Style {
   private usedLineHeight(style: ComputedStyle) {
     if (typeof style.lineHeight === 'object') {
       return style.lineHeight.value * this.fontSize;
+    } else if (typeof style.lineHeight === 'number') {
+      return this.usedLength(style.lineHeight);
     } else {
       return style.lineHeight;
     }
   }
 
-  constructor(style: ComputedStyle) {
+  private usedLength(length: number) {
+    return length * this.zoom;
+  }
+
+  private usedMaybeLength<T>(length: T) {
+    return typeof length === 'number' ? this.usedLength(length) : length;
+  }
+
+  constructor(style: ComputedStyle, parent?: Style) {
     this.computed = style;
 
+    this.zoom = parent ? parent.zoom * style.zoom : style.zoom;
     this.whiteSpace = style.whiteSpace;
     this.color = style.color;
-    this.fontSize = style.fontSize;
+    this.fontSize = this.usedLength(style.fontSize);
     this.fontWeight = style.fontWeight;
     this.fontVariant = style.fontVariant;
     this.fontStyle = style.fontStyle;
@@ -384,10 +399,10 @@ export class Style {
     this.display = style.display;
     this.direction = style.direction;
     this.writingMode = style.writingMode;
-    this.borderTopWidth = style.borderTopWidth;
-    this.borderRightWidth = style.borderRightWidth;
-    this.borderBottomWidth = style.borderBottomWidth;
-    this.borderLeftWidth = style.borderLeftWidth;
+    this.borderTopWidth = this.usedLength(style.borderTopWidth);
+    this.borderRightWidth = this.usedLength(style.borderRightWidth);
+    this.borderBottomWidth = this.usedLength(style.borderBottomWidth);
+    this.borderLeftWidth = this.usedLength(style.borderLeftWidth);
     this.borderTopStyle = style.borderTopStyle;
     this.borderRightStyle = style.borderRightStyle;
     this.borderBottomStyle = style.borderBottomStyle;
@@ -396,22 +411,22 @@ export class Style {
     this.borderRightColor = style.borderRightColor;
     this.borderBottomColor = style.borderBottomColor;
     this.borderLeftColor = style.borderLeftColor;
-    this.paddingTop = style.paddingTop;
-    this.paddingRight = style.paddingRight;
-    this.paddingBottom = style.paddingBottom;
-    this.paddingLeft = style.paddingLeft;
-    this.marginTop = style.marginTop;
-    this.marginRight = style.marginRight;
-    this.marginBottom = style.marginBottom;
-    this.marginLeft = style.marginLeft;
+    this.paddingTop = this.usedMaybeLength(style.paddingTop);
+    this.paddingRight = this.usedMaybeLength(style.paddingRight);
+    this.paddingBottom = this.usedMaybeLength(style.paddingBottom);
+    this.paddingLeft = this.usedMaybeLength(style.paddingLeft);
+    this.marginTop = this.usedMaybeLength(style.marginTop);
+    this.marginRight = this.usedMaybeLength(style.marginRight);
+    this.marginBottom = this.usedMaybeLength(style.marginBottom);
+    this.marginLeft = this.usedMaybeLength(style.marginLeft);
     this.tabSize = style.tabSize;
     this.position = style.position;
-    this.width = style.width;
-    this.height = style.height;
-    this.top = style.top;
-    this.right = style.right;
-    this.bottom = style.bottom;
-    this.left = style.left;
+    this.width = this.usedMaybeLength(style.width);
+    this.height = this.usedMaybeLength(style.height);
+    this.top = this.usedMaybeLength(style.top);
+    this.right = this.usedMaybeLength(style.right);
+    this.bottom = this.usedMaybeLength(style.bottom);
+    this.left = this.usedMaybeLength(style.left);
     this.boxSizing = style.boxSizing;
     this.textAlign = style.textAlign;
     this.float = style.float;
@@ -596,6 +611,7 @@ export class Style {
 // the style that's used as the root style for inheritance. These are the
 // "computed value"s as described in CSS Cascading and Inheritance Level 4 § 4.4
 const initialPlainStyle: ComputedStyle = Object.freeze({
+  zoom: 1,
   whiteSpace: 'normal',
   color: {r: 0, g: 0, b: 0, a: 1},
   fontSize: 16,
@@ -655,6 +671,7 @@ type InheritedStyleDefinitions = {[K in keyof ComputedStyle]: boolean};
 
 // Each CSS property defines whether or not it's inherited
 const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
+  zoom: false,
   whiteSpace: true,
   color: true,
   fontSize: true,
@@ -877,7 +894,13 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
     computed.lineHeight = style.lineHeight.value / 100 * computed.fontSize;
   }
 
-  return new Style(computed);
+  if (typeof style.zoom === 'object') {
+    computed.zoom = style.zoom.value / 100;
+  }
+
+  if (style.zoom === 0) style.zoom = 1;
+
+  return new Style(computed, parentStyle);
 }
 
 const styleCache = new WeakMap<DeclaredStyle, WeakMap<DeclaredStyle, Style>>();

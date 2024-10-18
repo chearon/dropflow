@@ -82,6 +82,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>overflow</code> | `hidden`, `visible` | ✅&zwj;&nbsp;Works |
 | <code>width</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>z-index</code> | `number`, `auto` | ✅&zwj;&nbsp;Works |
+| <code>zoom</code> | `number`, `%` | ✅&zwj;&nbsp;Works |
 
 # Usage
 

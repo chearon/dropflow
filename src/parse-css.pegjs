@@ -153,6 +153,7 @@ declaration
   / word_break_dec
   / overflow_wrap_dec
   / overflow_dec
+  / zoom_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -769,6 +770,11 @@ overflow_wrap_dec
 overflow_dec
   = 'overflow'i S* ':' S* overflow:('visible' / 'hidden' / default) {
     return {overflow};
+  }
+
+zoom_dec
+  = 'zoom'i S* ':' S* zoom:(PERCENTAGE / NUMBER / default) {
+    return {zoom};
   }
 
 width_dec

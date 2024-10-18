@@ -9,6 +9,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ==================
 ### Changed
 ### Added
+* Added support for the `zoom` property
+
 ### Fixed
 
 0.4.0

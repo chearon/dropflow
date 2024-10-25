@@ -898,7 +898,7 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
     computed.zoom = style.zoom.value / 100;
   }
 
-  if (style.zoom === 0) style.zoom = 1;
+  if (style.zoom === 0) computed.zoom = 1;
 
   return new Style(computed, parentStyle);
 }

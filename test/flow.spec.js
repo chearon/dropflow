@@ -1721,4 +1721,14 @@ describe('Flow', function () {
       expect(block.borderArea.y).to.equal(0);
     });
   });
+
+  describe('Zoom', function () {
+    it('treats 0 as 100%', function () {
+      this.layout('<div style="zoom: 0; margin-left: 1px;"></div>');
+
+      /** @type import('../src/layout-flow').BlockContainer */
+      const t = this.get('div');
+      expect(t.borderArea.x).to.equal(1);
+    });
+  });
 });

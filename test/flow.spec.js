@@ -1723,6 +1723,57 @@ describe('Flow', function () {
   });
 
   describe('Zoom', function () {
+    it('multiplies lengths on the box model', function () {
+      this.layout(`
+        <div id="t" style="float: left; zoom: 2;">
+          <div style="border: 2px solid; padding: 3px; margin: 4px; width: 5px; height: 5px;"></div>
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow').BlockContainer */
+      const block = this.get('#t');
+      expect(block.contentArea.width).to.equal(46);
+      expect(block.contentArea.height).to.equal(46);
+    });
+
+    it('multiplies font-size and line-height', function () {
+      this.layout(`
+        <div style="font-size: 10px; zoom: 2;">
+          <div id="t1" style="line-height: 1;">sleepy</div>
+          <div id="t2" style="line-height: 20px;">ada</div>
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow').BlockContainer */
+      const t1 = this.get('#t1');
+      expect(t1.contentArea.height).to.equal(20);
+      /** @type import('../src/layout-flow').BlockContainer */
+      const t2 = this.get('#t2');
+      expect(t2.contentArea.height).to.equal(40);
+    });
+
+    it('multiplies left and top', function () {
+      this.layout(`
+        <div style="position: relative; left: 10px; top: 10px; zoom: 250%;"></div>
+      `);
+
+      /** @type import('../src/layout-flow').BlockContainer */
+      const t = this.get('div');
+      expect(t.contentArea.x).to.equal(25);
+      expect(t.contentArea.y).to.equal(25);
+    });
+
+    it('multiplies bottom and right', function () {
+      this.layout(`
+        <div style="position: relative; right: 10px; bottom: 10px; zoom: 250%;"></div>
+      `);
+
+      /** @type import('../src/layout-flow').BlockContainer */
+      const t = this.get('div');
+      expect(t.contentArea.x).to.equal(-25);
+      expect(t.contentArea.y).to.equal(-25);
+    });
+
     it('treats 0 as 100%', function () {
       this.layout('<div style="zoom: 0; margin-left: 1px;"></div>');
 

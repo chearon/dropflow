@@ -251,7 +251,7 @@ class TextNode {
 }
 
 interface HsData {
-  style?: DeclaredPlainStyle;
+  style?: DeclaredStyle;
   attrs?: {[k: string]: string};
 }
 

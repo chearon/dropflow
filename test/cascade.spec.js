@@ -1,13 +1,13 @@
 //@ts-check
 
-import {createStyle, initialStyle, inherited, initial} from '../src/style.js';
+import {createStyle, createDeclaredStyle, initialStyle, inherited, initial} from '../src/style.js';
 import {BlockContainer} from '../src/layout-flow.js';
 import {BoxArea} from '../src/layout-box.js';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {
   it('calculates used value for border width', function () {
-    const style = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, createDeclaredStyle({
       borderTopWidth: 1,
       borderTopStyle: 'none',
       borderRightWidth: 1,
@@ -16,7 +16,7 @@ describe('CSS Style', function () {
       borderBottomStyle: 'none',
       borderLeftWidth: 1,
       borderLeftStyle: 'none'
-    });
+    }));
 
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
@@ -28,7 +28,7 @@ describe('CSS Style', function () {
   });
 
   it('calculates used values for percentages', function () {
-    const style = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, createDeclaredStyle({
       paddingTop: {value: 50, unit: '%'},
       paddingRight: {value: 50, unit: '%'},
       paddingBottom: {value: 50, unit: '%'},
@@ -39,9 +39,11 @@ describe('CSS Style', function () {
       marginRight: {value: 50, unit: '%'},
       marginBottom: {value: 50, unit: '%'},
       marginLeft: {value: 50, unit: '%'}
-    });
+    }));
 
-    const documentElement = new BlockContainer(createStyle(initialStyle, {width: 100, height: 200}), [], 0);
+    const documentElement = new BlockContainer(
+      createStyle(initialStyle, createDeclaredStyle({width: 100, height: 200})), [], 0
+    );
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(documentElement, 0, 0, 100, 200);
 
@@ -58,7 +60,7 @@ describe('CSS Style', function () {
   });
 
   it('normalizes border-box to content-box', function () {
-    const style = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, createDeclaredStyle({
       width: 100,
       borderLeftWidth: 10,
       borderLeftStyle: 'solid',
@@ -67,7 +69,7 @@ describe('CSS Style', function () {
       paddingRight: 10,
       paddingLeft: 10,
       boxSizing: 'border-box'
-    });
+    }));
 
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
@@ -75,14 +77,14 @@ describe('CSS Style', function () {
   });
 
   it('normalizes padding-box to content-box', function () {
-    const style = createStyle(initialStyle, {
+    const style = createStyle(initialStyle, createDeclaredStyle({
       width: 100,
       borderLeftWidth: 10,
       borderRightWidth: 10,
       paddingRight: 10,
       paddingLeft: 10,
       boxSizing: 'padding-box'
-    });
+    }));
 
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(box, 0, 0, 100, 100);
@@ -91,60 +93,79 @@ describe('CSS Style', function () {
   });
 
   it('computes unitless line-height', function () {
-    const parentComputed = createStyle(initialStyle, {fontSize: 10});
-    const childComputed = createStyle(parentComputed, {lineHeight: {value: 2, unit: null}});
+    const parentDeclared = createDeclaredStyle({fontSize: 10});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({lineHeight: {value: 2, unit: null}});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.lineHeight).to.deep.equal(20);
   });
 
   it('computes line-height as a percentage', function () {
-    const parentComputed = createStyle(initialStyle, {fontSize: 50});
-    const childComputed = createStyle(parentComputed, {lineHeight: {value: 50, unit: '%'}});
+    const parentDeclared = createDeclaredStyle({fontSize: 50});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({lineHeight: {value: 50, unit: '%'}});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.lineHeight).to.equal(25);
   });
 
   it('computes font-size as a percentage', function () {
-    const parentComputed = createStyle(initialStyle, {fontSize: 50});
-    const childComputed = createStyle(parentComputed, {fontSize: {value: 50, unit: '%'}});
+    const parentDeclared = createDeclaredStyle({fontSize: 50});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({fontSize: {value: 50, unit: '%'}});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontSize).to.equal(25);
   });
 
   it('computes font-weight: bolder', function () {
-    const parentComputed = createStyle(initialStyle, {fontWeight: 400});
-    const childComputed = createStyle(parentComputed, {fontWeight: 'bolder'});
+    const parentDeclared = createDeclaredStyle({fontWeight: 400});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({fontWeight: 'bolder'});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontWeight).to.equal(700);
   });
 
   it('computes font-weight: lighter', function () {
-    const parentComputed = createStyle(initialStyle, {fontWeight: 400});
-    const childComputed = createStyle(parentComputed, {fontWeight: 'lighter'});
+    const parentDeclared = createDeclaredStyle({fontWeight: 400});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({fontWeight: 'lighter'});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontWeight).to.equal(100);
   });
 
   it('supports the inherit keyword', function () {
-    const parentComputed = createStyle(initialStyle, {backgroundColor: {r: 200, g: 200, b: 200, a: 1}});
-    const childComputed = createStyle(parentComputed, {backgroundColor: inherited});
+    const parentDeclared = createDeclaredStyle({backgroundColor: {r: 200, g: 200, b: 200, a: 1}});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({backgroundColor: inherited});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.backgroundColor).to.deep.equal({r: 200, g: 200, b: 200, a: 1});
   });
 
   it('supports the initial keyword', function () {
-    const parentComputed = createStyle(initialStyle, {color: {r: 200, g: 200, b: 200, a: 1}});
-    const childComputed = createStyle(parentComputed, {color: initial});
+    const parentDeclared = createDeclaredStyle({color: {r: 200, g: 200, b: 200, a: 1}});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({color: initial});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.color).to.deep.equal(initialStyle.color);
   });
 
   it('defaultifies correctly if the style has a zero', function () {
-    expect(createStyle(initialStyle, {width: 0}).width).to.equal(0);
+    const style = createDeclaredStyle({width: 0});
+    expect(createStyle(initialStyle, style).width).to.equal(0);
   });
 
   it('resolves em on the element itself', function () {
-    const parentComputed = createStyle(initialStyle, {fontSize: 16});
-    const childComputed = createStyle(parentComputed, {fontSize: 64, marginTop: {value: 1, unit: 'em'}});
+    const parentDeclared = createDeclaredStyle({fontSize: 16});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({fontSize: 64, marginTop: {value: 1, unit: 'em'}});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.marginTop).to.equal(64);
   });
 
   it('resolves em on the parent when font-size is used', function () {
-    const parentComputed = createStyle(initialStyle, {fontSize: 16});
-    const childComputed = createStyle(parentComputed, {fontSize: {value: 2, unit: 'em'}});
+    const parentDeclared = createDeclaredStyle({fontSize: 16});
+    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const childDeclared = createDeclaredStyle({fontSize: {value: 2, unit: 'em'}});
+    const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontSize).to.equal(32);
   });
 });

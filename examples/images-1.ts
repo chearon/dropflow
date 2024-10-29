@@ -8,16 +8,16 @@ const image2 = await loadImage('https://picsum.photos/50/50');
 
 registerFontAsset('Arimo/Arimo-Regular.ttf');
 
-const rootStyle: flow.DeclaredStyle = {
+const rootStyle = flow.style({
   paddingTop: 10,
   paddingRight: 10,
   paddingBottom: 10,
   paddingLeft: 10,
   backgroundColor: {r: 200, g: 200, b: 200, a: 1},
   lineHeight: {value: 2, unit: null}
-};
+});
 
-const image1Style: flow.DeclaredStyle = {
+const image1Style = flow.style({
   float: 'left',
   width: image1.width,
   height: image1.height,
@@ -25,14 +25,14 @@ const image1Style: flow.DeclaredStyle = {
   marginRight: 6,
   marginBottom: 6,
   marginLeft: 6
-};
+});
 
-const image2Style: flow.DeclaredStyle = {
+const image2Style = flow.style({
   // note: an upcoming API change is that this will become display: 'inline-block'
   display: {outer: 'inline', inner: 'flow-root'},
   width: image2.width,
   height: image2.height
-};
+});
 
 const rootElement = flow.dom(
   flow.h('html', {style: rootStyle, attrs: {'x-dropflow-log': 'true'}}, [

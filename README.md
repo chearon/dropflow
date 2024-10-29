@@ -100,18 +100,18 @@ import fs from 'node:fs';
 await flow.registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
 await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 
-// Always create styles at the top-level of your module if you can
-const divStyle: flow.DeclaredStyle = {
+// Always create styles at the top-level of your module if you can.
+const divStyle = flow.style({
   backgroundColor: {r: 28, g: 10, b: 0, a: 1},
-  color: {r: 179, g: 200, b: 144, a: 1},
-  textAlign: 'center'
-};
+  textAlign: 'center',
+  color: {r: 179, g: 200, b: 144, a: 1}
+});
 
-// Since we're creating styles directly, colors have to be defined numerically
-const spanStyle: flow.DeclaredStyle = {
+// Since we're creating styles directly, colors are numbers
+const spanStyle = flow.style({
   color: {r: 115, g: 169, b: 173, a: 1},
   fontWeight: 700
-};
+});
 
 // Create a DOM
 const rootElement = flow.dom(
@@ -237,6 +237,14 @@ Removes a font from the internal list so that it won't be picked by the `font` p
 
 The hyperscript API is the fastest way to generate a DOM. The DOM is composed of `HTMLElement`s and `TextNode`s. The relevant properties of them are shown below. More supported properties are described in the [#dom-api](DOM API section).
 
+### `style`
+
+```ts
+function style(properties: DeclaredStyleProperties): DeclaredStyle;
+```
+
+Use the `style` function to create a style for passing to the attributes of an element later. `DeclaredStyleProperties` is defined in `style.ts`.
+
 ### `h`
 
 ```ts
@@ -251,7 +259,7 @@ class TextNode {
 }
 
 interface HsData {
-  style?: DeclaredStyle;
+  style?: DeclaredStyle | DeclaredStyle[];
   attrs?: {[k: string]: string};
 }
 
@@ -262,7 +270,7 @@ function h(tagName: string, text: string): HTMLElement;
 function h(tagName: string, data: HsData, children: HsChild[] | string): HTMLElement;
 ```
 
-Creates an HTMLElement. Styles go on `data.style` (see `style.ts` for supported values and their types). 
+Creates an HTMLElement. Use styles from the previous section. Currently the only attribute used is `x-dropflow-log`, which, when present on a paragraph, logs details about text shaping.
 
 ### `t`
 

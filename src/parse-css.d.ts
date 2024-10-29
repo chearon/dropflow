@@ -1,3 +1,3 @@
-import {DeclaredStyle} from './style.ts';
+import {DeclaredStyleProperties} from './style.ts';
 
-export function parse(s: string): DeclaredStyle;
+export function parse(s: string): DeclaredStyleProperties;

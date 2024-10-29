@@ -1,5 +1,5 @@
 import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredStyle, getRootStyle, initialStyle, computeElementStyle} from './style.js';
+import {DeclaredStyle, initialStyle, computeElementStyle} from './style.js';
 import {registerFont, unregisterFont, getFontUrls, RegisterFontOptions} from './text-font.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
@@ -13,9 +13,7 @@ export type {BlockContainer, DeclaredStyle};
 
 export type {HTMLElement};
 
-export {getRootStyle};
-
-export {cascadeStyles} from './style.js';
+export {createDeclaredStyle as style} from './style.js';
 
 export {registerFont, unregisterFont};
 
@@ -115,7 +113,7 @@ export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density
 type HsChild = HTMLElement | string;
 
 interface HsData {
-  style?: DeclaredStyle;
+  style?: DeclaredStyle | DeclaredStyle[];
   attrs?: {[k: string]: string};
 }
 

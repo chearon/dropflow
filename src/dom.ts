@@ -25,7 +25,7 @@ export class HTMLElement {
   public id: string;
   public tagName: string;
   public style: Style;
-  public declaredStyle: DeclaredStyle;
+  public declaredStyle: DeclaredStyle | DeclaredStyle[];
   public parent: HTMLElement | null;
   public attrs: Record<string, string>;
   public children: (TextNode | HTMLElement)[];
@@ -36,7 +36,7 @@ export class HTMLElement {
     tagName: string,
     parent: HTMLElement | null = null,
     attrs: {[k: string]: string} = {},
-    declaredStyle = EMPTY_STYLE
+    declaredStyle: DeclaredStyle | DeclaredStyle[] = EMPTY_STYLE
   ) {
     this.id = id;
     this.tagName = tagName;
@@ -46,6 +46,14 @@ export class HTMLElement {
     this.attrs = attrs;
     this.children = [];
     this.boxes = [];
+  }
+
+  getDeclaredStyles() {
+    if (Array.isArray(this.declaredStyle)) {
+      return this.declaredStyle.slice();
+    } else {
+      return [this.declaredStyle];
+    }
   }
 
   getEl(stack: number[]) {

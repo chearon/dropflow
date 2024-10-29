@@ -2,8 +2,7 @@
 import {expect} from 'chai';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {HTMLElement} from '../src/dom.js';
-import {h, dom, generate, layout} from '../src/api-with-parse.js';
-import {parse} from '../src/api-with-parse.js';
+import {h, dom, generate, layout, style, parse} from '../src/api-with-parse.js';
 import {getFontUrls} from '../src/text-font.js';
 
 describe('Hyperscript API', function () {
@@ -25,23 +24,23 @@ describe('Hyperscript API', function () {
 
     it('accepts attrs argument', function () {
       const div = h('div', {
-        style: {fontSize: 66},
+        style: style({fontSize: 66}),
         attrs: {direction: 'rtl'}
       });
-      expect(div.declaredStyle.fontSize).to.equal(66);
+      expect(div.declaredStyle.properties.fontSize).to.equal(66);
       expect(div.attrs.direction).to.equal('rtl');
     });
 
     it('accepts attrs, children arguments', function () {
-      const div = h('div', {style: {lineHeight: 20}}, [h('span')]);
-      expect(div.declaredStyle.lineHeight).to.equal(20);
+      const div = h('div', {style: style({lineHeight: 20})}, [h('span')]);
+      expect(div.declaredStyle.properties.lineHeight).to.equal(20);
       expect(div.children).to.have.lengthOf(1);
       expect(div.children[0].tagName).to.equal('span');
     });
 
     it('accepts attrs, text content arguments', function () {
-      const div = h('div', {style: {display: 'inline'}}, 'text content');
-      expect(div.declaredStyle.display).to.equal('inline');
+      const div = h('div', {style: style({display: 'inline'})}, 'text content');
+      expect(div.declaredStyle.properties.display).to.equal('inline');
       expect(div.children).to.have.lengthOf(1);
       expect(div.children[0].text).to.equal('text content');
     });
@@ -55,10 +54,18 @@ describe('Hyperscript API', function () {
     });
 
     it('computes styles', function () {
-      const h1 = dom(h('div', {style: {fontSize: 99}}, 'abc'));
+      const h1 = dom(h('div', {style: style({fontSize: 99})}, 'abc'));
       expect(h1.children[0].style.fontSize).to.equal(99);
-      const h2 = dom(h('div', {style: {lineHeight: {value: 123, unit: null}}}, [h('div')]));
+      const h2 = dom(h('div', {style: style({lineHeight: {value: 123, unit: null}})}, [h('div')]));
       expect(h2.children[0].style.lineHeight).to.deep.equal(123 * 16);
+    });
+
+    it('cascades styles', function () {
+      const s1 = style({textAlign: 'left', fontWeight: 900});
+      const s2 = style({textAlign: 'right'});
+      const e = dom(h('div', {style: [s2, s1]}));
+      expect(e.children[0].style.textAlign).to.equal('right');
+      expect(e.children[0].style.fontWeight).to.equal(900);
     });
 
     it('uses the html element', function () {
@@ -66,7 +73,7 @@ describe('Hyperscript API', function () {
     });
 
     it('makes the root element block-level, flow-root', function () {
-      const html = dom(h('html', {style: {display: {outer: 'inline', inner: 'flow'}}}));
+      const html = dom(h('html', {style: style({display: {outer: 'inline', inner: 'flow'}})}));
       expect(html.style.display.outer).to.equal('block');
       expect(html.style.display.inner).to.equal('flow-root');
     });
@@ -84,9 +91,8 @@ describe('Hyperscript API', function () {
   });
 
   it('lays out successfully', async function () {
-    const style = {fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']};
     const tree = dom([
-      h('div', {style}, [
+      h('div', {style: style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']})}, [
         h('div', 'Chapter 1'),
         h('div', {attrs: {id: 't'}}, ['The quick brown fox jumps over the lazy dog', h('br'), 'The end'])
       ])
@@ -109,9 +115,8 @@ describe('Hyperscript API', function () {
   });
 
   it('layout twice is successful', async function () {
-    const style = {fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']};
     const tree = dom([
-      h('div', {style}, [
+      h('div', {style: style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']})}, [
         h('div', 'Chapter 1'),
         h('div', {attrs: {id: 't'}}, ['The quick brown fox jumps over the lazy dog', h('br'), 'The end'])
       ])

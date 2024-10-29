@@ -1,7 +1,7 @@
 import {Parser, isWhitespace} from './parse-html.js';
 import {TextNode, HTMLElement} from './dom.js';
 import {parse as StyleParser} from './parse-css.js';
-import {EMPTY_STYLE, computeElementStyle} from './style.js';
+import {EMPTY_STYLE, computeElementStyle, createDeclaredStyle} from './style.js';
 import {id} from './util.js';
 
 export function parse(str: string): HTMLElement {
@@ -47,7 +47,7 @@ export function parse(str: string): HTMLElement {
       // Just ignore invalid styles so the parser can continue
       if (attrs.style) {
         try {
-          declaredStyle = StyleParser(attrs.style);
+          declaredStyle = createDeclaredStyle(StyleParser(attrs.style));
         } catch {}
       }
 

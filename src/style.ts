@@ -120,7 +120,7 @@ type Float = 'left' | 'right' | 'none';
 
 type Clear = 'left' | 'right' | 'both' | 'none';
 
-export interface DeclaredStyle {
+export interface DeclaredStyleProperties {
   zoom?: number | Percentage | Inherited | Initial;
   whiteSpace?: WhiteSpace | Inherited | Initial;
   color?: Color | Inherited | Initial;
@@ -175,63 +175,56 @@ export interface DeclaredStyle {
   overflow?: 'visible' | 'hidden' | Inherited | Initial;
 }
 
-export const EMPTY_STYLE: DeclaredStyle = {};
+const EMPTY_ARRAY: readonly number[] = Object.freeze([]);
 
-type CascadedStyle = DeclaredStyle;
+let id = 0;
 
-interface SpecifiedStyle {
-  zoom: number | Percentage;
-  whiteSpace: WhiteSpace;
-  color: Color;
-  fontSize: Length | Percentage;
-  fontWeight: FontWeight;
-  fontVariant: FontVariant;
-  fontStyle: FontStyle;
-  fontStretch: FontStretch;
-  fontFamily: string[];
-  lineHeight: 'normal' | Length | Percentage | Number;
-  verticalAlign: VerticalAlign;
-  backgroundColor: Color;
-  backgroundClip: BackgroundClip;
-  display: Display;
-  direction: Direction;
-  writingMode: WritingMode;
-  borderTopWidth: number;
-  borderRightWidth: number;
-  borderBottomWidth: number;
-  borderLeftWidth: number;
-  borderTopStyle: BorderStyle;
-  borderRightStyle: BorderStyle;
-  borderBottomStyle: BorderStyle;
-  borderLeftStyle: BorderStyle;
-  borderTopColor: Color;
-  borderRightColor: Color;
-  borderBottomColor: Color;
-  borderLeftColor: Color;
-  paddingTop: Length | Percentage;
-  paddingRight: Length | Percentage;
-  paddingBottom: Length | Percentage;
-  paddingLeft: Length | Percentage;
-  marginTop: Length | Percentage | 'auto';
-  marginRight: Length | Percentage | 'auto';
-  marginBottom: Length | Percentage | 'auto';
-  marginLeft: Length | Percentage | 'auto';
-  tabSize: Length | Number;
-  position: Position;
-  width: Length | Percentage | 'auto';
-  height: Length | Percentage | 'auto';
-  top: Length | Percentage | 'auto';
-  right: Length | Percentage | 'auto';
-  bottom: Length | Percentage | 'auto';
-  left: Length | Percentage | 'auto';
-  boxSizing: BoxSizing;
-  textAlign: TextAlign;
-  float: Float;
-  clear: Clear;
-  zIndex: number | 'auto';
-  wordBreak: 'break-word' | 'normal';
-  overflowWrap: 'anywhere' | 'break-word' | 'normal';
-  overflow: 'visible' | 'hidden';
+/**
+ * A DeclaredStyle is either a user-created declared style (createDeclaredStyle)
+ * or a cascade of them (createCascadedStyle).
+ */
+export class DeclaredStyle {
+  properties: DeclaredStyleProperties;
+  private composition: readonly number[];
+  id: number;
+  nextInCache: DeclaredStyle | null;
+
+  constructor(properties: DeclaredStyleProperties, composition = EMPTY_ARRAY) {
+    this.properties = properties;
+    this.composition = composition;
+    this.id = ++id;
+    this.nextInCache = null;
+  }
+
+  /** `styles` must be sorted */
+  isComposedOf(styles: DeclaredStyle[]) {
+    return this.composition.length === styles.length
+      && this.composition.every((id, i) => id === styles[i].id);
+  }
+}
+
+export function createDeclaredStyle(properties: DeclaredStyleProperties): DeclaredStyle {
+  return new DeclaredStyle(properties);
+}
+
+export const EMPTY_STYLE = createDeclaredStyle({});
+
+/** `styles` must be sorted */
+function createCascadedStyle(styles: DeclaredStyle[]) {
+  if (styles.length > 0) {
+    const composition = styles.map(s => s.id);
+    let properties;
+
+    if (styles.length === 2) {
+      properties = {...styles[0].properties, ...styles[1].properties};
+    } else {
+      properties = Object.assign({}, ...styles.map(s => s.properties));
+    }
+
+    return new DeclaredStyle(properties, composition);
+  }
+
+  return EMPTY_STYLE;
 }
 
 interface ComputedStyle {
@@ -304,8 +297,14 @@ function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
 }
 
 export class Style {
+  // General
+  id: number;
   computed: ComputedStyle;
-
+  // Cache related
+  parentId: number;
+  cascadeId: number;
+  nextInCache: Style | null;
+  // Properties for layout and painting
   zoom: number;
   whiteSpace: WhiteSpace;
   color: Color;
@@ -380,9 +379,12 @@ export class Style {
     return typeof length === 'number' ? this.usedLength(length) : length;
   }
 
-  constructor(style: ComputedStyle, parent?: Style) {
+  constructor(style: ComputedStyle, parent?: Style, cascadedStyle?: DeclaredStyle) {
+    this.id = ++id;
     this.computed = style;
-
+    this.parentId = parent ? parent.id : 0;
+    this.cascadeId = cascadedStyle ? cascadedStyle.id : 0;
+    this.nextInCache = null;
     this.zoom = parent ? parent.zoom * style.zoom : style.zoom;
     this.whiteSpace = style.whiteSpace;
     this.color = style.color;
@@ -667,7 +669,7 @@ const initialPlainStyle: ComputedStyle = Object.freeze({
 
 export const initialStyle = new Style(initialPlainStyle);
 
-type InheritedStyleDefinitions = {[K in keyof ComputedStyle]: boolean};
+type InheritedStyleDefinitions = {[K in keyof DeclaredStyleProperties]: boolean};
 
 // Each CSS property defines whether or not it's inherited
 const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
@@ -728,152 +730,172 @@ const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
 type UaDeclaredStyles = {[tagName: string]: DeclaredStyle};
 
 export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
-  div: {
+  div: createDeclaredStyle({
     display: {outer: 'block', inner: 'flow'}
-  },
-  span: {
+  }),
+  span: createDeclaredStyle({
     display: {outer: 'inline', inner: 'flow'}
-  },
-  p: {
+  }),
+  p: createDeclaredStyle({
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 1, unit: 'em'},
     marginBottom: {value: 1, unit: 'em'}
-  },
-  strong: {
+  }),
+  strong: createDeclaredStyle({
     fontWeight: 700
-  },
-  b: {
+  }),
+  b: createDeclaredStyle({
     fontWeight: 700
-  },
-  em: {
+  }),
+  em: createDeclaredStyle({
     fontStyle: 'italic'
-  },
-  i: {
+  }),
+  i: createDeclaredStyle({
     fontStyle: 'italic'
-  },
-  sup: {
+  }),
+  sup: createDeclaredStyle({
     fontSize: {value: 1/1.2, unit: 'em'},
     verticalAlign: 'super'
-  },
-  sub: {
+  }),
+  sub: createDeclaredStyle({
     fontSize: {value: 1/1.2, unit: 'em'},
     verticalAlign: 'sub'
-  },
-  h1: {
+  }),
+  h1: createDeclaredStyle({
     fontSize: {value: 2, unit: 'em'},
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 0.67, unit: 'em'},
     marginBottom: {value: 0.67, unit: 'em'}
-  },
-  h2: {
+  }),
+  h2: createDeclaredStyle({
     fontSize: {value: 1.5, unit: 'em'},
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 0.83, unit: 'em'},
     marginBottom: {value: 0.83, unit: 'em'},
     fontWeight: 700
-  },
-  h3: {
+  }),
+  h3: createDeclaredStyle({
     fontSize: {value: 1.17, unit: 'em'},
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 1, unit: 'em'},
     marginBottom: {value: 1, unit: 'em'},
     fontWeight: 700
-  },
-  h4: {
+  }),
+  h4: createDeclaredStyle({
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 1.33, unit: 'em'},
     marginBottom: {value: 1.33, unit: 'em'},
     fontWeight: 700
-  },
-  h5: {
+  }),
+  h5: createDeclaredStyle({
     fontSize: {value: 0.83, unit: 'em'},
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 1.67, unit: 'em'},
     marginBottom: {value: 1.67, unit: 'em'},
     fontWeight: 700
-  },
-  h6: {
+  }),
+  h6: createDeclaredStyle({
     fontSize: {value: 0.67, unit: 'em'},
     display: {outer: 'block', inner: 'flow'},
     marginTop: {value: 2.33, unit: 'em'},
     marginBottom: {value: 2.33, unit: 'em'},
     fontWeight: 700
-  }
+  })
 });
 
-const cascadedCache = new WeakMap<CascadedStyle, WeakMap<CascadedStyle, DeclaredStyle>>();
-
-export function cascadeStyles(s1: DeclaredStyle, s2: DeclaredStyle): CascadedStyle {
-  let m1 = cascadedCache.get(s1);
-  let m2 = m1 && m1.get(s2);
-
-  if (m2) return m2;
-
-  const ret = {...s1, ...s2};
-
-  if (m1) {
-    m1.set(s2, ret);
-    return ret;
-  }
-
-  m1 = new WeakMap();
-  m1.set(s2, ret);
-  cascadedCache.set(s1, m1);
-
-  return ret;
+// https://github.com/nodejs/node/blob/238104c531219db05e3421521c305404ce0c0cce/deps/v8/src/utils/utils.h#L213
+// Thomas Wang, Integer Hash Functions.
+// http://www.concentric.net/~Ttwang/tech/inthash.htm`
+function hash(hash: number) {
+  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
+  hash = hash ^ (hash >> 12);
+  hash = hash + (hash << 2);
+  hash = hash ^ (hash >> 4);
+  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
+  hash = hash ^ (hash >> 16);
+  return hash & 0x3fffffff;
 }
 
-function defaultifyStyle(parentStyle: Style, style: CascadedStyle) {
-  const ret: any = {};
+const cascadeCache = new Map<number, DeclaredStyle>;
 
-  for (const _ in initialPlainStyle) {
-    const p = _ as keyof typeof initialPlainStyle;
-    if (style[p] === inherited || !(p in style) && inheritedStyle[p]) {
-      ret[p] = parentStyle.computed[p];
-    } else if (style[p] === initial || !(p in style) && !inheritedStyle[p]) {
-      ret[p] = initialPlainStyle[p];
-    } else {
-      ret[p] = style[p];
-    }
+export function cascadeStyles(styles: DeclaredStyle[]): DeclaredStyle {
+  if (styles.length === 0) return EMPTY_STYLE;
+  if (styles.length === 1) return styles[0];
+
+  let key = 0;
+  if (styles.length === 2) {
+    if (styles[0].id > styles[1].id) styles.reverse();
+  } else {
+    styles.sort((a, b) => a.id - b.id);
+  }
+  for (const style of styles) key ^= hash(style.id);
+  let cascaded = cascadeCache.get(key) ?? null;
+  let prev = null;
+
+  while (cascaded) {
+    if (cascaded.isComposedOf(styles)) return cascaded;
+    prev = cascaded;
+    cascaded = cascaded.nextInCache;
   }
 
-  return ret as SpecifiedStyle;
+  cascaded = createCascadedStyle(styles);
+
+  if (prev) {
+    prev.nextInCache = cascaded;
+  } else {
+    if (cascadeCache.size > 1_000) cascadeCache.clear();
+    cascadeCache.set(key, cascaded);
+  }
+
+  return cascaded;
 }
 
-function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
+function defaultProperty(parentStyle: Style, style: DeclaredStyle, p: keyof typeof initialPlainStyle) {
+  const properties = style.properties;
+  if (properties[p] === inherited || !(p in properties) && inheritedStyle[p]) {
+    return parentStyle.computed[p];
+  } else if (properties[p] === initial || !(p in properties) && !inheritedStyle[p]) {
+    return initialPlainStyle[p];
+  } else {
+    return properties[p];
+  }
+}
+
+function resolveEm(
+  value: DeclaredStyleProperties[keyof DeclaredStyleProperties],
+  fontSize: number
+) {
+  if (typeof value === 'object' && 'unit' in value && value.unit === 'em') {
+    return fontSize * value.value;
+  } else {
+    return value;
+  }
+}
+
+function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
+  const properties = cascadedStyle.properties;
+  const parentFontSize = parentStyle.computed.fontSize;
   const computed: any = {};
 
   // Compute fontSize first since em values depend on it
-  if (typeof style.fontSize === 'object') {
-    if (style.fontSize.unit === '%') {
-      computed.fontSize = parentStyle.computed.fontSize * style.fontSize.value / 100;
-    } else {
-      computed.fontSize = parentStyle.computed.fontSize * style.fontSize.value;
-    }
-  } else {
-    computed.fontSize = style.fontSize;
+  const specifiedFontSize = defaultProperty(parentStyle, cascadedStyle, 'fontSize');
+  let fontSize = resolveEm(specifiedFontSize, parentFontSize) as number | Percentage;
+
+  if (typeof fontSize === 'object') {
+    fontSize = fontSize.value / 100 * parentFontSize;
   }
 
   for (const _ in initialPlainStyle) {
     const p = _ as keyof typeof initialPlainStyle;
-    const value = style[p];
-
-    if (p === 'fontSize') continue;
-
-    if (typeof value === 'object' && 'unit' in value) {
-      if (value.unit === 'em') {
-        computed[p] = computed.fontSize * value.value;
-      } else {
-        computed[p] = value;
-      }
-    } else {
-      computed[p] = value;
-    }
+    const specifiedValue = defaultProperty(parentStyle, cascadedStyle, p);
+    computed[p] = resolveEm(specifiedValue, fontSize);
   }
 
+  computed.fontSize = fontSize;
+
   // https://www.w3.org/TR/css-fonts-4/#relative-weights
-  if (style.fontWeight === 'bolder' || style.fontWeight === 'lighter') {
-    const bolder = style.fontWeight === 'bolder';
+  if (properties.fontWeight === 'bolder' || properties.fontWeight === 'lighter') {
+    const bolder = properties.fontWeight === 'bolder';
     const pWeight = parentStyle.computed.fontWeight;
     if (pWeight < 100) {
       computed.fontWeight = bolder ? 400 : parentStyle.computed.fontWeight;
@@ -890,84 +912,62 @@ function computeStyle(parentStyle: Style, style: SpecifiedStyle) {
     }
   }
 
-  if (typeof style.lineHeight === 'object' && style.lineHeight.unit === '%') {
-    computed.lineHeight = style.lineHeight.value / 100 * computed.fontSize;
+  if (typeof properties.lineHeight === 'object' && properties.lineHeight.unit === '%') {
+    computed.lineHeight = properties.lineHeight.value / 100 * fontSize;
   }
 
-  if (typeof style.zoom === 'object') {
-    computed.zoom = style.zoom.value / 100;
+  if (typeof properties.zoom === 'object') {
+    computed.zoom = properties.zoom.value / 100;
   }
 
-  if (style.zoom === 0) computed.zoom = 1;
+  if (computed.zoom === 0) computed.zoom = 1;
 
-  return new Style(computed, parentStyle);
+  return new Style(computed, parentStyle, cascadedStyle);
 }
 
-const styleCache = new WeakMap<DeclaredStyle, WeakMap<DeclaredStyle, Style>>();
+const computedCache = new Map<number, Style>;
 
-/**
- * Very simple property inheritance model. createStyle starts out with cascaded
- * styles (CSS Cascading and Inheritance Level 4 §4.2) which is computed from
- * the [style] HTML attribute and a default internal style. Then it calculates
- * the specified style (§4.3) by doing inheritance and defaulting, and then
- * calculates the computed style (§4.4) by resolving em, some percentages, etc.
- * Used/actual styles (§4.5, §4.6) are calculated during layout, external to
- * this file.
- */
-export function createStyle(s1: Style, s2: CascadedStyle) {
-  let m1 = styleCache.get(s1);
-  let m2 = m1 && m1.get(s2);
-
-  if (m2) return m2;
-
-  const specifiedStyle = defaultifyStyle(s1, s2);
-  const ret = computeStyle(s1, specifiedStyle);
-
-  if (m1) {
-    m1.set(s2, ret);
-    return ret;
+export function createStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
+  const key = hash(parentStyle.id) ^ hash(cascadedStyle.id);
+  let style = computedCache.get(key) ?? null;
+  let prev = null;
+  while (style) {
+    if (style.parentId === parentStyle.id && style.cascadeId === cascadedStyle.id) return style;
+    prev = style;
+    style = style.nextInCache;
   }
 
-  m1 = new WeakMap();
-  m1.set(s2, ret);
-  styleCache.set(s1, m1);
+  style = computeStyle(parentStyle, cascadedStyle);
 
-  return ret;
+  if (prev) {
+    prev.nextInCache = style;
+  } else {
+    if (computedCache.size > 1_000) computedCache.clear();
+    computedCache.set(key, style);
+  }
+
+  return style;
 }
 
 // required styles that always come last in the cascade
-const rootDeclaredStyle: DeclaredStyle = {
+const rootDeclaredStyle = createDeclaredStyle({
   display: {
     outer: 'block',
     inner: 'flow-root'
   }
-};
+});
 
-export function getRootStyle(style: DeclaredStyle = EMPTY_STYLE) {
-  return createStyle(initialStyle, cascadeStyles(style, rootDeclaredStyle))
-}
+rootDeclaredStyle.id = 0x7fffffff; // max SMI
 
 export function computeElementStyle(el: HTMLElement | TextNode) {
-  if (el.parent) {
-    if (el instanceof TextNode) {
-      el.style = createStyle(el.parent!.style, EMPTY_STYLE);
-    } else {
-      const uaDeclaredStyle = uaDeclaredStyles[el.tagName];
-      if (uaDeclaredStyle) {
-        const cascadedStyle = cascadeStyles(uaDeclaredStyle, el.declaredStyle);
-        el.style = createStyle(el.parent!.style, cascadedStyle);
-      } else {
-        el.style = createStyle(el.parent!.style, el.declaredStyle);
-      }
-    }
+  if (el instanceof TextNode) {
+    el.style = createStyle(el.parent!.style, EMPTY_STYLE);
   } else {
-    const rootElement = el as HTMLElement;
-    const uaDeclaredStyle = uaDeclaredStyles[rootElement.tagName];
-    if (uaDeclaredStyle) {
-      const cascadedStyle = cascadeStyles(uaDeclaredStyle, rootElement.declaredStyle);
-      rootElement.style = getRootStyle(cascadedStyle);
-    } else {
-      el.style = getRootStyle(rootElement.declaredStyle);
-    }
+    const styles = el.getDeclaredStyles();
+    const parentStyle = el.parent ? el.parent.style : initialStyle;
+    const uaDeclaredStyle = uaDeclaredStyles[el.tagName];
+    if (uaDeclaredStyle) styles.push(uaDeclaredStyle);
+    if (!el.parent) styles.push(rootDeclaredStyle);
+    el.style = createStyle(parentStyle, cascadeStyles(styles));
   }
 }

@@ -436,23 +436,57 @@ function nextGlyph(state: GlyphIteratorState) {
   }
 }
 
-const reset = '\x1b[0m';
-const bold = '\x1b[1m';
+export class Logger {
+  string: string;
+  formats: string[]; // only for browsers
 
-function logGlyphs(glyphs: Int32Array) {
-  let s = '';
-  for (let i = 0; i < glyphs.length; i += G_SZ) {
-    const cl = glyphs[i + G_CL];
-    const isp = i - G_SZ >= 0 && glyphs[i - G_SZ + G_CL] === cl;
-    const isn = i + G_SZ < glyphs.length && glyphs[i + G_SZ + G_CL] === cl;
-    if (isp || isn) s += bold;
-    if (isn && !isp) s += '(';
-    s += glyphs[i + G_ID];
-    if (!isn && isp) s += ')';
-    s += ' ';
-    if (isp || isn) s += reset;
+  constructor() {
+    this.string = '';
+    this.formats = [];
   }
-  return s;
+
+  bold() {
+    if (typeof process === 'object') {
+      this.string += '\x1b[1m';
+    } else {
+      this.string += '%c';
+      this.formats.push('font-weight: bold');
+    }
+  }
+
+  reset() {
+    if (typeof process === 'object') {
+      this.string += '\x1b[0m';
+    } else {
+      this.string += '%c';
+      this.formats.push('font-weight: normal');
+    }
+  }
+
+  flush() {
+    const end = this.string.endsWith('\n') ? this.string.length - 1 : this.string.length;
+    console.log(this.string.slice(0, end), ...this.formats);
+    this.string = '';
+    this.formats = [];
+  }
+
+  text(str: string | number) {
+    this.string += str;
+  }
+
+  glyphs(glyphs: Int32Array) {
+    for (let i = 0; i < glyphs.length; i += G_SZ) {
+      const cl = glyphs[i + G_CL];
+      const isp = i - G_SZ >= 0 && glyphs[i - G_SZ + G_CL] === cl;
+      const isn = i + G_SZ < glyphs.length && glyphs[i + G_SZ + G_CL] === cl;
+      if (isp || isn) this.bold();
+      if (isn && !isp) this.text('(');
+      this.text(glyphs[i + G_ID]);
+      if (!isn && isp) this.text(')');
+      this.text(' ');
+      if (isp || isn) this.reset();
+    }
+  }
 }
 
 function shiftGlyphs(glyphs: Int32Array, offset: number, dir: 'ltr' | 'rtl') {
@@ -790,16 +824,6 @@ export class ShapedItem implements IfcRenderItem {
   // only use this in debugging or tests
   text() {
     return this.paragraph.string.slice(this.offset, this.offset + this.length);
-  }
-}
-
-function logParagraph(paragraph: ShapedItem[]) {
-  for (const item of paragraph) {
-    const lead = `  @${item.offset} `;
-    const leadsp = ' '.repeat(lead.length);
-    console.log(`${lead}F:${basename(item.match.filename)}`);
-    console.log(`${leadsp}T:"${item.text()}"`);
-    console.log(`${leadsp}G:${logGlyphs(item.glyphs)}`);
   }
 }
 
@@ -1851,13 +1875,14 @@ export class Paragraph {
 
   shape() {
     const items:ShapedItem[] = [];
-    const log = this.ifc.loggingEnabled() ? (s: string) => logstr += s : null;
+    const log = this.ifc.loggingEnabled() ? new Logger() : null;
+    const t = log ? (s: string) => log.text(s) : null;
+    const g = log ? (glyphs: Int32Array) => log.glyphs(glyphs) : null;
     const itemizeState = createItemizeState(this.ifc);
-    let logstr = '';
 
-    log?.(`Preprocess ${this.ifc.id}\n`);
-    log?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
-    log?.(`Full text: "${this.string}"\n`);
+    t?.(`Preprocess ${this.ifc.id}\n`);
+    t?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
+    t?.(`Full text: "${this.string}"\n`);
 
     while (!itemizeState.done) {
       const itemStart = itemizeState.offset;
@@ -1867,10 +1892,10 @@ export class Paragraph {
       const itemEnd = itemizeState.offset;
       let shapeWork = [{offset: itemStart, length: itemEnd - itemStart}];
 
-      log?.(`  Item ${itemStart}..${itemEnd}:\n`);
-      log?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
-      log?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
-      log?.(`  cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
+      t?.(`  Item ${itemStart}..${itemEnd}:\n`);
+      t?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
+      t?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
+      t?.(`  cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
 
       for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
         const nextShapeWork: {offset: number, length: number}[] = [];
@@ -1888,8 +1913,10 @@ export class Paragraph {
           let segmentGlyphStart = hbClusterState.glyphIndex;
           let segmentGlyphEnd = hbClusterState.glyphIndex;
 
-          log?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
-          log?.('    Shaper returned: ' + logGlyphs(shapedPart) + '\n');
+          t?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
+          t?.('    Shaper returned: ');
+          g?.(shapedPart);
+          t?.('\n');
 
           while (!hbClusterState.done) {
             nextGlyph(hbClusterState);
@@ -1935,9 +1962,11 @@ export class Paragraph {
                 if (isLastMatch) {
                   const glyphs = shapedPart.subarray(glyphStart, glyphEnd);
                   items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
-                  log?.('    ==> Cascade finished with tofu: ' + logGlyphs(glyphs) + '\n');
+                  t?.('    ==> Cascade finished with tofu: ');
+                  g?.(glyphs);
+                  t?.('\n');
                 } else {
-                  log?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
+                  t?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
                   nextShapeWork.push({offset, length});
                 }
               } else if (glyphStart < glyphEnd) {
@@ -1946,7 +1975,9 @@ export class Paragraph {
                   : shapedPart.subarray(glyphStart, glyphEnd);
 
                 items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
-                log?.('    ==> Glyphs OK: ' + logGlyphs(glyphs) + '\n');
+                t?.('    ==> Glyphs OK: ');
+                g?.(glyphs);
+                t?.('\n');
               }
 
               // start a new segment
@@ -1965,10 +1996,7 @@ export class Paragraph {
       }
     }
 
-    if (log) {
-      console.log(logstr.slice(0, -1));
-      console.log();
-    }
+    log?.flush();
 
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
 
@@ -2396,25 +2424,35 @@ export class Paragraph {
     }
 
     if (this.ifc.loggingEnabled()) {
-      console.log(`Paragraph ${this.ifc.id} (layout mode ${ctx.mode}):`);
-      logParagraph(this.brokenItems);
+      const log = new Logger();
+      log.text(`Paragraph ${this.ifc.id} (layout mode ${ctx.mode}):`);
+      for (const item of this.brokenItems) {
+        const lead = `  @${item.offset} `;
+        const leadsp = ' '.repeat(lead.length);
+        log.text(`${lead}F:${basename(item.match.filename)}\n`);
+        log.text(`${leadsp}T:"${item.text()}"\n`);
+        log.text(`${leadsp}G:`);
+        log.glyphs(item.glyphs);
+        log.text('\n');
+      }
       for (const [i, line] of lines.entries()) {
         const W = line.width.toFixed(2);
         const A = line.ascender.toFixed(2);
         const D = line.descender.toFixed(2);
         const B = line.blockOffset.toFixed(2);
-        let log = `Line ${i} (W:${W} A:${A} D:${D} B:${B}): `;
+        log.text(`Line ${i} (W:${W} A:${A} D:${D} B:${B}): `);
         for (let n = line.head; n; n = n.next) {
-          log += n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“” ';
+          log.text(n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“” ');
         }
-        console.log(log);
+        log.text('\n');
       }
       if (bfc.fctx) {
-        console.log('Left floats');
-        console.log(bfc.fctx.leftFloats.repr());
-        console.log('Right floats');
-        console.log(bfc.fctx.rightFloats.repr());
+        log.text('Left floats\n');
+        log.text(`${bfc.fctx.leftFloats.repr()}\n`);
+        log.text('Right floats');
+        log.text(`${bfc.fctx.rightFloats.repr()}\n`);
       }
+      log.flush();
     }
 
     this.lineboxes = lines;

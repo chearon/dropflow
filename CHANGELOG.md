@@ -11,6 +11,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * Styles must now be passed through `flow.style` before being given to `h`.
 * `cascadeStyles` has been removed. Pass an array of styles to `h` instead.
 * Removed `getRootStyle`
+* paintToCanvas no longer has a density argument. Use the zoom CSS property instead.
 
 ### Added
 * Added support for the `zoom` property

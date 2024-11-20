@@ -104,10 +104,9 @@ export function renderToCanvasContext(
   paintToCanvas(root, ctx);
 }
 
-export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas, density = 1) {
+export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas) {
   const ctx = canvas.getContext('2d');
-  ctx.scale(density, density);
-  renderToCanvasContext(rootElement, ctx, canvas.width / density, canvas.height / density);
+  renderToCanvasContext(rootElement, ctx, canvas.width, canvas.height);
 }
 
 type HsChild = HTMLElement | string;

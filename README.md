@@ -123,7 +123,7 @@ const rootElement = flow.dom(
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);
-flow.renderToCanvas(rootElement, canvas, /* optional density: */ 2);
+flow.renderToCanvas(rootElement, canvas);
 
 // Save your image
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
@@ -157,7 +157,7 @@ const rootElement = flow.parse(`
 `);
 
 const canvas = createCanvas(250, 50);
-flow.renderToCanvas(rootElement, canvas, 2);
+flow.renderToCanvas(rootElement, canvas);
 
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
 ```

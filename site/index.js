@@ -10,6 +10,8 @@ const [canvas] = document.getElementsByTagName('canvas');
 const wrap = document.getElementById('wrap');
 const canvasLabel = document.getElementById('canvas-label');
 
+flow.setOriginStyle({zoom: window.devicePixelRatio});
+
 async function render(html) {
   const documentElement = flow.parse(html);
   const ctx = canvas.getContext('2d');
@@ -27,7 +29,7 @@ async function render(html) {
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  flow.renderToCanvas(documentElement, canvas, window.devicePixelRatio);
+  flow.renderToCanvas(documentElement, canvas);
   ctx.restore();
 
   window.documentElement = documentElement;
@@ -134,6 +136,16 @@ render(view.state.doc.toString())
 
 const observer = new ResizeObserver(function () {
   render(view.state.doc.toString())
+});
+
+let lastDevicePixelRatio = window.devicePixelRatio;
+
+window.addEventListener('resize', function () {
+  if (window.devicePixelRatio !== lastDevicePixelRatio) {
+    lastDevicePixelRatio = window.devicePixelRatio;
+    flow.setOriginStyle({zoom: window.devicePixelRatio});
+    render(view.state.doc.toString())
+  }
 });
 
 observer.observe(document.body);

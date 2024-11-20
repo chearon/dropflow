@@ -9,7 +9,7 @@ registerFontAsset('Arimo/Arimo-Italic.ttf');
 registerFontAsset('Cousine/Cousine-Regular.ttf');
 
 const rootElement = flow.parse(`
-  <div style="font: 16px/1.4 Arimo; background-color: white;" x-dropflow-log>
+  <div style="font: 16px/1.4 Arimo; background-color: white; zoom: 2;" x-dropflow-log>
     <span style="background-color: #eee;">
       I <span style="font-family: Cousine; color: #11a;">like</span> to write
       <span style="font-size: 3em;">layout code</span>
@@ -25,12 +25,11 @@ const rootElement = flow.parse(`
 `);
 
 const blockContainer = flow.generate(rootElement);
-console.log(blockContainer.repr());
-
-flow.layout(blockContainer, 300, 200);
+console.log(blockContainer.repr(0, {css: 'zoom'}));
 
 const canvas = createCanvas(600, 400);
+flow.layout(blockContainer, canvas.width, canvas.height);
+
 const ctx = canvas.getContext('2d');
-ctx.scale(2, 2);
 flow.paintToCanvas(blockContainer, ctx);
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('inlines-1.png', import.meta.url)));

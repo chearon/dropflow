@@ -14,7 +14,7 @@ console.timeEnd('Add fonts');
 console.log();
 
 const rootElement = flow.parse(`
-  <div style="padding: 1em; background-color: #fff; font-family: Arimo;">
+  <div style="zoom: 2; padding: 1em; background-color: #fff; font-family: Arimo;">
     <p style="font: bold 24px Arimo; display: block;">CSS Floats
     <p style="font: italic 16px Arimo; display: block;">An excerpt from the Visual Formatting Model, CSS2 §9.5
 
@@ -48,19 +48,18 @@ const rootElement = flow.parse(`
 
 const canvas = createCanvas(1600, 1600);
 const ctx = canvas.getContext('2d');
-ctx.scale(2, 2);
 
 const blockContainer = flow.generate(rootElement);
-flow.layout(blockContainer, 800, 800);
-ctx.clearRect(0, 0, 1600, 1600);
+flow.layout(blockContainer, canvas.width, canvas.height);
+ctx.clearRect(0, 0, canvas.width, canvas.height);
 flow.paintToCanvas(blockContainer, ctx);
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-1.png', import.meta.url)));
 
 bench('10 paragraphs generate, layout, and paint', () => {
   const blockContainer = flow.generate(rootElement);
   clearWordCache();
-  flow.layout(blockContainer, 800, 800);
-  ctx.clearRect(0, 0, 1600, 1600);
+  flow.layout(blockContainer, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   flow.paintToCanvas(blockContainer, ctx);
 });
 

@@ -13,8 +13,8 @@ const canvasLabel = document.getElementById('canvas-label');
 async function render(html) {
   const documentElement = flow.parse(html);
   const ctx = canvas.getContext('2d');
-  const cssWidth = wrap.clientWidth;
-  const cssHeight = wrap.clientHeight;
+  const cssWidth = wrap.getBoundingClientRect().width;
+  const cssHeight = wrap.getBoundingClientRect().height;
 
   await flow.loadNotoFonts(documentElement);
   canvas.style.width = `${cssWidth}px`;

@@ -1,13 +1,13 @@
 //@ts-check
 
-import {createStyle, createDeclaredStyle, initialStyle, inherited, initial} from '../src/style.js';
+import {createStyle, createDeclaredStyle, getOriginStyle, inherited, initial} from '../src/style.js';
 import {BlockContainer} from '../src/layout-flow.js';
 import {BoxArea} from '../src/layout-box.js';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {
   it('calculates used value for border width', function () {
-    const style = createStyle(initialStyle, createDeclaredStyle({
+    const style = createStyle(getOriginStyle(), createDeclaredStyle({
       borderTopWidth: 1,
       borderTopStyle: 'none',
       borderRightWidth: 1,
@@ -28,7 +28,7 @@ describe('CSS Style', function () {
   });
 
   it('calculates used values for percentages', function () {
-    const style = createStyle(initialStyle, createDeclaredStyle({
+    const style = createStyle(getOriginStyle(), createDeclaredStyle({
       paddingTop: {value: 50, unit: '%'},
       paddingRight: {value: 50, unit: '%'},
       paddingBottom: {value: 50, unit: '%'},
@@ -42,7 +42,7 @@ describe('CSS Style', function () {
     }));
 
     const documentElement = new BlockContainer(
-      createStyle(initialStyle, createDeclaredStyle({width: 100, height: 200})), [], 0
+      createStyle(getOriginStyle(), createDeclaredStyle({width: 100, height: 200})), [], 0
     );
     const box = new BlockContainer(style, [], 0);
     box.containingBlock = new BoxArea(documentElement, 0, 0, 100, 200);
@@ -60,7 +60,7 @@ describe('CSS Style', function () {
   });
 
   it('normalizes border-box to content-box', function () {
-    const style = createStyle(initialStyle, createDeclaredStyle({
+    const style = createStyle(getOriginStyle(), createDeclaredStyle({
       width: 100,
       borderLeftWidth: 10,
       borderLeftStyle: 'solid',
@@ -77,7 +77,7 @@ describe('CSS Style', function () {
   });
 
   it('normalizes padding-box to content-box', function () {
-    const style = createStyle(initialStyle, createDeclaredStyle({
+    const style = createStyle(getOriginStyle(), createDeclaredStyle({
       width: 100,
       borderLeftWidth: 10,
       borderRightWidth: 10,
@@ -94,7 +94,7 @@ describe('CSS Style', function () {
 
   it('computes unitless line-height', function () {
     const parentDeclared = createDeclaredStyle({fontSize: 10});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({lineHeight: {value: 2, unit: null}});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.lineHeight).to.deep.equal(20);
@@ -102,7 +102,7 @@ describe('CSS Style', function () {
 
   it('computes line-height as a percentage', function () {
     const parentDeclared = createDeclaredStyle({fontSize: 50});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({lineHeight: {value: 50, unit: '%'}});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.lineHeight).to.equal(25);
@@ -110,7 +110,7 @@ describe('CSS Style', function () {
 
   it('computes font-size as a percentage', function () {
     const parentDeclared = createDeclaredStyle({fontSize: 50});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({fontSize: {value: 50, unit: '%'}});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontSize).to.equal(25);
@@ -118,7 +118,7 @@ describe('CSS Style', function () {
 
   it('computes font-weight: bolder', function () {
     const parentDeclared = createDeclaredStyle({fontWeight: 400});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({fontWeight: 'bolder'});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontWeight).to.equal(700);
@@ -126,7 +126,7 @@ describe('CSS Style', function () {
 
   it('computes font-weight: lighter', function () {
     const parentDeclared = createDeclaredStyle({fontWeight: 400});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({fontWeight: 'lighter'});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontWeight).to.equal(100);
@@ -134,7 +134,7 @@ describe('CSS Style', function () {
 
   it('supports the inherit keyword', function () {
     const parentDeclared = createDeclaredStyle({backgroundColor: {r: 200, g: 200, b: 200, a: 1}});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({backgroundColor: inherited});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.backgroundColor).to.deep.equal({r: 200, g: 200, b: 200, a: 1});
@@ -142,20 +142,20 @@ describe('CSS Style', function () {
 
   it('supports the initial keyword', function () {
     const parentDeclared = createDeclaredStyle({color: {r: 200, g: 200, b: 200, a: 1}});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({color: initial});
     const childComputed = createStyle(parentComputed, childDeclared);
-    expect(childComputed.color).to.deep.equal(initialStyle.color);
+    expect(childComputed.color).to.deep.equal(getOriginStyle().color);
   });
 
   it('defaultifies correctly if the style has a zero', function () {
     const style = createDeclaredStyle({width: 0});
-    expect(createStyle(initialStyle, style).width).to.equal(0);
+    expect(createStyle(getOriginStyle(), style).width).to.equal(0);
   });
 
   it('resolves em on the element itself', function () {
     const parentDeclared = createDeclaredStyle({fontSize: 16});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({fontSize: 64, marginTop: {value: 1, unit: 'em'}});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.marginTop).to.equal(64);
@@ -163,7 +163,7 @@ describe('CSS Style', function () {
 
   it('resolves em on the parent when font-size is used', function () {
     const parentDeclared = createDeclaredStyle({fontSize: 16});
-    const parentComputed = createStyle(initialStyle, parentDeclared);
+    const parentComputed = createStyle(getOriginStyle(), parentDeclared);
     const childDeclared = createDeclaredStyle({fontSize: {value: 2, unit: 'em'}});
     const childComputed = createStyle(parentComputed, childDeclared);
     expect(childComputed.fontSize).to.equal(32);

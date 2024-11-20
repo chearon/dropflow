@@ -1,6 +1,6 @@
 import {Box} from './layout-box.js';
 import {loggableText} from './util.js';
-import {Style, DeclaredStyle, initialStyle, EMPTY_STYLE} from './style.js';
+import {Style, DeclaredStyle, getOriginStyle, EMPTY_STYLE} from './style.js';
 import {query, queryAll, Adapter} from './style-query.js';
 
 export class TextNode {
@@ -11,7 +11,7 @@ export class TextNode {
 
   constructor(id: string, text: string, parent: HTMLElement | null = null) {
     this.id = id;
-    this.style = initialStyle;
+    this.style = getOriginStyle();
     this.text = text;
     this.parent = parent;
   }
@@ -40,7 +40,7 @@ export class HTMLElement {
   ) {
     this.id = id;
     this.tagName = tagName;
-    this.style = initialStyle;
+    this.style = getOriginStyle();
     this.declaredStyle = declaredStyle;
     this.parent = parent;
     this.attrs = attrs;

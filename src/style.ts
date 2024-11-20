@@ -667,7 +667,25 @@ const initialPlainStyle: ComputedStyle = Object.freeze({
   overflow: 'visible'
 });
 
-export const initialStyle = new Style(initialPlainStyle);
+let originStyle = new Style(initialPlainStyle);
+
+export function getOriginStyle() {
+  return originStyle;
+}
+
+/**
+ * Set the style that the <html> style inherits from
+ *
+ * Be careful calling this. It makes the inheritance style cache useless for any
+ * styles created after calling it. Using it incorrectly can hurt performance.
+ *
+ * Currently the only legitimately known usage is to set the zoom to a desired
+ * CSS-to-device pixel density (devicePixelRatio). As such, it should only be
+ * called when devicePixelRatio actually changes.
+ */
+export function setOriginStyle(style: Partial<ComputedStyle>) {
+  originStyle = new Style({...initialPlainStyle, ...style});
+}
 
 type InheritedStyleDefinitions = {[K in keyof DeclaredStyleProperties]: boolean};
 
@@ -964,7 +982,7 @@ export function computeElementStyle(el: HTMLElement | TextNode) {
     el.style = createStyle(el.parent!.style, EMPTY_STYLE);
   } else {
     const styles = el.getDeclaredStyles();
-    const parentStyle = el.parent ? el.parent.style : initialStyle;
+    const parentStyle = el.parent ? el.parent.style : originStyle;
     const uaDeclaredStyle = uaDeclaredStyles[el.tagName];
     if (uaDeclaredStyle) styles.push(uaDeclaredStyle);
     if (!el.parent) styles.push(rootDeclaredStyle);

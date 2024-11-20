@@ -3,11 +3,11 @@ import {expect} from 'chai';
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {getCascade} from '../src/text-font.js';
-import {initialStyle, createStyle, createDeclaredStyle} from '../src/style.js';
+import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
 
 /** @param {import("../src/style.js").DeclaredStyleProperties} style */
 function style(style) {
-  return createStyle(initialStyle, createDeclaredStyle(style));
+  return createStyle(getOriginStyle(), createDeclaredStyle(style));
 }
 
 describe('Font Registration and Matching', function () {

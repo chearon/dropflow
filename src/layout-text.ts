@@ -439,10 +439,14 @@ function nextGlyph(state: GlyphIteratorState) {
 export class Logger {
   string: string;
   formats: string[]; // only for browsers
+  indent: string[];
+  lineIsEmpty: boolean;
 
   constructor() {
     this.string = '';
     this.formats = [];
+    this.indent = [];
+    this.lineIsEmpty = false;
   }
 
   bold() {
@@ -464,14 +468,31 @@ export class Logger {
   }
 
   flush() {
-    const end = this.string.endsWith('\n') ? this.string.length - 1 : this.string.length;
-    console.log(this.string.slice(0, end), ...this.formats);
+    console.log(this.string, ...this.formats);
     this.string = '';
     this.formats = [];
   }
 
   text(str: string | number) {
-    this.string += str;
+    const lines = String(str).split('\n');
+
+    const append = (s: string) => {
+      if (s) {
+        if (this.lineIsEmpty) this.string += this.indent.join('');
+        this.string += s;
+        this.lineIsEmpty = false;
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      if (i === 0) {
+        append(lines[i]);
+      } else {
+        this.string += '\n';
+        this.lineIsEmpty = true;
+        append(lines[i]);
+      }
+    }
   }
 
   glyphs(glyphs: Int32Array) {
@@ -486,6 +507,14 @@ export class Logger {
       this.text(' ');
       if (isp || isn) this.reset();
     }
+  }
+
+  pushIndent(indent = '  ') {
+    this.indent.push(indent);
+  }
+
+  popIndent() {
+    this.indent.pop();
   }
 }
 
@@ -1884,6 +1913,8 @@ export class Paragraph {
     t?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
     t?.(`Full text: "${this.string}"\n`);
 
+    log?.pushIndent();
+
     while (!itemizeState.done) {
       const itemStart = itemizeState.offset;
       itemizeNext(itemizeState);
@@ -1892,10 +1923,12 @@ export class Paragraph {
       const itemEnd = itemizeState.offset;
       let shapeWork = [{offset: itemStart, length: itemEnd - itemStart}];
 
-      t?.(`  Item ${itemStart}..${itemEnd}:\n`);
-      t?.(`  emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
+      t?.(`Item ${itemStart}..${itemEnd}:\n`);
+      t?.(`emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
       t?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
-      t?.(`  cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
+      t?.(`cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
+
+      log?.pushIndent();
 
       for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
         const nextShapeWork: {offset: number, length: number}[] = [];
@@ -1913,10 +1946,11 @@ export class Paragraph {
           let segmentGlyphStart = hbClusterState.glyphIndex;
           let segmentGlyphEnd = hbClusterState.glyphIndex;
 
-          t?.(`    Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
-          t?.('    Shaper returned: ');
+          t?.(`Shaping "${this.string.slice(offset, end)}" with font ${match.filename}\n`);
+          t?.('Shaper returned: ');
           g?.(shapedPart);
           t?.('\n');
+          log?.pushIndent('  ==> ');
 
           while (!hbClusterState.done) {
             nextGlyph(hbClusterState);
@@ -1962,11 +1996,11 @@ export class Paragraph {
                 if (isLastMatch) {
                   const glyphs = shapedPart.subarray(glyphStart, glyphEnd);
                   items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
-                  t?.('    ==> Cascade finished with tofu: ');
+                  t?.('Cascade finished with tofu: ');
                   g?.(glyphs);
                   t?.('\n');
                 } else {
-                  t?.(`    ==> Must reshape "${this.string.slice(offset, offset + length)}"\n`);
+                  t?.(`Must reshape "${this.string.slice(offset, offset + length)}"\n`);
                   nextShapeWork.push({offset, length});
                 }
               } else if (glyphStart < glyphEnd) {
@@ -1975,7 +2009,7 @@ export class Paragraph {
                   : shapedPart.subarray(glyphStart, glyphEnd);
 
                 items.push(new ShapedItem(this, match, glyphs, offset, length, {...attrs}));
-                t?.('    ==> Glyphs OK: ');
+                t?.('Glyphs OK: ');
                 g?.(glyphs);
                 t?.('\n');
               }
@@ -1990,12 +2024,17 @@ export class Paragraph {
             segmentTextEnd = hbClusterState.clusterEnd;
             segmentGlyphEnd = hbClusterState.glyphIndex;
           }
+
+          log?.popIndent();
         }
 
         shapeWork = nextShapeWork;
       }
+
+      log?.popIndent();
     }
 
+    log?.popIndent();
     log?.flush();
 
     this.wholeItems = items.sort((a, b) => a.offset - b.offset);
@@ -2425,15 +2464,18 @@ export class Paragraph {
 
     if (this.ifc.loggingEnabled()) {
       const log = new Logger();
-      log.text(`Paragraph ${this.ifc.id} (layout mode ${ctx.mode}):`);
+      log.text(`Paragraph ${this.ifc.id} (layout mode ${ctx.mode}):\n`);
+      log.pushIndent();
       for (const item of this.brokenItems) {
-        const lead = `  @${item.offset} `;
-        const leadsp = ' '.repeat(lead.length);
-        log.text(`${lead}F:${basename(item.match.filename)}\n`);
-        log.text(`${leadsp}T:"${item.text()}"\n`);
-        log.text(`${leadsp}G:`);
+        const lead = `@${item.offset} `.padEnd(5);
+        log.text(lead);
+        log.pushIndent(' '.repeat(lead.length));
+        log.text(`F:${basename(item.match.filename)}\n`);
+        log.text(`T:"${item.text()}"\n`);
+        log.text(`G:`);
         log.glyphs(item.glyphs);
         log.text('\n');
+        log.popIndent();
       }
       for (const [i, line] of lines.entries()) {
         const W = line.width.toFixed(2);
@@ -2452,6 +2494,7 @@ export class Paragraph {
         log.text('Right floats');
         log.text(`${bfc.fctx.rightFloats.repr()}\n`);
       }
+      log.pushIndent();
       log.flush();
     }
 

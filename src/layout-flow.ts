@@ -1,4 +1,4 @@
-import {binarySearch} from './util.js';
+import {binarySearch, Logger} from './util.js';
 import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, Style, EMPTY_STYLE} from './style.js';
 import {
@@ -42,10 +42,6 @@ function isNowrap(whiteSpace: WhiteSpace) {
 function isWsPreserved(whiteSpace: WhiteSpace) {
   return whiteSpace === 'pre' || whiteSpace === 'pre-wrap';
 }
-
-const reset = '\x1b[0m';
-const dim = '\x1b[2m';
-const underline = '\x1b[4m';
 
 export interface LayoutContext {
   lastBlockContainerArea: BoxArea,
@@ -780,7 +776,7 @@ export class BlockContainer extends Box {
     }
   }
 
-  sym() {
+  getLogSymbol() {
     if (this.isFloat()) {
       return '○︎';
     } else if (this.isInlineLevel()) {
@@ -790,11 +786,11 @@ export class BlockContainer extends Box {
     }
   }
 
-  desc() {
-    return (this.isAnonymous() ? dim : '')
-      + (this.isBfcRoot() ? underline : '')
-      + 'Block ' + this.id
-      + reset;
+  logName(log: Logger) {
+    if (this.isAnonymous()) log.dim();
+    if (this.isBfcRoot()) log.underline();
+    log.text(`Block ${this.id}`);
+    log.reset();
   }
 
   get writingModeAsParticipant() {
@@ -1293,12 +1289,12 @@ export class Break extends RenderItem {
     return true;
   }
 
-  sym() {
+  getLogSymbol() {
     return '⏎';
   }
 
-  desc() {
-    return 'BR';
+  logName(log: Logger) {
+    log.text('BR');
   }
 }
 
@@ -1355,16 +1351,15 @@ export class Inline extends Box {
     return true;
   }
 
-  sym() {
+  getLogSymbol() {
     return '▭';
   }
 
-  desc(): string /* TS 4.9 throws TS7023 - almost certainly a bug */ {
-    return (this.isAnonymous() ? dim : '')
-      + (this.isIfcInline() ? underline : '')
-      + 'Inline'
-      + ' ' + this.id
-      + reset;
+  logName(log: Logger) {
+    if (this.isAnonymous()) log.dim();
+    if (this.isIfcInline()) log.underline();
+    log.text(`Inline ${this.id}`);
+    log.reset();
   }
 
   assignContainingBlocks(ctx: LayoutContext) {

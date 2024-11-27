@@ -20,7 +20,7 @@ const rootElement = flow.parse(`
 
 const blockContainer = flow.generate(rootElement);
 
-console.log(blockContainer.repr());
+blockContainer.log();
 
 const canvas = createCanvas(200, 250);
 flow.layout(blockContainer, canvas.width, canvas.height);

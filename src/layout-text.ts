@@ -1,5 +1,5 @@
-import {binarySearchTuple, basename, loggableText} from './util.js';
-import {RenderItem, ReprOptions} from './layout-box.js';
+import {binarySearchTuple, basename, loggableText, Logger} from './util.js';
+import {RenderItem, RenderItemLogOptions} from './layout-box.js';
 import {Style, Color, TextAlign, WhiteSpace} from './style.js';
 import {
   BlockContainer,
@@ -81,7 +81,7 @@ export class Run extends RenderItem {
     return this.end - this.start;
   }
 
-  sym() {
+  getLogSymbol() {
     return 'Ͳ';
   }
 
@@ -104,12 +104,11 @@ export class Run extends RenderItem {
     return true;
   }
 
-  desc(options?: ReprOptions) {
-    let ret = `${this.start},${this.end}`;
+  logName(log: Logger, options?: RenderItemLogOptions) {
+    log.text(`${this.start},${this.end}`);
     if (options?.paragraphText) {
-      ret += ` "${loggableText(options.paragraphText.slice(this.start, this.end))}"`;
+      log.text(` "${loggableText(options.paragraphText.slice(this.start, this.end))}"`);
     }
-    return ret;
   }
 }
 
@@ -433,88 +432,6 @@ function nextGlyph(state: GlyphIteratorState) {
     } else {
       state.clusterEnd = state.glyphs[state.glyphIndex + G_CL];
     }
-  }
-}
-
-export class Logger {
-  string: string;
-  formats: string[]; // only for browsers
-  indent: string[];
-  lineIsEmpty: boolean;
-
-  constructor() {
-    this.string = '';
-    this.formats = [];
-    this.indent = [];
-    this.lineIsEmpty = false;
-  }
-
-  bold() {
-    if (typeof process === 'object') {
-      this.string += '\x1b[1m';
-    } else {
-      this.string += '%c';
-      this.formats.push('font-weight: bold');
-    }
-  }
-
-  reset() {
-    if (typeof process === 'object') {
-      this.string += '\x1b[0m';
-    } else {
-      this.string += '%c';
-      this.formats.push('font-weight: normal');
-    }
-  }
-
-  flush() {
-    console.log(this.string, ...this.formats);
-    this.string = '';
-    this.formats = [];
-  }
-
-  text(str: string | number) {
-    const lines = String(str).split('\n');
-
-    const append = (s: string) => {
-      if (s) {
-        if (this.lineIsEmpty) this.string += this.indent.join('');
-        this.string += s;
-        this.lineIsEmpty = false;
-      }
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      if (i === 0) {
-        append(lines[i]);
-      } else {
-        this.string += '\n';
-        this.lineIsEmpty = true;
-        append(lines[i]);
-      }
-    }
-  }
-
-  glyphs(glyphs: Int32Array) {
-    for (let i = 0; i < glyphs.length; i += G_SZ) {
-      const cl = glyphs[i + G_CL];
-      const isp = i - G_SZ >= 0 && glyphs[i - G_SZ + G_CL] === cl;
-      const isn = i + G_SZ < glyphs.length && glyphs[i + G_SZ + G_CL] === cl;
-      if (isp || isn) this.bold();
-      if (isn && !isp) this.text('(');
-      this.text(glyphs[i + G_ID]);
-      if (!isn && isp) this.text(')');
-      this.text(' ');
-      if (isp || isn) this.reset();
-    }
-  }
-
-  pushIndent(indent = '  ') {
-    this.indent.push(indent);
-  }
-
-  popIndent() {
-    this.indent.pop();
   }
 }
 

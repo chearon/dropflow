@@ -1,4 +1,4 @@
-import {id} from './util.js';
+import {id, Logger} from './util.js';
 import {Style} from './style.js';
 import {Run} from './layout-text.js';
 import {Break, Inline, IfcInline, BlockContainer} from './layout-flow.js';
@@ -10,7 +10,7 @@ export interface LogicalArea {
   inlineSize: number | undefined;
 }
 
-export interface ReprOptions {
+export interface RenderItemLogOptions {
   containingBlocks?: boolean;
   css?: keyof Style
   paragraphText?: string;
@@ -110,38 +110,49 @@ export abstract class RenderItem {
     return false;
   }
 
-  abstract desc(options?: ReprOptions): string;
+  abstract logName(log: Logger, options?: RenderItemLogOptions): void;
 
-  abstract sym(): string;
+  abstract getLogSymbol(): string;
 
-  repr(indent = 0, options?: ReprOptions): string {
-    let c = '';
+  log(options?: RenderItemLogOptions, log?: Logger) {
+    const flush = !log;
+
+    log ||= new Logger();
 
     if (this.isIfcInline()) {
       options = {...options};
       options.paragraphText = this.text;
     }
 
-    if (this.isBox() && this.children.length) {
-      c = '\n' + this.children.map(c => c.repr(indent + 1, options)).join('\n');
-    }
-
-    let extra = '';
+    log.text(`${this.getLogSymbol()} `);
+    this.logName(log, options);
 
     if (options?.containingBlocks && this.isBlockContainer()) {
-      extra += ` (cb = ${this.containingBlock ? this.containingBlock.box.id : '(null)'})`;
+      log.text(` (cb: ${this.containingBlock?.box.id ?? '(null)'})`);
     }
 
     if (options?.css) {
       const css = this.style[options.css];
-      extra += ` (${options.css}: ${css && JSON.stringify(css)})`;
+      log.text(` (${options.css}: ${css && JSON.stringify(css)})`);
     }
 
     if (options?.bits && this.isBox()) {
-      extra += ` (bf: ${this.stringifyBitfield()})`;
+      log.text(` (bf: ${this.stringifyBitfield()})`);
     }
 
-    return '  '.repeat(indent) + this.sym() + ' ' + this.desc(options) + extra + c;
+    log.text('\n');
+
+    if (this.isBox() && this.children.length) {
+      log.pushIndent();
+
+      for (let i = 0; i < this.children.length; i++) {
+        this.children[i].log(options, log);
+      }
+
+      log.popIndent();
+    }
+
+    if (flush) log.flush();
   }
 
   preprocess() {
@@ -266,11 +277,11 @@ export class Box extends RenderItem {
     }
   }
 
-  desc(options?: ReprOptions) {
-    return 'Box';
+  logName(log: Logger, options?: RenderItemLogOptions) {
+    log.text('Box');
   }
 
-  sym() {
+  getLogSymbol() {
     return '◼︎';
   }
 

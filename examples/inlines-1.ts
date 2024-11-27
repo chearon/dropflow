@@ -25,7 +25,7 @@ const rootElement = flow.parse(`
 `);
 
 const blockContainer = flow.generate(rootElement);
-console.log(blockContainer.repr(0, {css: 'zoom'}));
+blockContainer.log({css: 'zoom'});
 
 const canvas = createCanvas(600, 400);
 flow.layout(blockContainer, canvas.width, canvas.height);

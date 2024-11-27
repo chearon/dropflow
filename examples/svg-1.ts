@@ -22,7 +22,7 @@ const doc = flow.parse(`
 
 await flow.loadNotoFonts(doc, {paint: false});
 const block = flow.generate(doc);
-console.log(block.repr());
+block.log();
 flow.layout(block, 600, 100);
 const svg = flow.paintToSvg(block);
 

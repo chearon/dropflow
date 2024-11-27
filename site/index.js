@@ -29,7 +29,10 @@ async function render(html) {
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  flow.renderToCanvas(documentElement, canvas);
+  const box = flow.generate(documentElement);
+  box.log();
+  flow.layout(box, canvas.width, canvas.height);
+  flow.paintToCanvas(box, canvas.getContext('2d'));
   ctx.restore();
 
   window.documentElement = documentElement;

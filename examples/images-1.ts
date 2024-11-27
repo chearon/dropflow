@@ -56,7 +56,7 @@ const rootElement = flow.dom(
 
 // Normal layout, logging
 const blockContainer = flow.generate(rootElement);
-console.log(blockContainer.repr());
+blockContainer.log();
 flow.layout(blockContainer, 600, 400);
 const canvas = createCanvas(600, 400);
 const ctx = canvas.getContext('2d');

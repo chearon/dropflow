@@ -4,7 +4,7 @@ import * as flow from 'dropflow/with-parse.js';
 import {EditorView, basicSetup} from 'codemirror';
 import {EditorState} from '@codemirror/state';
 import {html} from '@codemirror/lang-html';
-import {solarizedDark} from '@ddietr/codemirror-themes/solarized-dark.js'
+import {solarizedDark} from '@ddietr/codemirror-themes/solarized-dark'
 
 const [canvas] = document.getElementsByTagName('canvas');
 const wrap = document.getElementById('wrap');

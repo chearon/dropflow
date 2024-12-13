@@ -1593,7 +1593,7 @@ const hbBuffer = hb.createBuffer();
 hbBuffer.setClusterLevel(1);
 hbBuffer.setFlags(hb.HB_BUFFER_FLAG_PRODUCE_UNSAFE_TO_CONCAT);
 
-const wordCache = new Map<number, Map<string, Int32Array>>();
+const wordCache = new Map<HbFont, Map<string, Int32Array>>();
 let wordCacheSize = 0;
 
 // exported for testing, which should not measure with a prefilled cache
@@ -1603,14 +1603,14 @@ export function clearWordCache() {
 }
 
 function wordCacheAdd(font: HbFont, string: string, glyphs: Int32Array) {
-  let stringCache = wordCache.get(font.ptr);
-  if (!stringCache) wordCache.set(font.ptr, stringCache = new Map());
+  let stringCache = wordCache.get(font);
+  if (!stringCache) wordCache.set(font, stringCache = new Map());
   stringCache.set(string, glyphs);
   wordCacheSize += 1;
 }
 
 function wordCacheGet(font: HbFont, string: string) {
-  return wordCache.get(font.ptr)?.get(string);
+  return wordCache.get(font)?.get(string);
 }
 
 export class Paragraph {

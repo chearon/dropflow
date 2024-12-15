@@ -1,5 +1,5 @@
 import {BlockContainer, Inline, InlineLevel, IfcInline} from './layout-flow.js';
-import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './layout-text.js';
+import {ShapedItem, Paragraph, BackgroundBox} from './layout-text.js';
 import {Color} from './style.js';
 import {Box, BoxArea} from './layout-box.js';
 import {binarySearchOf} from './util.js';
@@ -23,25 +23,25 @@ export interface PaintBackend {
 function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
   const glyphs = item.glyphs;
   let glyphStart = 0;
-  let glyphEnd = glyphs.length - G_SZ;
+  let glyphEnd = glyphs.glyphLength - 1;
 
-  while (glyphStart < glyphs.length && glyphs[glyphStart + G_AX] === 0) glyphStart += G_SZ;
-  while (glyphEnd >= 0 && glyphs[glyphEnd + G_AX] === 0) glyphEnd -= G_SZ;
+  while (glyphStart < glyphs.glyphLength && glyphs.ad(glyphStart) === 0) glyphStart++;
+  while (glyphEnd >= 0 && glyphs.ad(glyphEnd) === 0) glyphEnd--;
 
-  if (glyphStart in glyphs && glyphEnd in glyphs) {
+  if (glyphStart >= 0 && glyphStart < glyphs.glyphLength && glyphEnd >= 0 && glyphEnd < glyphs.glyphLength) {
     let textStart, textEnd;
 
     if (item.attrs.level & 1) {
-      textStart = glyphs[glyphEnd + G_CL];
-      if (glyphStart - G_SZ >= 0) {
-        textEnd = glyphs[glyphStart - G_SZ + G_CL];
+      textStart = glyphs.cl(glyphEnd);
+      if (glyphStart - 1 >= 0) {
+        textEnd = glyphs.cl(glyphStart - 1);
       } else {
         textEnd = item.end();
       }
     } else {
-      textStart = glyphs[glyphStart + G_CL];
-      if (glyphEnd + G_SZ < glyphs.length) {
-        textEnd = glyphs[glyphEnd + G_SZ + G_CL];
+      textStart = glyphs.cl(glyphStart);
+      if (glyphEnd + 1 < glyphs.glyphLength) {
+        textEnd = glyphs.cl(glyphEnd + 1);
       } else {
         textEnd = item.end();
       }
@@ -85,14 +85,14 @@ function drawText(
       let ax = 0;
 
       if (item.attrs.level & 1) {
-        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] >= start) {
-          ax += item.glyphs[glyphIndex + G_AX];
-          glyphIndex += G_SZ;
+        while (glyphIndex < item.glyphs.glyphLength && item.glyphs.cl(glyphIndex) >= start) {
+          ax += item.glyphs.ad(glyphIndex);
+          glyphIndex += 1;
         }
       } else {
-        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] < end) {
-          ax += item.glyphs[glyphIndex + G_AX];
-          glyphIndex += G_SZ;
+        while (glyphIndex < item.glyphs.glyphLength && item.glyphs.cl(glyphIndex) < end) {
+          ax += item.glyphs.ad(glyphIndex);
+          glyphIndex += 1;
         }
       }
 

@@ -610,12 +610,11 @@ export class HbBuffer {
     return exports.hb_glyph_info_get_glyph_flags(infosPtr + glyphIndex * 20);
   }
 
-  extractGlyphs() {
+  extractGlyphs(): ArrayBuffer {
     const glyphsPtr = exports.hbjs_extract_glyphs(this.ptr);
-    const glyphsPtr32 = glyphsPtr >>> 2;
-    const ret = heapi32.slice(glyphsPtr32, glyphsPtr32 + this.getLength() * 7);
+    const buffer = exports.memory.buffer.slice(glyphsPtr, glyphsPtr + this.getLength() * 12);
     exports.free(glyphsPtr);
-    return ret;
+    return buffer;
   }
 
   destroy() {

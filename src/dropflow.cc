@@ -4,13 +4,11 @@
 HB_BEGIN_DECLS
 
 typedef struct hbjs_glyph {
-  uint32_t id;
   uint32_t cl;
-  int32_t ax;
-  int32_t ay;
-  int32_t dx;
-  int32_t dy;
-  int32_t fl;
+  uint16_t id;
+  int16_t ad;
+  int16_t dx;
+  int16_t dy;
 } hbjs_glyph;
 
 /* imports */
@@ -100,13 +98,16 @@ hbjs_extract_glyphs(hb_buffer_t* buf) {
   hbjs_glyph* ret = (hbjs_glyph*) malloc(sizeof(hbjs_glyph) * len);
 
   for (unsigned int i = 0; i < len; i++) {
-    ret[i].id = infos[i].codepoint;
-    ret[i].cl = infos[i].cluster;
-    ret[i].ax = positions[i].x_advance;
-    ret[i].ay = positions[i].y_advance;
-    ret[i].dx = positions[i].x_offset;
-    ret[i].dy = positions[i].y_offset;
-    ret[i].fl = hb_glyph_info_get_glyph_flags(infos + i);
+    hb_glyph_flags_t flags = hb_glyph_info_get_glyph_flags(infos + i);
+    ret[i].cl = infos[i].cluster << 2;
+    ret[i].id = static_cast<int16_t>(infos[i].codepoint);
+    // TODO: vertical text
+    ret[i].ad = static_cast<int16_t>(positions[i].x_advance);
+
+    if (flags & HB_GLYPH_FLAG_UNSAFE_TO_BREAK) ret[i].cl |= 0x1;
+    if (flags & HB_GLYPH_FLAG_UNSAFE_TO_CONCAT) ret[i].cl |= 0x2;
+    ret[i].dx = static_cast<int16_t>(positions[i].x_offset);
+    ret[i].dy = static_cast<int16_t>(positions[i].y_offset);
   }
 
   return ret;

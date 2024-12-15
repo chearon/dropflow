@@ -3,15 +3,7 @@ import {
   prevCluster,
   nextCluster,
   nextGrapheme,
-  prevGrapheme,
-  G_ID,
-  G_CL,
-  G_AX,
-  G_AY,
-  G_DX,
-  G_DY,
-  G_FL,
-  G_SZ
+  prevGrapheme
 } from './layout-text.js';
 
 import type {Color} from './style.js';
@@ -63,16 +55,16 @@ export interface Canvas {
 }
 
 function findGlyph(item: ShapedItem, offset: number) {
-  let index = item.attrs.level & 1 ? item.glyphs.length - G_SZ : 0;
-  while (index >= 0 && index < item.glyphs.length && item.glyphs[index + G_CL] < offset) {
-    index += item.attrs.level & 1 ? -G_SZ : G_SZ;
+  let index = item.attrs.level & 1 ? item.glyphs.glyphLength - 1 : 0;
+  while (index >= 0 && index < item.glyphs.glyphLength && item.glyphs.cl(index) < offset) {
+    index += item.attrs.level & 1 ? -1 : 1;
   }
   return index;
 }
 
 function glyphsWidth(item: ShapedItem, glyphStart: number, glyphEnd: number) {
   let ax = 0;
-  for (let i = glyphStart; i < glyphEnd; i += G_SZ) ax += item.glyphs[i + G_AX];
+  for (let i = glyphStart; i < glyphEnd; i++) ax += item.glyphs.ad(i);
   return ax / item.match.face.upem * item.attrs.style.fontSize;
 }
 
@@ -91,30 +83,30 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
   let endGlyphStart = findGlyph(item, textEnd);
 
   if (item.attrs.level & 1) {
-    while (startGlyphEnd > endGlyphStart && glyphs[startGlyphEnd + G_FL] & 1) {
+    while (startGlyphEnd > endGlyphStart && glyphs.unsafeToBreak(startGlyphEnd)) {
       startGlyphEnd = prevCluster(glyphs, startGlyphEnd);
     }
-    textStart = glyphs[startGlyphEnd + G_CL] ?? textEnd;
+    textStart = glyphs.cl(startGlyphEnd) ?? textEnd;
 
-    while (endGlyphStart < startGlyphEnd && glyphs[endGlyphStart + G_FL] & 1) {
+    while (endGlyphStart < startGlyphEnd && glyphs.unsafeToBreak(endGlyphStart)) {
       endGlyphStart = nextCluster(glyphs, endGlyphStart);
     }
-    textEnd = glyphs[endGlyphStart + G_CL] ?? textEnd;
+    textEnd = glyphs.cl(endGlyphStart) ?? textEnd;
   } else {
-    while (startGlyphEnd < endGlyphStart && glyphs[startGlyphEnd + G_FL] & 1) {
+    while (startGlyphEnd < endGlyphStart && glyphs.unsafeToBreak(startGlyphEnd)) {
       startGlyphEnd = nextCluster(glyphs, startGlyphEnd);
     }
-    textStart = glyphs[startGlyphEnd + G_CL] ?? textEnd;
+    textStart = glyphs.cl(startGlyphEnd) ?? textEnd;
 
-    while (endGlyphStart > startGlyphEnd && glyphs[endGlyphStart + G_FL] & 1) {
+    while (endGlyphStart > startGlyphEnd && glyphs.unsafeToBreak(endGlyphStart)) {
       endGlyphStart = prevCluster(glyphs, endGlyphStart);
     }
-    textEnd = glyphs[endGlyphStart + G_CL] ?? textEnd;
+    textEnd = glyphs.cl(endGlyphStart) ?? textEnd;
   }
 
   if (item.attrs.level & 1) {
-    [startGlyphStart, startGlyphEnd] = [startGlyphEnd + G_SZ, startGlyphStart + G_SZ];
-    [endGlyphStart, endGlyphEnd] = [endGlyphEnd + G_SZ, endGlyphStart + G_SZ];
+    [startGlyphStart, startGlyphEnd] = [startGlyphEnd + 1, startGlyphStart + 1];
+    [endGlyphStart, endGlyphEnd] = [endGlyphEnd + 1, endGlyphStart + 1];
   }
 
   return {startGlyphStart, startGlyphEnd, textStart, textEnd, endGlyphStart, endGlyphEnd};
@@ -186,14 +178,14 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.scale(scale, -scale);
     this.ctx.beginPath();
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-    for (let i = glyphStart; i < glyphEnd; i += G_SZ) {
-      const x = sx + item.glyphs[i + G_DX];
-      const y = sy + item.glyphs[i + G_DY];
+    for (let i = glyphStart; i < glyphEnd; i++) {
+      const x = sx + item.glyphs.dx(i);
+      const y = sy + item.glyphs.dy(i);
       this.ctx.translate(x, y);
-      item.match.font.drawGlyph(item.glyphs[i + G_ID], this.ctx);
+      item.match.font.drawGlyph(item.glyphs.id(i), this.ctx);
       this.ctx.translate(-x, -y);
-      sx += item.glyphs[i + G_AX];
-      sy += item.glyphs[i + G_AY];
+      sx += item.glyphs.ad(i);
+      // TODO: vertical text
     }
     this.ctx.fill();
     this.ctx.restore();

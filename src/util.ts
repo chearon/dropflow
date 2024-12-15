@@ -1,4 +1,4 @@
-import {G_ID, G_CL, G_SZ} from './layout-text.js';
+import {Glyphs} from './layout-text.js';
 import type {Style} from './style.js';
 
 /**
@@ -104,7 +104,7 @@ export class Logger {
     this.string = '';
     this.formats = [];
     this.indent = [];
-    this.lineIsEmpty = false;
+    this.lineIsEmpty = true;
   }
 
   bold() {
@@ -171,14 +171,14 @@ export class Logger {
     }
   }
 
-  glyphs(glyphs: Int32Array) {
-    for (let i = 0; i < glyphs.length; i += G_SZ) {
-      const cl = glyphs[i + G_CL];
-      const isp = i - G_SZ >= 0 && glyphs[i - G_SZ + G_CL] === cl;
-      const isn = i + G_SZ < glyphs.length && glyphs[i + G_SZ + G_CL] === cl;
+  glyphs(glyphs: Glyphs) {
+    for (let i = 0; i < glyphs.glyphLength; i++) {
+      const cl = glyphs.cl(i);
+      const isp = i - 1 >= 0 && glyphs.cl(i - 1) === cl;
+      const isn = i + 1 < glyphs.glyphLength && glyphs.cl(i + 1) === cl;
       if (isp || isn) this.bold();
       if (isn && !isp) this.text('(');
-      this.text(glyphs[i + G_ID]);
+      this.text(glyphs.id(i));
       if (!isn && isp) this.text(')');
       this.text(' ');
       if (isp || isn) this.reset();

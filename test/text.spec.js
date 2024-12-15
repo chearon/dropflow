@@ -2,9 +2,11 @@
 import {expect} from 'chai';
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {G_ID, G_AX, G_SZ} from '../src/layout-text.js';
 import paintBlockContainer from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
+import {Logger} from '../src/util.js';
+
+const log = new Logger();
 
 function setupLayoutTests() {
   this.layout = function (html) {
@@ -34,8 +36,11 @@ function logIfFailed() {
   if (this.currentTest.state == 'failed') {
     let indent = 0, t = this.currentTest;
     while (t = t.parent) indent += 1;
-    console.log('  '.repeat(indent) + "Box tree:");
-    console.log(this.currentTest.ctx.blockContainer.repr(indent));
+    log.pushIndent('  '.repeat(indent));
+    log.text('Box tree:\n');
+    this.currentTest.ctx.blockContainer.log({}, log);
+    log.popIndent();
+    log.flush();
   }
 }
 
@@ -225,9 +230,9 @@ describe('Shaping', function () {
     /** @type import('../src/layout-flow').IfcInline[] */
     const [inline] = this.get().children;
     expect(inline.paragraph.brokenItems).to.have.lengthOf(3);
-    expect(inline.paragraph.brokenItems[0].glyphs[G_ID]).to.equal(0)
-    expect(inline.paragraph.brokenItems[1].glyphs[G_ID]).not.to.equal(0);
-    expect(inline.paragraph.brokenItems[2].glyphs[G_ID]).to.equal(0);
+    expect(inline.paragraph.brokenItems[0].glyphs.id(0)).to.equal(0)
+    expect(inline.paragraph.brokenItems[1].glyphs.id(0)).not.to.equal(0);
+    expect(inline.paragraph.brokenItems[2].glyphs.id(0)).to.equal(0);
   });
 
   describe('Word cache', function () {
@@ -242,13 +247,13 @@ describe('Shaping', function () {
       const [inline] = this.get('#t').children;
 
       // 3 137 3 328 3 114 3
-      expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_ID]).to.equal(3);
-      expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_ID]).to.equal(137);
-      expect(inline.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_ID]).to.equal(3);
-      expect(inline.paragraph.brokenItems[0].glyphs[3 * G_SZ + G_ID]).to.equal(328);
-      expect(inline.paragraph.brokenItems[0].glyphs[4 * G_SZ + G_ID]).to.equal(3);
-      expect(inline.paragraph.brokenItems[0].glyphs[5 * G_SZ + G_ID]).to.equal(114);
-      expect(inline.paragraph.brokenItems[0].glyphs[6 * G_SZ + G_ID]).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(0)).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(1)).to.equal(137);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(2)).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(3)).to.equal(328);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(4)).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(5)).to.equal(114);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(6)).to.equal(3);
     });
 
     it('uses a non-kerned space in "T " without kerning explicitly set', function () {
@@ -256,8 +261,8 @@ describe('Shaping', function () {
 
       /** @type import('../src/layout-flow').IfcInline[] */
       const [inline] = this.get('#t').children;
-      expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_AX]).to.equal(1222);
-      expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_AX]).to.equal(507);
+      expect(inline.paragraph.brokenItems[0].glyphs.ad(0)).to.equal(1222);
+      expect(inline.paragraph.brokenItems[0].glyphs.ad(1)).to.equal(507);
     });
 
     it('uses a non-kerned T in " T" without kerning explicitly set', function () {
@@ -265,8 +270,8 @@ describe('Shaping', function () {
 
       /** @type import('../src/layout-flow').IfcInline[] */
       const [i5] = this.get('#t').children;
-      expect(i5.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_AX]).to.equal(507);
-      expect(i5.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_AX]).to.equal(1222);
+      expect(i5.paragraph.brokenItems[0].glyphs.ad(1)).to.equal(507);
+      expect(i5.paragraph.brokenItems[0].glyphs.ad(2)).to.equal(1222);
     });
   });
 
@@ -345,10 +350,10 @@ describe('Shaping', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [inline] = this.get('div').children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
-      expect(inline.paragraph.brokenItems[0].glyphs).to.have.lengthOf(3 * G_SZ);
-      expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_ID]).to.equal(2440);
-      expect(inline.paragraph.brokenItems[0].glyphs[1 * G_SZ + G_ID]).to.equal(2447);
-      expect(inline.paragraph.brokenItems[0].glyphs[2 * G_SZ + G_ID]).to.equal(2439);
+      expect(inline.paragraph.brokenItems[0].glyphs.glyphLength).to.equal(3);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(0)).to.equal(2440);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(1)).to.equal(2447);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(2)).to.equal(2439);
     });
 
     it('doesn\'t create empty shaped items if style and script overlap', function () {
@@ -388,10 +393,10 @@ describe('Shaping', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(2);
-      expect(inline.paragraph.brokenItems[0].glyphs.length).to.satisfy(l => l > 0);
-      expect(inline.paragraph.brokenItems[1].glyphs.length).to.satisfy(l => l > 0);
-      for (let i = 0; i < inline.paragraph.brokenItems[1].glyphs.length; i += G_SZ) {
-        expect(inline.paragraph.brokenItems[1].glyphs[i + G_ID]).not.to.equal(0);
+      expect(inline.paragraph.brokenItems[0].glyphs.glyphLength).to.satisfy(l => l > 0);
+      expect(inline.paragraph.brokenItems[1].glyphs.glyphLength).to.satisfy(l => l > 0);
+      for (let i = 0; i < inline.paragraph.brokenItems[1].glyphs.glyphLength; i++) {
+        expect(inline.paragraph.brokenItems[1].glyphs.id(i)).not.to.equal(0);
       }
       expect(inline.paragraph.brokenItems[0].match).not.to.equal(inline.paragraph.brokenItems[1].match);
     });
@@ -410,8 +415,8 @@ describe('Shaping', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [inline] = this.get().children;
       expect(inline.paragraph.brokenItems).to.have.lengthOf(1);
-      expect(inline.paragraph.brokenItems[0].glyphs).to.have.lengthOf(1 * G_SZ);
-      expect(inline.paragraph.brokenItems[0].glyphs[0 * G_SZ + G_ID]).to.equal(0);
+      expect(inline.paragraph.brokenItems[0].glyphs.glyphLength).equal(1);
+      expect(inline.paragraph.brokenItems[0].glyphs.id(0)).to.equal(0);
     });
 
     it('reshapes the correct segments', function () {
@@ -989,7 +994,7 @@ describe('Lines', function () {
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes.length).to.equal(2);
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(13);
-    expect(inline.paragraph.lineboxes[1].head.value.glyphs[0 * G_SZ + G_ID]).to.equal(474);
+    expect(inline.paragraph.lineboxes[1].head.value.glyphs.id(0)).to.equal(474);
   });
 
   it('breaks after ligature when it fits', function () {
@@ -1037,7 +1042,8 @@ describe('Lines', function () {
     `);
     /** @type import('../src/layout-flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes[0].head.value.glyphs.at(-G_SZ + G_ID)).to.equal(2623);
+    const glyphs = inline.paragraph.lineboxes[0].head.value.glyphs;
+    expect(glyphs.id(glyphs.glyphLength - 1)).to.equal(2623);
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(16);
   });
 
@@ -1049,7 +1055,8 @@ describe('Lines', function () {
     `);
     /** @type import('../src/layout-flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes[0].head.value.glyphs.at(-G_SZ + G_ID)).to.equal(3);
+    const glyphs = inline.paragraph.lineboxes[0].head.value.glyphs;
+    expect(glyphs.id(glyphs.glyphLength - 1)).to.equal(3);
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(12);
   });
 
@@ -1061,7 +1068,7 @@ describe('Lines', function () {
     `);
     /** @type import('../src/layout-flow').IfcInline[] */
     const [inline] = this.get('div').children;
-    expect(inline.paragraph.lineboxes[0].head.value.glyphs[0 * G_SZ + G_ID]).to.equal(672);
+    expect(inline.paragraph.lineboxes[0].head.value.glyphs.id(0)).to.equal(672);
     expect(inline.paragraph.lineboxes[1].head.value.offset).to.equal(6);
   });
 
@@ -1173,7 +1180,7 @@ describe('Lines', function () {
 
       /** @type import('../src/layout-flow').IfcInline[] */
       const [inline] = this.get('div').children;
-      expect(inline.paragraph.lineboxes[0].head.value.glyphs[0 * G_SZ + G_AX]).to.equal(0);
+      expect(inline.paragraph.lineboxes[0].head.value.glyphs.ad(0)).to.equal(0);
     });
 
     it('starts a new linebox after \\n when newlines are preserved', function () {
@@ -1265,9 +1272,10 @@ describe('Lines', function () {
         </div>
       `);
       const [ifc] = this.get('div').children;
-      expect(ifc.paragraph.brokenItems.at(-1).glyphs.at(-G_SZ + G_ID)).to.equal(3);
-      expect(ifc.paragraph.brokenItems.at(-1).glyphs.at(-G_SZ + G_AX)).to.equal(0);
-      expect(ifc.paragraph.brokenItems.at(0).glyphs.at(G_AX)).to.equal(0);
+      const glyphs = ifc.paragraph.brokenItems.at(-1).glyphs;
+      expect(glyphs.id(glyphs.glyphLength - 1)).to.equal(3);
+      expect(glyphs.ad(glyphs.glyphLength - 1)).to.equal(0);
+      expect(ifc.paragraph.brokenItems.at(0).glyphs.ad(0)).to.equal(0);
     });
 
     it('does create lineboxes if there were sized inlines but no text', function () {

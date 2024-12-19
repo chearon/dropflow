@@ -3,6 +3,9 @@
 import {expect} from 'chai';
 import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
+import {Logger} from '../src/util.js';
+
+const log = new Logger();
 
 describe('Flow', function () {
   before(function () {
@@ -36,8 +39,11 @@ describe('Flow', function () {
     if (this.currentTest.state == 'failed') {
       let indent = 0, t = this.currentTest;
       while (t = t.parent) indent += 1;
-      console.log('  '.repeat(indent) + "Box tree:");
-      console.log(this.currentTest.ctx.blockContainer.repr(indent));
+      log.pushIndent('  '.repeat(indent));
+      log.text('Box tree:\n');
+      this.currentTest.ctx.blockContainer.log({}, log);
+      log.popIndent();
+      log.flush();
     }
   });
 

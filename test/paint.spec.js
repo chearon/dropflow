@@ -4,6 +4,9 @@ import * as flow from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import paint from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
+import {Logger} from '../src/util.js';
+
+const log = new Logger();
 
 function setupLayoutTests() {
   this.layout = function (html) {
@@ -34,8 +37,10 @@ describe('Painting', function () {
     if (this.currentTest.state == 'failed') {
       let indent = 0, t = this.currentTest;
       while (t = t.parent) indent += 1;
-      console.log('  '.repeat(indent) + 'Box tree:');
-      console.log(this.currentTest.ctx.blockContainer.repr(indent, {bits: true}));
+      log.pushIndent('  '.repeat(indent));
+      this.currentTest.ctx.blockContainer.log({bits: true}, log);
+      log.popIndent();
+      log.flush();
     }
   });
 

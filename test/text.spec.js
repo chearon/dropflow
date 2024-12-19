@@ -5,6 +5,9 @@ import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {G_ID, G_AX, G_SZ} from '../src/layout-text.js';
 import paintBlockContainer from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
+import {Logger} from '../src/util.js';
+
+const log = new Logger();
 
 function setupLayoutTests() {
   this.layout = function (html) {
@@ -34,8 +37,11 @@ function logIfFailed() {
   if (this.currentTest.state == 'failed') {
     let indent = 0, t = this.currentTest;
     while (t = t.parent) indent += 1;
-    console.log('  '.repeat(indent) + "Box tree:");
-    console.log(this.currentTest.ctx.blockContainer.repr(indent));
+    log.pushIndent('  '.repeat(indent));
+    log.text('Box tree:\n');
+    this.currentTest.ctx.blockContainer.log({}, log);
+    log.popIndent();
+    log.flush();
   }
 }
 

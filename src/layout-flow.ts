@@ -1018,10 +1018,10 @@ export class BlockContainer extends Box {
 
   hasBackground() {
     return this.style.backgroundColor.a > 0
-      || this.style.borderTopWidth > 0
-      || this.style.borderRightWidth > 0
-      || this.style.borderBottomWidth > 0
-      || this.style.borderLeftWidth > 0;
+      || this.style.borderTopWidth > 0 && this.style.borderTopColor.a > 0
+      || this.style.borderRightWidth > 0 && this.style.borderRightColor.a > 0
+      || this.style.borderBottomWidth > 0 && this.style.borderBottomColor.a > 0
+      || this.style.borderLeftWidth > 0 && this.style.borderLeftColor.a > 0;
   }
 
   hasForeground() {

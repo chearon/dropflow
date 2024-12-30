@@ -403,6 +403,32 @@ export class BoxArea {
     this.blockSize = height;
   }
 
+  snapPixels() {
+    let width, height;
+
+    if (!this.parent) {
+      throw new Error(`Cannot absolutify area for ${this.box.id}, parent was never set`);
+    }
+
+    if (this.parent.writingMode === 'vertical-lr') {
+      width = this.blockSize;
+      height = this.inlineSize;
+    } else if (this.parent.writingMode === 'vertical-rl') {
+      width = this.blockSize;
+      height = this.inlineSize;
+    } else { // 'horizontal-tb'
+      width = this.inlineSize;
+      height = this.blockSize;
+    }
+
+    const x = this.lineLeft;
+    const y = this.blockStart;
+    this.lineLeft = Math.round(this.lineLeft);
+    this.blockStart = Math.round(this.blockStart);
+    this.inlineSize = Math.round(x + width) - this.lineLeft;
+    this.blockSize = Math.round(y + height) - this.blockStart;
+  }
+
   repr(indent = 0) {
     const {width: w, height: h, x, y} = this;
     return '  '.repeat(indent) + `⚃ Area ${this.box.id}: ${w}⨯${h} @${x},${y}`;

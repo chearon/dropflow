@@ -818,7 +818,7 @@ describe('Lines', function () {
       </div>
     `);
 
-    expect(this.get('div').contentArea.height).to.be.approximately(60.7, 0.1);
+    expect(this.get('div').contentArea.height).to.equal(61);
   });
 
   it('doesn\'t set the height if it\'s explicitly set', function () {
@@ -1448,8 +1448,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.320, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.be.approximately(6.320, 0.001);
-    expect(this.get('#t3').contentArea.y).to.be.approximately(1.320, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(6);
+    expect(this.get('#t3').contentArea.y).to.equal(1);
   });
 
   it('aligns text to subscript', function () {
@@ -1480,8 +1480,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(23.200, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.be.approximately(8.747, 0.001);
-    expect(this.get('#t3').contentArea.y).to.be.approximately(3.199, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(9);
+    expect(this.get('#t3').contentArea.y).to.equal(3);
   });
 
   it('aligns text to superscript', function () {
@@ -1512,8 +1512,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.440, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(20.987, 0.001);
-    expect(this.get('#t2').contentArea.y).to.be.approximately(5.546, 0.001);
-    expect(this.get('#t3').contentArea.y).to.be.approximately(0, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(6);
+    expect(this.get('#t3').contentArea.y).to.equal(0);
   });
 
   it('aligns text to text-top', function () {
@@ -1544,8 +1544,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.be.approximately(1.063, 0.001);
-    expect(this.get('#t3').contentArea.y).to.be.approximately(1.063, 0.001);
+    expect(this.get('#t2').contentArea.y).to.equal(1);
+    expect(this.get('#t3').contentArea.y).to.equal(1);
   });
 
   it('aligns text to text-bottom', function () {
@@ -1608,8 +1608,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(50);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(45.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.be.approximately(5.547, 0.001);
-    expect(this.get('#t3').contentArea.y).to.be.equal(0);
+    expect(this.get('#t2').contentArea.y).to.equal(6);
+    expect(this.get('#t3').contentArea.y).to.equal(0);
   });
 
   it('aligns text with percentage', function () {
@@ -1631,7 +1631,7 @@ describe('Vertical Align', function () {
     this.layout(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
-        <div id="t2" style="display: inline-block;height: 10px; vertical-align: 50%; line-height: 10px;"></div>
+        <div id="t2" style="display: inline-block; height: 10px; vertical-align: 50%; line-height: 10px;"></div>
         <div id="t3" style="display: inline-block; vertical-align: 50%; line-height: 10px;">50%</div>
       </div>
     `);
@@ -1640,8 +1640,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.546, 0.001);
-    expect(this.get('#t2').contentArea.y).to.be.approximately(0.546, 0.001);
-    expect(this.get('#t3').contentArea.y).to.be.equal(0);
+    expect(this.get('#t2').contentArea.y).to.equal(1);
+    expect(this.get('#t3').contentArea.y).to.equal(0);
   });
 
   it('aligns top', function () {
@@ -1881,7 +1881,7 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(30.453, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.equal(26);
-    expect(t.borderArea.x).to.be.approximately(84.984, 0.001);
+    expect(t.borderArea.x).to.equal(85);
     expect(t.borderArea.y).to.equal(1);
   });
 
@@ -1901,7 +1901,7 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(75.547, 0.001);
-    expect(t.borderArea.x).to.be.approximately(126.680, 0.001);
+    expect(t.borderArea.x).to.equal(127);
     expect(t.borderArea.y).to.equal(0);
   });
 
@@ -1972,7 +1972,7 @@ describe('Inline Blocks', function () {
     `);
 
     const t = this.get('#t');
-    expect(t.contentArea.x).to.be.approximately(66.208, 0.001);
+    expect(t.contentArea.x).to.equal(66);
   });
 
   it('breaks before and after', function () {
@@ -1990,15 +1990,15 @@ describe('Inline Blocks', function () {
     /** @type import('../src/layout-flow').BlockContainer */
     const t2 = this.get('#t2');
     expect(t2.contentArea.x).to.equal(0);
-    expect(t2.contentArea.y).to.be.approximately(5.547, 0.001);
+    expect(t2.contentArea.y).to.equal(6);
     /** @type import('../src/layout-flow').BlockContainer */
     const t3 = this.get('#t3');
     expect(t3.contentArea.x).to.equal(0);
-    expect(t3.contentArea.y).to.be.approximately(25.547, 0.001);
+    expect(t3.contentArea.y).to.equal(26);
     /** @type import('../src/layout-flow').BlockContainer */
     const t4 = this.get('#t4');
     expect(t4.contentArea.x).to.equal(0);
-    expect(t4.contentArea.y).to.be.approximately(45.547, 0.001);
+    expect(t4.contentArea.y).to.equal(46);
   });
 
   it('doesn\'t end with an empty line of space', function () {
@@ -2038,8 +2038,8 @@ describe('Inline Blocks', function () {
     /** @type import('../src/layout-flow').Inline */
     const span = this.get('#t2');
     const box = ifc.paragraph.backgroundBoxes.get(span);
-    expect(box[0].start).to.be.approximately(8.960, 0.001);
-    expect(box[0].end).to.be.approximately(90.448, 0.001);
+    expect(box[0].start).to.equal(9);
+    expect(box[0].end).to.equal(90);
   });
 
   it('occupies the right amount of space for floats', function () {
@@ -2080,8 +2080,7 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes.length).to.equal(2);
     const t2 = this.get('#t2');
-    expect(t2.contentArea.y).to.be.approximately(35.547, 0.001);
-    expect(t2.contentArea.y).to.be.approximately(35.547, 0.001);
+    expect(t2.contentArea.y).to.equal(36);
     expect(t2.contentArea.x).to.equal(100);
   });
 

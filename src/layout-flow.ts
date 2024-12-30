@@ -992,17 +992,20 @@ export class BlockContainer extends Box {
   }
 
   postprocess() {
-    this.borderArea.absolutify();
-
     if (this.style.position === 'relative') {
       this.borderArea.x += this.getRelativeHorizontalShift();
       this.borderArea.y += this.getRelativeVerticalShift();
     }
 
+    this.borderArea.absolutify();
     if (this.paddingArea !== this.borderArea) this.paddingArea.absolutify();
     if (this.contentArea !== this.paddingArea) this.contentArea.absolutify();
 
     for (const c of this.children) c.postprocess();
+
+    this.borderArea.snapPixels();
+    if (this.paddingArea !== this.borderArea) this.paddingArea.snapPixels();
+    if (this.contentArea !== this.paddingArea) this.contentArea.snapPixels();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1521,8 +1524,6 @@ export class IfcInline extends Inline {
   }
 
   postprocess() {
-    super.postprocess();
-
     this.paragraph.destroy();
 
     if (this.hasPositionedInline()) {
@@ -1584,6 +1585,8 @@ export class IfcInline extends Inline {
         }
       }
     }
+
+    super.postprocess();
   }
 
   shouldLayoutContent() {

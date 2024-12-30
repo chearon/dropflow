@@ -375,6 +375,11 @@ export class Style {
     return length * this.zoom;
   }
 
+  private usedBorderLength(length: number) {
+    length *= this.zoom;
+    return length > 0 && length < 1 ? 1 : Math.floor(length);
+  }
+
   private usedMaybeLength<T>(length: T) {
     return typeof length === 'number' ? this.usedLength(length) : length;
   }
@@ -401,10 +406,10 @@ export class Style {
     this.display = style.display;
     this.direction = style.direction;
     this.writingMode = style.writingMode;
-    this.borderTopWidth = this.usedLength(style.borderTopWidth);
-    this.borderRightWidth = this.usedLength(style.borderRightWidth);
-    this.borderBottomWidth = this.usedLength(style.borderBottomWidth);
-    this.borderLeftWidth = this.usedLength(style.borderLeftWidth);
+    this.borderTopWidth = this.usedBorderLength(style.borderTopWidth);
+    this.borderRightWidth = this.usedBorderLength(style.borderRightWidth);
+    this.borderBottomWidth = this.usedBorderLength(style.borderBottomWidth);
+    this.borderLeftWidth = this.usedBorderLength(style.borderLeftWidth);
     this.borderTopStyle = style.borderTopStyle;
     this.borderRightStyle = style.borderRightStyle;
     this.borderBottomStyle = style.borderBottomStyle;

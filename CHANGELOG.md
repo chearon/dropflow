@@ -16,6 +16,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 * Added support for the `zoom` property
 * Support for multiple styles on an element
+* Support for hardware pixel snapping (#16)
 
 ### Fixed
 

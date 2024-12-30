@@ -17,12 +17,14 @@ async function render(html) {
   const ctx = canvas.getContext('2d');
   const cssWidth = wrap.getBoundingClientRect().width;
   const cssHeight = wrap.getBoundingClientRect().height;
+  const dpxWidth = Math.ceil(cssWidth * window.devicePixelRatio);
+  const dpxHeight = Math.ceil(cssHeight * window.devicePixelRatio);
 
   await flow.loadNotoFonts(documentElement);
-  canvas.style.width = `${cssWidth}px`;
-  canvas.style.height = `${cssHeight}px`;
-  canvas.width = cssWidth * window.devicePixelRatio;
-  canvas.height = cssHeight * window.devicePixelRatio;
+  canvas.style.width = `${dpxWidth / window.devicePixelRatio}px`;
+  canvas.style.height = `${dpxHeight / window.devicePixelRatio}px`;
+  canvas.width = dpxWidth;
+  canvas.height = dpxHeight;
 
   const {r, g, b, a} = documentElement.style.backgroundColor;
   canvasLabel.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;

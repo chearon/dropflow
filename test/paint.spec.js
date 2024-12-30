@@ -535,4 +535,51 @@ describe('Painting', function () {
       {t: 'popClip'}
     ]);
   });
+
+  // TODO: would go better in a general box.spec.js
+  describe('Pixel snapping', function () {
+    it('snaps the border box', function () {
+      this.layout(`
+        <div style="width: 10px;">
+          <div style="background-color: #111; margin-top: 0.5px; height: 1.4px;"></div>
+          <div style="background-color: #222; height: 1.1px;"></div>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'rect', x: 0, y: 1, width: 10, height: 1, fillColor: '#111'},
+        {t: 'rect', x: 0, y: 2, width: 10, height: 1, fillColor: '#222'}
+      ]);
+    });
+
+    it('rounds boxes based on their dependent\'s unrounded coordinates', function () {
+      this.layout(`
+        <div style="width: 10px;">
+          <div style="position: relative; left: 0.4px; background-color: #9e1;">
+            <div style="position: relative; left: 0.4px; height: 1px; background-color: #e19;">
+            </div>
+          </div>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'rect', x: 0, y: 0, width: 10, height: 1, fillColor: '#9e1'},
+        {t: 'rect', x: 1, y: 0, width: 10, height: 1, fillColor: '#e19'}
+      ]);
+    });
+
+    it('snaps inline boxes', function () {
+      this.layout(`
+        <div style="font-size: 10.2px;">
+          2<span style="padding-left: 0.3px; background-clip: content-box; background-color: #321;">3</span>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8.159999999999998, text: '2', fillColor: '#000'},
+        {t: 'rect', x: 11, y: 0, width: 10, height: 10, fillColor: '#321'},
+        {t: 'text', x: 10.5, y: 8.159999999999998, text: '3', fillColor: '#000'},
+      ]);
+    });
+  });
 });

@@ -1349,7 +1349,7 @@ describe('Flow', function () {
         `);
         /** @type import('../src/layout-flow').BlockContainer */
         const block = this.get('#t');
-        expect(block.contentArea.width).to.equal(152.0625);
+        expect(block.contentArea.width).to.equal(152);
       });
 
       it('lays out text under min-content constraint', function () {
@@ -1360,7 +1360,7 @@ describe('Flow', function () {
         `);
         /** @type import('../src/layout-flow').BlockContainer */
         const block = this.get('#t');
-        expect(block.contentArea.width).to.equal(66.6953125);
+        expect(block.contentArea.width).to.equal(67);
       });
 
       it('lays out text no bigger than containing block', function () {
@@ -1386,8 +1386,8 @@ describe('Flow', function () {
         const t1 = this.get('#t1');
         /** @type import('../src/layout-flow').BlockContainer */
         const t2 = this.get('#t2');
-        expect(t1.contentArea.width).to.equal(152.0625);
-        expect(t2.contentArea.width).to.equal(152.0625);
+        expect(t1.contentArea.width).to.equal(152);
+        expect(t2.contentArea.width).to.equal(152);
       });
 
       it('lays out nested floats under min-content constraint', function () {
@@ -1402,8 +1402,8 @@ describe('Flow', function () {
         const t1 = this.get('#t1');
         /** @type import('../src/layout-flow').BlockContainer */
         const t2 = this.get('#t2');
-        expect(t1.contentArea.width).to.equal(66.6953125);
-        expect(t2.contentArea.width).to.equal(66.6953125);
+        expect(t1.contentArea.width).to.equal(67);
+        expect(t2.contentArea.width).to.equal(67);
       });
 
       it('lays out nested floats no bigger than containing block', function () {
@@ -1434,7 +1434,7 @@ describe('Flow', function () {
 
         /** @type import('../src/layout-flow').BlockContainer */
         const t = this.get('#t');
-        expect(t.contentArea.width).to.equal(85.3984375);
+        expect(t.contentArea.width).to.equal(85);
       });
 
       it('chooses the largest nested float if larger than largest word', function () {
@@ -1450,7 +1450,7 @@ describe('Flow', function () {
 
         /** @type import('../src/layout-flow').BlockContainer */
         const t = this.get('#t');
-        expect(t.contentArea.width).to.equal(85.3984375);
+        expect(t.contentArea.width).to.equal(85);
       });
 
       it('sets nested float heights correctly under min-content', function () {
@@ -1542,7 +1542,7 @@ describe('Flow', function () {
 
         /** @type import('../src/layout-flow').BlockContainer */
         const t = this.get('#t');
-        expect(t.contentArea.width).to.equal(185.3984375);
+        expect(t.contentArea.width).to.equal(185);
       });
     });
   });
@@ -1600,12 +1600,12 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [ifc] = this.get('div').children;
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87.03125);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(133.28125);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(133);
       expect(ifc.paragraph.brokenItems[1].x).to.equal(87.03125);
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(139.7265625);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(211.7734375);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(140);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(212);
       expect(ifc.paragraph.brokenItems[3].x).to.equal(139.7265625);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
@@ -1634,12 +1634,12 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [ifc] = this.get('div').children;
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88.03125);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(134.28125);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(134);
       expect(ifc.paragraph.brokenItems[1].x).to.equal(88.03125);
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(140.7265625);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(212.7734375);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(141);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(213);
       expect(ifc.paragraph.brokenItems[3].x).to.equal(140.7265625);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);
@@ -1703,7 +1703,7 @@ describe('Flow', function () {
 
       /** @type import('../src/layout-flow').BlockContainer */
       const block = this.get('#t');
-      expect(block.borderArea.x).to.be.approximately(151.414, 0.001);
+      expect(block.borderArea.x).to.equal(151);
       expect(block.borderArea.y).to.equal(10);
     });
 
@@ -1723,7 +1723,7 @@ describe('Flow', function () {
 
       /** @type import('../src/layout-flow').BlockContainer */
       const block = this.get('#t');
-      expect(block.borderArea.x).to.be.approximately(141.414, 0.001);
+      expect(block.borderArea.x).to.equal(141);
       expect(block.borderArea.y).to.equal(0);
     });
   });

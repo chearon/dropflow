@@ -237,8 +237,13 @@ function paintInlineBackground(
     b.fillColor = bgc;
     const x = containingBlock.x + Math.min(start, end);
     const y = containingBlock.y + blockOffset - ascender - extraTop;
-    const width = Math.abs(start - end);
-    const height = ascender + descender + extraTop + extraBottom;
+    // TODO: since vertical padding is added above, hardware pixel snapping has
+    // to happen here. But block containers are snapped during layout, so it'd
+    // be more consistent to do it there. To be more consistent with the specs,
+    // and hopefully clean up the code, I should start making "continuations"
+    // (Firefox) of inlines, or create fragments out of them (Chrome)
+    const width = Math.round(Math.abs(start - end));
+    const height = Math.round(ascender + descender + extraTop + extraBottom);
     b.rect(x, y, width, height);
   }
 

@@ -2503,7 +2503,7 @@ export class Paragraph {
           bgcursor += item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
         }
 
-        if (direction === 'rtl' && side === 'start' || direction == 'ltr' && side === 'end') {
+        if (direction === 'rtl' && side === 'start' || direction === 'ltr' && side === 'end') {
           const direction = item.attrs.level & 1 ? 1 : -1;
           bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
         }

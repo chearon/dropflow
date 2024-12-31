@@ -6,7 +6,7 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@types/mocha": "^8.0.3",
     "@types/node": "^20.8.10",
-    "canvas": "^2.11.0",
+    "canvas": "^3.0.0",
     "chai": "^4.2.0",
     "codemirror": "^6.0.1",
     "concurrently": "^7.6.0",

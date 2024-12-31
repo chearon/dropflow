@@ -15,45 +15,42 @@ import {
 
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
-import type {CanvasRenderingContext2D as NodeCanvasRenderingContext2D} from 'canvas';
 import type {ShapedItem} from './layout-text.js';
 import type {FaceMatch} from './text-font.js';
 
-// This is used in the public API to say what kind of canvas context we can
-// take. If the browser ever took a wider type than node-canvas, we would be in
-// trouble, but for now, the browser context is assignable to this subset of
-// node-canvas.
-//
-// TODO: PR to node-canvas to add this
-//
-// This would ideally be BrowserContext | NodeContext but there's no way to
-// reference browser types without polluting the global namespace. What we need
-// is different possible environment support in typescript.
-// https://gist.github.com/RyanCavanaugh/702ebd1ca2fc060e58e634b4e30c1c1c
-//
-// (see also note in backend-browser.ts)
-export type CanvasRenderingContext2D = Pick<NodeCanvasRenderingContext2D,
-  | 'moveTo'
-  | 'lineTo'
-  | 'quadraticCurveTo'
-  | 'bezierCurveTo'
-  | 'fillRect'
-  | 'fillText'
-  | 'translate'
-  | 'scale'
-  | 'stroke'
-  | 'fill'
-  | 'beginPath'
-  | 'closePath'
-  | 'save'
-  | 'restore'
-  | 'strokeStyle'
-  | 'fillStyle'
-  | 'lineWidth'
-  | 'font'
-  | 'rect'
-  | 'clip'
->;
+// This is used in the public API to ensure the external context has the right
+// API (there are four known to dropflow: node-canvas, @napi-rs/canvas,
+// skia-canvas, and the browser canvas)
+export interface CanvasRenderingContext2D {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  fillText(text: string, x: number, y: number, maxWidth?: number): void;
+  translate(x: number, y: number): void;
+  scale(x: number, y: number): void;
+  stroke(): void;
+  fill(): void;
+  beginPath(): void;
+  closePath(): void;
+  save(): void;
+  restore(): void;
+  // strokeStyle and fillStyle could be objects (eg CanvasGradient) whose
+  // interfaces could be different depending on if the backend is skia-canvas,
+  // canvas, @napi-rs/canvas, or browser canvas, so their type is unknown by
+  // the render code. Thankfully we never need to check them, so the purpose
+  // here is only to make the various CanvasRenderingContext2D implementations
+  // all assignable to this shape
+  set strokeStyle(value: string);
+  get strokeStyle(): unknown;
+  set fillStyle(value: string);
+  get fillStyle(): unknown;
+  lineWidth: number;
+  font: string;
+  rect(x: number, y: number, w: number, h: number): void;
+  clip(): void;
+}
 
 export interface Canvas {
   getContext(ctx: '2d'): CanvasRenderingContext2D;

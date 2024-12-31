@@ -901,7 +901,7 @@ export class BlockContainer extends Box {
     };
   }
 
-  getLastBaseline() {
+  getLastBaseline(): number | undefined {
     const stack: {block: BlockContainer, offset: number}[] = [{block: this, offset: 0}];
 
     while (stack.length) {
@@ -974,7 +974,7 @@ export class BlockContainer extends Box {
     return Boolean(this.children.length && this.children[0].isIfcInline());
   }
 
-  canCollapseThrough() {
+  canCollapseThrough(): boolean {
     const blockSize = this.style.getBlockSize(this);
 
     if (blockSize !== 'auto' && blockSize !== 0) return false;

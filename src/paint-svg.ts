@@ -1,5 +1,4 @@
 import {ShapedItem} from './layout-text.js';
-import {firstCascadeItem} from './text-font.js';
 
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
@@ -52,7 +51,7 @@ export default class HtmlPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FaceMatch;
+  font: FaceMatch | undefined;
   fontSize: number;
   usedFonts: Map<string, FaceMatch>;
 
@@ -64,7 +63,7 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
     this.direction = 'ltr';
-    this.font = firstCascadeItem();
+    this.font = undefined;
     this.fontSize = 0;
     this.usedFonts = new Map();
   }
@@ -92,7 +91,7 @@ export default class HtmlPaintBackend implements PaintBackend {
     const {r, g, b, a} = this.fillColor;
     const color = `rgba(${r}, ${g}, ${b}, ${a})`;
     const style = this.style({
-      font: this.font.toFontString(this.fontSize),
+      font: this.font?.toFontString(this.fontSize) ?? '',
       whiteSpace: 'pre',
       direction: this.direction,
       unicodeBidi: 'bidi-override'

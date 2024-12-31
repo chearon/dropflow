@@ -5,7 +5,7 @@
     "@ddietr/codemirror-themes": "^1.4.2",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@types/mocha": "^8.0.3",
-    "@types/node": "^20.8.10",
+    "@types/node": "^20.17.10",
     "canvas": "^3.0.0",
     "chai": "^4.2.0",
     "codemirror": "^6.0.1",
@@ -15,7 +15,7 @@
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
     "punycode": "^2.1.1",
-    "typescript": "^5.2.2",
+    "typescript": "^5.7.2",
     "vite": "^6.0.3"
   },
   "name": "dropflow",

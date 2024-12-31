@@ -473,9 +473,9 @@ export interface RegisterFontOptions {
 }
 
 export async function registerFont(url: URL, options?: RegisterFontOptions): Promise<void>;
-export async function registerFont(buffer: ArrayBuffer, url: URL, options?: RegisterFontOptions): Promise<void>;
+export async function registerFont(buffer: ArrayBufferLike, url: URL, options?: RegisterFontOptions): Promise<void>;
 export async function registerFont(
-  arg1: URL | ArrayBuffer,
+  arg1: URL | ArrayBufferLike,
   arg2?: RegisterFontOptions | URL,
   arg3?: RegisterFontOptions
 ) {
@@ -757,10 +757,6 @@ export function eachRegisteredFont(cb: (family: FaceMatch) => void) {
   for (const matches of registeredFonts.values()) {
     for (const match of matches) cb(match);
   }
-}
-
-export function firstCascadeItem(): FaceMatch {
-  return registeredFonts.values().next().value; // TODO Why is this any?
 }
 
 const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);

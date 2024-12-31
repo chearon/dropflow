@@ -1,4 +1,3 @@
-import {firstCascadeItem} from './text-font.js';
 import {
   prevCluster,
   nextCluster,
@@ -125,7 +124,7 @@ export default class CanvasPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FaceMatch;
+  font: FaceMatch | undefined;
   fontSize: number;
   ctx: CanvasRenderingContext2D;
 
@@ -134,7 +133,7 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
     this.direction = 'ltr';
-    this.font = firstCascadeItem();
+    this.font = undefined;
     this.fontSize = 8;
     this.ctx = ctx;
   }
@@ -168,7 +167,7 @@ export default class CanvasPaintBackend implements PaintBackend {
     if ('textDrawingMode' in this.ctx) {
       this.ctx.textDrawingMode = 'glyph';
     }
-    this.ctx.font = this.font.toFontString(this.fontSize);
+    this.ctx.font = this.font?.toFontString(this.fontSize) || '';
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     this.ctx.fillText(text, x, y);
     this.ctx.restore();

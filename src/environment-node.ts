@@ -24,8 +24,7 @@ if (canvas?.registerFont && environment.registerFont === defaultEnvironment.regi
   environment.registerFont = (match, buffer, url) => {
     const filename = fileURLToPath(url);
     if (canvas?.registerFont && !alreadyRegistered.has(filename)) {
-      const descriptor = match.toCssDescriptor();
-      canvas.registerFont(filename, descriptor);
+      canvas.registerFont(filename, {family: match.uniqueFamily});
       alreadyRegistered.add(filename);
     }
   };

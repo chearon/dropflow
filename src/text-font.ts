@@ -133,6 +133,8 @@ const HasSpaceFeatures = 1 << 0;
 const KerningSpaceFeatures = 1 << 1;
 const NonKerningSpaceFeatures = 1 << 2;
 
+let uniqueFamily = 1;
+
 export class FaceMatch {
   face: HbFace;
   font: HbFont;
@@ -140,7 +142,16 @@ export class FaceMatch {
   index: number;
   languages: Set<string>;
   families: string[];
+  /**
+   * The family name referenced within dropflow and read during font matching
+   */
   family: string;
+  /**
+   * A globally unique family name. Used like a handle when interacting with the
+   * render target, such as the first argument to the browser's FontFace and as
+   * the font string given to ctx.font
+   */
+  uniqueFamily: string;
   weight: number;
   stretch: FontStretch;
   italic: boolean;
@@ -158,6 +169,7 @@ export class FaceMatch {
     const {families, family, weight, stretch, italic, oblique} = this.createDescription();
     this.families = families;
     this.family = family;
+    this.uniqueFamily = `${family}_${String(uniqueFamily++).padStart(4, '0')}`;
     this.weight = weight;
     this.stretch = stretch;
     this.italic = italic;
@@ -452,17 +464,7 @@ export class FaceMatch {
   }
 
   toFontString(size: number) {
-    const style = this.italic ? 'italic' : this.oblique ? 'oblique' : 'normal';
-    return `${style} ${this.weight} ${this.stretch} ${size}px ${this.family}`;
-  }
-
-  toCssDescriptor() {
-    return {
-      family: this.family,
-      weight: String(this.weight),
-      style: this.italic ? 'italic' : this.oblique ? 'oblique' : 'normal',
-      stretch: this.stretch
-    };
+    return `${size}px ${this.uniqueFamily}`;
   }
 }
 

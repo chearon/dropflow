@@ -10,8 +10,7 @@ declare const FontFace: any;
 
 if (environment.registerFont === defaultEnvironment.registerFont) {
   environment.registerFont = function (match, buffer, url) {
-    const descriptor = match.toCssDescriptor();
-    const face = new FontFace(descriptor.family, buffer, descriptor);
+    const face = new FontFace(match.uniqueFamily, buffer);
     document.fonts.add(face);
   };
 }

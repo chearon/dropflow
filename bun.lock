@@ -9,7 +9,7 @@
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@types/mocha": "^8.0.3",
         "@types/node": "^20.17.10",
-        "canvas": "^3.0.0",
+        "canvas": "^3.0.1",
         "chai": "^4.2.0",
         "codemirror": "^6.0.1",
         "concurrently": "^7.6.0",
@@ -190,7 +190,7 @@
 
     "camelcase": ["camelcase@6.3.0", "", {}, "sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA=="],
 
-    "canvas": ["canvas@3.0.0", "", { "dependencies": { "node-addon-api": "^7.0.0", "prebuild-install": "^7.1.1", "simple-get": "^3.0.3" } }, "sha512-NtcIBY88FjymQy+g2g5qnuP5IslrbWCQ3A6rSr1PeuYxVRapRZ3BZCrDyAakvI6CuDYidgZaf55ygulFVwROdg=="],
+    "canvas": ["canvas@3.0.1", "", { "dependencies": { "node-addon-api": "^7.0.0", "prebuild-install": "^7.1.1", "simple-get": "^3.0.3" } }, "sha512-PcpVF4f8RubAeN/jCQQ/UymDKzOiLmRPph8fOTzDnlsUihkO/AUlxuhaa7wGRc3vMcCbV1fzuvyu5cWZlIcn1w=="],
 
     "chai": ["chai@4.3.8", "", { "dependencies": { "assertion-error": "^1.1.0", "check-error": "^1.0.2", "deep-eql": "^4.1.2", "get-func-name": "^2.0.0", "loupe": "^2.3.1", "pathval": "^1.1.1", "type-detect": "^4.0.5" } }, "sha512-vX4YvVVtxlfSZ2VecZgFUTU5qPCYsobVI2O9FmwEXBhDigYGQA6jRXCycIs1yJnnWbZ6/+a2zNIF5DfVCcJBFQ=="],
 

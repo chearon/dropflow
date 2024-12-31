@@ -6,7 +6,7 @@
     "outDir": "dist",
     "declaration": true,
     "customConditions": ["buildtime"],
-    "lib": ["esnext", "dom"],
+    "lib": ["esnext"],
     "target": "esnext",
     "module": "node16",
     "strict": true,

@@ -466,7 +466,7 @@ export class FaceMatch {
   }
 }
 
-const registeredFonts = new Map<string, FaceMatch[]>();
+const registeredFonts = new Map<string, FaceMatch>();
 
 export interface RegisterFontOptions {
   paint?: boolean;
@@ -502,22 +502,18 @@ export async function registerFont(
     }
 
     const blob = hb.createBlob(buffer);
-    const matches: FaceMatch[] = [];
 
-    for (let i = 0, l = blob.countFaces(); i < l; ++i) {
-      const match = new FaceMatch(blob, i, stringUrl);
-
-      // Browsers don't support registering collections because there would be
-      // no way to clearly associate one description with one buffer. I suppose
-      // this should be enforced elsewhere too...
-      if (options.paint && i === 0 && l === 1) {
-        registerPaintFont(match, buffer, url);
-      }
-
-      matches.push(match);
+    // Browsers don't support registering collections because there would be
+    // no way to clearly associate one description with one buffer.
+    if (blob.countFaces() !== 1) {
+      throw new Error(`Error registering ${stringUrl}. Note that TTC fonts are not supported.`);
     }
 
-    registeredFonts.set(stringUrl, matches);
+    const match = new FaceMatch(blob, 0, stringUrl);
+
+    if (options.paint) registerPaintFont(match, buffer, url);
+
+    registeredFonts.set(stringUrl, match);
 
     blob.destroy();
   }
@@ -525,11 +521,8 @@ export async function registerFont(
 
 export function unregisterFont(url: URL): void {
   const stringUrl = String(url);
-  const matches = registeredFonts.get(stringUrl);
-  if (matches) {
-    for (const match of matches) match.destroy();
-    registeredFonts.delete(stringUrl);
-  }
+  registeredFonts.get(stringUrl)?.destroy();
+  registeredFonts.delete(stringUrl);
   cascades = new WeakMap();
 }
 
@@ -542,12 +535,8 @@ class FontCascade {
     this.style = style;
   }
 
-  static fromSet(set: Map<string, FaceMatch[]>, style: Style) {
-    const list: FaceMatch[] = [];
-    for (const matches of set.values()) {
-      for (const match of matches) list.push(match);
-    }
-    return new FontCascade(list, style);
+  static fromSet(set: Map<string, FaceMatch>, style: Style) {
+    return new FontCascade([...set.values()], style);
   }
 
   static stretchToLinear: Record<FontStretch, number> = {
@@ -754,9 +743,7 @@ export function getCascade(style: Style, lang: string) {
 }
 
 export function eachRegisteredFont(cb: (family: FaceMatch) => void) {
-  for (const matches of registeredFonts.values()) {
-    for (const match of matches) cb(match);
-  }
+  for (const match of registeredFonts.values()) cb(match);
 }
 
 const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);

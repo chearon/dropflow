@@ -76,12 +76,16 @@ export default class HtmlPaintBackend implements PaintBackend {
 
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left') {
     const {r, g, b, a} = this.strokeColor;
-    const sw = this.lineWidth;
-    const width = side === 'top' || side === 'bottom' ? length + 'px' : sw + 'px';
-    const height = side === 'left' || side === 'right' ? length + 'px' : sw + 'px';
+    const lw = this.lineWidth;
+    const lw2 = lw / 2;
+    const width = side === 'top' || side === 'bottom' ? length : lw;
+    const height = side === 'left' || side === 'right' ? length : lw;
     const backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
     const rect = this.clips.at(-1);
     const clipPath = rect ? `clip-path="url(#${rect.id}) "` : ' ';
+
+    x = side === 'left' || side === 'right' ? x - lw2 : x;
+    y = side === 'top' || side === 'bottom' ? y - lw2 : y;
 
     this.main += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${backgroundColor}" ${clipPath}/>`;
   }

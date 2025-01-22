@@ -103,6 +103,12 @@ export default class HtmlPaintBackend implements PaintBackend {
     const rect = this.clips.at(-1);
     const clipPath = rect ? `clip-path="url(#${rect.id}) "` : ' ';
 
+    // We set the direction property above so that unicode-bidi: bidi-override
+    // works and the direction set in CSS is the direction used in the outputted
+    // SVG. But that also causes the text to be right-aligned, and this seems to
+    // be the only way to get around that.
+    if (this.direction === 'rtl') x += item.measure().advance;
+
     this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
     this.usedFonts.set(item.match.filename, item.match);
   }

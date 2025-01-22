@@ -48,6 +48,10 @@ export interface CanvasRenderingContext2D {
   get fillStyle(): unknown;
   lineWidth: number;
   font: string;
+  set direction(value: 'ltr' | 'rtl'); // node-canvas has no concept of inherit
+  get direction(): unknown; // no use so far
+  set textAlign(value: 'left'); // only use 'left' so far
+  get textAlign(): unknown; // no use so far
   rect(x: number, y: number, w: number, h: number): void;
   clip(): void;
 }
@@ -150,9 +154,12 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.stroke();
   }
 
-  fastText(x: number, y: number, text: string) {
+  fastText(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
+    const text = item.paragraph.slice(textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     this.ctx.save();
+    this.ctx.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
+    this.ctx.textAlign = 'left';
     // TODO: PR to node-canvas to make this the default. I see no issues with
     // drawing glyphs, and it's way way way faster, and the correct way to do it
     if ('textDrawingMode' in this.ctx) {
@@ -207,7 +214,7 @@ export default class CanvasPaintBackend implements PaintBackend {
         }
 
         if (textStart !== textEnd) {
-          this.fastText(x, y, item.paragraph.slice(textStart, textEnd));
+          this.fastText(x, y, item, textStart, textEnd);
           x += glyphsWidth(item, startGlyphEnd, endGlyphStart);
         }
 
@@ -221,7 +228,7 @@ export default class CanvasPaintBackend implements PaintBackend {
         }
 
         if (textStart !== textEnd) {
-          this.fastText(x, y, item.paragraph.slice(textStart, textEnd));
+          this.fastText(x, y, item, textStart, textEnd);
           x += glyphsWidth(item, startGlyphEnd, endGlyphStart);
         }
 
@@ -230,7 +237,7 @@ export default class CanvasPaintBackend implements PaintBackend {
         }
       }
     } else {
-      this.fastText(x, y, item.paragraph.slice(totalTextStart, totalTextEnd));
+      this.fastText(x, y, item, totalTextStart, totalTextEnd);
     }
   }
 

@@ -19,6 +19,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * Support for hardware pixel snapping (#16)
 
 ### Fixed
+* RTL text-align issue in the SVG painter and base direction issue in the canvas painter (#27)
 
 0.4.0
 ==================

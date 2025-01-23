@@ -15,3 +15,5 @@ if (environment.registerFont === defaultEnvironment.registerFont) {
     document.fonts.add(face);
   };
 }
+
+// wasm locator must be manually configured

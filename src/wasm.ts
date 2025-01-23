@@ -1,7 +1,7 @@
 import env from './wasm-env.js';
-import {locatorFunction} from '#wasm-locator';
+import {environment} from './environment.js';
 
-const buffer = await locatorFunction.value();
+const buffer = await environment.wasmLocator();
 
 declare const WebAssembly: any;
 

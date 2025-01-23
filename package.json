@@ -36,19 +36,10 @@
       "buildtime": "./src/api-with-parse.js",
       "default": "./dist/src/api-with-parse.js"
     },
-    "./wasm-locator.js": {
-      "buildtime": "./src/api-wasm-locator-browser.js",
-      "browser": "./dist/src/api-wasm-locator-browser.js",
-      "default": "./dist/src/api-wasm-locator-node.js"
-    },
+    "./environment.js": "./dist/src/environment.js",
     "./dropflow.wasm": "./dist/dropflow.wasm"
   },
   "imports": {
-    "#wasm-locator": {
-      "buildtime": "./src/api-wasm-locator-node.js",
-      "browser": "./dist/src/api-wasm-locator-browser.js",
-      "default": "./dist/src/api-wasm-locator-node.js"
-    },
     "#register-default-environment": {
       "browser": "./dist/src/environment-browser.js",
       "default": "./dist/src/environment-node.js"

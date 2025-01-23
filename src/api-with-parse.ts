@@ -1,3 +1,4 @@
+export * from './api.js';
 import {Parser, isWhitespace} from './parse-html.js';
 import {TextNode, HTMLElement} from './dom.js';
 import {parse as StyleParser} from './parse-css.js';
@@ -100,5 +101,3 @@ export function parse(str: string): HTMLElement {
 
   return rootElement || new HTMLElement('root', 'html');
 }
-
-export * from './api.js';

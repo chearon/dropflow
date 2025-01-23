@@ -1,3 +1,4 @@
+import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
 import {registerFont, unregisterFont, getFontUrls, RegisterFontOptions} from './text-font.js';

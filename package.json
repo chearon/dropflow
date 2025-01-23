@@ -49,10 +49,9 @@
       "browser": "./dist/src/api-wasm-locator-browser.js",
       "default": "./dist/src/api-wasm-locator-node.js"
     },
-    "#backend": {
-      "buildtime": "./src/backend-node.js",
-      "browser": "./dist/src/backend-browser.js",
-      "default": "./dist/src/backend-node.js"
+    "#register-default-environment": {
+      "browser": "./dist/src/environment-browser.js",
+      "default": "./dist/src/environment-node.js"
     }
   },
   "scripts": {

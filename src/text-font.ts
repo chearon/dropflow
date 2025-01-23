@@ -2,7 +2,7 @@ import * as hb from './text-harfbuzz.js';
 import langCoverage from '../gen/lang-script-coverage.js';
 import wasm from './wasm.js';
 import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
-import {registerPaintFont} from '#backend';
+import {environment} from './environment.js';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
 import subsetIdToUrls from '../gen/system-fonts-database.js';
 import UnicodeTrie from './text-unicode-trie.js';
@@ -511,7 +511,7 @@ export async function registerFont(
 
     const match = new FaceMatch(blob, 0, stringUrl);
 
-    if (options.paint) registerPaintFont(match, buffer, url);
+    if (options.paint) environment.registerFont(match, buffer, url);
 
     registeredFonts.set(stringUrl, match);
 

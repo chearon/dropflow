@@ -1,0 +1,17 @@
+import {environment, defaultEnvironment} from './environment.js';
+
+// TypeScript does not support different possibilities of runtime environments,
+// so the types loaded are for node. To add the browser environment too would
+// add too many globals.
+//
+// https://gist.github.com/RyanCavanaugh/702ebd1ca2fc060e58e634b4e30c1c1c
+declare const document: any;
+declare const FontFace: any;
+
+if (environment.registerFont === defaultEnvironment.registerFont) {
+  environment.registerFont = function (match, buffer, url) {
+    const descriptor = match.toCssDescriptor();
+    const face = new FontFace(descriptor.family, buffer, descriptor);
+    document.fonts.add(face);
+  };
+}

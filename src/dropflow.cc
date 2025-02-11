@@ -1,5 +1,5 @@
-// note: change this to point to your harfbuzz directory
-#include "../harfbuzz/src/harfbuzz.cc"
+#include <hb.h>
+#include <stdlib.h>
 
 HB_BEGIN_DECLS
 
@@ -110,4 +110,11 @@ hbjs_extract_glyphs(hb_buffer_t* buf) {
   }
 
   return ret;
+}
+
+// wasi produces a reference to this in __main_void.c even though the linker
+// won't call it with .entry = .disabled
+int
+main() {
+  return 0;
 }

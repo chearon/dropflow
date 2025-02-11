@@ -1,0 +1,12 @@
+.{
+    .name = "harfbuzz",
+    .version = "10.2.0",
+    .paths = .{""},
+    .dependencies = .{
+        .libc = .{ .path = "../libc" },
+        .harfbuzz = .{
+            .url = "https://github.com/harfbuzz/harfbuzz/releases/download/10.2.0/harfbuzz-10.2.0.tar.xz",
+            .hash = "1220a27caef4728ca9d8f4e811f3ea0be06ac5f5336a972852255dc1cd23eeffa034"
+        },
+    },
+}

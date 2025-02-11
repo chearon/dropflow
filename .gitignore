@@ -1,6 +1,10 @@
 # yarn.
 node_modules/
 
+# zig.
+.zig-cache/
+zig-out/
+
 # dist. track wasm since it changes so infrequently and is complicated to build
 dist/
 !dist/dropflow.wasm

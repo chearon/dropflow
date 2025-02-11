@@ -294,6 +294,7 @@ static void fill_set(
 `;
 
   for (const [lang] of orths) {
+    c += '__attribute__((visibility("default")))\n';
     c += `__attribute__((used)) hb_set_t* ${lang}_coverage;\n`;
   }
 

@@ -1,0 +1,13 @@
+.{
+    // Make sure to check that the expression type IDs haven't changed when updating this!
+    // https://github.com/WebAssembly/binaryen/blob/9d5628c99e2049cee7d3752914ae837173afcbe1/src/wasm.h
+    .name = "binaryen",
+    .version = "122.0.0",
+    .paths = .{""},
+    .dependencies = .{
+        .binaryen = .{
+            .url = "https://github.com/WebAssembly/binaryen/archive/refs/tags/version_122.tar.gz",
+            .hash = "12209b832a673bd6a9958bb4da9983a86ca42c7dcc55e9e9afa07c276b2b7bb55a44",
+        },
+    },
+}

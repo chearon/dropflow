@@ -16,9 +16,9 @@ import * as oflo from '../src/api-with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 
 const {malloc, free} = wasm.instance.exports;
-const buffer = wasm.instance.exports.memory.buffer;
 
 function createJsString(str) {
+  const buffer = wasm.instance.exports.memory.buffer;
   const ptr = malloc(str.length * 2);
   const words = new Uint16Array(buffer, ptr, str.length);
   for (let i = 0; i < words.length; ++i) words[i] = str.charCodeAt(i);

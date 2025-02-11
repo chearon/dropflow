@@ -1169,286 +1169,567 @@ static void fill_set(
   }
 }
 
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* aa_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bg_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* co_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fat_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hif_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ka_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ky_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mjw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pt_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* shn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* szl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ug_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* yuw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ab_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bh_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* crh_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ff_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hne_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kaa_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* la_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* no_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* qu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* shs_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ta_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* uk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* za_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* af_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bhb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* cs_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ho_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kab_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lah_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ml_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nqo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* quz_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* si_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tcy_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* und_zmth_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* zh_cn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* agr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bho_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* csb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fil_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ki_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mn_cn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* raj_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sid_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* te_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* und_zsye_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* zh_hk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ak_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* cu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fj_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hsb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kj_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lez_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mn_mn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nso_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* rif_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tg_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* unm_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* zh_mo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* am_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bin_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* cv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ht_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lg_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mni_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* rm_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* th_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ur_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* zh_sg_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* an_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bm_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* cy_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* li_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mnw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ny_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* rn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sm_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* the_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* uz_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* zh_tw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* anp_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* da_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fur_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hy_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* km_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lij_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* oc_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ro_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sma_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ti_er_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ve_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* zu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ar_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* de_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fy_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hz_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ln_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* om_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ru_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* smj_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ti_et_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* vi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* as_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* br_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* doi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ga_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ia_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ko_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ms_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* or_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* rw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* smn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tig_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* vo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ast_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* brx_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* dsb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* gd_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* id_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kok_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lt_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mt_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* os_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sa_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sms_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* vot_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* av_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bs_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* dv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* gez_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ie_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* my_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ota_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sah_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* wa_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ay_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bua_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* dz_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* gl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ig_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ks_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* lzh_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* na_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pa_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sat_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* so_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* wae_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ayc_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* byn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ee_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* gn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ii_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ku_am_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mag_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nan_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pa_pk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sc_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sq_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* to_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* wal_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* az_az_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ca_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* el_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* gu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ik_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ku_iq_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mai_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pap_an_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sco_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tpi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* wen_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* az_ir_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ce_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* en_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* gv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* io_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ku_ir_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mfe_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nds_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pap_aw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sd_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ss_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* wo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ba_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ch_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* eo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ha_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* is_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ku_tr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mg_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ne_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pes_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* se_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* st_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ts_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* xh_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* be_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* chm_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* es_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hak_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* it_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kum_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mh_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ng_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* pl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sel_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* su_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tt_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* yap_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* bem_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* chr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* et_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* haw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* iu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mhr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nhn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* prs_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sg_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* yi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ber_dz_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ckb_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* eu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* he_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ja_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* mi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* niu_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ps_af_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sgs_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sw_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ty_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* yo_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ber_ma_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* cmn_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* fa_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* hi_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* jv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* kwm_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* miq_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* nl_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* ps_pk_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* sh_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* syr_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* tyv_coverage;
+__attribute__((visibility("default")))
 __attribute__((used)) hb_set_t* yue_coverage;
 __attribute__((export_name("lang_script_database_init")))
 void lang_script_database_init() {

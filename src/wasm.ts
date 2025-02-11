@@ -8,7 +8,8 @@ declare const WebAssembly: any;
 const wasi_snapshot_preview1 = {
   // some C++ calls this?
   proc_exit() {},
-  // emscripten I think 😑
+  // these seem to be called from a function table. for printing? from whom?
+  // stubbing them  hasn't led to any issues
   fd_close() {},
   fd_write() {},
   fd_seek() {}

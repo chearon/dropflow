@@ -31,7 +31,7 @@ export default {
   hbjs_glyph_draw_close_path() {
     if (ctx) ctx.closePath();
   },
-  emscripten_notify_memory_growth() {
+  notify_memory_resize() {
     for (const cb of resizeCallbacks) cb();
   }
 };

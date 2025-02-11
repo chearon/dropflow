@@ -1,0 +1,12 @@
+.{
+    .name = "sheenbidi",
+    .version = "2.8.0",
+    .paths = .{""},
+    .dependencies = .{
+        .libc = .{ .path = "../libc" },
+        .sheenbidi = .{
+            .url = "https://github.com/Tehreer/SheenBidi/archive/refs/tags/v2.8.tar.gz",
+            .hash = "12205fe862536e2850650bca4076031dba5d7dbff00a89f7930ea3d20dcd3facec92",
+        },
+    },
+}

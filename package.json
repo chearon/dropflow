@@ -15,8 +15,7 @@
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
     "punycode": "^2.1.1",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "typescript": "^5.7.2"
   },
   "name": "dropflow",
   "version": "0.4.0",
@@ -61,8 +60,7 @@
     "buildcssparser": "peggy --format es src/parse-css.pegjs",
     "prebuild": "copyfiles gen.js src/\\*.js assets/\\*\\* test/\\*\\* -e assets/register\\* dist",
     "build": "concurrently tsc npm:buildcssparser",
-    "postbuild": "copyfiles src/parse-css.js dist",
-    "vite": "vite -c site/vite.config.js"
+    "postbuild": "copyfiles src/parse-css.js dist"
   },
   "keywords": [
     "css2",

@@ -19,7 +19,7 @@ jobs:
           bun-version: 1.2
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - run: bun run vite build --minify false --base dropflow/
+      - run: bun build site/index.html --outdir=dist/site
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:

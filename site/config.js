@@ -1,5 +1,5 @@
 import setWasmLocator from 'dropflow/wasm-locator.js';
-import wasmUrl from 'dropflow/dropflow.wasm?url';
+import wasmUrl from 'dropflow/dropflow.wasm';
 
 setWasmLocator(function () {
   return fetch(wasmUrl).then(res => {

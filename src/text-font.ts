@@ -135,9 +135,9 @@ const NonKerningSpaceFeatures = 1 << 2;
 
 let uniqueFamily = 1;
 
-export class FaceMatch {
-  face: HbFace;
-  font: HbFont;
+export class LoadedFontFace {
+  hbface: HbFace;
+  hbfont: HbFont;
   filename: string;
   index: number;
   languages: Set<string>;
@@ -161,8 +161,8 @@ export class FaceMatch {
   nonDefaultSubSpaceFeatures: Uint32Array;
 
   constructor(blob: HbBlob, index: number, filename: string) {
-    this.face = hb.createFace(blob, index);
-    this.font = hb.createFont(this.face);
+    this.hbface = hb.createFace(blob, index);
+    this.hbfont = hb.createFont(this.hbface);
     this.filename = filename;
     this.index = index;
     this.languages = this.getLanguages();
@@ -180,12 +180,12 @@ export class FaceMatch {
   }
 
   destroy() {
-    this.face.destroy();
-    this.font.destroy();
+    this.hbface.destroy();
+    this.hbfont.destroy();
   }
 
   getExclusiveLanguage() {
-    const os2 = this.face.referenceTable('OS/2');
+    const os2 = this.hbface.referenceTable('OS/2');
     const buffer = os2.getData();
     const words = new Uint16Array(buffer);
     const [version] = words;
@@ -209,7 +209,7 @@ export class FaceMatch {
   }
 
   getLanguages() {
-    const fontCoverage = this.face.collectUnicodes();
+    const fontCoverage = this.hbface.collectUnicodes();
     const langs: Set<string> = new Set();
     const exclusiveLang = this.getExclusiveLanguage();
 
@@ -218,7 +218,7 @@ export class FaceMatch {
     for (const lang of langCoverage) {
       // Fontconfig says: Check for Han charsets to make fonts which advertise
       // support for a single language not support other Han languages
-      if (exclusiveLang && FaceMatch.isExclusiveLang(lang) && lang !== exclusiveLang) {
+      if (exclusiveLang && LoadedFontFace.isExclusiveLang(lang) && lang !== exclusiveLang) {
         continue;
       }
 
@@ -235,12 +235,12 @@ export class FaceMatch {
 
   getNames(): FaceNames {
     return {
-      family: this.face.getName(1, 'en'),
-      subfamily: this.face.getName(2, 'en'),
-      fullName: this.face.getName(4, 'en'),
-      postscriptName: this.face.getName(6, 'en'),
-      preferredFamily: this.face.getName(16, 'en'),
-      preferredSubfamily: this.face.getName(17, 'en'),
+      family: this.hbface.getName(1, 'en'),
+      subfamily: this.hbface.getName(2, 'en'),
+      fullName: this.hbface.getName(4, 'en'),
+      postscriptName: this.hbface.getName(6, 'en'),
+      preferredFamily: this.hbface.getName(16, 'en'),
+      preferredSubfamily: this.hbface.getName(17, 'en'),
     };
   }
 
@@ -257,7 +257,7 @@ export class FaceMatch {
     const names = this.getNames();
     const families = this.getFamiliesFromNames(names);
     const family = names.preferredFamily || names.family; // only used for final family grouping in fallbacks
-    const font = hb.createFont(this.face);
+    const font = hb.createFont(this.hbface);
 
     let weight = containsWeight(names.preferredSubfamily);
     if (!weight) weight = containsWeight(names.subfamily);
@@ -291,18 +291,18 @@ export class FaceMatch {
     specificLookups: HbSet,
     otherLookups: HbSet
   ) {
-    const featureIndexes = this.face.getFeatureIndexes(table, scriptIndex, langIndex);
-    const featureTags = this.face.getFeatureTags(table, scriptIndex, langIndex);
+    const featureIndexes = this.hbface.getFeatureIndexes(table, scriptIndex, langIndex);
+    const featureTags = this.hbface.getFeatureTags(table, scriptIndex, langIndex);
 
     // TODO a quick look at the HarfBuzz source makes me think this is already
     // returned in hb_ot_layout_language_get_feature_indexes, but Firefox makes
     // this call
-    const requiredIndex = this.face.getRequiredFeatureIndex(table, scriptIndex, langIndex);
+    const requiredIndex = this.hbface.getRequiredFeatureIndex(table, scriptIndex, langIndex);
     if (requiredIndex > -1) featureIndexes.push(requiredIndex);
 
     for (let i = 0; i < featureIndexes.length; i++) {
       const set = specificFeatures.has(featureTags[i]) ? specificLookups : otherLookups;
-      this.face.getLookupsByFeature(table, featureIndexes[i], set);
+      this.hbface.getLookupsByFeature(table, featureIndexes[i], set);
     }
   }
 
@@ -313,7 +313,7 @@ export class FaceMatch {
     specificFeatures: Set<number>,
     stopAfterSpecificFound = true
   ) {
-    const numLangs = this.face.getNumLangsForScript(table, scriptIndex);
+    const numLangs = this.hbface.getNumLangsForScript(table, scriptIndex);
     const specificLookups = hb.createSet();
     const otherLookups = hb.createSet();
     const glyphs = hb.createSet();
@@ -341,7 +341,7 @@ export class FaceMatch {
     }
 
     for (const lookupIndex of specificLookups) {
-      this.face.collectGlyphs(table, lookupIndex, glyphs, glyphs, glyphs);
+      this.hbface.collectGlyphs(table, lookupIndex, glyphs, glyphs, glyphs);
       if (glyphs.has(glyph)) {
         inSpecific = true;
         break;
@@ -351,7 +351,7 @@ export class FaceMatch {
     if (!stopAfterSpecificFound || !inSpecific) {
       glyphs.clear();
       for (const lookupIndex of otherLookups) {
-        this.face.collectGlyphs(table, lookupIndex, glyphs, glyphs, glyphs);
+        this.hbface.collectGlyphs(table, lookupIndex, glyphs, glyphs, glyphs);
         if (glyphs.has(glyph)) {
           inNonSpecific = true;
           break;
@@ -369,11 +369,11 @@ export class FaceMatch {
   private checkForFeaturesInvolvingSpace() {
     this.spaceFeatures = NoSpaceFeatures;
 
-    if (this.font.getNominalGlyph(32)) {
-      const spaceGlyph = this.font.getNominalGlyph(32);
-      const scripts = this.face.getScripts();
+    if (this.hbfont.getNominalGlyph(32)) {
+      const spaceGlyph = this.hbfont.getNominalGlyph(32);
+      const scripts = this.hbface.getScripts();
 
-      if (this.face.hasSubstitution()) {
+      if (this.hbface.hasSubstitution()) {
         for (let scriptIndex = 0; scriptIndex < scripts.length; scriptIndex++) {
           const {inSpecific, inNonSpecific} = this.hasLookupRuleWithGlyphByScript(
             HB_OT_TAG_GSUB,
@@ -395,7 +395,7 @@ export class FaceMatch {
       }
 
       if (
-        this.face.hasPositioning() &&
+        this.hbface.hasPositioning() &&
         !this.hasSubstitution(this.defaultSubSpaceFeatures, 0)
       ) {
         let inKerning = false;
@@ -468,7 +468,7 @@ export class FaceMatch {
   }
 }
 
-const registeredFonts = new Map<string, FaceMatch>();
+const registeredFonts = new Map<string, LoadedFontFace>();
 
 export interface RegisterFontOptions {
   paint?: boolean;
@@ -511,11 +511,11 @@ export async function registerFont(
       throw new Error(`Error registering ${stringUrl}. Note that TTC fonts are not supported.`);
     }
 
-    const match = new FaceMatch(blob, 0, stringUrl);
+    const face = new LoadedFontFace(blob, 0, stringUrl);
 
-    if (options.paint) environment.registerFont(match, buffer, url);
+    if (options.paint) environment.registerFont(face, buffer, url);
 
-    registeredFonts.set(stringUrl, match);
+    registeredFonts.set(stringUrl, face);
 
     blob.destroy();
   }
@@ -529,15 +529,15 @@ export function unregisterFont(url: URL): void {
 }
 
 class FontCascade {
-  matches: FaceMatch[];
+  matches: LoadedFontFace[];
   style: Style;
 
-  constructor(list: FaceMatch[], style: Style) {
+  constructor(list: LoadedFontFace[], style: Style) {
     this.matches = list;
     this.style = style;
   }
 
-  static fromSet(set: Map<string, FaceMatch>, style: Style) {
+  static fromSet(set: Map<string, LoadedFontFace>, style: Style) {
     return new FontCascade([...set.values()], style);
   }
 
@@ -553,7 +553,7 @@ class FontCascade {
     'ultra-expanded': 9,
   };
 
-  narrowByFontStretch(matches: FaceMatch[]) {
+  narrowByFontStretch(matches: LoadedFontFace[]) {
     const toLinear = FontCascade.stretchToLinear;
     const desiredLinearStretch = toLinear[this.style.fontStretch];
     const search = matches.slice()
@@ -578,7 +578,7 @@ class FontCascade {
     return matches.filter(match => match.stretch === bestMatch.stretch);
   }
 
-  narrowByFontStyle(matches: FaceMatch[]) {
+  narrowByFontStyle(matches: LoadedFontFace[]) {
     const italics = matches.filter(match => match.italic);
     const obliques = matches.filter(match => match.oblique);
     const normals = matches.filter(match => !match.oblique && !match.italic);
@@ -594,7 +594,7 @@ class FontCascade {
     return normals.length ? normals : obliques.length ? obliques : italics;
   }
 
-  narrowByFontWeight(matches: FaceMatch[]) {
+  narrowByFontWeight(matches: LoadedFontFace[]) {
     const desiredWeight = this.style.fontWeight;
     const exact = matches.find(match => match.weight === desiredWeight);
     let lt400 = desiredWeight < 400;
@@ -711,7 +711,7 @@ class FontCascade {
     }
 
     // Finally, push one of each of the rest of the families
-    const groups = new Map<string, FaceMatch[]>();
+    const groups = new Map<string, LoadedFontFace[]>();
     for (const candidate of this.matches) {
       if (!selectedFamilies.has(candidate.family)) {
         let candidates = groups.get(candidate.family);
@@ -744,8 +744,8 @@ export function getCascade(style: Style, lang: string) {
   return cascade;
 }
 
-export function eachRegisteredFont(cb: (family: FaceMatch) => void) {
-  for (const match of registeredFonts.values()) cb(match);
+export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
+  for (const face of registeredFonts.values()) cb(face);
 }
 
 const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);

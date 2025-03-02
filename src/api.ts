@@ -59,10 +59,10 @@ export function paintToSvg(root: BlockContainer): string {
 
   paint(root, backend);
 
-  for (const [src, match] of backend.usedFonts) {
+  for (const [src, face] of backend.usedFonts) {
     cssFonts +=
 `@font-face {
-  font-family: "${match.uniqueFamily}";
+  font-family: "${face.uniqueFamily}";
   src: url("${src}") format("opentype");
 }\n`;
   }

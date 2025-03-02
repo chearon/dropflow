@@ -4,14 +4,14 @@ import {Color} from './style.js';
 import {Box, BoxArea} from './layout-box.js';
 import {binarySearchOf} from './util.js';
 
-import type {FaceMatch} from './text-font.js';
+import type {LoadedFontFace} from './text-font.js';
 
 export interface PaintBackend {
   fillColor: Color;
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FaceMatch | undefined;
+  font: LoadedFontFace | undefined;
   fontSize: number;
   edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number, isColorBoundary?: boolean): void;
@@ -59,7 +59,6 @@ function drawText(
   colors: [Color, number][],
   b: PaintBackend
 ) {
-  const match = item.match;
   const style = item.attrs.style;
   const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item);
   // Split the colors into spans so that colored diacritics can work.
@@ -98,11 +97,11 @@ function drawText(
 
       b.fillColor = color;
       b.fontSize = style.fontSize;
-      b.font = match;
+      b.font = item.face;
       b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
       b.text(tx, containingBlock.y + item.y, item, start, end, isColorBoundary);
 
-      tx += ax / item.match.face.upem * style.fontSize;
+      tx += ax / item.face.hbface.upem * style.fontSize;
     }
 
     if (item.attrs.level & 1) {

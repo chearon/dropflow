@@ -2,7 +2,7 @@ import {getMetrics, ShapedItem} from './layout-text.js';
 
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
-import type {FaceMatch} from './text-font.js';
+import type {LoadedFontFace} from './text-font.js';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
@@ -20,7 +20,7 @@ export default class HtmlPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FaceMatch | undefined;
+  font: LoadedFontFace | undefined;
   fontSize: number;
 
   constructor() {
@@ -62,7 +62,7 @@ export default class HtmlPaintBackend implements PaintBackend {
   }
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, item.match);
+    const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, item.face);
     const text = item.paragraph.string.slice(textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const style = this.style({

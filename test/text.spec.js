@@ -399,7 +399,7 @@ describe('Shaping', function () {
       for (let i = 0; i < inline.paragraph.brokenItems[1].glyphs.length; i += G_SZ) {
         expect(inline.paragraph.brokenItems[1].glyphs[i + G_ID]).not.to.equal(0);
       }
-      expect(inline.paragraph.brokenItems[0].match).not.to.equal(inline.paragraph.brokenItems[1].match);
+      expect(inline.paragraph.brokenItems[0].face).not.to.equal(inline.paragraph.brokenItems[1].face);
     });
 
     it('sums to the same string with many reshapes', function () {

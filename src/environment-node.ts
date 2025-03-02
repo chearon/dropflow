@@ -21,10 +21,10 @@ try {
 // called before the canvas import completes, an error would throw in
 // environment.ts
 if (canvas?.registerFont && environment.registerFont === defaultEnvironment.registerFont) {
-  environment.registerFont = (match, buffer, url) => {
+  environment.registerFont = (face, buffer, url) => {
     const filename = fileURLToPath(url);
     if (canvas?.registerFont && !alreadyRegistered.has(filename)) {
-      canvas.registerFont(filename, {family: match.uniqueFamily});
+      canvas.registerFont(filename, {family: face.uniqueFamily});
       alreadyRegistered.add(filename);
     }
   };

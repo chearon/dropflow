@@ -2,7 +2,7 @@ import {ShapedItem} from './layout-text.js';
 
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
-import type {FaceMatch} from './text-font.js';
+import type {LoadedFontFace} from './text-font.js';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
@@ -51,9 +51,9 @@ export default class HtmlPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FaceMatch | undefined;
+  font: LoadedFontFace | undefined;
   fontSize: number;
-  usedFonts: Map<string, FaceMatch>;
+  usedFonts: Map<string, LoadedFontFace>;
 
   constructor() {
     this.main = '';
@@ -110,7 +110,7 @@ export default class HtmlPaintBackend implements PaintBackend {
     if (this.direction === 'rtl') x += item.measure().advance;
 
     this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
-    this.usedFonts.set(item.match.filename, item.match);
+    this.usedFonts.set(item.face.filename, item.face);
   }
 
   rect(x: number, y: number, w: number, h: number) {

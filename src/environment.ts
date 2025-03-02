@@ -1,8 +1,8 @@
-import type {FaceMatch} from './text-font.js';
+import type {LoadedFontFace} from './text-font.js';
 
 export interface Environment {
   wasmLocator(): Promise<Uint8Array>;
-  registerFont(match: FaceMatch, buffer: Uint8Array, url: URL): void;
+  registerFont(face: LoadedFontFace, buffer: Uint8Array, url: URL): void;
 }
 
 export const defaultEnvironment: Environment = {

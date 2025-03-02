@@ -16,7 +16,7 @@ import {
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
 import type {ShapedItem} from './layout-text.js';
-import type {FaceMatch} from './text-font.js';
+import type {LoadedFontFace} from './text-font.js';
 
 // This is used in the public API to ensure the external context has the right
 // API (there are four known to dropflow: node-canvas, @napi-rs/canvas,
@@ -73,7 +73,7 @@ function findGlyph(item: ShapedItem, offset: number) {
 function glyphsWidth(item: ShapedItem, glyphStart: number, glyphEnd: number) {
   let ax = 0;
   for (let i = glyphStart; i < glyphEnd; i += G_SZ) ax += item.glyphs[i + G_AX];
-  return ax / item.match.face.upem * item.attrs.style.fontSize;
+  return ax / item.face.hbface.upem * item.attrs.style.fontSize;
 }
 
 // Solve for:
@@ -125,7 +125,7 @@ export default class CanvasPaintBackend implements PaintBackend {
   strokeColor: Color;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
-  font: FaceMatch | undefined;
+  font: LoadedFontFace | undefined;
   fontSize: number;
   ctx: CanvasRenderingContext2D;
 
@@ -173,7 +173,7 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   correctText(x: number, y: number, item: ShapedItem, glyphStart: number, glyphEnd: number) {
     const {r, g, b, a} = this.fillColor;
-    const scale = 1 / item.match.face.upem * this.fontSize;
+    const scale = 1 / item.face.hbface.upem * this.fontSize;
 
     let sx = 0;
     let sy = 0;
@@ -187,7 +187,7 @@ export default class CanvasPaintBackend implements PaintBackend {
       const x = sx + item.glyphs[i + G_DX];
       const y = sy + item.glyphs[i + G_DY];
       this.ctx.translate(x, y);
-      item.match.font.drawGlyph(item.glyphs[i + G_ID], this.ctx);
+      item.face.hbfont.drawGlyph(item.glyphs[i + G_ID], this.ctx);
       this.ctx.translate(-x, -y);
       sx += item.glyphs[i + G_AX];
       sy += item.glyphs[i + G_AY];

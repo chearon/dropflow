@@ -110,7 +110,7 @@ export default class HtmlPaintBackend implements PaintBackend {
     if (this.direction === 'rtl') x += item.measure().advance;
 
     this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
-    this.usedFonts.set(item.face.filename, item.face);
+    this.usedFonts.set(item.face.url.href, item.face);
   }
 
   rect(x: number, y: number, w: number, h: number) {

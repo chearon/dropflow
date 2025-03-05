@@ -8,6 +8,19 @@ if (environment.wasmLocator === defaultEnvironment.wasmLocator) {
   };
 }
 
+if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
+  environment.resolveUrl = function (url) {
+    if (url.protocol === 'file:') {
+      return fs.readFileSync(url).buffer;
+    } else {
+      return fetch(url).then(res => {
+        if (!res.ok) throw new Error(res.statusText);
+        return res.arrayBuffer();
+      });
+    }
+  };
+}
+
 const alreadyRegistered = new Set<string>();
 
 let canvas: typeof import('canvas') | undefined;
@@ -20,12 +33,18 @@ try {
 // TODO: the await above might create a race condition: if registerFont is
 // called before the canvas import completes, an error would throw in
 // environment.ts
-if (canvas?.registerFont && environment.registerFont === defaultEnvironment.registerFont) {
-  environment.registerFont = (face, buffer, url) => {
-    const filename = fileURLToPath(url);
-    if (canvas?.registerFont && !alreadyRegistered.has(filename)) {
-      canvas.registerFont(filename, {family: face.uniqueFamily});
-      alreadyRegistered.add(filename);
+if (environment.registerFont === defaultEnvironment.registerFont) {
+  environment.registerFont = face => {
+    if (face.url.protocol === 'file:') {
+      const filename = fileURLToPath(face.url);
+      if (canvas?.registerFont && !alreadyRegistered.has(filename)) {
+        canvas.registerFont(filename, {family: face.uniqueFamily});
+        alreadyRegistered.add(filename);
+      }
+    } else {
+      // TODO:
+      // some kind of warning configuration? if NODE_ENV is "development" say something like
+      // node-canvas can only register fonts from a file path. Please register your font with a full file:// URL.
     }
   };
 }

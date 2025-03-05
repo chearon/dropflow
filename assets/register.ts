@@ -1,13 +1,19 @@
-import {registerFont, unregisterFont} from '../src/api.js';
-import fs from 'node:fs';
+import {fonts, FontFace, createFaceFromTables} from '../src/api.js';
+
+const registration = new Map<string, FontFace>();
 
 export function registerFontAsset(filename: string) {
-  const path = new URL(filename, import.meta.url);
-  const array = fs.readFileSync(path).buffer;
-  registerFont(array, path);
+  if (!registration.has(filename)) {
+    const url = new URL(filename, import.meta.url)
+    const face = createFaceFromTables(url);
+    if (face instanceof Promise) throw new Error('How did this happen?');
+    fonts.add(face);
+    registration.set(filename, face);
+  }
 }
 
 export function unregisterFontAsset(filename: string) {
-  const path = new URL(filename, import.meta.url);
-  unregisterFont(path);
+  const face = registration.get(filename);
+  if (face) fonts.delete(face);
+  registration.delete(filename);
 }

@@ -3,9 +3,10 @@ import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
 // Register fonts before layout. This is a required step.
-// It is only async when you don't pass an ArrayBuffer
-await flow.registerFont(new URL('../assets/Roboto/Roboto-Regular.ttf', import.meta.url));
-await flow.registerFont(new URL('../assets/Roboto/Roboto-Bold.ttf', import.meta.url));
+// This is synchronous only when the source is an ArrayBuffer or file URL in node
+const file = (relative: string) => new URL(relative, import.meta.url);
+flow.fonts.add(new flow.FontFace('Roboto', file('fonts/Roboto-Regular.ttf'), {weight: 400}));
+flow.fonts.add(new flow.FontFace('Roboto', file('fonts/Roboto-Bold.ttf'), {weight: 700}));
 
 // Always create styles at the top-level of your module if you can.
 const divStyle = flow.style({

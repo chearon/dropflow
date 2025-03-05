@@ -1,7 +1,7 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
-import {registerFont, unregisterFont, getFontUrls, RegisterFontOptions} from './text-font.js';
+import {fonts, FontFace, getFontUrls, createFaceFromTables} from './text-font.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
@@ -16,7 +16,7 @@ export type {HTMLElement};
 
 export {createDeclaredStyle as style, setOriginStyle} from './style.js';
 
-export {registerFont, unregisterFont};
+export {fonts, FontFace, createFaceFromTables};
 
 export function generate(rootElement: HTMLElement): BlockContainer {
   if (rootElement.style === getOriginStyle()) {
@@ -238,8 +238,12 @@ export function staticLayoutContribution(box: BlockContainer): number {
   return intrinsicSize;
 }
 
-export async function loadNotoFonts(root: HTMLElement, options?: RegisterFontOptions): Promise<URL[]> {
-  const urls = getFontUrls(root).map(url => new URL(url));
-  await Promise.all(urls.map(url => registerFont(url, options)));
-  return urls;
+export async function loadNotoFonts(root: HTMLElement): Promise<FontFace[]> {
+  const faces = getFontUrls(root).map(async stringUrl => {
+    const face = await createFaceFromTables(new URL(stringUrl));
+    fonts.add(face);
+    return face;
+  });
+
+  return await Promise.all(faces);
 }

@@ -8,8 +8,8 @@ import subsetIdToUrls from '../gen/system-fonts-database.js';
 import UnicodeTrie from './text-unicode-trie.js';
 import {HTMLElement} from './dom.js';
 
-import type {HbBlob, HbFace, HbFont} from './text-harfbuzz.js';
-import type {Style, FontStretch} from './style.js';
+import type {HbFace, HbFont} from './text-harfbuzz.js';
+import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.js';
 
 // See FcStrContainsIgnoreCase in fcstr.c
 function strContainsIgnoreCase(s1: string, s2: string) {
@@ -44,7 +44,7 @@ function containsWeight(s: string) {
 }
 
 // See FcContainsWidth in fcfreetype.c
-function containsStretch(s: string): FontStretch | undefined {
+function containsStretch(s: string): FontStretch {
   if (strContainsIgnoreCase(s, 'ultracondensed')) return 'ultra-condensed';
   if (strContainsIgnoreCase(s, 'extracondensed')) return 'extra-condensed';
   if (strContainsIgnoreCase(s, 'semicondensed')) return 'semi-condensed';
@@ -53,31 +53,15 @@ function containsStretch(s: string): FontStretch | undefined {
   if (strContainsIgnoreCase(s, 'semiexpanded')) return 'semi-expanded';
   if (strContainsIgnoreCase(s, 'ultraexpanded')) return 'ultra-expanded';
   if (strContainsIgnoreCase(s, 'expanded')) return 'expanded';
+  return 'normal';
 }
 
 // See FcContainsSlant in fcfreetype.c
-function containsSlant(s: string): 'italic' | 'oblique' | undefined {
+function containsSlant(s: string): FontStyle {
   if (strContainsIgnoreCase(s, 'italic')) return 'italic';
   if (strContainsIgnoreCase(s, 'kursiv')) return 'italic';
   if (strContainsIgnoreCase(s, 'oblique')) return 'oblique';
-}
-
-interface FaceDescription {
-  family: string;
-  families: string[];
-  weight: number;
-  stretch: FontStretch;
-  italic: boolean;
-  oblique: boolean;
-}
-
-interface FaceNames {
-  family: string;
-  subfamily: string;
-  fullName: string;
-  postscriptName: string;
-  preferredFamily: string;
-  preferredSubfamily: string;
+  return 'normal';
 }
 
 const defaultFeatures = new Set([
@@ -135,56 +119,115 @@ const NonKerningSpaceFeatures = 1 << 2;
 
 let uniqueFamily = 1;
 
+const EMPTY_LANGUAGES = Object.freeze(new Set<string>());
+
 export class LoadedFontFace {
+  data: ArrayBufferLike;
+  allocated: boolean;
   hbface: HbFace;
   hbfont: HbFont;
-  filename: string;
-  index: number;
-  languages: Set<string>;
-  families: string[];
   /**
    * The family name referenced within dropflow and read during font matching
    */
   family: string;
+  style: FontStyle;
+  weight: number;
+  stretch: FontStretch;
+  variant: FontVariant;
+  languages: Set<string>;
   /**
    * A globally unique family name. Used like a handle when interacting with the
    * render target, such as the first argument to the browser's FontFace and as
    * the font string given to ctx.font
    */
   uniqueFamily: string;
-  weight: number;
-  stretch: FontStretch;
-  italic: boolean;
-  oblique: boolean;
+  /**
+   * Only for logging. When users register an ArrayBuffer, this is
+   * anon://family-weight-style
+   */
+  url: URL;
   spaceFeatures: number;
   defaultSubSpaceFeatures: Uint32Array;
   nonDefaultSubSpaceFeatures: Uint32Array;
 
-  constructor(blob: HbBlob, index: number, filename: string) {
-    this.hbface = hb.createFace(blob, index);
-    this.hbfont = hb.createFont(this.hbface);
-    this.filename = filename;
-    this.index = index;
-    this.languages = this.getLanguages();
-    const {families, family, weight, stretch, italic, oblique} = this.createDescription();
-    this.families = families;
-    this.family = family;
-    this.uniqueFamily = `${family}_${String(uniqueFamily++).padStart(4, '0')}`;
-    this.weight = weight;
-    this.stretch = stretch;
-    this.italic = italic;
-    this.oblique = oblique;
+  _createHb(data: ArrayBufferLike, url?: URL) {
+    const blob = hb.createBlob(new Uint8Array(data));
+    if (blob.countFaces() !== 1) {
+      blob.destroy();
+      if (url) {
+        throw new SyntaxError(`Error reading font ${url}`);
+      } else {
+        throw new SyntaxError('Error reading font');
+      }
+    }
+    const hbface = hb.createFace(blob, 0);
+    const hbfont = hb.createFont(hbface);
+    blob.destroy();
+    return {hbface, hbfont};
+  }
+
+  _createUrl(desc: {family: string; weight: number; style: string}) {
+    const family = encodeURI(desc.family.replaceAll(' ', '-'));
+    return new URL(`anon://${family}-${desc.weight}-${desc.style}`);
+  }
+
+  constructor(data: ArrayBufferLike, face?: FontFace, url?: URL) {
+    this.data = data;
+    this.allocated = true;
+
+    if (!url && face) url = this._createUrl(face);
+
+    const {hbface, hbfont} = this._createHb(data, url);
+    this.hbface = hbface;
+    this.hbfont = hbfont;
+
+    const desc = face || this.describeSelfFromTables();
+
+    this.family = desc.family;
+    this.style = desc.style;
+    this.weight = desc.weight;
+    this.stretch = desc.stretch;
+    this.variant = desc.variant;
+    this.languages = 'languages' in desc ? desc.languages : EMPTY_LANGUAGES;
+    this.uniqueFamily = `${this.family}_${String(uniqueFamily++).padStart(4, '0')}`;
+
+    if (!url) url = this._createUrl(this);
+    this.url = url;
+
     this.spaceFeatures = UninitializedSpaceFeatures;
     this.defaultSubSpaceFeatures = new Uint32Array(Math.ceil(nameToCode.size / 32));
     this.nonDefaultSubSpaceFeatures = new Uint32Array(Math.ceil(nameToCode.size / 32));
   }
 
-  destroy() {
-    this.hbface.destroy();
-    this.hbfont.destroy();
+  /**
+   * Ensures HbFace and HbFont instances. This gets called synchronously (by the
+   * ctor) when the font is first loaded for proper error handling, and gets
+   * called again when it's added to the "font face source" (`flow.fonts`).
+   */
+  allocate() {
+    if (!this.allocated) {
+      const {hbface, hbfont} = this._createHb(this.data);
+      this.hbface = hbface;
+      this.hbfont = hbfont;
+      this.allocated = true;
+    }
   }
 
-  getExclusiveLanguage() {
+  /**
+   * Deallocates HbFace and HbFont instances. This gets called when the font is
+   * removed from the "font face source" (`flow.fonts`) and whenever the
+   * FontFace is GC'd, via FinalizationRegistry. We could only do the latter,
+   * but GC performs much better if we don't wait for the FinalizationRegistry.
+   */
+  deallocate() {
+    if (this.allocated) {
+      this.hbface.destroy();
+      this.hbfont.destroy();
+      this.allocated = false;
+    }
+  }
+
+  private getExclusiveLanguage() {
     const os2 = this.hbface.referenceTable('OS/2');
     const buffer = os2.getData();
     const words = new Uint16Array(buffer);
@@ -208,7 +251,7 @@ export class LoadedFontFace {
     return lang === 'ja' || lang === 'zh-cn' || lang === 'ko' || lang === 'zh-tw';
   }
 
-  getLanguages() {
+  private getLanguages() {
     const fontCoverage = this.hbface.collectUnicodes();
     const langs: Set<string> = new Set();
     const exclusiveLang = this.getExclusiveLanguage();
@@ -233,54 +276,32 @@ export class LoadedFontFace {
     return langs;
   }
 
-  getNames(): FaceNames {
-    return {
-      family: this.hbface.getName(1, 'en'),
-      subfamily: this.hbface.getName(2, 'en'),
-      fullName: this.hbface.getName(4, 'en'),
-      postscriptName: this.hbface.getName(6, 'en'),
-      preferredFamily: this.hbface.getName(16, 'en'),
-      preferredSubfamily: this.hbface.getName(17, 'en'),
-    };
-  }
+  private describeSelfFromTables() {
+    const subfamily = this.hbface.getName(17, 'en') || this.hbface.getName(2, 'en');
+    const family = this.hbface.getName(16, 'en') || this.hbface.getName(1, 'en');
+    const languages = this.getLanguages();
 
-  getFamiliesFromNames(names: FaceNames) {
-    const families: string[] = [];
-    if (names.preferredFamily) families.push(names.preferredFamily);
-    if (names.family) families.push(names.family);
-    if (names.fullName) families.push(names.fullName);
-    if (names.postscriptName) families.push(names.postscriptName);
-    return families;
-  }
+    let weight = containsWeight(subfamily);
+    if (!weight) weight = this.hbfont.getStyle('wght');
 
-  createDescription(): FaceDescription {
-    const names = this.getNames();
-    const families = this.getFamiliesFromNames(names);
-    const family = names.preferredFamily || names.family; // only used for final family grouping in fallbacks
-    const font = hb.createFont(this.hbface);
-
-    let weight = containsWeight(names.preferredSubfamily);
-    if (!weight) weight = containsWeight(names.subfamily);
-    if (!weight) weight = font.getStyle('wght');
-
-    let slantKind = containsSlant(names.preferredSubfamily);
-    if (!slantKind) slantKind = containsSlant(names.subfamily);
-    if (!slantKind) {
-      const italic = font.getStyle('ital') !== 0;
-      const slant = font.getStyle('slnt');
-      slantKind = italic ? 'italic' : slant ? 'oblique' : undefined;
+    let style = containsSlant(subfamily);
+    if (!style) {
+      const italic = this.hbfont.getStyle('ital') !== 0;
+      const slant = this.hbfont.getStyle('slnt');
+      style = italic ? 'italic' : slant ? 'oblique' : 'normal';
     }
 
-    let stretch = containsStretch(names.preferredSubfamily);
-    if (!stretch) stretch = containsStretch(names.subfamily);
+    let stretch = containsStretch(subfamily);
     if (!stretch) stretch = 'normal';
 
-    const italic = slantKind === 'italic';
-    const oblique = slantKind === 'oblique';
+    return {family, weight, style, stretch, variant: 'normal' as const, languages};
+  }
 
-    font.destroy();
-
-    return {families, family, weight, stretch, italic, oblique};
+  getBuffer() {
+    const blob = this.hbface.referenceBlob();
+    const data = blob.getData();
+    blob.destroy();
+    return data;
   }
 
   private getLookupsByLangScript(
@@ -468,64 +489,281 @@ export class LoadedFontFace {
   }
 }
 
-const registeredFonts = new Map<string, LoadedFontFace>();
+class Deferred<T> {
+  status: 'unresolved' | 'resolved' | 'rejected';
+  promise: Promise<T>;
+  resolve!: (v: T) => void;
+  reject!: (e?: unknown) => void;
 
-export interface RegisterFontOptions {
-  paint?: boolean;
+  constructor() {
+    this.status = 'unresolved';
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = (t: T) => {
+        if (this.status === 'unresolved') {
+          this.status = 'resolved';
+          resolve(t);
+        }
+      };
+
+      this.reject = (e: unknown) => {
+        if (this.status === 'unresolved') {
+          this.status = 'resolved';
+          reject(e);
+        }
+      };
+    });
+  }
 }
 
-export async function registerFont(url: URL, options?: RegisterFontOptions): Promise<void>;
-export async function registerFont(buffer: ArrayBufferLike, url: URL, options?: RegisterFontOptions): Promise<void>;
-export async function registerFont(
-  arg1: URL | ArrayBufferLike,
-  arg2?: RegisterFontOptions | URL,
-  arg3?: RegisterFontOptions
-) {
-  let buffer: Uint8Array | null;
-  let url: URL;
-  let options: RegisterFontOptions;
+const faceToLoaded = new WeakMap<FontFace, LoadedFontFace>();
 
-  if (arg1 instanceof ArrayBuffer) {
-    buffer = new Uint8Array(arg1);
-    url = arg2 as any;
-    options = arg3 || {paint: true};
+// Currently everything is designed for only one instance of FontFaceSet since
+// only one browser lets you have more than one. The spec allows you to create
+// as many as you want, which could be cool. The tight coupling would require
+// several changes to the implementations here and in FontFace, but it wouldn't
+// be difficult.
+class FontFaceSet {
+  #loading = new Set<FontFace>();
+  #loaded = new Set<FontFace>();
+  #failed = new Set<FontFace>();
+  #faces = new Set<FontFace>();
+  #ready = new Deferred<FontFaceSet>;
+  status: 'loading' | 'loaded' = 'loaded';
+
+  [Symbol.iterator]() {
+    return this.#faces.values();
+  }
+
+  get ready(): Promise<FontFaceSet> {
+   return this.#ready.promise;
+  }
+
+  has(face: FontFace) {
+    return this.#faces.has(face);
+  }
+
+  add(face: FontFace) {
+    if (this.#faces.add(face)) {
+      if (face.status === 'loading') this._onLoading(face);
+      faceToLoaded.get(face)?.allocate();
+    }
+    return this;
+  }
+
+  /** @internal */
+  _switchToLoaded() {
+    this.status = 'loaded';
+    this.#ready.resolve(this);
+    this.#loaded.clear();
+    this.#failed.clear();
+  }
+
+  delete(face: FontFace) {
+    if (this.#faces.delete(face)) {
+      faceToLoaded.get(face)?.deallocate();
+      faceToLoaded.delete(face);
+      this.#loaded.delete(face);
+      this.#failed.delete(face);
+      if (this.#loading.delete(face) && this.#loading.size === 0) {
+        this._switchToLoaded();
+      }
+      cascades = new WeakMap();
+      return true;
+    }
+
+    return false;
+  }
+
+  clear() {
+    this.#faces.clear();
+    this.#loaded.clear();
+    this.#failed.clear();
+    cascades = new WeakMap();
+    if (this.#loading.size !== 0) {
+      this.#loading.clear();
+      this._switchToLoaded();
+    }
+  }
+
+  /** @internal */
+  _onLoading(face: FontFace) {
+    if (this.has(face) && this.#loading.size === 0) {
+      this.#loading.add(face);
+      this.status = 'loading';
+      if (this.#ready.status !== 'unresolved') {
+        this.#ready = new Deferred();
+      }
+    }
+  }
+
+  /** @internal */
+  _onLoaded(face: FontFace) {
+    if (this.has(face)) {
+      this.#loaded.add(face);
+      if (this.#loading.delete(face) && this.#loading.size === 0) {
+        this._switchToLoaded();
+      }
+    }
+  }
+
+  /** @internal */
+  _onError(face: FontFace) {
+    if (this.has(face)) {
+      this.#failed.add(face);
+      this.#loading.delete(face);
+    }
+  }
+}
+
+const loadedFaceRegistry = new FinalizationRegistry<LoadedFontFace>(f => f.deallocate());
+
+interface FontFaceDescriptors {
+  style?: FontStyle;
+  weight?: FontWeight;
+  stretch?: FontStretch;
+  variant?: FontVariant;
+}
+
+let __font_face_skip_ctor_load = false;
+
+export class FontFace {
+  family: string;
+  style: FontStyle;
+  weight: number;
+  stretch: FontStretch;
+  variant: FontVariant;
+  status: 'unloaded' | 'loading' | 'loaded' | 'error';
+  #status: Deferred<FontFace>;
+  #url: URL | undefined;
+
+  constructor(
+    family: string,
+    source: URL | ArrayBufferLike,
+    descriptors?: FontFaceDescriptors
+  ) {
+    this.family = family;
+    this.style = descriptors?.style ?? 'normal';
+    if (descriptors?.weight === 'bold' || descriptors?.weight === 'bolder') {
+      this.weight = 700;
+    } else if (descriptors?.weight === 'lighter') {
+      this.weight = 300;
+    } else if (descriptors?.weight === 'normal') {
+      this.weight = 400;
+    } else {
+      this.weight = descriptors?.weight ?? 400;
+    }
+    this.stretch = descriptors?.stretch ?? 'normal';
+    this.variant = descriptors?.variant ?? 'normal';
+    this.status = 'unloaded';
+    this.#status = new Deferred();
+
+    if (source instanceof URL) {
+      this.#url = source;
+    } else if (!__font_face_skip_ctor_load) {
+      this.#loadData(source);
+    }
+  }
+
+  #onError(error: unknown) {
+    this.status = 'error';
+    fonts._onError(this);
+    this.#status.reject(error);
+  }
+
+  /** @internal */
+  _matchToLoaded(face: LoadedFontFace) {
+    this.status = 'loaded';
+    faceToLoaded.set(this, face);
+    loadedFaceRegistry.register(this, face);
+    fonts._onLoaded(this);
+    environment.registerFont(face);
+    this.#status.resolve(this);
+  }
+
+  #loadData(data: ArrayBufferLike, url?: URL) {
+    let face: LoadedFontFace | undefined;
+
+    try {
+      face = new LoadedFontFace(data, this, url);
+    } catch (e) {
+      this.#onError(e);
+    }
+
+    if (face) this._matchToLoaded(face);
+  }
+
+  load(): Promise<FontFace> {
+    if (!this.#url || this.status !== 'unloaded') return this.#status.promise;
+    const url = this.#url;
+    this.status = 'loading';
+    fonts._onLoading(this);
+    const result = environment.resolveUrl(url);
+    if (result instanceof Promise) {
+      result.then(
+        (data: ArrayBufferLike) => this.#loadData(data, url),
+        (error: Error) => this.#onError(error)
+      );
+    } else {
+      // Allow for synchronous load() if the environment supports it. This is
+      // an "extension" to the specification so it's easy to register file URLs
+      // in node and then do layout immediately.
+      this.#loadData(result, url);
+    }
+    return this.#status.promise;
+  }
+
+  get loaded() {
+    return this.#status.promise;
+  }
+}
+
+export const fonts = new FontFaceSet();
+
+function createFaceFromTablesImpl(source: ArrayBufferLike, url?: URL): FontFace {
+  const loaded = new LoadedFontFace(source, undefined, url);
+  let face: FontFace | undefined;
+
+  try {
+    __font_face_skip_ctor_load = true;
+    face = new FontFace(loaded.family, url || source, loaded);
+  } finally {
+    __font_face_skip_ctor_load = false;
+  }
+
+  face._matchToLoaded(loaded);
+
+  return face;
+}
+
+// Dropflow's original font registration system was designed after OS
+// implementations: read the font tables and strings and generate a good
+// description from that.
+//
+// CSS moves the responsibility of creating font descriptions to the content
+// author instead of the font author, so when dropflow's font system was
+// redesigned to resemble the CSS Font Loading Module, the original code to
+// read font tables could have become obsolete.
+//
+// But one thing I wanted to keep was knowing what languages the font supports
+// during font selection, since this can produce much higher quality font
+// fallbacks. The CSS Font Loading Module does not provide a way to specify
+// this, and the CSSWG has turned the proposal down, sadly:
+// https://github.com/w3c/csswg-drafts/issues/1744
+// So I added a non-standard `languages` to `FontFaceDescriptors`.
+//
+// The other font values are convenient for the tests, or for when you don't
+// care what the description is. Plus I didn't want to delete all this work!
+export function createFaceFromTables(source: URL | ArrayBufferLike): FontFace | Promise<FontFace> {
+  if (source instanceof URL) {
+    const res = environment.resolveUrl(source);
+    if (res instanceof Promise) {
+      return res.then(buf => createFaceFromTablesImpl(buf, source));
+    } else {
+      return createFaceFromTablesImpl(res, source);
+    }
   } else {
-    url = arg1 as any;
-    buffer = null;
-    options = arg2 as any || {paint: true};
+    return createFaceFromTablesImpl(source);
   }
-
-  const stringUrl = String(url);
-
-  if (!registeredFonts.has(stringUrl)) {
-    if (!buffer) {
-      const arrayBuffer = await fetch(url).then(res => res.arrayBuffer());
-      buffer = new Uint8Array(arrayBuffer);
-    }
-
-    const blob = hb.createBlob(buffer);
-
-    // Browsers don't support registering collections because there would be
-    // no way to clearly associate one description with one buffer.
-    if (blob.countFaces() !== 1) {
-      throw new Error(`Error registering ${stringUrl}. Note that TTC fonts are not supported.`);
-    }
-
-    const face = new LoadedFontFace(blob, 0, stringUrl);
-
-    if (options.paint) environment.registerFont(face, buffer, url);
-
-    registeredFonts.set(stringUrl, face);
-
-    blob.destroy();
-  }
-}
-
-export function unregisterFont(url: URL): void {
-  const stringUrl = String(url);
-  registeredFonts.get(stringUrl)?.destroy();
-  registeredFonts.delete(stringUrl);
-  cascades = new WeakMap();
 }
 
 class FontCascade {
@@ -535,10 +773,6 @@ class FontCascade {
   constructor(list: LoadedFontFace[], style: Style) {
     this.matches = list;
     this.style = style;
-  }
-
-  static fromSet(set: Map<string, LoadedFontFace>, style: Style) {
-    return new FontCascade([...set.values()], style);
   }
 
   static stretchToLinear: Record<FontStretch, number> = {
@@ -579,9 +813,9 @@ class FontCascade {
   }
 
   narrowByFontStyle(matches: LoadedFontFace[]) {
-    const italics = matches.filter(match => match.italic);
-    const obliques = matches.filter(match => match.oblique);
-    const normals = matches.filter(match => !match.oblique && !match.italic);
+    const italics = matches.filter(match => match.style === 'italic');
+    const obliques = matches.filter(match => match.style === 'oblique');
+    const normals = matches.filter(match => match.style === 'normal');
 
     if (this.style.fontStyle === 'italic') {
       return italics.length ? italics : obliques.length ? obliques : normals;
@@ -660,54 +894,44 @@ class FontCascade {
   }
 
   sort(style: Style, lang: string) {
-    const selectedFamilies: Set<string> = new Set();
-    const newMatches = [];
+    const newMatches = new Set<LoadedFontFace>();
+    const selectedFamilies = new Set<string>();
 
-    families: for (const searchFamily of style.fontFamily) {
-      let matches = [];
+    for (const searchFamily of style.fontFamily) {
+      let matches: LoadedFontFace[] = [];
 
-      candidates: for (const candidate of this.matches) {
-        for (const family of candidate.families) {
-          if (family.toLowerCase().trim() === searchFamily.toLowerCase().trim()) {
-            matches.push(candidate);
-            for (const selectedFamily of candidate.families) {
-              selectedFamilies.add(selectedFamily);
-            }
-            continue candidates;
-          }
+      for (const candidate of this.matches) {
+        if (candidate.family.toLowerCase().trim() === searchFamily.toLowerCase().trim()) {
+          matches.push(candidate);
         }
       }
 
-      if (!matches.length) continue families;
+      if (!matches.length) continue;
 
       matches = this.narrowByFontStretch(matches);
       matches = this.narrowByFontStyle(matches);
-      newMatches.push(this.narrowByFontWeight(matches));
+      const match = this.narrowByFontWeight(matches);
+      newMatches.add(match);
+      selectedFamilies.add(match.family);
     }
 
     // Now we're at the point that the spec calls system fallbacks, since
     // this.matches could be empty. This could be adjusted in all kinds of
     // arbitrary ways. It's most important to ensure a fallback for the
     // language, which is based on the script.
-    let languageCandidates = [];
+    let languageCandidates: LoadedFontFace[] = [];
     for (const candidate of this.matches) {
-      if (candidate.languages.has(lang)) {
-        if (candidate.families.every(family => !selectedFamilies.has(family))) {
-          languageCandidates.push(candidate);
-        }
-      }
-    }
-
-    for (const selectedLanguageCandidate of languageCandidates) {
-      for (const selectedFamily of selectedLanguageCandidate.families) {
-        selectedFamilies.add(selectedFamily);
+      if (candidate.languages.has(lang) && !newMatches.has(candidate)) {
+        languageCandidates.push(candidate);
       }
     }
 
     if (languageCandidates.length) {
       languageCandidates = this.narrowByFontStretch(languageCandidates);
       languageCandidates = this.narrowByFontStyle(languageCandidates);
-      newMatches.push(this.narrowByFontWeight(languageCandidates));
+      const match = this.narrowByFontWeight(languageCandidates);
+      newMatches.add(match);
+      selectedFamilies.add(match.family);
     }
 
     // Finally, push one of each of the rest of the families
@@ -723,10 +947,10 @@ class FontCascade {
     for (let candidates of groups.values()) {
       candidates = this.narrowByFontStretch(candidates);
       candidates = this.narrowByFontStyle(candidates);
-      newMatches.push(this.narrowByFontWeight(candidates));
+      newMatches.add(this.narrowByFontWeight(candidates));
     }
 
-    this.matches = newMatches;
+    this.matches = [...newMatches];
   }
 }
 
@@ -737,7 +961,12 @@ export function getCascade(style: Style, lang: string) {
   if (!cascade) {
     let map1 = cascades.get(style);
     if (!map1) cascades.set(style, map1 = new Map());
-    cascade = FontCascade.fromSet(registeredFonts, style);
+    const list: LoadedFontFace[] = [];
+    for (const face of fonts) {
+      const match = faceToLoaded.get(face);
+      if (match) list.push(match);
+    }
+    cascade = new FontCascade(list, style);
     cascade.sort(style, lang);
     map1.set(lang, cascade);
   }
@@ -745,7 +974,10 @@ export function getCascade(style: Style, lang: string) {
 }
 
 export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
-  for (const face of registeredFonts.values()) cb(face);
+  for (const face of fonts) {
+    const match = faceToLoaded.get(face);
+    if (match) cb(match);
+  }
 }
 
 const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);

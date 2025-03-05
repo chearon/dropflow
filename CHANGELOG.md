@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * `cascadeStyles` has been removed. Pass an array of styles to `h` instead.
 * Removed `getRootStyle`
 * paintToCanvas no longer has a density argument. Use the zoom CSS property instead.
+* Changed the font registration API to match `document.fonts` in web browsers. Instead of `registerFont`, import `fonts` and `FontFace`. See the README for more details.
 
 ### Added
 * Added support for the `zoom` property

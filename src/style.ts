@@ -80,11 +80,11 @@ type Percentage = {value: number, unit: '%'};
 
 type Number = {value: number, unit: null};
 
-type FontWeight = number | 'normal' | 'bold' | 'bolder' | 'lighter';
+export type FontWeight = number | 'normal' | 'bold' | 'bolder' | 'lighter';
 
-type FontStyle = 'normal' | 'italic' | 'oblique';
+export type FontStyle = 'normal' | 'italic' | 'oblique';
 
-type FontVariant = 'normal' | 'small-caps';
+export type FontVariant = 'normal' | 'small-caps';
 
 export type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed'
   | 'semi-condensed' | 'semi-expanded' | 'expanded'

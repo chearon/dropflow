@@ -83,8 +83,8 @@ export function loggableText(text: string): string {
   return text.replace(/\n/g, '⏎').replace(/\t/g, '␉');
 }
 
-export function basename(p: string) {
-  return p.match(/([^.\/]+)\.[A-z]+$/)?.[1] || p;
+export function basename(url: URL) {
+  return url.href.slice(url.href.lastIndexOf('/') + 1);
 }
 
 export interface TreeLogOptions {

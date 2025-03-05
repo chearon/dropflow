@@ -219,7 +219,7 @@ export class HbFace {
     return createSetInternal(setPtr);
   }
 
-  getName(nameId: number, language: string) {
+  getName(nameId: number, language: string): string {
     const writtenPtr = exports.malloc(4);
     const written = new Uint32Array(exports.memory.buffer, writtenPtr, 1);
     const cLanguage = createAsciiString(language);
@@ -420,6 +420,10 @@ export class HbFace {
       afterGlyphs?.ptr ?? 0,
       outputGlyphs?.ptr ?? 0
     );
+  }
+
+  referenceBlob() {
+    return new HbBlob(exports.hb_face_reference_blob(this.ptr));
   }
 
   destroy() {

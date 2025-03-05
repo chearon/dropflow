@@ -76,6 +76,7 @@ pub fn build(b: *std.Build) void {
       "hb_face_get_upem",
       "hb_face_reference_table",
       "hb_face_count",
+      "hb_face_reference_blob",
       "hb_font_create",
       "hb_font_destroy",
       "hb_font_get_extents_for_direction",

@@ -96,9 +96,10 @@ import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
 // Register fonts before layout. This is a required step.
-// It is only async when you don't pass an ArrayBuffer
-await flow.registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
-await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
+// This is synchronous only when the source is an ArrayBuffer or file URL in node
+const file = (relative: string) => new URL(relative, import.meta.url);
+flow.fonts.add(new flow.FontFace('Roboto', file('fonts/Roboto-Regular.ttf'), {weight: 400}));
+flow.fonts.add(new flow.FontFace('Roboto', file('fonts/Roboto-Bold.ttf'), {weight: 700}));
 
 // Always create styles at the top-level of your module if you can.
 const divStyle = flow.style({
@@ -126,8 +127,7 @@ const canvas = createCanvas(250, 50);
 flow.renderToCanvas(rootElement, canvas);
 
 // Save your image
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
-
+fs.writeFileSync(canvas.toBuffer(), file('hello.png'));
 ```
 
 <div align="center">
@@ -191,28 +191,65 @@ Or, you can use the lower-level functions to retain the layout, in case you want
 
 ## Fonts
 
-### `registerFont`
+The first step in a dropflow program is to register fonts to be selected by the CSS font properties. Dropflow **does not search system fonts**, so you must construct a `FontFace` and add it at least once. The font registration API is a **[subset of the CSS Font Loading API](#differences-with-the-css-font-loading-api)**.
+
+`file:///` URLs will `load()` synchronously on the backend via `readFileSync`.
+
+`ArrayBuffers` are loaded immediately in the constructor, just like in the browser.
 
 ```ts
-async function registerFont(url: URL, options?: {paint: boolean}): Promise<void>;
-async function registerFont(buffer: ArrayBuffer, url: URL, options?: {paint: boolean}): Promise<void>;
+const fonts: FontFaceSet;
+
+class FontFaceSet {
+  ready: Promise<FontFaceSet>;
+  has(face: FontFace): boolean;
+  add(face: FontFace): FontFaceSet;
+  delete(face: FontFace): boolean;
+  clear(): void;
+}
+
+class FontFace {
+  constructor(family: string, source: URL | ArrayBuffer, descriptors?: FontFaceDescriptors);
+  load(): Promise<FontFace>;
+  loaded: Promise<FontFace>;
+}
+
+interface FontFaceDescriptors {
+  style?: 'normal' | 'italic' | 'oblique';
+  weight?: number | 'normal' | 'bold' | 'bolder' | 'lighter';
+  stretch?: 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed' | 'semi-condensed' | 'semi-expanded' | 'expanded' | 'extra-expanded' | 'ultra-expanded';
+  variant?: 'normal' | 'small-caps';
+}
 ```
 
-Registers a font to be selected by the `font` properties. Dropflow **does not search system fonts**, so you must do this with at least one font.
+### `fonts`
 
-When a URL is passed, don't forget to `await` this. If an `ArrayBuffer` is passed, there is no need to `await`. In that function signature, the `URL` is only used to provide a unique name for the font.
+```ts
+import * as flow from 'dropflow';
 
-The `URL` must always be unique.
+const roboto1 = new FontFace(
+  'Roboto',
+  new URL('https://cdn.jsdelivr.net/fontsource/fonts/roboto@latest/latin-400-normal.ttf')
+);
 
-In the browser, make sure the font is also loaded into page so that the paint backend can reference it with `ctx.font`. In `node-canvas`, you should either use `registerFont` from `canvas` for this font, or pass `{paint: true}` for `options`, which will try to load `node-canvas` and call its `registerFont`.
+const roboto2 = new FontFace(
+  'Roboto',
+  new URL('https://cdn.jsdelivr.net/fontsource/fonts/roboto@latest/latin-700-normal.ttf'),
+  {weight: 'bold'}
+);
 
-> [!NOTE]
-> This will soon be replaced with an API that looks more like the `document.fonts` API in the browser.
+flow.fonts.add(roboto1).add(roboto2);
+
+for (const font of flow.fonts) font.load();
+await fonts.ready;
+
+// now you can do layout!
+```
 
 ### `loadNotoFonts`
 
 ```ts
-async function loadNotoFonts(root: HTMLElement): Promise<URL[]>;
+async function loadNotoFonts(root: HTMLElement): Promise<FontFace[]>;
 ```
 
 Fetches and registers subsetted [Noto](https://fonts.google.com/noto) Sans fonts that, together, can display all characters in the document. The fonts are published by [FontSource](http://fontsource.org) and hosted by [jsDelivr](https://www.jsdelivr.com). Nothing needs to be done with the return value, but you can use it to unregister the fonts.
@@ -224,14 +261,25 @@ Since dropflow cannot use system fonts, this is similar to having fallback fonts
 > [!NOTE]
 > While this will make the vast majority of text renderable, some scripts should be displayed with fonts made specifically for the language being displayed. For example, Chinese, Korean, and Japanese share common Unicode code points, but can render those characters differently. There is also a small cost to inspecting every character in the document. It is always better to use specific fonts when possible.
 
-### `unregisterFont`
+### `createFaceFromTables`
 
 ```ts
-function unregisterFont(url: URL): void;
+function createFaceFromTables(source: URL | ArrayBufferLike): FontFace | Promise<FontFace>;
 ```
 
-Removes a font from the internal list so that it won't be picked by the `font` properties. This does not remove it from the paint target.
+This can be used if you want a font to be described (family, weight, etc) by its internal metadata. It also reads language information from the font, which will rank it more optimally in the fallback list for a run of text. It will also result in a more appropriate CJK font being chosen for CJK text when the language is known.
 
+A `Promise` is returned if the `URL` is a non-`file://` URL, otherwise, a `FontFace` is returned directly.
+
+This function partly exists to keep behavior that dropflow used to have, since it did not used to support specifying custom font metadata for font selection (it _only_ read metadata from inside the font). The test suite also takes advantage of the fallback list being properly ordered by language for its convenience. In most cases, it is fine to use the `FontFace` constructor instead.
+
+### Differences with the CSS Font Loading API
+
+1. Because dropflow doesn't use system fonts, all registered `FontFace`s are valid choices for fallback fonts. In the browser, if there isn't an exact `@font-face` match for a `font-family`, none of the `@font-face`s are used. Dropflow will try one face from each registered family.
+2. For the same reason, fonts registered with `createFaceFromTables` have associated language support information and this is used to produce higher quality results when none of the family names match.
+3. `file://` URLs are supported server-side and will `load()` synchronously
+
+Note that in dropflow, there is no lazy font loading during layout. `FontFace`s registered with a URL must have their `load` methods called and this must be waited on before doing layout.
 
 ## Hyperscript
 

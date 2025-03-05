@@ -20,7 +20,7 @@ const doc = flow.parse(`
   </div>
 `);
 
-await flow.loadNotoFonts(doc, {paint: false});
+await flow.loadNotoFonts(doc);
 const block = flow.generate(doc);
 block.log();
 flow.layout(block, 600, 100);

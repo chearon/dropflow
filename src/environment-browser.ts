@@ -9,8 +9,17 @@ declare const document: any;
 declare const FontFace: any;
 
 if (environment.registerFont === defaultEnvironment.registerFont) {
-  environment.registerFont = function (face, buffer, url) {
+  environment.registerFont = function (face) {
+    const buffer = face.getBuffer();
     document.fonts.add(new FontFace(face.uniqueFamily, buffer));
+  };
+}
+
+if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
+  environment.resolveUrl = async function (url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.statusText);
+    return await res.arrayBuffer();
   };
 }
 

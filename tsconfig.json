@@ -10,6 +10,7 @@
     "target": "esnext",
     "module": "node16",
     "strict": true,
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "stripInternal": true
   }
 }

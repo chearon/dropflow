@@ -235,7 +235,7 @@ export const G_SZ = 7;
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
 
 function createHyphenCacheKey(item: ShapedItem) {
-  return item.face.filename + item.face.index;
+  return item.face.url.href;
 }
 
 function loadHyphen(item: ShapedItem) {
@@ -1849,7 +1849,7 @@ export class Paragraph {
       t?.(`Item ${itemStart}..${itemEnd}:\n`);
       t?.(`emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
       t?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
-      t?.(`cascade=${cascade.matches.map(m => basename(m.filename)).join(', ')}\n`);
+      t?.(`cascade=${cascade.matches.map(m => basename(m.url)).join(', ')}\n`);
 
       log?.pushIndent();
 
@@ -1869,7 +1869,7 @@ export class Paragraph {
           let segmentGlyphStart = hbClusterState.glyphIndex;
           let segmentGlyphEnd = hbClusterState.glyphIndex;
 
-          t?.(`Shaping "${this.string.slice(offset, end)}" with font ${face.filename}\n`);
+          t?.(`Shaping "${this.string.slice(offset, end)}" with font ${face.url}\n`);
           t?.('Shaper returned: ');
           g?.(shapedPart);
           t?.('\n');
@@ -2393,7 +2393,7 @@ export class Paragraph {
         const lead = `@${item.offset} `.padEnd(5);
         log.text(lead);
         log.pushIndent(' '.repeat(lead.length));
-        log.text(`F:${basename(item.face.filename)}\n`);
+        log.text(`F:${basename(item.face.url)}\n`);
         log.text(`T:"${item.text()}"\n`);
         log.text(`G:`);
         log.glyphs(item.glyphs);

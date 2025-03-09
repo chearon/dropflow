@@ -80,7 +80,7 @@ type Percentage = {value: number, unit: '%'};
 
 type Number = {value: number, unit: null};
 
-type FontWeight = number | 'normal' | 'bolder' | 'lighter';
+type FontWeight = number | 'normal' | 'bold' | 'bolder' | 'lighter';
 
 type FontStyle = 'normal' | 'italic' | 'oblique';
 

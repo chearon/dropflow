@@ -95,11 +95,13 @@ import * as flow from 'dropflow';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-// Register fonts before layout. This is a required step.
-// This is synchronous only when the source is an ArrayBuffer or file URL in node
-const file = (relative: string) => new URL(relative, import.meta.url);
-flow.fonts.add(new flow.FontFace('Roboto', file('fonts/Roboto-Regular.ttf'), {weight: 400}));
-flow.fonts.add(new flow.FontFace('Roboto', file('fonts/Roboto-Bold.ttf'), {weight: 700}));
+// Register fonts before layout. This is a required step. `load()` is synchronous
+// only when the source is an ArrayBuffer or file URL in node, async otherwise
+const roboto1 = new flow.FontFace('Roboto', new URL('file:///Roboto-Regular.ttf'), {weight: 400});
+const roboto2 = new flow.FontFace('Roboto', new URL('file:///Roboto-Bold.ttf'), {weight: 700});
+flow.fonts.add(roboto1).add(roboto2);
+roboto1.load();
+roboto2.load();
 
 // Always create styles at the top-level of your module if you can.
 const divStyle = flow.style({
@@ -127,7 +129,7 @@ const canvas = createCanvas(250, 50);
 flow.renderToCanvas(rootElement, canvas);
 
 // Save your image
-fs.writeFileSync(canvas.toBuffer(), file('hello.png'));
+fs.writeFileSync(new URL('file:///hello.png'), canvas.toBuffer());
 ```
 
 <div align="center">
@@ -275,7 +277,7 @@ This function partly exists to keep behavior that dropflow used to have, since i
 
 ### Differences with the CSS Font Loading API
 
-1. Because dropflow doesn't use system fonts, all registered `FontFace`s are valid choices for fallback fonts. In the browser, if there isn't an exact `@font-face` match for a `font-family`, none of the `@font-face`s are used. Dropflow will try one face from each registered family.
+1. Because dropflow doesn't use system fonts, all registered `FontFace`s are valid choices for fallback fonts. In the browser, if there isn't an exact `@font-face` or `FontFace` match for a `font-family`, none of them are used. Dropflow will try one face from each registered family.
 2. For the same reason, fonts registered with `createFaceFromTables` have associated language support information and this is used to produce higher quality results when none of the family names match.
 3. `file://` URLs are supported server-side and will `load()` synchronously
 
@@ -283,7 +285,7 @@ Note that in dropflow, there is no lazy font loading during layout. `FontFace`s 
 
 ## Hyperscript
 
-The hyperscript API is the fastest way to generate a DOM. The DOM is composed of `HTMLElement`s and `TextNode`s. The relevant properties of them are shown below. More supported properties are described in the [#dom-api](DOM API section).
+The hyperscript API is the fastest way to generate a DOM. The DOM is composed of `HTMLElement`s and `TextNode`s. The relevant properties of them are shown below. More supported properties are described in the [DOM API section](#dom-api).
 
 ### `style`
 

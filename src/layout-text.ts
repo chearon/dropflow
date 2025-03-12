@@ -219,7 +219,7 @@ const hyphenCache = new Map<string, Int32Array>();
 
 export function getFontMetrics(inline: Inline) {
   const strutCascade = getCascade(inline.style, 'en');
-  const [strutFace] = strutCascade.matches;
+  const [strutFace] = strutCascade;
   return getMetrics(inline.style, strutFace);
 }
 
@@ -1044,8 +1044,7 @@ function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
     if (lineHeight === 'normal') {
       // TODO: is there a better/faster way to do this? currently struts only
       // exist if there is a paragraph, but I think spec is saying do this
-      const strutCascade = getCascade(block.style, 'en');
-      const [strutFace] = strutCascade.matches;
+      const [strutFace] = getCascade(block.style, 'en');
       const metrics = getMetrics(block.style, strutFace);
       return (metrics.ascenderBox + metrics.descenderBox) * block.style.verticalAlign.value / 100;
     } else {
@@ -1849,14 +1848,14 @@ export class Paragraph {
       t?.(`Item ${itemStart}..${itemEnd}:\n`);
       t?.(`emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
       t?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
-      t?.(`cascade=${cascade.matches.map(m => basename(m.url)).join(', ')}\n`);
+      t?.(`cascade=${cascade.map(m => basename(m.url)).join(', ')}\n`);
 
       log?.pushIndent();
 
-      for (let i = 0; shapeWork.length && i < cascade.matches.length; ++i) {
+      for (let i = 0; shapeWork.length && i < cascade.length; ++i) {
         const nextShapeWork: {offset: number, length: number}[] = [];
-        const face = cascade.matches[i];
-        const isLastMatch = i === cascade.matches.length - 1;
+        const face = cascade[i];
+        const isLastMatch = i === cascade.length - 1;
 
         while (shapeWork.length) {
           const {offset, length} = shapeWork.pop()!;

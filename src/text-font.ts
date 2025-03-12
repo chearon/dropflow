@@ -544,6 +544,7 @@ class FontFaceSet {
 
   add(face: FontFace) {
     if (this.#faces.add(face)) {
+      langCascade = undefined;
       if (face.status === 'loading') this._onLoading(face);
       faceToLoaded.get(face)?.allocate();
     }
@@ -567,7 +568,7 @@ class FontFaceSet {
       if (this.#loading.delete(face) && this.#loading.size === 0) {
         this._switchToLoaded();
       }
-      cascades = new WeakMap();
+      langCascade = undefined;
       return true;
     }
 
@@ -578,7 +579,7 @@ class FontFaceSet {
     this.#faces.clear();
     this.#loaded.clear();
     this.#failed.clear();
-    cascades = new WeakMap();
+    langCascade = undefined;
     if (this.#loading.size !== 0) {
       this.#loading.clear();
       this._switchToLoaded();
@@ -674,6 +675,7 @@ export class FontFace {
   _matchToLoaded(face: LoadedFontFace) {
     this.status = 'loaded';
     faceToLoaded.set(this, face);
+    langCascade = undefined;
     loadedFaceRegistry.register(this, face);
     fonts._onLoaded(this);
     environment.registerFont(face);
@@ -766,13 +768,18 @@ export function createFaceFromTables(source: URL | ArrayBufferLike): FontFace | 
   }
 }
 
-class FontCascade {
-  matches: LoadedFontFace[];
-  style: Style;
+class LangFontCascade {
+  private source: LoadedFontFace[];
+  private cache: WeakMap<Style, Map<string, LoadedFontFace[]>>;
 
-  constructor(list: LoadedFontFace[], style: Style) {
-    this.matches = list;
-    this.style = style;
+  constructor(source: LoadedFontFace[]) {
+    this.source = source;
+    this.cache = new WeakMap();
+  }
+
+  reset(source: LoadedFontFace[]) {
+    this.source = source;
+    this.cache = new WeakMap();
   }
 
   static stretchToLinear: Record<FontStretch, number> = {
@@ -787,9 +794,9 @@ class FontCascade {
     'ultra-expanded': 9,
   };
 
-  narrowByFontStretch(matches: LoadedFontFace[]) {
-    const toLinear = FontCascade.stretchToLinear;
-    const desiredLinearStretch = toLinear[this.style.fontStretch];
+  narrowByFontStretch(style: Style, matches: LoadedFontFace[]) {
+    const toLinear = LangFontCascade.stretchToLinear;
+    const desiredLinearStretch = toLinear[style.fontStretch];
     const search = matches.slice()
 
     if (desiredLinearStretch <= 5) {
@@ -812,24 +819,24 @@ class FontCascade {
     return matches.filter(match => match.stretch === bestMatch.stretch);
   }
 
-  narrowByFontStyle(matches: LoadedFontFace[]) {
+  narrowByFontStyle(style: Style, matches: LoadedFontFace[]) {
     const italics = matches.filter(match => match.style === 'italic');
     const obliques = matches.filter(match => match.style === 'oblique');
     const normals = matches.filter(match => match.style === 'normal');
 
-    if (this.style.fontStyle === 'italic') {
+    if (style.fontStyle === 'italic') {
       return italics.length ? italics : obliques.length ? obliques : normals;
     }
 
-    if (this.style.fontStyle === 'oblique') {
+    if (style.fontStyle === 'oblique') {
       return obliques.length ? obliques : italics.length ? italics : normals;
     }
 
     return normals.length ? normals : obliques.length ? obliques : italics;
   }
 
-  narrowByFontWeight(matches: LoadedFontFace[]) {
-    const desiredWeight = this.style.fontWeight;
+  narrowByFontWeight(style: Style, matches: LoadedFontFace[]) {
+    const desiredWeight = style.fontWeight;
     const exact = matches.find(match => match.weight === desiredWeight);
     let lt400 = desiredWeight < 400;
 
@@ -855,7 +862,7 @@ class FontCascade {
       above.sort((a, b) => a.weight - b.weight);
 
       for (const match of below) {
-        const distance = Math.abs(match.weight - this.style.fontWeight);
+        const distance = Math.abs(match.weight - style.fontWeight);
         if (distance < bestWeightDistance) {
           bestWeightDistance = distance;
           bestMatch = match;
@@ -863,7 +870,7 @@ class FontCascade {
       }
 
       for (const match of above) {
-        const distance = Math.abs(match.weight - this.style.fontWeight);
+        const distance = Math.abs(match.weight - style.fontWeight);
         if (distance < bestWeightDistance) {
           bestWeightDistance = distance;
           bestMatch = match;
@@ -874,7 +881,7 @@ class FontCascade {
       above.sort((a, b) => b.weight - a.weight);
 
       for (const match of above) {
-        const distance = Math.abs(match.weight - this.style.fontWeight);
+        const distance = Math.abs(match.weight - style.fontWeight);
         if (distance < bestWeightDistance) {
           bestWeightDistance = distance;
           bestMatch = match;
@@ -882,7 +889,7 @@ class FontCascade {
       }
 
       for (const match of below) {
-        const distance = Math.abs(match.weight - this.style.fontWeight);
+        const distance = Math.abs(match.weight - style.fontWeight);
         if (distance < bestWeightDistance) {
           bestWeightDistance = distance;
           bestMatch = match;
@@ -894,13 +901,18 @@ class FontCascade {
   }
 
   sort(style: Style, lang: string) {
-    const newMatches = new Set<LoadedFontFace>();
+    const ret = new Set<LoadedFontFace>();
     const selectedFamilies = new Set<string>();
+    let matches = this.cache.get(style)?.get(lang);
+    if (matches) return matches;
+
+    let map1 = this.cache.get(style);
+    if (!map1) this.cache.set(style, map1 = new Map());
 
     for (const searchFamily of style.fontFamily) {
       let matches: LoadedFontFace[] = [];
 
-      for (const candidate of this.matches) {
+      for (const candidate of this.source) {
         if (candidate.family.toLowerCase().trim() === searchFamily.toLowerCase().trim()) {
           matches.push(candidate);
         }
@@ -908,10 +920,10 @@ class FontCascade {
 
       if (!matches.length) continue;
 
-      matches = this.narrowByFontStretch(matches);
-      matches = this.narrowByFontStyle(matches);
-      const match = this.narrowByFontWeight(matches);
-      newMatches.add(match);
+      matches = this.narrowByFontStretch(style, matches);
+      matches = this.narrowByFontStyle(style, matches);
+      const match = this.narrowByFontWeight(style, matches);
+      ret.add(match);
       selectedFamilies.add(match.family);
     }
 
@@ -920,23 +932,23 @@ class FontCascade {
     // arbitrary ways. It's most important to ensure a fallback for the
     // language, which is based on the script.
     let languageCandidates: LoadedFontFace[] = [];
-    for (const candidate of this.matches) {
-      if (candidate.languages.has(lang) && !newMatches.has(candidate)) {
+    for (const candidate of this.source) {
+      if (candidate.languages.has(lang) && !ret.has(candidate)) {
         languageCandidates.push(candidate);
       }
     }
 
     if (languageCandidates.length) {
-      languageCandidates = this.narrowByFontStretch(languageCandidates);
-      languageCandidates = this.narrowByFontStyle(languageCandidates);
-      const match = this.narrowByFontWeight(languageCandidates);
-      newMatches.add(match);
+      languageCandidates = this.narrowByFontStretch(style, languageCandidates);
+      languageCandidates = this.narrowByFontStyle(style, languageCandidates);
+      const match = this.narrowByFontWeight(style, languageCandidates);
+      ret.add(match);
       selectedFamilies.add(match.family);
     }
 
     // Finally, push one of each of the rest of the families
     const groups = new Map<string, LoadedFontFace[]>();
-    for (const candidate of this.matches) {
+    for (const candidate of this.source) {
       if (!selectedFamilies.has(candidate.family)) {
         let candidates = groups.get(candidate.family);
         if (!candidates) groups.set(candidate.family, candidates = []);
@@ -945,32 +957,29 @@ class FontCascade {
     }
 
     for (let candidates of groups.values()) {
-      candidates = this.narrowByFontStretch(candidates);
-      candidates = this.narrowByFontStyle(candidates);
-      newMatches.add(this.narrowByFontWeight(candidates));
+      candidates = this.narrowByFontStretch(style, candidates);
+      candidates = this.narrowByFontStyle(style, candidates);
+      ret.add(this.narrowByFontWeight(style, candidates));
     }
 
-    this.matches = [...newMatches];
+    matches = [...ret];
+    map1.set(lang, matches);
+    return matches;
   }
 }
 
-let cascades = new WeakMap<Style, Map<string, FontCascade>>();
+let langCascade: LangFontCascade | undefined;
 
 export function getCascade(style: Style, lang: string) {
-  let cascade = cascades.get(style)?.get(lang);
-  if (!cascade) {
-    let map1 = cascades.get(style);
-    if (!map1) cascades.set(style, map1 = new Map());
+  if (!langCascade) {
     const list: LoadedFontFace[] = [];
     for (const face of fonts) {
       const match = faceToLoaded.get(face);
       if (match) list.push(match);
     }
-    cascade = new FontCascade(list, style);
-    cascade.sort(style, lang);
-    map1.set(lang, cascade);
+    langCascade = new LangFontCascade(list);
   }
-  return cascade;
+  return langCascade.sort(style, lang);
 }
 
 export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {

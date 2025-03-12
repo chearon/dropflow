@@ -52,7 +52,7 @@ describe('Fonts', function () {
 
     it('looks up a single font', function () {
       const cascade = getCascade(style({fontFamily: ['Cairo']}), 'en');
-      expect(cascade.matches.find(match => match.family === 'Cairo')).to.be.ok;
+      expect(cascade.find(match => match.family === 'Cairo')).to.be.ok;
     });
 
     it('distinguishes Korean and Japanese', function () {
@@ -60,31 +60,31 @@ describe('Fonts', function () {
       registerFontAsset('Noto/NotoSansJP-Regular.otf');
       registerFontAsset('Noto/NotoSansKR-Regular.otf');
       const c1 = getCascade(style({}), 'kr');
-      expect(c1.matches.find(match => match.family === 'Noto Sans KR')).to.be.ok;
+      expect(c1.find(match => match.family === 'Noto Sans KR')).to.be.ok;
       const c2 = getCascade(style({}), 'jp');
-      expect(c2.matches.find(match => match.family === 'Noto Sans JP')).to.be.ok;
+      expect(c2.find(match => match.family === 'Noto Sans JP')).to.be.ok;
       unregisterFontAsset('Noto/NotoSansJP-Regular.otf');
       unregisterFontAsset('Noto/NotoSansKR-Regular.otf');
     });
 
     it('includes one of each other family at the right style', function () {
       const cascade = getCascade(style({fontFamily: ['Cairo'], fontWeight: 700}), 'en');
-      expect(cascade.matches[0].weight).to.equal(700);
-      const arimo = cascade.matches.filter(match => match.family === 'Arimo');
+      expect(cascade[0].weight).to.equal(700);
+      const arimo = cascade.filter(match => match.family === 'Arimo');
       expect(arimo).to.have.lengthOf(1);
       expect(arimo[0].weight).to.equal(700);
     });
 
     it('looks up italic fonts', function () {
       const cascade = getCascade(style({fontFamily: ['Arimo'], fontStyle: 'italic'}), 'en');
-      expect(cascade.matches[0].style).to.equal('italic');
+      expect(cascade[0].style).to.equal('italic');
     });
 
     it('deregisters fonts', function () {
       unregisterFontAsset('Cairo/Cairo-Regular.ttf');
       unregisterFontAsset('Cairo/Cairo-Bold.ttf');
       const cascade = getCascade(style({fontFamily: ['Cairo']}), 'en');
-      expect(cascade.matches.find(match => match.family === 'Cairo')).not.to.be.ok;
+      expect(cascade.find(match => match.family === 'Cairo')).not.to.be.ok;
       registerFontAsset('Cairo/Cairo-Regular.ttf');
       registerFontAsset('Cairo/Cairo-Bold.ttf');
     });
@@ -102,7 +102,7 @@ describe('Fonts', function () {
       registerFontAsset('Roboto/Roboto-Light.ttf'); // 300
       registerFontAsset('Roboto/Roboto-Medium.ttf'); // 500
       const cascade = getCascade(style({fontFamily: ['Roboto'], fontWeight: 400}), 'en');
-      expect(cascade.matches.find(match => match.family === 'Roboto').weight).to.equal(500);
+      expect(cascade.find(match => match.family === 'Roboto').weight).to.equal(500);
       unregisterFontAsset('Roboto/Roboto-Medium.ttf');
       unregisterFontAsset('Roboto/Roboto-Light.ttf');
     });
@@ -111,7 +111,7 @@ describe('Fonts', function () {
       registerFontAsset('Roboto/Roboto-Light.ttf'); // 300
       registerFontAsset('Roboto/Roboto-Regular.ttf'); // 400
       const cascade = getCascade(style({fontFamily: ['Roboto'], fontWeight: 500}), 'en');
-      expect(cascade.matches.find(match => match.family === 'Roboto').weight).to.equal(400);
+      expect(cascade.find(match => match.family === 'Roboto').weight).to.equal(400);
       unregisterFontAsset('Roboto/Roboto-Regular.ttf');
       unregisterFontAsset('Roboto/Roboto-Light.ttf');
     });
@@ -120,7 +120,7 @@ describe('Fonts', function () {
       registerFontAsset('NotoSansArabic/NotoSansArabic-Thin.ttf'); // 100
       registerFontAsset('NotoSansArabic/NotoSansArabic-ExtraLight.ttf'); // 200
       const cascade = getCascade(style({fontFamily: ['Noto Sans Arabic'], fontWeight: 150}), 'ar');
-      expect(cascade.matches.find(match => match.family === 'Noto Sans Arabic').weight).to.equal(100);
+      expect(cascade.find(match => match.family === 'Noto Sans Arabic').weight).to.equal(100);
       unregisterFontAsset('NotoSansArabic/NotoSansArabic-Thin.ttf');
       unregisterFontAsset('NotoSansArabic/NotoSansArabic-ExtraLight.ttf');
     });
@@ -129,7 +129,7 @@ describe('Fonts', function () {
       registerFontAsset('NotoSansArabic/NotoSansArabic-Bold.ttf'); // 700
       registerFontAsset('NotoSansArabic/NotoSansArabic-ExtraBold.ttf'); // 800
       const cascade = getCascade(style({fontFamily: ['Noto Sans Arabic'], fontWeight: 750}), 'ar');
-      expect(cascade.matches.find(match => match.family === 'Noto Sans Arabic').weight).to.equal(800);
+      expect(cascade.find(match => match.family === 'Noto Sans Arabic').weight).to.equal(800);
       unregisterFontAsset('NotoSansArabic/NotoSansArabic-Bold.ttf');
       unregisterFontAsset('NotoSansArabic/NotoSansArabic-ExtraBold.ttf');
     });
@@ -174,15 +174,15 @@ describe('Fonts', function () {
       const f3 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
       f3.load(); // but never registered, so shouldn't show up below
       const cascade = () => getCascade(style({fontFamily: ['f1', 'f2']}), 'en');
-      expect(cascade().matches.length).to.equal(0);
+      expect(cascade().length).to.equal(0);
       f2.load();
-      expect(cascade().matches.length).to.equal(0);
+      expect(cascade().length).to.equal(0);
       fonts.add(f2);
-      expect(cascade().matches.length).to.equal(1);
+      expect(cascade().length).to.equal(1);
       fonts.add(f1);
-      expect(cascade().matches.length).to.equal(1);
+      expect(cascade().length).to.equal(1);
       f1.load();
-      expect(cascade().matches.length).to.equal(2);
+      expect(cascade().length).to.equal(2);
       fonts.delete(f1);
       fonts.delete(f2);
     });
@@ -194,13 +194,13 @@ describe('Fonts', function () {
       const f1 = new FontFace('f1', furl);
       f1.load();
       fonts.add(f1);
-      expect(cascade().matches[0].url).to.equal(furl);
+      expect(cascade()[0].url).to.equal(furl);
       fonts.delete(f1);
 
       const f2 = createFaceFromTables(furl);
       f2.load();
       fonts.add(f2);
-      expect(cascade().matches[0].url.href).to.equal(furl.href);
+      expect(cascade()[0].url.href).to.equal(furl.href);
       fonts.delete(f2);
     });
 
@@ -216,7 +216,7 @@ describe('Fonts', function () {
       expect(e).to.be.an.instanceOf(Error);
       expect(f1.status).to.equal('error');
       const cascade = getCascade(style({fontFamily: ['f1']}), 'en');
-      expect(cascade.matches.length).to.equal(0);
+      expect(cascade.length).to.equal(0);
       mock.reset();
     });
 
@@ -233,7 +233,7 @@ describe('Fonts', function () {
       expect(e).to.be.an.instanceOf(Error);
       expect(f1.status).to.equal('error');
       const cascade = getCascade(style({fontFamily: ['f1']}), 'en');
-      expect(cascade.matches.length).to.equal(0);
+      expect(cascade.length).to.equal(0);
       mock.reset();
     });
 

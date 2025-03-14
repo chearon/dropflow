@@ -1,7 +1,8 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import fs from 'fs';
 
-const doc = flow.parse(`
+const doc = parse(`
   <html style="background-color: #eee; text-align: center;">
     <div style="line-height: 1; color: white;">
       <div style="display: inline-block;" x-dropflow-log>

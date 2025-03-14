@@ -1,4 +1,4 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 

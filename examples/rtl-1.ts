@@ -1,4 +1,5 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
@@ -6,7 +7,7 @@ import {createCanvas} from 'canvas';
 registerFontAsset('Cairo/Cairo-Regular.ttf'),
 registerFontAsset('Raleway/Raleway-Regular.ttf')
 
-const rootElement = flow.parse(`
+const rootElement = parse(`
   <div style="background-color: #ccc; zoom: 2;" x-dropflow-log>
     <div style="line-height: 2.5; direction: rtl;" x-dropflow-log>
       <span style="background-color: red; color: white; border: 2px solid green;">

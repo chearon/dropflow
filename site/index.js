@@ -1,6 +1,7 @@
 // @ts-check
 import './config.js';
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {EditorView, basicSetup} from 'codemirror';
 import {EditorState} from '@codemirror/state';
 import {html} from '@codemirror/lang-html';
@@ -13,7 +14,7 @@ const canvasLabel = document.getElementById('canvas-label');
 flow.setOriginStyle({zoom: window.devicePixelRatio});
 
 async function render(html) {
-  const documentElement = flow.parse(html);
+  const documentElement = parse(html);
   const ctx = canvas.getContext('2d');
   const cssWidth = wrap.getBoundingClientRect().width;
   const cssHeight = wrap.getBoundingClientRect().height;

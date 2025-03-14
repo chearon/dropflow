@@ -1,4 +1,5 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import fs from 'fs';
 import {registerFontAsset} from '../assets/register.js';
 import {createCanvas} from 'canvas';
@@ -6,7 +7,7 @@ import {createCanvas} from 'canvas';
 registerFontAsset('Cairo/Cairo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Regular.ttf');
 
-const rootElement = flow.parse(`
+const rootElement = parse(`
   <html style="zoom: 2; height: 100%;">
     <div style="background-color: #ccc; direction: ltr; font-size: 14px; height: 100%;" x-dropflow-log>
       abc<span style="background-color: red;">Hello</span>def

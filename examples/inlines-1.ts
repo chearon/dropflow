@@ -1,4 +1,5 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';
@@ -8,7 +9,7 @@ registerFontAsset('Arimo/Arimo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Italic.ttf');
 registerFontAsset('Cousine/Cousine-Regular.ttf');
 
-const rootElement = flow.parse(`
+const rootElement = parse(`
   <div style="font: 16px/1.4 Arimo; background-color: white; zoom: 2;" x-dropflow-log>
     <span style="background-color: #eee;">
       I <span style="font-family: Cousine; color: #11a;">like</span> to write

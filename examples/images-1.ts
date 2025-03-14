@@ -1,4 +1,4 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
 import fs from 'fs';
 import {createCanvas, loadImage} from 'canvas';
 import {registerFontAsset} from '../assets/register.js';

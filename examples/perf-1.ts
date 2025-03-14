@@ -1,4 +1,5 @@
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
@@ -13,7 +14,7 @@ registerFontAsset('Cousine/Cousine-Regular.ttf');
 console.timeEnd('Add fonts');
 console.log();
 
-const rootElement = flow.parse(`
+const rootElement = parse(`
   <div style="zoom: 2; padding: 1em; background-color: #fff; font-family: Arimo;">
     <p style="font: bold 24px Arimo; display: block;">CSS Floats
     <p style="font: italic 16px Arimo; display: block;">An excerpt from the Visual Formatting Model, CSS2 §9.5

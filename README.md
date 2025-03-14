@@ -145,14 +145,15 @@ purposes. Parsing adds extra time (though it is fast thanks to @fb55) and
 increases bundle size significantly.
 
 ```ts
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
 await flow.registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
 await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
 
-const rootElement = flow.parse(`
+const rootElement = parse(`
   <div style="background-color: #1c0a00; color: #b3c890; text-align: center;">
     Hello, <span style="color: #73a9ad; font-weight: bold;">World!</span>
   </div>
@@ -347,7 +348,7 @@ The entire `h` tree to render must be passed to this function before rendering.
 This part of the API brings in a lot more code due to the size of the HTML and CSS parsers. Import it like so:
 
 ```ts
-import flow from 'dropflow/with-parse.js';
+import parse from 'dropflow/parse.js';
 ```
 
 Note that only the `style` HTML attribute is supported at this time. `class` does not work yet.

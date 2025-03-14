@@ -1,6 +1,7 @@
 //@ts-check
 import {expect} from 'chai';
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import paint from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
@@ -10,7 +11,7 @@ const log = new Logger();
 
 function setupLayoutTests() {
   this.layout = function (html) {
-    const rootElement = flow.parse(html);
+    const rootElement = parse(html);
     this.blockContainer = flow.generate(rootElement);
     flow.layout(this.blockContainer);
   };
@@ -401,7 +402,7 @@ describe('Painting', function () {
   });
 
   it('propagates the overflow property to the viewport', function () {
-    const rootElement = flow.parse(`
+    const rootElement = parse(`
       <html style="overflow: hidden;">
         <div style="background-color: #321; width: 100px; height: 100px;"></div>
       </html>

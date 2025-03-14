@@ -32,9 +32,9 @@
       "buildtime": "./src/api.js",
       "default": "./dist/src/api.js"
     },
-    "./with-parse.js": {
-      "buildtime": "./src/api-with-parse.js",
-      "default": "./dist/src/api-with-parse.js"
+    "./parse.js": {
+      "buildtime": "./src/api-parse.js",
+      "default": "./dist/src/api-parse.js"
     },
     "./environment.js": "./dist/src/environment.js",
     "./dropflow.wasm": "./dist/dropflow.wasm"

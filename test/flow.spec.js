@@ -1,7 +1,8 @@
 //@ts-check
 
 import {expect} from 'chai';
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {Logger} from '../src/util.js';
 
@@ -15,7 +16,7 @@ describe('Flow', function () {
      * @param {string} [html]
      */
     this.layout = function (html) {
-      this.rootElement = flow.parse(html);
+      this.rootElement = parse(html);
       this.blockContainer = flow.generate(this.rootElement);
       flow.layout(this.blockContainer, 300, 500);
       this.get = function (...args) {

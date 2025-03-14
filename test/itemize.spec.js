@@ -12,7 +12,8 @@ import {
   createStyleIteratorState,
   styleIteratorNext
 } from '../src/text-itemize.js';
-import * as flow from 'dropflow/with-parse.js';
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 
 const {malloc, free} = wasm.instance.exports;
@@ -30,7 +31,7 @@ function createJsString(str) {
 }
 
 function layout(html) {
-  const el = flow.parse(html);
+  const el = parse(html);
   const bc = flow.generate(el);
   flow.layout(bc);
   return bc;

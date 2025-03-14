@@ -15,7 +15,7 @@ import {
 import LineBreak, {HardBreaker} from './text-line-break.js';
 import {nextGraphemeBreak, previousGraphemeBreak} from './text-grapheme-break.js';
 import * as hb from './text-harfbuzz.js';
-import {getCascade} from './text-font.js';
+import {getLangCascade} from './text-font.js';
 import {nameToTag} from '../gen/script-names.js';
 import {createItemizeState, itemizeNext} from './text-itemize.js';
 
@@ -218,7 +218,7 @@ export interface ShapingAttrs {
 const hyphenCache = new Map<string, Int32Array>();
 
 export function getFontMetrics(inline: Inline) {
-  const strutCascade = getCascade(inline.style, 'en');
+  const strutCascade = getLangCascade(inline.style, 'en');
   const [strutFace] = strutCascade;
   return getMetrics(inline.style, strutFace);
 }
@@ -1044,7 +1044,7 @@ function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
     if (lineHeight === 'normal') {
       // TODO: is there a better/faster way to do this? currently struts only
       // exist if there is a paragraph, but I think spec is saying do this
-      const [strutFace] = getCascade(block.style, 'en');
+      const [strutFace] = getLangCascade(block.style, 'en');
       const metrics = getMetrics(block.style, strutFace);
       return (metrics.ascenderBox + metrics.descenderBox) * block.style.verticalAlign.value / 100;
     } else {
@@ -1841,7 +1841,7 @@ export class Paragraph {
       const itemStart = itemizeState.offset;
       itemizeNext(itemizeState);
       const attrs = itemizeState.attrs;
-      const cascade = getCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
+      const cascade = getLangCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
       const itemEnd = itemizeState.offset;
       let shapeWork = [{offset: itemStart, length: itemEnd - itemStart}];
 

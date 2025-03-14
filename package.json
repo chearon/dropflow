@@ -36,6 +36,10 @@
       "buildtime": "./src/api-parse.js",
       "default": "./dist/src/api-parse.js"
     },
+    "./register-noto-fonts.js": {
+      "buildtime": "./src/api-register-noto-fonts.js",
+      "default": "./dist/src/api-register-noto-fonts.js"
+    },
     "./environment.js": "./dist/src/environment.js",
     "./dropflow.wasm": "./dist/dropflow.wasm"
   },

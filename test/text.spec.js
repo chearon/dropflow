@@ -207,22 +207,22 @@ describe('Shaping', function () {
   before(setupLayoutTests);
 
   before(function () {
-    registerFontAsset('Arimo/Arimo-Regular.ttf');
-    registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+    registerFontAsset('Roboto/Roboto-Regular.ttf');
     // The test "it uses the font's internal leading when a shaped item is
     // split onto a new line" relies on Cairo being registered _after_ Arimo.
     // See the test for more info.
     registerFontAsset('Cairo/Cairo-Regular.ttf');
-    registerFontAsset('Roboto/Roboto-Regular.ttf');
-    registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+    registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   after(function () {
-    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
-    unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
-    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
-    unregisterFontAsset('Roboto/Roboto-Regular.ttf');
     unregisterFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+    unregisterFontAsset('Roboto/Roboto-Regular.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+    unregisterFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   afterEach(logIfFailed);
@@ -447,14 +447,14 @@ describe('Lines', function () {
   before(setupLayoutTests);
 
   before(function () {
-    registerFontAsset('Arimo/Arimo-Regular.ttf');
-    registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
-    registerFontAsset('Cairo/Cairo-Regular.ttf');
-    registerFontAsset('Roboto/Roboto-Regular.ttf');
-    registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
-    registerFontAsset('Raleway/Raleway-Regular.ttf');
-    registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
     registerFontAsset('Ahem/Ahem.ttf');
+    registerFontAsset('LigatureSymbolsWithSpaces/LigatureSymbolsWithSpaces.ttf');
+    registerFontAsset('Raleway/Raleway-Regular.ttf');
+    registerFontAsset('Noto/NotoSansHebrew-Regular.ttf');
+    registerFontAsset('Roboto/Roboto-Regular.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+    registerFontAsset('Ramabhadra/Ramabhadra-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   after(function () {
@@ -1410,8 +1410,8 @@ describe('Vertical Align', function () {
   before(setupLayoutTests);
 
   before(function () {
-    registerFontAsset('Arimo/Arimo-Regular.ttf');
     registerFontAsset('Cairo/Cairo-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   after(function () {
@@ -1851,8 +1851,8 @@ describe('Inline Blocks', function () {
   before(setupLayoutTests);
 
   before(function () {
-    registerFontAsset('Arimo/Arimo-Regular.ttf');
     registerFontAsset('Cairo/Cairo-Regular.ttf');
+    registerFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   after(function () {

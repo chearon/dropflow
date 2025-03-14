@@ -1,5 +1,6 @@
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
+import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import fs from 'fs';
 
 const doc = parse(`
@@ -21,7 +22,8 @@ const doc = parse(`
   </div>
 `);
 
-await flow.loadNotoFonts(doc);
+registerNotoFonts();
+await flow.load(doc);
 const block = flow.generate(doc);
 block.log();
 flow.layout(block, 600, 100);

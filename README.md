@@ -188,9 +188,10 @@ Then, you can either render the DOM into a canvas using its size as the viewport
 
 Or, you can use the lower-level functions to retain the layout, in case you want to re-layout at a different size, choose not to paint (for example if the layout isn't visible) or get intrinsics:
 
-1. [Generate a tree of layout boxes from the DOM](#generate)
-2. [Layout the box tree](#layout)
-3. [Paint the box tree to a target like canvas](#paint)
+1. [Load dependent resources](#load)
+2. [Generate a tree of layout boxes from the DOM](#generate)
+3. [Layout the box tree](#layout)
+4. [Paint the box tree to a target like canvas](#paint)
 
 ## Fonts
 
@@ -249,13 +250,19 @@ await fonts.ready;
 // now you can do layout!
 ```
 
-### `loadNotoFonts`
+### `registerNotoFonts`
 
 ```ts
-async function loadNotoFonts(root: HTMLElement): Promise<FontFace[]>;
+import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 ```
 
-Fetches and registers subsetted [Noto](https://fonts.google.com/noto) Sans fonts that, together, can display all characters in the document. The fonts are published by [FontSource](http://fontsource.org) and hosted by [jsDelivr](https://www.jsdelivr.com). Nothing needs to be done with the return value, but you can use it to unregister the fonts.
+```ts
+async function registerNotoFonts(): void;
+```
+
+Registers every [Noto](https://fonts.google.com/noto) Sans font family. The fonts are published by [FontSource](http://fontsource.org) and hosted by [jsDelivr](https://www.jsdelivr.com).
+
+Note that this is a big import: there are more than 200 Noto Sans fonts, and the CJK fonts have large `unicodeRange` strings. It is probably better to register individual fonts for production use in a web browser. You could also copy and paste what you need from `register-noto-fonts.ts`.
 
 For Latin, italic fonts are registered. For all scripts, one normal (400) weight and one bold (700) is registered.
 
@@ -367,10 +374,18 @@ Parses HTML. If you don't specify a root `<html>` element, content will be wrapp
 This is only for simple use cases. For more advanced usage continue on to the next section.
 
 ```ts
-function renderToCanvas(rootElement: HTMLElement, canvas: Canvas): void;
+function renderToCanvas(rootElement: HTMLElement, canvas: Canvas): Promise<void>;
 ```
 
 Renders the whole layout to the canvas, using its width and height as the viewport size.
+
+## Load
+
+```ts
+function load(rootElement: HTMLElement): Promise<void>;
+```
+
+Ensures that all of the fonts required by the document are loaded. This efficiently walks the document and matches styles to `FontFace` `unicodeRange`, `family`, etc. In the future, this will also fetch images.
 
 ## Generate
 

@@ -2,6 +2,7 @@
 import './config.js';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
+import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import {EditorView, basicSetup} from 'codemirror';
 import {EditorState} from '@codemirror/state';
 import {html} from '@codemirror/lang-html';
@@ -12,6 +13,7 @@ const wrap = document.getElementById('wrap');
 const canvasLabel = document.getElementById('canvas-label');
 
 flow.setOriginStyle({zoom: window.devicePixelRatio});
+registerNotoFonts();
 
 async function render(html) {
   const documentElement = parse(html);
@@ -21,7 +23,7 @@ async function render(html) {
   const dpxWidth = Math.ceil(cssWidth * window.devicePixelRatio);
   const dpxHeight = Math.ceil(cssHeight * window.devicePixelRatio);
 
-  await flow.loadNotoFonts(documentElement);
+  await flow.load(documentElement);
   canvas.style.width = `${dpxWidth / window.devicePixelRatio}px`;
   canvas.style.height = `${dpxHeight / window.devicePixelRatio}px`;
   canvas.width = dpxWidth;

@@ -4,7 +4,6 @@ import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {HTMLElement} from '../src/dom.js';
 import {h, dom, generate, layout, style} from 'dropflow';
 import parse from 'dropflow/parse.js';
-import {getFontUrls} from '../src/text-font.js';
 
 describe('Hyperscript API', function () {
   describe('h()', function () {
@@ -194,44 +193,5 @@ describe('DOM API', function () {
     const [box] = html.query('#d').boxes;
     expect(box.contentArea.width).to.equal(100);
     expect(box.contentArea.height).to.equal(100);
-  });
-});
-
-describe('loadNotoFonts', function () {
-  it('loads arabic', function () {
-    expect(getFontUrls(parse('المادة'))).to.eql([
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-arabic@latest/arabic-400-normal.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-arabic@latest/arabic-700-normal.ttf'
-    ]);
-  });
-
-  it('loads latin', function () {
-    expect(getFontUrls(parse('the quick brown fox'))).to.eql([
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/latin-400-normal.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/latin-400-italic.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/latin-700-normal.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/latin-700-italic.ttf'
-    ]);
-  });
-
-  it('loads devanagari', function () {
-    expect(getFontUrls(parse('अनुच्छेद'))).to.eql([
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/devanagari-400-normal.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/devanagari-700-normal.ttf'
-    ]);
-  });
-
-  it('loads khmer', function () {
-    expect(getFontUrls(parse('មាត្រា'))).to.eql([
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-khmer@latest/khmer-400-normal.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-khmer@latest/khmer-700-normal.ttf'
-    ]);
-  });
-
-  it('loads chinese', function () {
-    expect(getFontUrls(parse('人人生而自由在尊严和权利上律平等'))).to.eql([
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-400-normal.ttf',
-      'https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-700-normal.ttf'
-    ]);
   });
 });

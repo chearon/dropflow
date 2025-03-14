@@ -4,8 +4,6 @@ import wasm from './wasm.js';
 import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
 import {environment} from './environment.js';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
-import subsetIdToUrls from '../gen/system-fonts-database.js';
-import UnicodeTrie from './text-unicode-trie.js';
 import {HTMLElement} from './dom.js';
 
 import type {HbFace, HbFont} from './text-harfbuzz.js';
@@ -119,8 +117,6 @@ const NonKerningSpaceFeatures = 1 << 2;
 
 let uniqueFamily = 1;
 
-const EMPTY_LANGUAGES = Object.freeze(new Set<string>());
-
 export class LoadedFontFace {
   data: ArrayBufferLike;
   allocated: boolean;
@@ -188,7 +184,7 @@ export class LoadedFontFace {
     this.weight = desc.weight;
     this.stretch = desc.stretch;
     this.variant = desc.variant;
-    this.languages = 'languages' in desc ? desc.languages : EMPTY_LANGUAGES;
+    this.languages = 'languages' in desc ? desc.languages : this.getLanguages();
     this.uniqueFamily = `${this.family}_${String(uniqueFamily++).padStart(4, '0')}`;
 
     if (!url) url = this._createUrl(this);
@@ -507,7 +503,7 @@ class Deferred<T> {
 
       this.reject = (e: unknown) => {
         if (this.status === 'unresolved') {
-          this.status = 'resolved';
+          this.status = 'rejected';
           reject(e);
         }
       };
@@ -545,6 +541,7 @@ class FontFaceSet {
   add(face: FontFace) {
     if (this.#faces.add(face)) {
       langCascade = undefined;
+      urangeCascade = undefined;
       if (face.status === 'loading') this._onLoading(face);
       faceToLoaded.get(face)?.allocate();
     }
@@ -569,6 +566,7 @@ class FontFaceSet {
         this._switchToLoaded();
       }
       langCascade = undefined;
+      urangeCascade = undefined;
       return true;
     }
 
@@ -580,6 +578,7 @@ class FontFaceSet {
     this.#loaded.clear();
     this.#failed.clear();
     langCascade = undefined;
+    urangeCascade = undefined;
     if (this.#loading.size !== 0) {
       this.#loading.clear();
       this._switchToLoaded();
@@ -588,18 +587,21 @@ class FontFaceSet {
 
   /** @internal */
   _onLoading(face: FontFace) {
-    if (this.has(face) && this.#loading.size === 0) {
-      this.#loading.add(face);
-      this.status = 'loading';
-      if (this.#ready.status !== 'unresolved') {
-        this.#ready = new Deferred();
+    if (this.has(face)) {
+      if (this.#loading.size === 0) {
+        this.status = 'loading';
+        if (this.#ready.status !== 'unresolved') {
+          this.#ready = new Deferred();
+        }
       }
+      this.#loading.add(face);
     }
   }
 
   /** @internal */
   _onLoaded(face: FontFace) {
     if (this.has(face)) {
+      langCascade = undefined;
       this.#loaded.add(face);
       if (this.#loading.delete(face) && this.#loading.size === 0) {
         this._switchToLoaded();
@@ -623,9 +625,85 @@ interface FontFaceDescriptors {
   weight?: FontWeight;
   stretch?: FontStretch;
   variant?: FontVariant;
+  unicodeRange?: string;
 }
 
 let __font_face_skip_ctor_load = false;
+
+function isWhitespace(c: string) {
+  return c === ' ' || c === '\t' || c === '\r' || c === '\n' || c === '\f';
+}
+
+function parseHex(s: string, i: number, len: number): number {
+  let v = 0;
+  for (; len > 0; len--, i++) {
+    const c = s[i];
+    if (c === '?') v = v << 4;
+    else if (c >= '0' && c <= '9') v = (v << 4) | (c.charCodeAt(0) - 48);
+    else if (c >= 'a' && c <= 'f') v = (v << 4) | (c.charCodeAt(0) - 87);
+    else if (c >= 'A' && c <= 'F') v = (v << 4) | (c.charCodeAt(0) - 55);
+    else throw new SyntaxError('Invalid hex digit in unicode-range');
+  }
+  return v;
+}
+
+function parseUnicodeRange(range: string, set: HbSet) {
+  let i = 0;
+  const len = range.length;
+
+  while (i < len) {
+    while (i < len && isWhitespace(range[i])) i++;
+    if (i === len) break;
+
+    const c = range[i];
+    if (c !== 'u' && c !== 'U') throw new SyntaxError('Expected u+ or U+ in unicode-range');
+    i++;
+    if (range[i] !== '+') throw new SyntaxError('Expected + after u in unicode-range');
+    i++;
+
+    // Count hex digits and question marks
+    let hexLen = 0, qLen = 0;
+    let j = i;
+    while (j < len && hexLen < 6 && (
+      (range[j] >= '0' && range[j] <= '9') ||
+      (range[j] >= 'a' && range[j] <= 'f') ||
+      (range[j] >= 'A' && range[j] <= 'F')
+    )) { hexLen++; j++; }
+    while (j < len && qLen < 5 && range[j] === '?') { qLen++; j++; }
+
+    if (!hexLen || hexLen + qLen > 6) throw new SyntaxError('Invalid hex digits in unicode-range');
+
+    // Parse single value or range
+    const start = parseHex(range, i, hexLen);
+    i = j;
+
+    if (qLen) {
+      const repeat = 1 << (qLen * 4);
+      set.addRange(start, start + repeat - 1);
+    } else if (i < len && range[i] === '-') {
+      i++;
+      j = i;
+      while (j < len && j - i < 6 && (
+        (range[j] >= '0' && range[j] <= '9') ||
+        (range[j] >= 'a' && range[j] <= 'f') ||
+        (range[j] >= 'A' && range[j] <= 'F')
+      )) j++;
+      if (j === i) throw new SyntaxError('Expected hex digits after - in unicode-range');
+      const end = parseHex(range, i, j - i);
+      if (end < start) throw new SyntaxError('Invalid range in unicode-range');
+      set.addRange(start, end);
+      i = j;
+    } else {
+      set.add(start);
+    }
+
+    while (i < len && isWhitespace(range[i])) i++;
+    if (i === len) break;
+
+    if (range[i] !== ',') throw new SyntaxError('Expected comma between unicode-range tokens');
+    i++;
+  }
+}
 
 export class FontFace {
   family: string;
@@ -633,7 +711,10 @@ export class FontFace {
   weight: number;
   stretch: FontStretch;
   variant: FontVariant;
+  unicodeRange: string;
   status: 'unloaded' | 'loading' | 'loaded' | 'error';
+  /** @internal */
+  _unicodeRange: HbSet | undefined;
   #status: Deferred<FontFace>;
   #url: URL | undefined;
 
@@ -655,8 +736,16 @@ export class FontFace {
     }
     this.stretch = descriptors?.stretch ?? 'normal';
     this.variant = descriptors?.variant ?? 'normal';
+    this.unicodeRange = descriptors?.unicodeRange ?? 'U+0-10FFFF';
     this.status = 'unloaded';
     this.#status = new Deferred();
+
+    if (descriptors?.unicodeRange) {
+      this._unicodeRange = hb.createSet();
+      parseUnicodeRange(descriptors.unicodeRange, this._unicodeRange);
+    } else {
+      this._unicodeRange = undefined;
+    }
 
     if (source instanceof URL) {
       this.#url = source;
@@ -676,10 +765,16 @@ export class FontFace {
     this.status = 'loaded';
     faceToLoaded.set(this, face);
     langCascade = undefined;
+    urangeCascade = undefined;
     loadedFaceRegistry.register(this, face);
     fonts._onLoaded(this);
     environment.registerFont(face);
     this.#status.resolve(this);
+  }
+
+  /** @internal */
+  _hasUnicode(unicode: number) {
+    return !this._unicodeRange || this._unicodeRange.has(unicode);
   }
 
   #loadData(data: ArrayBufferLike, url?: URL) {
@@ -768,18 +863,23 @@ export function createFaceFromTables(source: URL | ArrayBufferLike): FontFace | 
   }
 }
 
-class LangFontCascade {
-  private source: LoadedFontFace[];
-  private cache: WeakMap<Style, Map<string, LoadedFontFace[]>>;
+interface FontDescriptors {
+  family: string;
+  style: FontStyle;
+  weight: number;
+  stretch: FontStretch;
+  variant: FontVariant;
+}
 
-  constructor(source: LoadedFontFace[]) {
+class FontCascadeBase<T extends FontDescriptors> {
+  source: T[];
+
+  constructor(source: T[]) {
     this.source = source;
-    this.cache = new WeakMap();
   }
 
-  reset(source: LoadedFontFace[]) {
+  reset(source: T[]) {
     this.source = source;
-    this.cache = new WeakMap();
   }
 
   static stretchToLinear: Record<FontStretch, number> = {
@@ -794,8 +894,8 @@ class LangFontCascade {
     'ultra-expanded': 9,
   };
 
-  narrowByFontStretch(style: Style, matches: LoadedFontFace[]) {
-    const toLinear = LangFontCascade.stretchToLinear;
+  narrowByFontStretch(style: Style, matches: T[]) {
+    const toLinear = FontCascadeBase.stretchToLinear;
     const desiredLinearStretch = toLinear[style.fontStretch];
     const search = matches.slice()
 
@@ -819,7 +919,7 @@ class LangFontCascade {
     return matches.filter(match => match.stretch === bestMatch.stretch);
   }
 
-  narrowByFontStyle(style: Style, matches: LoadedFontFace[]) {
+  narrowByFontStyle(style: Style, matches: T[]) {
     const italics = matches.filter(match => match.style === 'italic');
     const obliques = matches.filter(match => match.style === 'oblique');
     const normals = matches.filter(match => match.style === 'normal');
@@ -835,7 +935,7 @@ class LangFontCascade {
     return normals.length ? normals : obliques.length ? obliques : italics;
   }
 
-  narrowByFontWeight(style: Style, matches: LoadedFontFace[]) {
+  narrowByFontWeight(style: Style, matches: T[]) {
     const desiredWeight = style.fontWeight;
     const exact = matches.find(match => match.weight === desiredWeight);
     let lt400 = desiredWeight < 400;
@@ -899,8 +999,17 @@ class LangFontCascade {
 
     return bestMatch;
   }
+}
 
-  sort(style: Style, lang: string) {
+export class LangFontCascade extends FontCascadeBase<LoadedFontFace> {
+  private cache: WeakMap<Style, Map<string, LoadedFontFace[]>>;
+
+  constructor(list: LoadedFontFace[]) {
+    super(list);
+    this.cache = new WeakMap();
+  }
+
+  sortByLang(style: Style, lang: string) {
     const ret = new Set<LoadedFontFace>();
     const selectedFamilies = new Set<string>();
     let matches = this.cache.get(style)?.get(lang);
@@ -968,18 +1077,76 @@ class LangFontCascade {
   }
 }
 
-let langCascade: LangFontCascade | undefined;
+// Note this is NOT cached, so use it very carefully. It isn't realistic to
+// cache per unicode character; you should instead hold onto the result and
+// use style.fontsEqual and _hasUnicode on the first match when iterating
+// over document styles and characters.
+class UrangeFontCascade extends FontCascadeBase<FontFace> {
+  sortByUnicode(style: Style, unicode: number) {
+    let ret = [];
 
-export function getCascade(style: Style, lang: string) {
+    for (const searchFamily of style.fontFamily) {
+      let matches: FontFace[] = [];
+
+      for (const candidate of this.source) {
+        if (
+          candidate.family.toLowerCase().trim() === searchFamily.toLowerCase().trim() &&
+          candidate._hasUnicode(unicode)
+        ) matches.push(candidate);
+      }
+
+      if (!matches.length) continue;
+
+      // §4.5.1
+      // https://drafts.csswg.org/css-fonts/#composite-fonts
+      // If the unicode ranges overlap for a set of @font-face rules with the
+      // same family and style descriptor values, the rules are ordered in the
+      // reverse order they were defined; the last rule defined is the first to
+      // be checked for a given character.
+
+      matches = this.narrowByFontStretch(style, matches);
+      matches = this.narrowByFontStyle(style, matches);
+      ret.push(this.narrowByFontWeight(style, matches));
+    }
+
+    if (!ret.length) {
+      let matches: FontFace[] = [];
+
+      for (const candidate of this.source) {
+        if (candidate._hasUnicode(unicode)) matches.push(candidate);
+      }
+
+      if (matches.length) {
+        matches = this.narrowByFontStretch(style, matches);
+        matches = this.narrowByFontStyle(style, matches);
+        ret.push(this.narrowByFontWeight(style, matches));
+      }
+    }
+
+    return ret;
+  }
+}
+
+let langCascade: LangFontCascade | undefined;
+let urangeCascade: UrangeFontCascade | undefined;
+
+export function getLangCascade(style: Style, lang: string) {
   if (!langCascade) {
     const list: LoadedFontFace[] = [];
     for (const face of fonts) {
       const match = faceToLoaded.get(face);
       if (match) list.push(match);
     }
-    langCascade = new LangFontCascade(list);
+    langCascade = new LangFontCascade(list.reverse());
   }
-  return langCascade.sort(style, lang);
+  return langCascade.sortByLang(style, lang);
+}
+
+function getUrangeCascade() {
+  if (!urangeCascade) {
+    urangeCascade = new UrangeFontCascade([...fonts].reverse());
+  }
+  return urangeCascade;
 }
 
 export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
@@ -989,11 +1156,13 @@ export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
   }
 }
 
-const systemFontTrie = new UnicodeTrie(wasm.instance.exports.system_font_trie.value);
-
-export function getFontUrls(root: HTMLElement) {
+export async function loadFonts(root: HTMLElement) {
   const stack = root.children.slice();
-  const subsetIds = new Set<number>();
+  const cache: {style: Style, faces: FontFace[]}[] = [];
+  const cascade = getUrangeCascade();
+  let entry: {style: Style, faces: FontFace[]} | undefined;
+
+  if (!cascade.source.length) return;
 
   while (stack.length) {
     const el = stack.pop()!;
@@ -1012,11 +1181,22 @@ export function getFontUrls(root: HTMLElement) {
           unicode = ((code - 0xd800) * 0x400) + (next - 0xdc00) + 0x10000;
         }
 
-        const subsetId = systemFontTrie.get(unicode);
-        if (subsetId) subsetIds.add(subsetId);
+        // Only recalc the cascade when the style changes or when the old list's
+        // _first_ match doesn't support the character. That means that fallback
+        // list for later characters may not be ideal, but we aren't required to
+        // load every font in the user-specified fallback list.
+        if (!entry?.style.fontsEqual(el.style, false) || !entry.faces[0]._hasUnicode(unicode)) {
+          entry = cache.find(entry => entry.style.fontsEqual(el.style, false));
+          if (!entry || !entry.faces[0]._hasUnicode(unicode)) {
+            const matches = cascade.sortByUnicode(el.style, unicode);
+            for (const font of matches) font.load();
+            entry = {style: el.style, faces: matches};
+            cache.push(entry);
+          }
+        }
       }
     }
   }
 
-  return [...subsetIds].flatMap(subsetId => subsetIdToUrls.get(subsetId)!);
+  await fonts.ready;
 }

@@ -22,7 +22,6 @@ pub fn build(b: *std.Build) void {
         "gen/line-break-trie.cc",
         "gen/emoji-trie.cc",
         "gen/script-trie.cc",
-        "gen/system-fonts-trie.cc",
         "gen/derived-core-properties-trie.cc",
         "gen/emoji-scan.c"
       },
@@ -130,7 +129,6 @@ pub fn build(b: *std.Build) void {
       "script_trie",
       "grapheme_break_trie",
       "derived_core_properties_trie",
-      "system_font_trie"
     };
 
     b.installArtifact(dropflow);

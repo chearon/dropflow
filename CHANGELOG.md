@@ -20,6 +20,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * Support for multiple styles on an element
 * Support for hardware pixel snapping (#16)
 * Added `flow.FontFace`, `flow.fonts`, `flow.createFaceFromTables` (see **Changed** above)
+* Added `unicodeRange` to `FontFaceDescriptors`
+* Added `flow.load` for loading all fonts needed by a document
 
 ### Fixed
 * RTL text-align issue in the SVG painter and base direction issue in the canvas painter (#27)

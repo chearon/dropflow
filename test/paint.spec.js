@@ -1,6 +1,6 @@
 //@ts-check
 import {expect} from 'chai';
-import * as flow from '../src/api-with-parse.js';
+import * as flow from 'dropflow/with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import paint from '../src/paint.js';
 import PaintSpy from './paint-spy.js';

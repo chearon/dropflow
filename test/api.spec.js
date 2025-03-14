@@ -2,7 +2,7 @@
 import {expect} from 'chai';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {HTMLElement} from '../src/dom.js';
-import {h, dom, generate, layout, style, parse} from '../src/api-with-parse.js';
+import {h, dom, generate, layout, style, parse} from 'dropflow/with-parse.js';
 import {getFontUrls} from '../src/text-font.js';
 
 describe('Hyperscript API', function () {

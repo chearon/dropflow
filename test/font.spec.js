@@ -1,7 +1,7 @@
 //@ts-check
 import {expect} from 'chai';
 import fs from 'node:fs';
-import * as oflo from '../src/api-with-parse.js';
+import * as flow from 'dropflow/with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {getCascade, fonts, FontFace, createFaceFromTables} from '../src/text-font.js';
 import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
@@ -89,11 +89,11 @@ describe('Fonts', function () {
     });
 
     it('looks up based on script when nothing is specified', function () {
-      const bc1 = oflo.generate(oflo.parse('هل تتحدث لغة أخرى بجانب العربية؟'));
-      oflo.layout(bc1);
+      const bc1 = flow.generate(flow.parse('هل تتحدث لغة أخرى بجانب العربية؟'));
+      flow.layout(bc1);
       expect(bc1.children[0].paragraph.wholeItems[0].face.family).to.equal('Cairo');
-      const bc2 = oflo.generate(oflo.parse('Do you speak another language besides Arabic?'));
-      oflo.layout(bc2);
+      const bc2 = flow.generate(flow.parse('Do you speak another language besides Arabic?'));
+      flow.layout(bc2);
       expect(bc2.children[0].paragraph.wholeItems[0].face.family).to.equal('Arimo');
     });
 

@@ -1,6 +1,6 @@
 //@ts-check
 import {expect} from 'chai';
-import * as oflo from '../src/api-with-parse.js';
+import * as flow from 'dropflow/with-parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {G_ID, G_AX, G_SZ} from '../src/layout-text.js';
 import paintBlockContainer from '../src/paint.js';
@@ -11,9 +11,9 @@ const log = new Logger();
 
 function setupLayoutTests() {
   this.layout = function (html) {
-    this.rootElement = oflo.parse(html);
-    this.blockContainer = oflo.generate(this.rootElement);
-    oflo.layout(this.blockContainer);
+    this.rootElement = flow.parse(html);
+    this.blockContainer = flow.generate(this.rootElement);
+    flow.layout(this.blockContainer);
     this.get = function (...args) {
       if (typeof args[0] === 'string') {
         return this.rootElement.query(args[0])?.boxes[0];

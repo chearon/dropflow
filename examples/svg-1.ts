@@ -1,4 +1,4 @@
-import * as flow from '../src/api-with-parse.js';
+import * as flow from 'dropflow/with-parse.js';
 import fs from 'fs';
 
 const doc = flow.parse(`

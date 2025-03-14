@@ -19,6 +19,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * Added support for the `zoom` property
 * Support for multiple styles on an element
 * Support for hardware pixel snapping (#16)
+* Added `flow.FontFace`, `flow.fonts`, `flow.createFaceFromTables` (see **Changed** above)
 
 ### Fixed
 * RTL text-align issue in the SVG painter and base direction issue in the canvas painter (#27)

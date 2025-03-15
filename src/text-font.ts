@@ -796,13 +796,20 @@ export class FontFace {
     const url = this.#url;
     this.status = 'loading';
     fonts._onLoading(this);
-    const result = environment.resolveUrl(url);
+
+    let result;
+    try {
+      result = environment.resolveUrl(url);
+    } catch (e) {
+      this.#onError(e);
+    }
+
     if (result instanceof Promise) {
       result.then(
         (data: ArrayBufferLike) => this.#loadData(data, url),
         (error: Error) => this.#onError(error)
       );
-    } else {
+    } else if (result) {
       // Allow for synchronous load() if the environment supports it. This is
       // an "extension" to the specification so it's easy to register file URLs
       // in node and then do layout immediately.

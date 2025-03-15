@@ -613,7 +613,9 @@ class FontFaceSet {
   _onError(face: FontFace) {
     if (this.has(face)) {
       this.#failed.add(face);
-      this.#loading.delete(face);
+      if (this.#loading.delete(face) && this.#loading.size === 0) {
+        this._switchToLoaded();
+      }
     }
   }
 }
@@ -1160,6 +1162,7 @@ export async function loadFonts(root: HTMLElement) {
   const stack = root.children.slice();
   const cache: {style: Style, faces: FontFace[]}[] = [];
   const cascade = getUrangeCascade();
+  const promises = [];
   let entry: {style: Style, faces: FontFace[]} | undefined;
 
   if (!cascade.source.length) return;
@@ -1189,7 +1192,7 @@ export async function loadFonts(root: HTMLElement) {
           entry = cache.find(entry => entry.style.fontsEqual(el.style, false));
           if (!entry || !entry.faces[0]._hasUnicode(unicode)) {
             const matches = cascade.sortByUnicode(el.style, unicode);
-            for (const font of matches) font.load();
+            for (const font of matches) promises.push(font.load());
             entry = {style: el.style, faces: matches};
             cache.push(entry);
           }
@@ -1198,5 +1201,5 @@ export async function loadFonts(root: HTMLElement) {
     }
   }
 
-  await fonts.ready;
+  await Promise.all(promises);
 }

@@ -282,15 +282,14 @@ describe('Fonts', function () {
       fonts.add(f1);
       fonts.add(f2);
       push();
+      const f2load = f2.load();
       push();
-      const f1load =f1.load();
+      const f1load = f1.load();
       let ready = false;
       expect(fonts.status).to.equal('loading');
       fonts.ready.then(() => ready = true);
       pop(new Error('err'));
       try { await f1load; } catch {}
-      expect(fonts.status).to.equal('loading');
-      const f2load = f2.load();
       expect(fonts.status).to.equal('loading');
       pop();
       await f2load;
@@ -397,6 +396,26 @@ describe('Fonts', function () {
       expect(loading[1].family).to.equal('Noto Sans SC');
       expect(loading[0].weight).to.equal(700);
       await fonts.ready;
+    });
+  });
+
+  describe('loadFonts', function () {
+    afterEach(function () {
+      mock.reset();
+      flow.fonts.clear();
+    });
+
+    it('chains promise rejections', async function () {
+      const f = new FontFace('f', new URL('http://notarealdomain.notarealtld/'));
+      let e;
+      flow.fonts.add(f);
+      mock.method(global, 'fetch', async () => ({ok: false, status: 400}));
+      try {
+        await loadFonts(parse('<span style="font-family: f;">woo</span>'));
+      } catch (_e) {
+        e = _e;
+      }
+      expect(e).to.be.instanceOf(Error);
     });
   });
 });

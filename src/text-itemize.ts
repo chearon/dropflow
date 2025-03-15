@@ -539,13 +539,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
         }
       }
     } else if (item.isRun()) {
-      if (
-        state.style.fontSize !== item.style.fontSize ||
-        state.style.fontVariant !== item.style.fontVariant ||
-        state.style.fontWeight !== item.style.fontWeight ||
-        state.style.fontStyle !== item.style.fontStyle ||
-        state.style.fontFamily.join(',') !== item.style.fontFamily.join(',')
-      ) {
+      if (!state.style.fontsEqual(item.style)) {
         if (state.offset !== state.lastOffset) {
           state.leader = item;
           break;

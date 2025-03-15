@@ -611,6 +611,22 @@ export class Style {
     if (this[LogicalMaps[writingMode].borderLineRightStyle] === 'none') return false;
     if (this[LogicalMaps[writingMode].borderLineRightWidth] > 0) return true;
   }
+
+  fontsEqual(style: Style, size = true) {
+    if (
+      size && this.fontSize !== style.fontSize ||
+      this.fontVariant !== style.fontVariant ||
+      this.fontWeight !== style.fontWeight ||
+      this.fontStyle !== style.fontStyle ||
+      this.fontFamily.length !== style.fontFamily.length
+    ) return false;
+
+    for (let i = 0, l = style.fontFamily.length; i < l; i++) {
+      if (style.fontFamily[i] !== this.fontFamily[i]) return false;
+    }
+
+    return true;
+  }
 }
 
 // Initial values for every property. Different properties have different

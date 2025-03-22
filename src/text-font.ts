@@ -883,6 +883,10 @@ interface FontDescriptors {
 class FontCascadeBase<T extends FontDescriptors> {
   source: T[];
 
+  /**
+   * @param source fonts in prioritized order. All else equal, fonts earlier in
+   * the list will be preferred over those later.
+   */
   constructor(source: T[]) {
     this.source = source;
   }
@@ -1106,13 +1110,6 @@ class UrangeFontCascade extends FontCascadeBase<FontFace> {
 
       if (!matches.length) continue;
 
-      // §4.5.1
-      // https://drafts.csswg.org/css-fonts/#composite-fonts
-      // If the unicode ranges overlap for a set of @font-face rules with the
-      // same family and style descriptor values, the rules are ordered in the
-      // reverse order they were defined; the last rule defined is the first to
-      // be checked for a given character.
-
       matches = this.narrowByFontStretch(style, matches);
       matches = this.narrowByFontStyle(style, matches);
       ret.push(this.narrowByFontWeight(style, matches));
@@ -1146,6 +1143,12 @@ export function getLangCascade(style: Style, lang: string) {
       const match = faceToLoaded.get(face);
       if (match) list.push(match);
     }
+    // reverse() is due to §4.5.1
+    // https://drafts.csswg.org/css-fonts/#composite-fonts
+    // If the unicode ranges overlap for a set of @font-face rules with the
+    // same family and style descriptor values, the rules are ordered in the
+    // reverse order they were defined; the last rule defined is the first to
+    // be checked for a given character.
     langCascade = new LangFontCascade(list.reverse());
   }
   return langCascade.sortByLang(style, lang);

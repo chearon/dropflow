@@ -1,7 +1,7 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
-import {fonts, FontFace, loadFonts, createFaceFromTables} from './text-font.js';
+import {fonts, FontFace, loadFonts, loadFontsSync, createFaceFromTables, createFaceFromTablesSync} from './text-font.js';
 import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
@@ -16,7 +16,7 @@ export type {HTMLElement};
 
 export {createDeclaredStyle as style, setOriginStyle} from './style.js';
 
-export {fonts, FontFace, createFaceFromTables};
+export {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync};
 
 export function generate(rootElement: HTMLElement): BlockContainer {
   if (rootElement.style === getOriginStyle()) {
@@ -241,5 +241,10 @@ export function staticLayoutContribution(box: BlockContainer): number {
 
 export async function load(root: HTMLElement): Promise<void> {
   await loadFonts(root);
+  // TODO: images too
+}
+
+export async function loadSync(root: HTMLElement): Promise<void> {
+  await loadFontsSync(root);
   // TODO: images too
 }

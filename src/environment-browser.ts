@@ -16,6 +16,12 @@ if (environment.registerFont === defaultEnvironment.registerFont) {
 }
 
 if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
+  environment.resolveUrlSync = function (url) {
+    throw new Error(`Cannot load synchronously: ${url}`);
+  };
+}
+
+if (environment.resolveUrlSync === defaultEnvironment.resolveUrlSync) {
   environment.resolveUrl = async function (url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(res.statusText);

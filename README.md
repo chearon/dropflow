@@ -195,9 +195,9 @@ Or, you can use the lower-level functions to retain the layout, in case you want
 
 ## Fonts
 
-The first step in a dropflow program is to register fonts to be selected by the CSS font properties. Dropflow **does not search system fonts**, so you must construct a `FontFace` and add it at least once. The font registration API is a **[subset of the CSS Font Loading API](#differences-with-the-css-font-loading-api)**.
+The first step in a dropflow program is to register fonts to be selected by the CSS font properties. Dropflow **does not search system fonts**, so you must construct a `FontFace` and add it at least once. The font registration API implements a **[subset of the CSS Font Loading API](#differences-with-the-css-font-loading-api)** and adds one non-standard method, `loadSync`.
 
-`file:///` URLs will `load()` synchronously on the backend via `readFileSync`.
+`file:///` URLs will `load()` synchronously on the backend via `readFileSync`. To get synchronous behavior without having promises swallow errors, you can use the `loadSync` method.
 
 `ArrayBuffers` are loaded immediately in the constructor, just like in the browser.
 
@@ -274,7 +274,7 @@ Since dropflow cannot use system fonts, this is similar to having fallback fonts
 ### `createFaceFromTables`
 
 ```ts
-function createFaceFromTables(source: URL | ArrayBufferLike): FontFace | Promise<FontFace>;
+function createFaceFromTables(source: URL | ArrayBufferLike): Promise<FontFace>;
 ```
 
 This can be used if you want a font to be described (family, weight, etc) by its internal metadata. It also reads language information from the font, which will rank it more optimally in the fallback list for a run of text. It will also result in a more appropriate CJK font being chosen for CJK text when the language is known.
@@ -283,13 +283,18 @@ A `Promise` is returned if the `URL` is a non-`file://` URL, otherwise, a `FontF
 
 This function partly exists to keep behavior that dropflow used to have, since it did not used to support specifying custom font metadata for font selection (it _only_ read metadata from inside the font). The test suite also takes advantage of the fallback list being properly ordered by language for its convenience. In most cases, it is fine to use the `FontFace` constructor instead.
 
+```ts
+function createFaceFromTablesSync(source: URL | ArrayBufferLike): FontFace;
+```
+
+If the `source` is an ArrayBuffer or a file:// URL in Node/Bun, this can be used to load synchronously and get synchronous exceptions.
+
 ### Differences with the CSS Font Loading API
 
-1. Because dropflow doesn't use system fonts, all registered `FontFace`s are valid choices for fallback fonts. In the browser, if there isn't an exact `@font-face` or `FontFace` match for a `font-family`, none of them are used. Dropflow will try one face from each registered family.
-2. For the same reason, fonts registered with `createFaceFromTables` have associated language support information and this is used to produce higher quality results when none of the family names match.
-3. `file://` URLs are supported server-side and will `load()` synchronously
+1. Because dropflow doesn't use system fonts, all registered `FontFace`s are valid choices for fallback fonts. In the browser, if there isn't an exact `@font-face` or `FontFace` match for a `font-family`, none of them are used. Dropflow instead treats all registered fonts that can render the text as if they were specified in `font-family`.
+2. `file://` URLs are supported server-side and can be called with the non-standard `loadSync()` method.
 
-Note that in dropflow, there is no lazy font loading during layout. `FontFace`s registered with a URL must have their `load` methods called and this must be waited on before doing layout.
+`FontFace`s registered with a URL must have their `load` or `loadSync` methods called before layout. It's best to have this done automatically by calling [`flow.load` or `flow.loadSync`](#load) on the entire document.
 
 ## Hyperscript
 
@@ -386,6 +391,12 @@ function load(rootElement: HTMLElement): Promise<void>;
 ```
 
 Ensures that all of the fonts required by the document are loaded. This efficiently walks the document and matches styles to `FontFace` `unicodeRange`, `family`, etc. In the future, this will also fetch images.
+
+```ts
+function loadSync(rootElement: HTMLElement): void;
+```
+
+If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies
 
 ## Generate
 

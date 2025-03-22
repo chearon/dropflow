@@ -9,7 +9,7 @@ if (environment.wasmLocator === defaultEnvironment.wasmLocator) {
 }
 
 if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
-  environment.resolveUrl = function (url) {
+  environment.resolveUrl = async function (url) {
     if (url.protocol === 'file:') {
       return fs.readFileSync(url).buffer;
     } else {
@@ -17,6 +17,16 @@ if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
         if (!res.ok) throw new Error(res.statusText);
         return res.arrayBuffer();
       });
+    }
+  };
+}
+
+if (environment.resolveUrlSync === defaultEnvironment.resolveUrlSync) {
+  environment.resolveUrlSync = function (url) {
+    if (url.protocol === 'file:') {
+      return fs.readFileSync(url).buffer;
+    } else {
+      throw new Error(`Cannot load synchronously: ${url}`);
     }
   };
 }

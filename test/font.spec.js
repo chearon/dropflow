@@ -5,7 +5,7 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {getLangCascade, fonts, FontFace, createFaceFromTables, loadFonts} from '../src/text-font.js';
+import {getLangCascade, fonts, FontFace, createFaceFromTablesSync, loadFonts} from '../src/text-font.js';
 import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
 
 /** @param {import("../src/style.js").DeclaredStyleProperties} style */
@@ -169,20 +169,39 @@ describe('Fonts', function () {
       mock.reset();
     });
 
-    it('selects fonts that are loaded and added', function () {
+    it('selects fonts that are loaded and added (sync)', function () {
       const f1 = new FontFace('f1', url('NotoSansArabic/NotoSansArabic-Regular.ttf'));
       const f2 = new FontFace('f2', url('Roboto/Roboto-Regular.ttf'));
       const f3 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
-      f3.load(); // but never registered, so shouldn't show up below
+      f3.loadSync(); // but never registered, so shouldn't show up below
       const cascade = () => getLangCascade(style({fontFamily: ['f1', 'f2']}), 'en');
       expect(cascade().length).to.equal(0);
-      f2.load();
+      f2.loadSync();
       expect(cascade().length).to.equal(0);
       fonts.add(f2);
       expect(cascade().length).to.equal(1);
       fonts.add(f1);
       expect(cascade().length).to.equal(1);
-      f1.load();
+      f1.loadSync();
+      expect(cascade().length).to.equal(2);
+      fonts.delete(f1);
+      fonts.delete(f2);
+    });
+
+    it('selects fonts that are loaded and added (async)', async function () {
+      const f1 = new FontFace('f1', url('NotoSansArabic/NotoSansArabic-Regular.ttf'));
+      const f2 = new FontFace('f2', url('Roboto/Roboto-Regular.ttf'));
+      const f3 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+      await f3.load(); // but never registered, so shouldn't show up below
+      const cascade = () => getLangCascade(style({fontFamily: ['f1', 'f2']}), 'en');
+      expect(cascade().length).to.equal(0);
+      await f2.load();
+      expect(cascade().length).to.equal(0);
+      fonts.add(f2);
+      expect(cascade().length).to.equal(1);
+      fonts.add(f1);
+      expect(cascade().length).to.equal(1);
+      await f1.load();
       expect(cascade().length).to.equal(2);
       fonts.delete(f1);
       fonts.delete(f2);
@@ -193,13 +212,12 @@ describe('Fonts', function () {
       const cascade = () => getLangCascade(style({fontFamily: ['f1', 'Noto Sans Arabic']}), 'en');
 
       const f1 = new FontFace('f1', furl);
-      f1.load();
+      f1.loadSync();
       fonts.add(f1);
       expect(cascade()[0].url).to.equal(furl);
       fonts.delete(f1);
 
-      const f2 = createFaceFromTables(furl);
-      f2.load();
+      const f2 = createFaceFromTablesSync(furl);
       fonts.add(f2);
       expect(cascade()[0].url.href).to.equal(furl.href);
       fonts.delete(f2);
@@ -331,7 +349,7 @@ describe('Fonts', function () {
     });
   });
 
-  describe('loadNotoFonts', function () {
+  describe('registerNotoFonts', function () {
     before(function () {
       registerNotoFonts();
     });

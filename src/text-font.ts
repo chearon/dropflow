@@ -719,6 +719,7 @@ export class FontFace {
   _unicodeRange: HbSet | undefined;
   #status: Deferred<FontFace>;
   #url: URL | undefined;
+  #sync: boolean;
 
   constructor(
     family: string,
@@ -754,6 +755,8 @@ export class FontFace {
     } else if (!__font_face_skip_ctor_load) {
       this.#loadData(source);
     }
+
+    this.#sync = false;
   }
 
   #onError(error: unknown) {
@@ -799,9 +802,14 @@ export class FontFace {
 
     let result;
     try {
-      result = environment.resolveUrl(url);
+      if (this.#sync) {
+        result = environment.resolveUrlSync(url);
+      } else {
+        result = environment.resolveUrl(url);
+      }
     } catch (e) {
       this.#onError(e);
+      if (this.#sync) throw e;
     }
 
     if (result instanceof Promise) {
@@ -810,12 +818,20 @@ export class FontFace {
         (error: Error) => this.#onError(error)
       );
     } else if (result) {
-      // Allow for synchronous load() if the environment supports it. This is
-      // an "extension" to the specification so it's easy to register file URLs
-      // in node and then do layout immediately.
+      // #sync = true
       this.#loadData(result, url);
     }
     return this.#status.promise;
+  }
+
+  loadSync() {
+    this.#sync = true;
+    try {
+      this.load();
+      return this;
+    } finally {
+      this.#sync = false;
+    }
   }
 
   get loaded() {
@@ -859,14 +875,15 @@ function createFaceFromTablesImpl(source: ArrayBufferLike, url?: URL): FontFace 
 //
 // The other font values are convenient for the tests, or for when you don't
 // care what the description is. Plus I didn't want to delete all this work!
-export function createFaceFromTables(source: URL | ArrayBufferLike): FontFace | Promise<FontFace> {
+export function createFaceFromTables(source: URL): FontFace | Promise<FontFace> {
+  const res = environment.resolveUrl(source);
+  return res.then(buf => createFaceFromTablesImpl(buf, source));
+}
+
+export function createFaceFromTablesSync(source: URL | ArrayBufferLike): FontFace {
   if (source instanceof URL) {
-    const res = environment.resolveUrl(source);
-    if (res instanceof Promise) {
-      return res.then(buf => createFaceFromTablesImpl(buf, source));
-    } else {
-      return createFaceFromTablesImpl(res, source);
-    }
+    const res = environment.resolveUrlSync(source);
+    return createFaceFromTablesImpl(res, source);
   } else {
     return createFaceFromTablesImpl(source);
   }
@@ -1168,11 +1185,10 @@ export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
   }
 }
 
-export async function loadFonts(root: HTMLElement) {
+function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
   const stack = root.children.slice();
   const cache: {style: Style, faces: FontFace[]}[] = [];
   const cascade = getUrangeCascade();
-  const promises = [];
   let entry: {style: Style, faces: FontFace[]} | undefined;
 
   if (!cascade.source.length) return;
@@ -1202,7 +1218,7 @@ export async function loadFonts(root: HTMLElement) {
           entry = cache.find(entry => entry.style.fontsEqual(el.style, false));
           if (!entry || !entry.faces[0]._hasUnicode(unicode)) {
             const matches = cascade.sortByUnicode(el.style, unicode);
-            for (const font of matches) promises.push(font.load());
+            for (const font of matches) cb(font);
             entry = {style: el.style, faces: matches};
             cache.push(entry);
           }
@@ -1210,6 +1226,14 @@ export async function loadFonts(root: HTMLElement) {
       }
     }
   }
+}
 
+export async function loadFonts(root: HTMLElement) {
+  const promises: Promise<FontFace>[] = [];
+  loadFontsImpl(root, face => promises.push(face.load()));
   await Promise.all(promises);
+}
+
+export async function loadFontsSync(root: HTMLElement) {
+  loadFontsImpl(root, face => face.loadSync());
 }

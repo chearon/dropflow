@@ -3,7 +3,8 @@ import type {LoadedFontFace} from './text-font.js';
 export interface Environment {
   wasmLocator(): Promise<Uint8Array>;
   registerFont(face: LoadedFontFace): void;
-  resolveUrl(url: URL): Promise<ArrayBufferLike> | ArrayBufferLike;
+  resolveUrl(url: URL): Promise<ArrayBufferLike>
+  resolveUrlSync(url: URL): ArrayBufferLike;
 }
 
 export const defaultEnvironment: Environment = {
@@ -18,6 +19,9 @@ export const defaultEnvironment: Environment = {
     throw new Error('Invalid build! Your bundler needs to support "exports" in package.json.');
   },
   resolveUrl() {
+    throw new Error('Invalid build! Your bundler needs to support "exports" in package.json.');
+  },
+  resolveUrlSync() {
     throw new Error('Invalid build! Your bundler needs to support "exports" in package.json.');
   }
 };

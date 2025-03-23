@@ -102,9 +102,9 @@ export async function renderToCanvasContext(
   paintToCanvas(root, ctx);
 }
 
-export function renderToCanvas(rootElement: HTMLElement, canvas: Canvas) {
+export async function renderToCanvas(rootElement: HTMLElement, canvas: Canvas) {
   const ctx = canvas.getContext('2d');
-  renderToCanvasContext(rootElement, ctx, canvas.width, canvas.height);
+  await renderToCanvasContext(rootElement, ctx, canvas.width, canvas.height);
 }
 
 type HsChild = HTMLElement | string;

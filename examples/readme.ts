@@ -8,8 +8,6 @@ const file = (relative: string) => new URL(`../assets/${relative}`, import.meta.
 const roboto1 = new flow.FontFace('Roboto', file('Roboto/Roboto-Regular.ttf'), {weight: 400});
 const roboto2 = new flow.FontFace('Roboto', file('Roboto/Roboto-Bold.ttf'), {weight: 700});
 flow.fonts.add(roboto1).add(roboto2);
-roboto1.load();
-roboto2.load();
 
 // Always create styles at the top-level of your module if you can.
 const divStyle = flow.style({
@@ -34,7 +32,7 @@ const rootElement = flow.dom(
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);
-flow.renderToCanvas(rootElement, canvas);
+await flow.renderToCanvas(rootElement, canvas);
 
 // Save your image
 fs.writeFileSync(file('hello.png'), canvas.toBuffer());

@@ -1,10 +1,16 @@
 import {environment, defaultEnvironment} from './environment.js';
-import {fileURLToPath} from 'url';
+import {fileURLToPath} from 'node:url';
 import fs from 'node:fs';
+import path from 'node:path';
 
 if (environment.wasmLocator === defaultEnvironment.wasmLocator) {
   environment.wasmLocator = async () => {
-    return fs.readFileSync(new URL('../dropflow.wasm', import.meta.url));
+    return fs.readFileSync(
+      path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../dropflow.wasm'
+      )
+    );
   };
 }
 

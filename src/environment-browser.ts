@@ -15,13 +15,13 @@ if (environment.registerFont === defaultEnvironment.registerFont) {
   };
 }
 
-if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
+if (environment.resolveUrlSync === defaultEnvironment.resolveUrlSync) {
   environment.resolveUrlSync = function (url) {
     throw new Error(`Cannot load synchronously: ${url}`);
   };
 }
 
-if (environment.resolveUrlSync === defaultEnvironment.resolveUrlSync) {
+if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
   environment.resolveUrl = async function (url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(res.statusText);

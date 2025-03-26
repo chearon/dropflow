@@ -10,12 +10,9 @@ import {
   collapseWhitespace,
   createEmptyParagraph,
   createParagraph,
-  getFontMetrics,
-  isSpaceOrTabOrNewline
+  getFontMetrics
 } from './layout-text.js';
 import {Box, BoxArea, RenderItem} from './layout-box.js';
-
-import type {WhiteSpace} from './style.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -33,14 +30,6 @@ function writingModeInlineAxis(el: HTMLElement) {
   } else {
     return 'vertical';
   }
-}
-
-function isNowrap(whiteSpace: WhiteSpace) {
-  return whiteSpace === 'nowrap' || whiteSpace === 'pre';
-}
-
-function isWsPreserved(whiteSpace: WhiteSpace) {
-  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap';
 }
 
 export interface LayoutContext {
@@ -728,16 +717,8 @@ export class BlockContainer extends Box {
 
   static ATTRS = {
     ...Box.ATTRS,
-    // Inline or block-level: we can't use the style for this since anonymously
-    // created block containers are block-level but their style is inline (the
-    // initial value). Potentially we could remove this and say that it's block
-    // level if it's anonymous.
-    //
-    // Other CSS rules that affect how a block container is treated during
-    // layout do not have this problem (position: absolute, display: inline-
-    // block) because anonymously created boxes cannot invoke those modes.
-    isInline:  1 << (Box.BITFIELD_END + 0),
-    isBfcRoot: 1 << (Box.BITFIELD_END + 1)
+    isInline: Box.BITS.isInline,
+    isBfcRoot: Box.BITS.isBfcRoot
   };
 
   constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
@@ -951,11 +932,11 @@ export class BlockContainer extends Box {
   }
 
   isInlineLevel() {
-    return Boolean(this.bitfield & BlockContainer.ATTRS.isInline);
+    return Boolean(this.bitfield & Box.BITS.isInline);
   }
 
   isBfcRoot() {
-    return Boolean(this.bitfield & BlockContainer.ATTRS.isBfcRoot);
+    return Boolean(this.bitfield & Box.BITS.isBfcRoot);
   }
 
   isFloat() {
@@ -967,7 +948,7 @@ export class BlockContainer extends Box {
   }
 
   loggingEnabled() {
-    return Boolean(this.bitfield & Box.ATTRS.enableLogging);
+    return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
   isBlockContainerOfInlines(): this is BlockContainerOfInlines {
@@ -991,7 +972,20 @@ export class BlockContainer extends Box {
     return !this.isBlockContainerOfInlines();
   }
 
-  postprocess() {
+  propagate(parent: Box) {
+    super.propagate(parent);
+
+    if (this.isFloat()) {
+      parent.bitfield |= Box.BITS.hasFloats;
+    }
+
+    if (this.isInlineBlock()) {
+      // TODO: and not absolutely positioned
+      parent.bitfield |= Box.BITS.hasInlineBlocks;
+    }
+  }
+
+  postlayoutPreorder() {
     if (this.style.position === 'relative') {
       this.borderArea.x += this.getRelativeHorizontalShift();
       this.borderArea.y += this.getRelativeVerticalShift();
@@ -1000,9 +994,9 @@ export class BlockContainer extends Box {
     this.borderArea.absolutify();
     if (this.paddingArea !== this.borderArea) this.paddingArea.absolutify();
     if (this.contentArea !== this.paddingArea) this.contentArea.absolutify();
+  }
 
-    for (const c of this.children) c.postprocess();
-
+  postlayoutPostorder() {
     this.borderArea.snapPixels();
     if (this.paddingArea !== this.borderArea) this.paddingArea.snapPixels();
     if (this.contentArea !== this.paddingArea) this.contentArea.snapPixels();
@@ -1299,6 +1293,10 @@ export class Break extends RenderItem {
   logName(log: Logger) {
     log.text('BR');
   }
+
+  propagate(parent: Box) {
+    parent.bitfield |= Box.BITS.hasBreaks;
+  }
 }
 
 export class Inline extends Box {
@@ -1317,15 +1315,97 @@ export class Inline extends Box {
     this.metrics = EmptyInlineMetrics;
   }
 
-  preprocess() {
-    super.preprocess();
+  prelayout() {
     this.metrics = getFontMetrics(this);
   }
 
-  postprocess() {
-    for (const child of this.children) {
-      if (child.isInline() || child.isBlockContainer()) child.postprocess();
+  propagate(parent: Box) {
+    super.propagate(parent);
+
+    if (parent.isInline()) {
+      parent.bitfield |= Box.BITS.hasInlines;
+      if (this.style.backgroundColor.a !== 0 || this.style.hasBorder()) {
+        parent.bitfield |= Box.BITS.hasPaintedInlines;
+      }
+      if (this.style.position === 'relative') {
+        parent.bitfield |= Box.BITS.hasPositionedInline;
+      }
+      if (
+        !parent.hasSizedInline() &&
+        (this.hasLineLeftGap() || this.hasLineRightGap())
+      ) {
+        parent.bitfield |= Box.BITS.hasSizedInline;
+      }
+      if (
+        !parent.hasColoredInline() && (
+          this.style.color.r !== parent.style.color.r ||
+          this.style.color.g !== parent.style.color.g ||
+          this.style.color.b !== parent.style.color.b ||
+          this.style.color.a !== parent.style.color.a
+        )
+      ) {
+        parent.bitfield |= Box.BITS.hasColoredInline;
+      }
+
+      // Bits that propagate to Inline propagate again if the parent is Inline
+      parent.bitfield |= (this.bitfield & Box.PROPAGATES_TO_INLINE_BITS);
     }
+  }
+
+  hasText() {
+    return this.bitfield & Box.BITS.hasText;
+  }
+
+  hasSoftWrap() {
+    return this.bitfield & Box.BITS.hasSoftWrap;
+  }
+
+  hasCollapsibleWs() {
+    return this.bitfield & Box.BITS.hasCollapsibleWs;
+  }
+
+  hasFloats() {
+    return this.bitfield & Box.BITS.hasFloats;
+  }
+
+  hasInlines() {
+    return this.bitfield & Box.BITS.hasInlines;
+  }
+
+  hasBreaks() {
+    return this.bitfield & Box.BITS.hasBreaks;
+  }
+
+  hasComplexText() {
+    return this.bitfield & Box.BITS.hasComplexText;
+  }
+
+  hasSoftHyphen() {
+    return this.bitfield & Box.BITS.hasSoftHyphen;
+  }
+
+  hasNewlines() {
+    return this.bitfield & Box.BITS.hasNewlines;
+  }
+
+  hasPaintedInlines() {
+    return this.bitfield & Box.BITS.hasPaintedInlines;
+  }
+
+  hasPositionedInline() {
+    return this.bitfield & Box.BITS.hasPositionedInline;
+  }
+
+  hasInlineBlocks() {
+    return this.bitfield & Box.BITS.hasInlineBlocks;
+  }
+
+  hasSizedInline() {
+    return this.bitfield & Box.BITS.hasSizedInline;
+  }
+
+  hasColoredInline() {
+    return this.bitfield & Box.BITS.hasColoredInline;
   }
 
   hasLineLeftGap() {
@@ -1381,36 +1461,16 @@ export class Inline extends Box {
   }
 }
 
-const NON_ASCII_MASK = 0b1111_1111_1000_0000;
-
 export class IfcInline extends Inline {
   public children: InlineLevel[];
   public text: string;
   public paragraph: Paragraph;
-
-  static ANALYSIS = {
-    hasText:              1 << (Inline.BITFIELD_END + 0),
-    wraps:                1 << (Inline.BITFIELD_END + 1),
-    wsCollapses:          1 << (Inline.BITFIELD_END + 2),
-    hasInlines:           1 << (Inline.BITFIELD_END + 3),
-    hasBreaks:            1 << (Inline.BITFIELD_END + 4),
-    isComplexText:        1 << (Inline.BITFIELD_END + 5),
-    hasSoftHyphen:        1 << (Inline.BITFIELD_END + 6),
-    hasFloats:            1 << (Inline.BITFIELD_END + 7),
-    hasNewlines:          1 << (Inline.BITFIELD_END + 8),
-    hasPaintedInlines:    1 << (Inline.BITFIELD_END + 9),
-    hasPositionedInline:  1 << (Inline.BITFIELD_END + 10),
-    hasInlineBlocks:      1 << (Inline.BITFIELD_END + 11),
-    hasTextOrSizedInline: 1 << (Inline.BITFIELD_END + 12),
-    hasColoredInline:     1 << (Inline.BITFIELD_END + 13),
-  };
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
 
     this.children = children;
     this.text = text;
-    this.prepare();
     this.paragraph = createEmptyParagraph(this);
   }
 
@@ -1423,107 +1483,21 @@ export class IfcInline extends Inline {
   }
 
   loggingEnabled() {
-    return Boolean(this.bitfield & Box.ATTRS.enableLogging);
+    return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
-  private prepare() {
-    const stack = this.children.slice();
-    const color = this.style.color;
-
-    if (!isNowrap(this.style.whiteSpace)) {
-      this.bitfield |= IfcInline.ANALYSIS.wraps;
-    }
-
-    if (!isWsPreserved(this.style.whiteSpace)) {
-      this.bitfield |= IfcInline.ANALYSIS.wsCollapses;
-    }
-
-    let hasText = false;
-
-    while (stack.length) {
-      const box = stack.shift()!;
-
-      if (box.isRun()) {
-        hasText = hasText || !box.wsCollapsible;
-        for (let i = box.start; !hasText && i < box.end; i++) {
-          hasText = !isSpaceOrTabOrNewline(this.text[i]);
-        }
-      } else if (box.isInline()) {
-        this.bitfield |= IfcInline.ANALYSIS.hasInlines;
-        if (!isNowrap(box.style.whiteSpace)) {
-          this.bitfield |= IfcInline.ANALYSIS.wraps;
-        }
-        if (!isWsPreserved(box.style.whiteSpace)) {
-          this.bitfield |= IfcInline.ANALYSIS.wsCollapses;
-        }
-        if (box.style.backgroundColor.a !== 0 || box.style.hasBorder()) {
-          this.bitfield |= IfcInline.ANALYSIS.hasPaintedInlines;
-        }
-        if (box.style.position === 'relative') {
-          this.bitfield |= IfcInline.ANALYSIS.hasPositionedInline;
-        }
-        if (
-          !this.hasTextOrSizedInline() &&
-          (hasText || box.hasLineLeftGap() || box.hasLineRightGap())
-        ) {
-          this.bitfield |= IfcInline.ANALYSIS.hasTextOrSizedInline;
-        }
-        if (
-          !this.hasColoredInline() && (
-            box.style.color.r !== color.r ||
-            box.style.color.g !== color.g ||
-            box.style.color.b !== color.b ||
-            box.style.color.a !== color.a
-          )
-        ) {
-          this.bitfield |= IfcInline.ANALYSIS.hasColoredInline;
-        }
-
-        stack.unshift(...box.children);
-      } else if (box.isBreak()) {
-        this.bitfield |= IfcInline.ANALYSIS.hasBreaks;
-        // ok
-      } else if (box.isFloat()) {
-        this.bitfield |= IfcInline.ANALYSIS.hasFloats;
-      } else if (box.isBlockContainer()) {
-        this.bitfield |= IfcInline.ANALYSIS.hasInlineBlocks;
-        // TODO: may be absolutely positioned?
-      }
-    }
-
-    if (hasText) {
-      this.bitfield |= IfcInline.ANALYSIS.hasText;
-      this.bitfield |= IfcInline.ANALYSIS.hasTextOrSizedInline;
-    }
-
-    for (let i = 0; i < this.text.length; i++) {
-      const code = this.text.charCodeAt(i);
-
-      if (code & NON_ASCII_MASK) {
-        this.bitfield |= IfcInline.ANALYSIS.isComplexText;
-      }
-
-      if (code === 0xad) {
-        this.bitfield |= IfcInline.ANALYSIS.hasSoftHyphen;
-      } else if (code === 0xa0) {
-        this.bitfield |= IfcInline.ANALYSIS.hasNewlines;
-      }
-    }
-
-    if (this.shouldLayoutContent() && this.collapses()) collapseWhitespace(this);
-  }
-
-  preprocess() {
-    super.preprocess();
+  prelayout() {
+    super.prelayout();
 
     if (this.shouldLayoutContent()) {
+      if (this.hasCollapsibleWs()) collapseWhitespace(this);
       this.paragraph.destroy();
       this.paragraph = createParagraph(this);
       this.paragraph.shape();
     }
   }
 
-  postprocess() {
+  postlayoutPreorder() {
     this.paragraph.destroy();
 
     if (this.hasPositionedInline()) {
@@ -1586,11 +1560,12 @@ export class IfcInline extends Inline {
       }
     }
 
-    super.postprocess();
+    super.postlayoutPreorder();
   }
 
   shouldLayoutContent() {
-    return this.hasTextOrSizedInline()
+    return this.hasText()
+      || this.hasSizedInline()
       || this.hasFloats()
       || this.hasInlineBlocks();
   }
@@ -1602,67 +1577,8 @@ export class IfcInline extends Inline {
     }
   }
 
-  hasText() {
-    return this.bitfield & IfcInline.ANALYSIS.hasText;
-  }
-
-  wraps() {
-    return this.bitfield & IfcInline.ANALYSIS.wraps;
-  }
-
-  collapses() {
-    return this.bitfield & IfcInline.ANALYSIS.wsCollapses;
-  }
-
-  hasFloats() {
-    return this.bitfield & IfcInline.ANALYSIS.hasFloats;
-  }
-
-  hasInlines() {
-    return this.bitfield & IfcInline.ANALYSIS.hasInlines;
-  }
-
-  hasBreaks() {
-    return this.bitfield & IfcInline.ANALYSIS.hasBreaks;
-  }
-
-  isComplexText() {
-    return this.bitfield & IfcInline.ANALYSIS.isComplexText;
-  }
-
-  hasSoftHyphen() {
-    return this.bitfield & IfcInline.ANALYSIS.hasSoftHyphen;
-  }
-
-  hasNewlines() {
-    return this.bitfield & IfcInline.ANALYSIS.hasNewlines;
-  }
-
-  hasPaintedInlines() {
-    return this.bitfield & IfcInline.ANALYSIS.hasPaintedInlines;
-  }
-
-  hasPositionedInline() {
-    return this.bitfield & IfcInline.ANALYSIS.hasPositionedInline;
-  }
-
-  hasInlineBlocks() {
-    return this.bitfield & IfcInline.ANALYSIS.hasInlineBlocks;
-  }
-
-  // Note this could have been a separate "hasSizedInline" flag since there is
-  // already a "hasText", but it's more efficient to calculate the combined flag
-  // and we never care about sized inlines alone when there is text
-  hasTextOrSizedInline() {
-    return this.bitfield & IfcInline.ANALYSIS.hasTextOrSizedInline;
-  }
-
-  hasColoredInline() {
-    return this.bitfield & IfcInline.ANALYSIS.hasColoredInline;
-  }
-
   hasForeground() {
-    return Boolean(this.hasTextOrSizedInline());
+    return Boolean(this.hasText() || this.hasSizedInline());
   }
 }
 

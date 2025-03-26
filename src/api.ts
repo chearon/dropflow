@@ -7,7 +7,7 @@ import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paint from './paint.js';
-import {BoxArea} from './layout-box.js';
+import {BoxArea, prelayout, postlayout} from './layout-box.js';
 import {id} from './util.js';
 
 export type {BlockContainer, DeclaredStyle};
@@ -33,14 +33,14 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
   const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
 
   root.containingBlock = initialContainingBlock;
-  root.preprocess();
+  prelayout(root);
   layoutBlockBox(root, {
     bfc: new BlockFormattingContext(0),
     lastBlockContainerArea: initialContainingBlock,
     lastPositionedArea: initialContainingBlock,
     mode: 'normal'
   });
-  root.postprocess();
+  postlayout(root);
 }
 
 /**

@@ -1,5 +1,5 @@
 import {binarySearchTuple, basename, loggableText, Logger} from './util.js';
-import {RenderItem, RenderItemLogOptions} from './layout-box.js';
+import {Box, RenderItem, RenderItemLogOptions} from './layout-box.js';
 import {Style, Color, TextAlign, WhiteSpace} from './style.js';
 import {
   BlockContainer,
@@ -31,6 +31,8 @@ const objectReplacementCharacter = 0xfffc;
 
 const decoder = new TextDecoder('utf-16');
 
+const NON_ASCII_MASK = 0b1111_1111_1000_0000;
+
 function isWsCollapsible(whiteSpace: WhiteSpace) {
   return whiteSpace === 'normal' || whiteSpace === 'nowrap' || whiteSpace === 'pre-line';
 }
@@ -39,7 +41,11 @@ function isNowrap(whiteSpace: WhiteSpace) {
   return whiteSpace === 'nowrap' || whiteSpace === 'pre';
 }
 
-export function isSpaceOrTabOrNewline(c: string) {
+function isWsPreserved(whiteSpace: WhiteSpace) {
+  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap';
+}
+
+function isSpaceOrTabOrNewline(c: string) {
   return c === ' ' || c === '\t' || c === '\n';
 }
 
@@ -108,6 +114,40 @@ export class Run extends RenderItem {
     log.text(`${this.start},${this.end}`);
     if (options?.paragraphText) {
       log.text(` "${loggableText(options.paragraphText.slice(this.start, this.end))}"`);
+    }
+  }
+
+  propagate(parent: Box, paragraph: string) {
+    if (!parent.isInline()) throw new Error('Assertion failed');
+
+    if (!isWsCollapsible(this.style.whiteSpace)) {
+      parent.bitfield |= Box.BITS.hasText;
+    }
+
+    for (let i = this.start; i < this.end; i++) {
+      const code = paragraph.charCodeAt(i);
+
+      if (code & NON_ASCII_MASK) {
+        parent.bitfield |= Box.BITS.hasComplexText;
+      }
+
+      if (code === 0xad) {
+        parent.bitfield |= Box.BITS.hasSoftHyphen;
+      } else if (code === 0xa0) {
+        parent.bitfield |= Box.BITS.hasNewlines;
+      }
+      
+      if (!parent.hasText() && !isSpaceOrTabOrNewline(paragraph[i])) {
+        parent.bitfield |= Box.BITS.hasText;
+      }
+    }
+
+    if (!isNowrap(this.style.whiteSpace)) {
+      parent.bitfield |= Box.BITS.hasSoftWrap;
+    }
+
+    if (!isWsPreserved(this.style.whiteSpace)) {
+      parent.bitfield |= Box.BITS.hasCollapsibleWs;
     }
   }
 }
@@ -1978,8 +2018,8 @@ export class Paragraph {
     let inline = inlineIterator.next();
     let inlineMark = 0;
     // Break iterator
-    const breakIterator = this.ifc.wraps()
-      ? new LineBreak(this.string, !this.ifc.wraps())
+    const breakIterator = this.ifc.hasSoftWrap()
+      ? new LineBreak(this.string, !this.ifc.hasSoftWrap())
       : new HardBreaker(this.string);
     let linebreak: {position: number, required: boolean} | null = {position: -1, required: false};
     let breakMark = 0;

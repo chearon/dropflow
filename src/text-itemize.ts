@@ -630,7 +630,7 @@ export function createItemizeState(ifc: IfcInline): ItemizeState {
     inlineState = createStyleIteratorState(ifc);
   }
 
-  if (ifc.isComplexText()) {
+  if (ifc.hasComplexText()) {
     const allocation = hb.allocateUint16Array(ifc.text.length);
     const initialLevel = ifc.style.direction === 'ltr' ? 0 : 1;
     const array = allocation.array;

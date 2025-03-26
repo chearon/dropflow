@@ -1,7 +1,7 @@
 import {id, Logger} from './util.js';
 import {Style} from './style.js';
 import {Run} from './layout-text.js';
-import {Break, Inline, IfcInline, BlockContainer} from './layout-flow.js';
+import {Break, Inline, IfcInline, BlockContainer, InlineLevel} from './layout-flow.js';
 
 export interface LogicalArea {
   blockStart: number | undefined;
@@ -155,7 +155,15 @@ export abstract class RenderItem {
     if (flush) log.flush();
   }
 
-  preprocess() {
+  prelayout() {
+    // should be overridden
+  }
+
+  postlayoutPreorder() {
+    // should be overridden
+  }
+
+  postlayoutPostorder() {
     // should be overridden
   }
 }
@@ -165,21 +173,71 @@ export class Box extends RenderItem {
   public children: RenderItem[];
   public containingBlock: BoxArea;
   /**
-   * General bitfield for booleans. The first 8 are reserved for attributes
-   * belonging to Box. The latter 24 can be used by subclasses.
+   * General boolean bitfield shared by all box subclasses. The bits labeled
+   * with "has" say something about their content to allow for optimizations.
+   * They propagate through to parents of the same type, though some of them
+   * do so conditionally.
    */
-  protected bitfield: number;
+  public bitfield: number;
 
-  static ATTRS = {
+  /**
+   * Bitfield allocations. Box subclasses with different inheritance are allowed
+   * to overlap attribute bits or propagate target bits. It's easier to keep
+   * these all in one place than try to define them on the subclasses.
+   */
+  static BITS = {
+    // 0..3: misc attributes for all box types:
     isAnonymous:               1 << 0,
     enableLogging:             1 << 1,
     reserved1:                 1 << 2, // this padding makes the logs easier to
     reserved2:                 1 << 3, // read (distinguish attrs from has bits)
+    // 4..7: propagation bits: Box <- Box
     hasBackgroundInLayer:      1 << 4,
     hasForegroundInLayer:      1 << 5,
     hasBackgroundInDescendent: 1 << 6,
-    hasForegroundInDescendent: 1 << 7
+    hasForegroundInDescendent: 1 << 7,
+    // 8..9: attributes for BlockContainer:
+    //
+    // Inline or block-level: we can't use the style for this since anonymously
+    // created block containers are block-level but their style is inline (the
+    // initial value). Potentially we could remove this and say that it's block
+    // level if it's anonymous.
+    //
+    // Other CSS rules that affect how a block container is treated during
+    // layout do not have this problem (position: absolute, display: inline-
+    // block) because anonymously created boxes cannot invoke those modes.
+    isInline:                  1 << 8,
+    isBfcRoot:                 1 << 9,
+    // 8..13: propagation bits: Inline <- Run
+    hasText:                   1 << 8,
+    hasComplexText:            1 << 9,
+    hasSoftHyphen:             1 << 10,
+    hasNewlines:               1 << 11,
+    hasSoftWrap:               1 << 12,
+    hasCollapsibleWs:          1 << 13,
+    // 14..18: propagation bits: Inline <- Inline
+    hasInlines:                1 << 14,
+    hasPaintedInlines:         1 << 15,
+    hasPositionedInline:       1 << 16,
+    hasColoredInline:          1 << 17,
+    hasSizedInline:            1 << 18,
+    // 19: propagation bits: Inline <- Break
+    hasBreaks:                 1 << 19,
+    // 20..21: propagation bits: Inline <- BlockContainer
+    hasFloats:                 1 << 20,
+    hasInlineBlocks:           1 << 21,
+    // 22..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
+
+  /**
+   * Use this, not BITS, for the ctor! BITS are ~private
+   */
+  static ATTRS = {
+    isAnonymous: Box.BITS.isAnonymous,
+    enableLogging: Box.BITS.enableLogging,
+  };
+
+  static PROPAGATES_TO_INLINE_BITS = 0xffffff00;
 
   static BITFIELD_END = 8;
 
@@ -191,27 +249,23 @@ export class Box extends RenderItem {
     this.containingBlock = EmptyContainingBlock;
   }
 
-  preprocess() {
-    for (const child of this.children) {
-      child.preprocess();
-
-      if (!child.isLayerRoot()) {
-        if (child.hasBackground() || child.hasBackgroundInLayerRoot()) {
-          this.bitfield |= Box.ATTRS.hasBackgroundInLayer;
-        }
-
-        if (child.hasForeground() || child.hasForegroundInLayerRoot()) {
-          this.bitfield |= Box.ATTRS.hasForegroundInLayer;
-        }
+  propagate(parent: Box) {
+    if (!this.isLayerRoot()) {
+      if (this.hasBackground() || this.hasBackgroundInLayerRoot()) {
+        parent.bitfield |= Box.BITS.hasBackgroundInLayer;
       }
 
-      if (child.hasBackground() || child.hasBackgroundInDescendent()) {
-        this.bitfield |= Box.ATTRS.hasBackgroundInDescendent;
+      if (this.hasForeground() || this.hasForegroundInLayerRoot()) {
+        parent.bitfield |= Box.BITS.hasForegroundInLayer;
       }
+    }
 
-      if (child.hasForeground() || child.hasForegroundInDescendent()) {
-        this.bitfield |= Box.ATTRS.hasForegroundInDescendent;
-      }
+    if (this.hasBackground() || this.hasBackgroundInDescendent()) {
+      parent.bitfield |= Box.BITS.hasBackgroundInDescendent;
+    }
+
+    if (this.hasForeground() || this.hasForegroundInDescendent()) {
+      parent.bitfield |= Box.BITS.hasForegroundInDescendent;
     }
   }
 
@@ -220,7 +274,7 @@ export class Box extends RenderItem {
   }
 
   isAnonymous() {
-    return Boolean(this.bitfield & Box.ATTRS.isAnonymous);
+    return Boolean(this.bitfield & Box.BITS.isAnonymous);
   }
 
   isPositioned() {
@@ -232,19 +286,19 @@ export class Box extends RenderItem {
   }
 
   hasBackgroundInLayerRoot() {
-    return Boolean(this.bitfield & Box.ATTRS.hasBackgroundInLayer);
+    return Boolean(this.bitfield & Box.BITS.hasBackgroundInLayer);
   }
 
   hasForegroundInLayerRoot() {
-    return Boolean(this.bitfield & Box.ATTRS.hasForegroundInLayer);
+    return Boolean(this.bitfield & Box.BITS.hasForegroundInLayer);
   }
 
   hasBackgroundInDescendent() {
-    return Boolean(this.bitfield & Box.ATTRS.hasBackgroundInDescendent);
+    return Boolean(this.bitfield & Box.BITS.hasBackgroundInDescendent);
   }
 
   hasForegroundInDescendent() {
-    return Boolean(this.bitfield & Box.ATTRS.hasForegroundInDescendent);
+    return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }
 
   getRelativeVerticalShift() {
@@ -436,3 +490,54 @@ export class BoxArea {
 }
 
 const EmptyContainingBlock = new BoxArea(null!);
+
+export function prelayout(root: BlockContainer) {
+  const stack: (InlineLevel | {sentinel: true})[] = [root];
+  const parents: Box[] = [];
+  const ifcs: IfcInline[] = [];
+
+  while (stack.length) {
+    const box = stack.pop()!;
+
+    if ('sentinel' in box) {
+      const box = parents.pop()!;
+      if (box.isIfcInline()) ifcs.pop();
+      const parent = parents.at(-1);
+      if (parent) box.propagate(parent);
+      box.prelayout();
+    } else if (box.isBox()) {
+      parents.push(box);
+      if (box.isIfcInline()) ifcs.push(box);
+      stack.push({sentinel: true});
+      for (let i = box.children.length - 1; i >= 0; i--) {
+        stack.push(box.children[i]);
+      }
+    } else if (box.isRun()) {
+      box.propagate(parents.at(-1)!, ifcs.at(-1)!.paragraph.string);
+    } else {
+      box.propagate(parents.at(-1)!);
+    }
+  }
+}
+
+export function postlayout(root: BlockContainer) {
+  const stack: (BlockContainer | Inline | {sentinel: true})[] = [root];
+  const parents: Box[] = [];
+
+  while (stack.length) {
+    const box = stack.pop()!;
+
+    if ('sentinel' in box) {
+      const parent = parents.pop()!;
+      parent.postlayoutPostorder();
+    } else {
+      box.postlayoutPreorder();
+      stack.push({sentinel: true});
+      parents.push(box);
+      for (let i = box.children.length - 1; i >= 0; i--) {
+        const child = box.children[i];
+        if (child.isBox()) stack.push(child);
+      }
+    }
+  }
+}

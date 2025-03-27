@@ -1017,16 +1017,6 @@ export class BlockContainer extends Box {
       || this.style.borderBottomWidth > 0 && this.style.borderBottomColor.a > 0
       || this.style.borderLeftWidth > 0 && this.style.borderLeftColor.a > 0;
   }
-
-  hasForeground() {
-    if (this.isInlineBlock()) {
-      return this.hasBackground()
-        || this.hasBackgroundInLayerRoot()
-        || this.hasForegroundInLayerRoot();
-    } else {
-      return false;
-    }
-  }
 }
 
 function preBlockContainer(box: BlockContainer, ctx: LayoutContext) {

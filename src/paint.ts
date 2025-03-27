@@ -337,7 +337,12 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
     if ('sentinel' in box) {
       b.popClip();
     } else if (box.isBlockContainer()) {
-      if ((box === root.box || !box.isLayerRoot()) && box.hasForegroundInLayerRoot())  {
+      if (
+        // Belongs to this LayerRoot
+        (box === root.box || !box.isLayerRoot()) &&
+        // Has something we should paint underneath it
+        (box.hasForegroundInLayerRoot() || root.isInInlineBlockPath(box))
+      ) {
         if (box !== root.box && box.style.overflow === 'hidden') {
           const {x, y, width, height} = box.paddingArea;
           b.pushClip(x, y, width, height);
@@ -421,6 +426,11 @@ class LayerRoot {
   floats: LayerRoot[];
   positionedRoots: LayerRoot[];
   positiveRoots: LayerRoot[];
+  /**
+   * Unlike the other child roots, inline-blocks are painted when text is
+   * painted - after text that comes before them and before text that comes
+   * after. The map allows lookup while walking the inline tree.
+   */
   inlineBlocks: Map<BlockContainer, BlockLayerRoot>;
 
   constructor(box: BlockContainer | Inline, parents: Box[]) {
@@ -453,7 +463,27 @@ class LayerRoot {
       && this.negativeRoots.length === 0
       && this.floats.length === 0
       && this.positionedRoots.length === 0
-      && this.positiveRoots.length === 0;
+      && this.positiveRoots.length === 0
+      && this.inlineBlocks.size === 0;
+  }
+
+  /**
+   * Returns true if the box belongs to this LayerRoot and is a parent of an
+   * inline-block LayerRoot (which would be a direct child of this LayerRoot).
+   *
+   * The paint foreground algorithm normally only descends boxes with the
+   * hasForegroundInLayerRoot bit set, for obvious reasons. However, since an
+   * inline-block creates its own layer root, it does not contribute foreground.
+   * This is used as an additional check next to hasForegroundInLayerRoot when
+   * descending.
+   */
+  isInInlineBlockPath(box: Box) {
+    if (this.inlineBlocks.size === 0) return false;
+    if (box === this.box) return true;
+    for (const root of this.inlineBlocks.values()) {
+      if (root.parents.includes(box)) return true;
+    }
+    return false;
   }
 
   isBlockLayerRoot(): this is BlockLayerRoot {
@@ -650,7 +680,7 @@ function paintBlockLayerRoot(
 
   for (const r of root.floats) paintLayerRoot(r, b);
 
-  if (root.box.hasForegroundInLayerRoot()) {
+  if (root.box.hasForegroundInLayerRoot() || root.inlineBlocks.size) {
     paintBlockForeground(root, b);
   }
 

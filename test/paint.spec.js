@@ -537,6 +537,20 @@ describe('Painting', function () {
     ]);
   });
 
+  it('doesn\'t skip floats as the exclusive children of an inline-block', function () {
+    this.layout(`
+      <div style="font-size: 10px;">
+        <div style="display: inline-block;">
+          <span style="float: left;">woop woop</span>
+        </div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 8, text: 'woop woop', fillColor: '#000'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

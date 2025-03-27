@@ -1447,7 +1447,7 @@ export class Inline extends Box {
   }
 
   hasForeground() {
-    return true;
+    return Boolean(this.hasLineLeftGap() || this.hasLineRightGap());
   }
 }
 
@@ -1565,10 +1565,6 @@ export class IfcInline extends Inline {
       this.paragraph.createLineboxes(ctx);
       this.paragraph.positionItems(ctx);
     }
-  }
-
-  hasForeground() {
-    return Boolean(this.hasText() || this.hasSizedInline());
   }
 }
 

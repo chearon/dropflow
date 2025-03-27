@@ -651,7 +651,7 @@ function paintInlineLayerRoot(root: InlineLayerRoot, b: PaintBackend) {
     }
   }
 
-  if (root.box.hasForeground()) {
+  if (root.box.hasForeground() || root.box.hasForegroundInLayerRoot()) {
     paintInline(root, root.paragraph, b);
   }
 

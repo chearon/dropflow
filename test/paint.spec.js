@@ -311,7 +311,6 @@ describe('Painting', function () {
 
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'text', x: 90, y: 8, text: 'hockey', fillColor: '#000'},
-      {t: 'text', x: 40, y: 8, text: ' ', fillColor: '#000'},
       {t: 'text', x: 0, y: 8, text: 'play', fillColor: '#000'},
       {t: 'text', x: 50, y: 8, text: 'ice ', fillColor: '#000'}
     ]);

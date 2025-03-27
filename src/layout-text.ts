@@ -77,6 +77,10 @@ export class Run extends RenderItem {
   public start: number;
   public end: number;
 
+  static TEXT_BITS = Box.BITS.hasText
+    | Box.BITS.hasForegroundInLayer
+    | Box.BITS.hasForegroundInDescendent;
+
   constructor(start: number, end: number, style: Style) {
     super(style);
     this.start = start;
@@ -121,7 +125,7 @@ export class Run extends RenderItem {
     if (!parent.isInline()) throw new Error('Assertion failed');
 
     if (!isWsCollapsible(this.style.whiteSpace)) {
-      parent.bitfield |= Box.BITS.hasText;
+      parent.bitfield |= Run.TEXT_BITS;
     }
 
     for (let i = this.start; i < this.end; i++) {
@@ -138,7 +142,7 @@ export class Run extends RenderItem {
       }
       
       if (!parent.hasText() && !isSpaceOrTabOrNewline(paragraph[i])) {
-        parent.bitfield |= Box.BITS.hasText;
+        parent.bitfield |= Run.TEXT_BITS;
       }
     }
 

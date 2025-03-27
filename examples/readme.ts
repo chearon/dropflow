@@ -35,4 +35,4 @@ const canvas = createCanvas(250, 50);
 await flow.renderToCanvas(rootElement, canvas);
 
 // Save your image
-fs.writeFileSync(file('hello.png'), canvas.toBuffer());
+fs.writeFileSync(new URL('hello.png', import.meta.url), canvas.toBuffer());

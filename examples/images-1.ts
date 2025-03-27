@@ -1,12 +1,11 @@
 import * as flow from 'dropflow';
 import fs from 'fs';
 import {createCanvas, loadImage} from 'canvas';
-import {registerFontAsset} from '../assets/register.js';
 
 const image1 = await loadImage('https://picsum.photos/100/100');
 const image2 = await loadImage('https://picsum.photos/50/50');
-
-registerFontAsset('Arimo/Arimo-Regular.ttf');
+const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Regular.ttf')));
 
 const rootStyle = flow.style({
   paddingTop: 10,
@@ -55,6 +54,7 @@ const rootElement = flow.dom(
 
 
 // Normal layout, logging
+flow.loadSync(rootElement);
 const blockContainer = flow.generate(rootElement);
 blockContainer.log();
 flow.layout(blockContainer, 600, 400);
@@ -78,4 +78,4 @@ ctx.drawImage(
   Math.round(image2El.contentArea.y)
 );
 
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('images-1.png', import.meta.url)));
+fs.writeFileSync(new URL('images-1.png', import.meta.url), canvas.toBuffer());

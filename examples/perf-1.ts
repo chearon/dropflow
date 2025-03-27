@@ -6,13 +6,10 @@ import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
 import {clearWordCache} from '../src/layout-text.js';
 
-console.time('Add fonts');
 registerFontAsset('Arimo/Arimo-Bold.ttf');
 registerFontAsset('Arimo/Arimo-Regular.ttf');
 registerFontAsset('Arimo/Arimo-Italic.ttf');
 registerFontAsset('Cousine/Cousine-Regular.ttf');
-console.timeEnd('Add fonts');
-console.log();
 
 const rootElement = parse(`
   <div style="zoom: 2; padding: 1em; background-color: #fff; font-family: Arimo;">
@@ -47,6 +44,8 @@ const rootElement = parse(`
   </div>
 `);
 
+flow.loadSync(rootElement);
+
 const canvas = createCanvas(1600, 1600);
 const ctx = canvas.getContext('2d');
 
@@ -54,7 +53,7 @@ const blockContainer = flow.generate(rootElement);
 flow.layout(blockContainer, canvas.width, canvas.height);
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 flow.paintToCanvas(blockContainer, ctx);
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-1.png', import.meta.url)));
+fs.writeFileSync(new URL('perf-1.png', import.meta.url), canvas.toBuffer());
 
 bench('10 paragraphs generate, layout, and paint', () => {
   const blockContainer = flow.generate(rootElement);

@@ -1,14 +1,11 @@
 import * as flow from 'dropflow';
-import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
 import {clearWordCache} from '../src/layout-text.js';
 
-console.time('Add fonts');
-registerFontAsset('Roboto/Roboto-Regular.ttf');
-console.timeEnd('Add fonts');
-console.log();
+const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Roboto/Roboto-Regular.ttf')));
 
 function word() {
   let ret = '';
@@ -29,10 +26,11 @@ const ctx = canvas.getContext('2d');
 const html = flow.dom(
   flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
 );
+flow.loadSync(html);
 const blockContainer = flow.generate(html);
 flow.layout(blockContainer, 100, 20);
 flow.paintToCanvas(blockContainer, ctx);
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('perf-3.png', import.meta.url)));
+fs.writeFileSync(new URL('perf-3.png', import.meta.url), canvas.toBuffer());
 
 bench('generate and layout one random word', () => {
   const html = flow.dom(

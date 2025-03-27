@@ -2,12 +2,12 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
-import {registerFontAsset} from '../assets/register.js';
 
-registerFontAsset('Arimo/Arimo-Bold.ttf');
-registerFontAsset('Arimo/Arimo-Regular.ttf');
-registerFontAsset('Arimo/Arimo-Italic.ttf');
-registerFontAsset('Cousine/Cousine-Regular.ttf');
+const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Bold.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Regular.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Italic.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Cousine/Cousine-Regular.ttf')));
 
 const rootElement = parse(`
   <div style="font: 16px/1.4 Arimo; background-color: white; zoom: 2;" x-dropflow-log>
@@ -25,6 +25,8 @@ const rootElement = parse(`
   </div>
 `);
 
+flow.loadSync(rootElement);
+
 const blockContainer = flow.generate(rootElement);
 blockContainer.log({css: 'zoom'});
 
@@ -33,4 +35,4 @@ flow.layout(blockContainer, canvas.width, canvas.height);
 
 const ctx = canvas.getContext('2d');
 flow.paintToCanvas(blockContainer, ctx);
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('inlines-1.png', import.meta.url)));
+fs.writeFileSync(new URL('inlines-1.png', import.meta.url), canvas.toBuffer());

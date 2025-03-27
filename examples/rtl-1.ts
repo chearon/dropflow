@@ -1,11 +1,11 @@
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
-import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 
-registerFontAsset('Cairo/Cairo-Regular.ttf'),
-registerFontAsset('Raleway/Raleway-Regular.ttf')
+const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Cairo/Cairo-Regular.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Raleway/Raleway-Regular.ttf')));
 
 const rootElement = parse(`
   <div style="background-color: #ccc; zoom: 2;" x-dropflow-log>
@@ -24,6 +24,8 @@ const rootElement = parse(`
   </div>
 `);
 
+flow.loadSync(rootElement);
+
 const blockContainer = flow.generate(rootElement);
 
 blockContainer.log();
@@ -32,4 +34,5 @@ const canvas = createCanvas(200, 600);
 flow.layout(blockContainer, canvas.width, canvas.height);
 const ctx = canvas.getContext('2d');
 flow.paintToCanvas(blockContainer, ctx);
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('rtl-1.png', import.meta.url)));
+
+fs.writeFileSync(new URL('rtl-1.png', import.meta.url), canvas.toBuffer());

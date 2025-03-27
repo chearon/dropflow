@@ -1,11 +1,11 @@
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import fs from 'fs';
-import {registerFontAsset} from '../assets/register.js';
 import {createCanvas} from 'canvas';
 
-registerFontAsset('Cairo/Cairo-Regular.ttf');
-registerFontAsset('Arimo/Arimo-Regular.ttf');
+const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Cairo/Cairo-Regular.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Regular.ttf')));
 
 const rootElement = parse(`
   <html style="zoom: 2; height: 100%;">
@@ -22,9 +22,10 @@ const rootElement = parse(`
 const blockContainer = flow.generate(rootElement);
 
 blockContainer.log();
+flow.loadSync(rootElement);
 
 const canvas = createCanvas(200, 250);
 flow.layout(blockContainer, canvas.width, canvas.height);
 const ctx = canvas.getContext('2d');
 flow.paintToCanvas(blockContainer, ctx);
-canvas.createPNGStream().pipe(fs.createWriteStream(new URL('bidi-1.png', import.meta.url)));
+fs.writeFileSync(new URL('bidi-1.png', import.meta.url), canvas.toBuffer());

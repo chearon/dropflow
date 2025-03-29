@@ -1,14 +1,12 @@
+// builds with zig 0.14
 .{
-    .name = "dropflow",
+    .name = .dropflow,
+    .fingerprint = 0x3980e406d4452ad3,
     .version = "0.0.0",
     .paths = .{""},
     .dependencies = .{
         .harfbuzz = .{ .path = "./pkg/harfbuzz" },
         .sheenbidi = .{ .path = "./pkg/sheenbidi" },
         .binaryen = .{ .path = "./pkg/binaryen" },
-        .tracy = .{
-            .url = "https://github.com/wolfpld/tracy/archive/refs/tags/v0.11.1.tar.gz",
-            .hash = "122022a478dccaed1309fb5d022f4041eec45d40c93a855ed24fad970774c2426d91",
-        },
     },
 }

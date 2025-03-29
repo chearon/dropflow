@@ -1,5 +1,5 @@
 .{
-    .name = "harfbuzz",
+    .name = .harfbuzz,
     .version = "10.2.0",
     .paths = .{""},
     .dependencies = .{

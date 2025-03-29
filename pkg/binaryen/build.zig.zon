@@ -1,7 +1,7 @@
 .{
     // Make sure to check that the expression type IDs haven't changed when updating this!
     // https://github.com/WebAssembly/binaryen/blob/9d5628c99e2049cee7d3752914ae837173afcbe1/src/wasm.h
-    .name = "binaryen",
+    .name = .binaryen,
     .version = "122.0.0",
     .paths = .{""},
     .dependencies = .{

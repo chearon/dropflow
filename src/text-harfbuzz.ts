@@ -151,7 +151,7 @@ export class HbBlob {
 
   getData() {
     const length = exports.hb_blob_get_length(this.ptr);
-    const ptr = exports.hb_blob_get_data(this.ptr, null);
+    const ptr = exports.hb_blob_get_data(this.ptr, 0);
     return heapu8.subarray(ptr, ptr + length);
   }
 }

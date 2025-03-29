@@ -415,6 +415,15 @@ describe('Fonts', function () {
       expect(loading[0].weight).to.equal(700);
       await fonts.ready;
     });
+
+    it('picks bold versions of a language', async function () {
+      loadFonts(parse('<strong>មាត្រា'));
+      const loading = [...flow.fonts].filter(f => f.status === 'loading');
+      expect(loading).to.have.lengthOf(1);
+      expect(loading[0].family).to.equal('Noto Sans Khmer');
+      expect(loading[0].weight).to.equal(700);
+      await fonts.ready;
+    });
   });
 
   describe('loadFonts', function () {

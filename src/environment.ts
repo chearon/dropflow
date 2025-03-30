@@ -16,7 +16,7 @@ export const defaultEnvironment: Environment = {
     );
   },
   registerFont() {
-    throw new Error('Invalid build! Your bundler needs to support "exports" in package.json.');
+    // optional (dropflow can be used for layout only)
   },
   resolveUrl() {
     throw new Error('Invalid build! Your bundler needs to support "exports" in package.json.');

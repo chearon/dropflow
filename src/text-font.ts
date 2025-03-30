@@ -574,6 +574,7 @@ class FontFaceSet {
   }
 
   clear() {
+    for (const face of this.#faces) faceToLoaded.get(face)?.deallocate();
     this.#faces.clear();
     this.#loaded.clear();
     this.#failed.clear();

@@ -2,7 +2,7 @@ import type {LoadedFontFace} from './text-font.js';
 
 export interface Environment {
   wasmLocator(): Promise<Uint8Array>;
-  registerFont(face: LoadedFontFace): void;
+  registerFont(face: LoadedFontFace): (() => void) | void;
   resolveUrl(url: URL): Promise<ArrayBufferLike>
   resolveUrlSync(url: URL): ArrayBufferLike;
 }

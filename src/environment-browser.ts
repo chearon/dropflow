@@ -11,7 +11,9 @@ declare const FontFace: any;
 if (environment.registerFont === defaultEnvironment.registerFont) {
   environment.registerFont = function (face) {
     const buffer = face.getBuffer();
-    document.fonts.add(new FontFace(face.uniqueFamily, buffer));
+    const domFace = new FontFace(face.uniqueFamily, buffer);
+    document.fonts.add(domFace);
+    return () => document.fonts.remove(domFace);
   };
 }
 

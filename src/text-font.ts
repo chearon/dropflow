@@ -145,6 +145,7 @@ export class LoadedFontFace {
   spaceFeatures: number;
   defaultSubSpaceFeatures: Uint32Array;
   nonDefaultSubSpaceFeatures: Uint32Array;
+  onDestroy?: () => void;
 
   _createHb(data: ArrayBufferLike, url?: URL) {
     const blob = hb.createBlob(new Uint8Array(data));
@@ -217,6 +218,7 @@ export class LoadedFontFace {
    */
   deallocate() {
     if (this.allocated) {
+      this.onDestroy?.();
       this.hbface.destroy();
       this.hbfont.destroy();
       this.allocated = false;
@@ -511,6 +513,11 @@ class Deferred<T> {
   }
 }
 
+function externallyRegisterFont(face: LoadedFontFace) {
+  const cb = environment.registerFont(face);
+  if (typeof cb === 'function') face.onDestroy = cb;
+}
+
 const faceToLoaded = new WeakMap<FontFace, LoadedFontFace>();
 
 // Currently everything is designed for only one instance of FontFaceSet since
@@ -543,7 +550,11 @@ class FontFaceSet {
       langCascade = undefined;
       urangeCascade = undefined;
       if (face.status === 'loading') this._onLoading(face);
-      faceToLoaded.get(face)?.allocate();
+      const loaded = faceToLoaded.get(face);
+      if (loaded) {
+        loaded.allocate();
+        externallyRegisterFont(loaded);
+      }
     }
     return this;
   }
@@ -600,12 +611,13 @@ class FontFaceSet {
   }
 
   /** @internal */
-  _onLoaded(face: FontFace) {
+  _onLoaded(face: FontFace, loaded: LoadedFontFace) {
     if (this.has(face)) {
       langCascade = undefined;
       this.#loaded.add(face);
-      if (this.#loading.delete(face) && this.#loading.size === 0) {
-        this._switchToLoaded();
+      if (this.#loading.delete(face)) {
+        if (this.#loading.size === 0) this._switchToLoaded();
+        externallyRegisterFont(loaded);
       }
     }
   }
@@ -773,8 +785,7 @@ export class FontFace {
     langCascade = undefined;
     urangeCascade = undefined;
     loadedFaceRegistry.register(this, face);
-    fonts._onLoaded(this);
-    environment.registerFont(face);
+    fonts._onLoaded(this, face);
     this.#status.resolve(this);
   }
 

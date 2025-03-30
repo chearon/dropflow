@@ -12,7 +12,7 @@ import './text.spec.js';
 import './font.spec.js';
 import './itemize.spec.js';
 import './paint.spec.js';
-import {environment} from '../src/environment.js';
+import {environment} from 'dropflow';
 
 // Tests don't make calls to node-canvas; that's what the mock paint class is for
 environment.registerFont = () => {};

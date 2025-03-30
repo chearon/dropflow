@@ -7,7 +7,6 @@ import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {getLangCascade, fonts, FontFace, createFaceFromTablesSync, loadFonts} from '../src/text-font.js';
 import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
-import {environment} from '../src/environment.js';
 
 /** @param {import("../src/style.js").DeclaredStyleProperties} style */
 function style(style) {
@@ -351,7 +350,7 @@ describe('Fonts', function () {
 
     it('calls environment.registerFont when a loaded font is added', function () {
       let path;
-      mock.method(environment, 'registerFont', face => path = face.url.href);
+      mock.method(flow.environment, 'registerFont', face => path = face.url.href);
       const f = new FontFace('f', url('Roboto/Roboto-Italic.ttf'));
       expect(path).to.be.undefined;
       f.loadSync();
@@ -362,7 +361,7 @@ describe('Fonts', function () {
 
     it('calls environment.registerFont when an added font is loaded', function () {
       let path;
-      mock.method(environment, 'registerFont', face => path = face.url.href);
+      mock.method(flow.environment, 'registerFont', face => path = face.url.href);
       const f = new FontFace('f', url('Roboto/Roboto-Italic.ttf'));
       expect(path).to.be.undefined;
       fonts.add(f);
@@ -374,7 +373,7 @@ describe('Fonts', function () {
     it('calls the unregistration function when a font is removed', function () {
       let unregisterCalled = false;
       const unregister = () => unregisterCalled = true;
-      mock.method(environment, 'registerFont', () => unregister);
+      mock.method(flow.environment, 'registerFont', () => unregister);
       const f = new FontFace('f', url('Roboto/Roboto-Italic.ttf'));
       fonts.add(f);
       expect(unregisterCalled).to.be.false;

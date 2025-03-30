@@ -547,6 +547,112 @@ class BoxArea {
 }
 ```
 
+## Environments
+
+Dropflow is designed to support a flexible configuration of environments. In the browser, it loads fonts (soon, images too) via `fetch` and registers font buffers to `document.fonts`. In Nodejs, dropflow can load fonts synchronously via `fs.readFileSync`.
+
+When you use the canvas backend with dropflow and `node-canvas` is present, it will call node-canvas's `registerFont`. Node-canvas doesn't support font buffers, so you have to use file:// URLs.
+
+If you want to use `@napi-rs/canvas` or `skia-canvas`, you'll need just a few lines of code to wire `flow.environment.registerFont` to the appropriate font registration APIs.
+
+### Hooks
+
+There are 4 hooks you can override, documented below. They have default implementations based on whether dropflow was built for the browser or node ("browser" export condition or "default") but may not be sufficient for your use case.
+
+```ts
+const environment: Environment;
+
+export interface Environment {
+  /**
+   * Must return a promise of a Uint8Array of dropflow.wasm. Typically this
+   * just does a fetch() or fs.readFile.
+   *
+   * Since dropflow internally depends on WASM using top-level await, if you
+   * want to change the location, you need to do it before importing dropflow.
+   * To do that, import {environment} from 'dropflow/environment.js';
+   *
+   * Many package managers only guarantee the order of imports relative to other
+   * imports, so you should usually call this in a separate module imported
+   * before dropflow. See the README for an example.
+   */
+  wasmLocator(): Promise<Uint8Array>;
+  /**
+   * This will get called when a font in flow.fonts transitions to loaded or
+   * when an already loaded font is added to flow.fonts. It's intended to be
+   * used to add the font to the underlying paint target.
+   *
+   * Use `face.getBuffer` if the backend supports font buffers. You can use the
+   * url property to access the file if it doesn't (node-canvas v2). The font
+   * will be selected via `face.uniqueFamily` and nothing else.
+   *
+   * You can return an unregister function which will be called when the font
+   * is no longer needed by dropflow (eg user called `flow.fonts.delete`).
+   */
+  registerFont(face: LoadedFontFace): (() => void) | void;
+  /**
+   * Must return a promise of a buffer for the given URL. This used for fonts
+   * and will be used for images.
+   */
+  resolveUrl(url: URL): Promise<ArrayBufferLike>
+  /**
+   * Same as `resolveUrl`, but synchronous if it's a file:// URL. This should
+   * throw if URL is not a file:// URL, which would mean the user called
+   * loadSync on a document with asynchronous-only URLs.
+   */
+  resolveUrlSync(url: URL): ArrayBufferLike;
+}
+```
+
+### Using `@napi-rs/canvas`
+
+```ts
+import {GlobalFonts} from '@napi-rs/canvas';
+import * as flow from 'dropflow';
+
+// Configure @napi-rs/canvas
+flow.environment.registerFont = face => {
+  const key = GlobalFonts.register(face.getBuffer(), face.uniqueFamily);
+  if (key) return () => GlobalFonts.remove(key);
+};
+```
+
+### Using `skia-canvas`
+
+```ts
+import {FontLibrary} from 'skia-canvas';
+import * as flow from 'dropflow';
+
+// Configure skia-canvas
+flow.environment.registerFont = face => {
+  FontLibrary.use(face.uniqueFamily, fileURLToPath(face.url));
+};
+```
+
+### Overriding the WASM location
+
+```ts
+// dropflow.config.js
+//
+// This should usually go in its own file that is imported before dropflow,
+// because dropflow's own modules use top-level await to retrieve dropflow.wasm.
+// (Bundlers guarantee import order but only relative to other imports)
+import {environment} from 'dropflow/environment.js';
+// This will be the path to wasm if you're using Bun. Vite (others?) need ?url
+import wasmUrl from 'dropflow/dropflow.wasm';
+// or you can get it some other way
+// const wasmUrl = 'the/path/to/dropflow.wasm';
+
+environment.wasmLocator = function () {
+  return fetch(wasmUrl).then(res => {
+    if (res.status === 200) {
+      return res.arrayBuffer()
+    } else {
+      throw new Error(res.statusText);
+    }
+  });
+};
+```
+
 ## Other
 
 ### `staticLayoutContribution`

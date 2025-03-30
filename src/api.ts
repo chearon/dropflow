@@ -10,6 +10,8 @@ import paint from './paint.js';
 import {BoxArea, prelayout, postlayout} from './layout-box.js';
 import {id} from './util.js';
 
+export {environment} from './environment.js';
+
 export type {BlockContainer, DeclaredStyle};
 
 export type {HTMLElement};

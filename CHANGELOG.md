@@ -22,6 +22,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * Added `flow.FontFace`, `flow.fonts`, `flow.createFaceFromTables` (see **Changed** above)
 * Added `unicodeRange` to `FontFaceDescriptors`
 * Added `flow.load` for loading all fonts needed by a document
+* Added support for `@napi-rs/canvas` and `skia-canvas` via environments (see examples)
+* Exposed environment hooks so that dropflow's behavior can be customized (see updated README).
 
 ### Fixed
 * RTL text-align issue in the SVG painter and base direction issue in the canvas painter (#27)

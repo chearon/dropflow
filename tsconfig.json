@@ -1,6 +1,12 @@
 {
   "include": ["*.ts", "src/**/*", "*.d.ts", "examples/*.ts", "assets/register.ts"],
-  "exclude": ["node_modules"],
+  "exclude": [
+    "node_modules",
+    // https://github.com/Brooooooklyn/canvas/issues/659
+    "examples/napi-rs-canvas.ts",
+    // https://github.com/samizdatco/skia-canvas/pull/220
+    "examples/skia-canvas.ts"
+  ],
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "dist",

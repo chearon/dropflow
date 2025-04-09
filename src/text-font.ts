@@ -637,7 +637,7 @@ const loadedFaceRegistry = new FinalizationRegistry<LoadedFontFace>(f => f.deall
 
 interface FontFaceDescriptors {
   style?: FontStyle;
-  weight?: FontWeight;
+  weight?: FontWeight | 'bold' | 'bolder' | 'lighter' | 'normal';
   stretch?: FontStretch;
   variant?: FontVariant;
   unicodeRange?: string;

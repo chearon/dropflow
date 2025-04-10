@@ -188,6 +188,19 @@ function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBacke
   }
 }
 
+// TODO: since vertical padding is added above, hardware pixel snapping has
+// to happen here. But block containers are snapped during layout, so it'd
+// be more consistent to do it there. To be more consistent with the specs,
+// and hopefully clean up the code, I should start making "continuations"
+// (Firefox) of inlines, or create fragments out of them (Chrome)
+function snap(ox: number, oy: number, ow: number, oh: number) {
+  const x = Math.round(ox);
+  const y = Math.round(oy);
+  const width = Math.round(ox + ow) - x;
+  const height = Math.round(oy + oh) - y;
+  return {x, y, width, height};
+}
+
 function paintInlineBackground(
   background: BackgroundBox,
   inline: Inline,
@@ -234,19 +247,12 @@ function paintInlineBackground(
     }
 
     b.fillColor = bgc;
-    const left = containingBlock.x + Math.min(start, end);
-    const top = containingBlock.y + blockOffset - ascender - extraTop;
-    const right = left + Math.abs(start - end);
-    const bottom = top + ascender + descender + extraTop + extraBottom;
-    // TODO: since vertical padding is added above, hardware pixel snapping has
-    // to happen here. But block containers are snapped during layout, so it'd
-    // be more consistent to do it there. To be more consistent with the specs,
-    // and hopefully clean up the code, I should start making "continuations"
-    // (Firefox) of inlines, or create fragments out of them (Chrome)
-    const x = Math.round(left);
-    const y = Math.round(top);
-    const width = Math.round(right) - x;
-    const height = Math.round(bottom) - y;
+    const {x, y, width, height} = snap(
+      containingBlock.x + Math.min(start, end),
+      containingBlock.y + blockOffset - ascender - extraTop,
+      Math.abs(start - end),
+      ascender + descender + extraTop + extraBottom
+    );
     b.rect(x, y, width, height);
   }
 
@@ -258,11 +264,6 @@ function paintInlineBackground(
     if (paintLeft && clip !== 'border-box') extraLeft += borderLeftWidth;
     if (paintRight && clip === 'content-box') extraRight += paddingRight;
     if (paintRight && clip !== 'border-box') extraRight += borderRightWidth;
-
-    const left = containingBlock.x + Math.min(start, end) - extraLeft;
-    const top = containingBlock.y + blockOffset - ascender - paddingTop - borderTopWidth;
-    const width = Math.abs(start - end) + extraLeft + extraRight;
-    const height = borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth;
 
     const work = [
       ['top', borderTopWidth, borderTopColor],
@@ -276,9 +277,16 @@ function paintInlineBackground(
 
     for (const [side, lineWidth, color] of work) {
       if (lineWidth === 0) continue;
-      const length = side === 'left' || side === 'right' ? height : width;
-      let x = side === 'right' ? left + width : left;
-      let y = side === 'bottom' ? top + height : top;
+      const rect = snap(
+        containingBlock.x + Math.min(start, end) - extraLeft,
+        containingBlock.y + blockOffset - ascender - paddingTop - borderTopWidth,
+        Math.abs(start - end) + extraLeft + extraRight,
+        borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth
+      );
+
+      const length = side === 'left' || side === 'right' ? rect.height : rect.width;
+      let x = side === 'right' ? rect.x + rect.width : rect.x;
+      let y = side === 'bottom' ? rect.y + rect.height : rect.y;
       x += side === 'left' ? lineWidth/2 : side === 'right' ? -lineWidth/2 : 0;
       y += side === 'top' ? lineWidth/2 : side === 'bottom' ? -lineWidth/2 : 0;
       b.lineWidth = lineWidth;

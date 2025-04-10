@@ -616,5 +616,21 @@ describe('Painting', function () {
         {t: 'text', x: 0.5, y: 8.159999999999998, text: 'abc', fillColor: '#000'},
       ]);
     });
+
+    it('snaps inline borders', function () {
+      this.layout(`
+        <div style="font-size: 10.3px; padding-bottom: 0.2px;">
+          <span style="border: 1px solid #fad;">fad</span>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'edge', side: 'top', x: 0, y: -0.5, length: 33, lineWidth: 1, strokeColor: '#fad'},
+        {t: 'edge', side: 'right', x: 32.5, y: -1, length: 12, lineWidth: 1, strokeColor: '#fad'},
+        {t: 'edge', side: 'bottom', x: 0, y: 10.5, length: 33, lineWidth: 1, strokeColor: '#fad'},
+        {t: 'edge', side: 'left', x: 0.5, y: -1, length: 12, lineWidth: 1, strokeColor: '#fad'},
+        {t: 'text', x: 1, y: 8.24, text: 'fad', fillColor: '#000'},
+      ]);
+    });
   });
 });

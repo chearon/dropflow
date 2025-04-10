@@ -595,5 +595,26 @@ describe('Painting', function () {
         {t: 'text', x: 10.5, y: 8.159999999999998, text: '3', fillColor: '#000'},
       ]);
     });
+
+    it('snaps relatively positioned inline boxes after padding is added', function () {
+      this.layout(`
+        <div style="font-size: 10.2px;">
+          <span
+            style="
+              position: relative;
+              left: 0.2px;
+              padding-left: 0.3px;
+              background-clip: content-box;
+              background-color: #321;
+            "
+          >abc</span>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'rect', x: 1, y: 0, width: 30, height: 10, fillColor: '#321'},
+        {t: 'text', x: 0.5, y: 8.159999999999998, text: 'abc', fillColor: '#000'},
+      ]);
+    });
   });
 });

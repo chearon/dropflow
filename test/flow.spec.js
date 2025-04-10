@@ -1601,12 +1601,12 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [ifc] = this.get('div').children;
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(133);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87.03125);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(133.28125);
       expect(ifc.paragraph.brokenItems[1].x).to.equal(87.03125);
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(140);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(212);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(139.7265625);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(211.7734375);
       expect(ifc.paragraph.brokenItems[3].x).to.equal(139.7265625);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
@@ -1635,12 +1635,12 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow').IfcInline[] */
       const [ifc] = this.get('div').children;
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(134);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88.03125);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(134.28125);
       expect(ifc.paragraph.brokenItems[1].x).to.equal(88.03125);
 
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(141);
-      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(213);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(140.7265625);
+      expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(212.7734375);
       expect(ifc.paragraph.brokenItems[3].x).to.equal(140.7265625);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);

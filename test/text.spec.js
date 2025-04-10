@@ -2039,8 +2039,8 @@ describe('Inline Blocks', function () {
     /** @type import('../src/layout-flow').Inline */
     const span = this.get('#t2');
     const box = ifc.paragraph.backgroundBoxes.get(span);
-    expect(box[0].start).to.equal(9);
-    expect(box[0].end).to.equal(90);
+    expect(box[0].start).to.equal(8.96);
+    expect(box[0].end).to.equal(90.44800000000001);
   });
 
   it('occupies the right amount of space for floats', function () {

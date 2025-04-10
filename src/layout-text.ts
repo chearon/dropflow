@@ -1553,8 +1553,6 @@ class ContiguousBoxBuilder {
   open(inline: Inline, linebox: Linebox, naturalStart: boolean, start: number, blockOffset: number) {
     const box = this.opened.get(inline);
 
-    start = Math.round(start);
-
     if (box) {
       box.end = start;
     } else {
@@ -1572,8 +1570,6 @@ class ContiguousBoxBuilder {
 
   close(inline: Inline, naturalEnd: boolean, end: number) {
     const box = this.opened.get(inline);
-
-    end = Math.round(end);
 
     if (box) {
       const list = this.closed.get(inline);

@@ -117,6 +117,14 @@ const state = EditorState.create({
 
   <div style="border-top: 3px solid #2344; margin: 1em 0;"></div>
 
+  <div style="zoom: 2;">
+    The
+    <span style="border-bottom: 3px solid #afe; font-style: italic;">zoom</span>
+    property makes everything bigger!
+  </div>
+
+  <div style="border-top: 3px solid #2344; margin: 1em 0;"></div>
+
   <div style="margin: 1em 0;">
     Finally, <span style="background-color: #133; color: #aef">when
     painting inline backgrounds, the inline element must not interrupt
@@ -126,7 +134,7 @@ const state = EditorState.create({
     <span style="
       position: relative;
       top: 5px;
-      border-bottom: 3px solid #345;
+      border-bottom: 3px solid #fff;
     ">relatively positioned</span>,
 
     this does interrupt shaping boundaries.

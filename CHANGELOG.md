@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 (Unreleased)
 ==================
 ### Changed
+### Added
+### Fixed
+
+0.5.0
+==================
+### Changed
 * Styles must now be passed through `flow.style` before being given to `h`.
 * `cascadeStyles` has been removed. Pass an array of styles to `h` instead.
 * Removed `getRootStyle`

@@ -18,7 +18,7 @@
     "typescript": "^5.7.2"
   },
   "name": "dropflow",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A small CSS2 document renderer built from specifications",
   "type": "module",
   "files": [

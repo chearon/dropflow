@@ -15,8 +15,7 @@ const canvasLabel = document.getElementById('canvas-label');
 flow.setOriginStyle({zoom: window.devicePixelRatio});
 registerNotoFonts();
 
-async function render(html) {
-  const documentElement = parse(html);
+async function loadLayoutPaint() {
   const ctx = canvas.getContext('2d');
   const cssWidth = wrap.getBoundingClientRect().width;
   const cssHeight = wrap.getBoundingClientRect().height;
@@ -34,18 +33,15 @@ async function render(html) {
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const box = flow.generate(documentElement);
-  flow.layout(box, canvas.width, canvas.height);
-  flow.paintToCanvas(box, canvas.getContext('2d'));
+  flow.layout(blockContainer, canvas.width, canvas.height);
+  flow.paintToCanvas(blockContainer, canvas.getContext('2d'));
   ctx.restore();
-
-  window.blockContainer = box;
-  window.documentElement = documentElement;
 }
 
 const watch = EditorView.updateListener.of(update => {
   if (update.docChanged) {
-    render(view.state.doc.toString())
+    parseGenerate();
+    loadLayoutPaint();
   }
 });
 
@@ -148,10 +144,21 @@ const view = new EditorView({
   parent: document.querySelector('#editor')
 });
 
-render(view.state.doc.toString())
+let documentElement;
+let blockContainer;
+
+function parseGenerate() {
+  documentElement = parse(view.state.doc.toString());
+  blockContainer = flow.generate(documentElement);
+  window.blockContainer = blockContainer;
+  window.documentElement = documentElement;
+}
+
+parseGenerate();
+loadLayoutPaint();
 
 const observer = new ResizeObserver(function () {
-  render(view.state.doc.toString())
+  loadLayoutPaint();
 });
 
 let lastDevicePixelRatio = window.devicePixelRatio;
@@ -160,7 +167,8 @@ window.addEventListener('resize', function () {
   if (window.devicePixelRatio !== lastDevicePixelRatio) {
     lastDevicePixelRatio = window.devicePixelRatio;
     flow.setOriginStyle({zoom: window.devicePixelRatio});
-    render(view.state.doc.toString())
+    parseGenerate();
+    loadLayoutPaint();
   }
 });
 

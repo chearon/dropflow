@@ -10,6 +10,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Added
 ### Fixed
+* More accurate text coordinates when containing blocks are positioned in subpixels
 
 0.5.0
 ==================
@@ -20,6 +21,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * paintToCanvas no longer has a density argument. Use the zoom CSS property instead.
 * Changed the font registration API to match `document.fonts` in web browsers. Instead of `registerFont`, import `fonts` and `FontFace`. See the README for more details.
 * `parse` is now an individual file without the rest of the API. Change `import * as flow from 'dropflow/with-parse.js'` to `import * as flow from 'dropflow'` and `import parse from 'dropflow/parse.js'`
+* Replaced `loadNotoFonts` with `registerNotoFonts`. Call `flow.load` on the document after the latter.
 
 ### Added
 * Added support for the `zoom` property

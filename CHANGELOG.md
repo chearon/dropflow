@@ -10,6 +10,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Added
 ### Fixed
+
+0.5.1
+==================
+### Fixed
 * More accurate text coordinates when containing blocks are positioned in subpixels
 
 0.5.0

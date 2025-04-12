@@ -120,7 +120,7 @@ const state = EditorState.create({
   <div style="zoom: 2;">
     The
     <span style="border-bottom: 3px solid #afe; font-style: italic;">zoom</span>
-    property makes everything bigger!
+    property makes everything bigger! <span style="zoom: 33%;">(or smaller)
   </div>
 
   <div style="border-top: 3px solid #2344; margin: 1em 0;"></div>

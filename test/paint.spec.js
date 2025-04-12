@@ -632,5 +632,17 @@ describe('Painting', function () {
         {t: 'text', x: 1, y: 8.24, text: 'fad', fillColor: '#000'},
       ]);
     });
+
+    it('does not snap text coordinates', function () {
+      this.layout(`
+        <div style="padding-left: 0.5px; font-size: 10px; width: 200px;">
+          Dont snap me, bro
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0.5, y: 8, text: 'Dont snap me, bro', fillColor: '#000'},
+      ]);
+    });
   });
 });

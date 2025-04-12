@@ -1487,69 +1487,70 @@ export class IfcInline extends Inline {
     }
   }
 
-  postlayoutPreorder() {
-    this.paragraph.destroy();
+  positionItemsPostlayout() {
+    const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
+    const stack: (InlineLevel | {sentinel: Inline})[] = [this];
+    let dx = 0;
+    let dy = 0;
+    let itemIndex = 0;
 
-    if (this.hasPositionedInline()) {
-      const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
-      const stack: (InlineLevel | {sentinel: Inline})[] = this.children.slice().reverse();
-      let dx = 0;
-      let dy = 0;
-      let itemIndex = 0;
+    while (stack.length) {
+      const box = stack.pop()!;
 
-      while (stack.length) {
-        const box = stack.pop()!;
-
-        if ('sentinel' in box) {
-          while (
-            itemIndex < this.paragraph.brokenItems.length &&
-            this.paragraph.brokenItems[itemIndex].end() <= box.sentinel.start
-          ) itemIndex++;
-
-          while (
-            itemIndex < this.paragraph.brokenItems.length &&
-            this.paragraph.brokenItems[itemIndex].offset < box.sentinel.end
-          ) {
-            const item = this.paragraph.brokenItems[itemIndex];
+      if ('sentinel' in box) {
+        while (
+          itemIndex < this.paragraph.brokenItems.length &&
+          this.paragraph.brokenItems[itemIndex].offset < box.sentinel.end
+        ) {
+          const item = this.paragraph.brokenItems[itemIndex];
+          item.x += this.containingBlock.x;
+          item.y += this.containingBlock.y;
+          if (item.end() > box.sentinel.start) {
             item.x += dx;
             item.y += dy;
-            itemIndex++;
           }
-
-          if (box.sentinel.style.position === 'relative') {
-            dx -= box.sentinel.getRelativeHorizontalShift();
-            dy -= box.sentinel.getRelativeVerticalShift();
-          }
-        } else if (box.isInline()) {
-          stack.push({sentinel: box});
-          for (let i = box.children.length - 1; i >= 0; i--) {
-            stack.push(box.children[i]);
-          }
-
-          if (box.style.position === 'relative') {
-            dx += box.getRelativeHorizontalShift();
-            dy += box.getRelativeVerticalShift();
-          }
-
-          inlineShifts.set(box, {dx, dy});
-        } else if (box.isBlockContainer()) {
-          // floats or inline-blocks
-          box.borderArea.x += dx;
-          box.borderArea.y += dy;
+          itemIndex++;
         }
-      }
 
-      for (const [inline, backgrounds] of this.paragraph.backgroundBoxes) {
-        const {dx, dy} = inlineShifts.get(inline)!;
-
-        for (const background of backgrounds) {
-          background.blockOffset += dy;
-          background.start += dx;
-          background.end += dx;
+        if (box.sentinel.style.position === 'relative') {
+          dx -= box.sentinel.getRelativeHorizontalShift();
+          dy -= box.sentinel.getRelativeVerticalShift();
         }
+      } else if (box.isInline()) {
+        stack.push({sentinel: box});
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
+
+        if (box.style.position === 'relative') {
+          dx += box.getRelativeHorizontalShift();
+          dy += box.getRelativeVerticalShift();
+        }
+
+        inlineShifts.set(box, {dx, dy});
+      } else if (box.isBlockContainer()) {
+        // floats or inline-blocks
+        box.borderArea.x += dx;
+        box.borderArea.y += dy;
       }
     }
 
+    for (const [inline, backgrounds] of this.paragraph.backgroundBoxes) {
+      const {dx, dy} = inlineShifts.get(inline)!;
+
+      for (const background of backgrounds) {
+        background.blockOffset += this.containingBlock.y + dy;
+        background.start += this.containingBlock.x + dx;
+        background.end += this.containingBlock.x + dx;
+      }
+    }
+  }
+
+  postlayoutPreorder() {
+    this.paragraph.destroy();
+    if (this.shouldLayoutContent()) {
+      this.positionItemsPostlayout();
+    }
     super.postlayoutPreorder();
   }
 

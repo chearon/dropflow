@@ -1,7 +1,7 @@
 import {BlockContainer, Inline, InlineLevel, IfcInline} from './layout-flow.js';
 import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './layout-text.js';
 import {Color} from './style.js';
-import {Box, BoxArea} from './layout-box.js';
+import {Box} from './layout-box.js';
 import {binarySearchOf} from './util.js';
 
 import type {LoadedFontFace} from './text-font.js';
@@ -54,7 +54,6 @@ function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
 }
 
 function drawText(
-  containingBlock: BoxArea,
   item: ShapedItem,
   colors: [Color, number][],
   b: PaintBackend
@@ -68,7 +67,7 @@ function drawText(
   const end = item.attrs.level & 1 ? item.colorsStart(colors) - 1 : item.colorsEnd(colors);
   let i = item.attrs.level & 1 ? item.colorsEnd(colors) - 1 : item.colorsStart(colors);
   let glyphIndex = 0;
-  let tx = containingBlock.x + item.x;
+  let tx = item.x;
 
   while (i !== end) {
     const [color, offset] = colors[i];
@@ -99,7 +98,7 @@ function drawText(
       b.fontSize = style.fontSize;
       b.font = item.face;
       b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-      b.text(tx, containingBlock.y + item.y, item, start, end, isColorBoundary);
+      b.text(tx, item.y, item, start, end, isColorBoundary);
 
       tx += ax / item.face.hbface.upem * style.fontSize;
     }
@@ -209,7 +208,6 @@ function paintInlineBackground(
 ) {
   const ifc = paragraph.ifc;
   const direction = ifc.style.direction;
-  const containingBlock = inline.containingBlock;
   const bgc = inline.style.backgroundColor;
   const clip = inline.style.backgroundClip;
   const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
@@ -248,8 +246,8 @@ function paintInlineBackground(
 
     b.fillColor = bgc;
     const {x, y, width, height} = snap(
-      containingBlock.x + Math.min(start, end),
-      containingBlock.y + blockOffset - ascender - extraTop,
+      Math.min(start, end),
+      blockOffset - ascender - extraTop,
       Math.abs(start - end),
       ascender + descender + extraTop + extraBottom
     );
@@ -278,8 +276,8 @@ function paintInlineBackground(
     for (const [side, lineWidth, color] of work) {
       if (lineWidth === 0) continue;
       const rect = snap(
-        containingBlock.x + Math.min(start, end) - extraLeft,
-        containingBlock.y + blockOffset - ascender - paddingTop - borderTopWidth,
+        Math.min(start, end) - extraLeft,
+        blockOffset - ascender - paddingTop - borderTopWidth,
         Math.abs(start - end) + extraLeft + extraRight,
         borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth
       );
@@ -331,7 +329,7 @@ function paintInlines(root: BlockLayerRoot, ifc: IfcInline, b: PaintBackend) {
 
     if (!hasPositionedParent) {
       if (item instanceof ShapedItem) {
-        drawText(ifc.containingBlock, item, colors, b);
+        drawText(item, colors, b);
       } else if (item.block) {
         const blockLayerRoot = root.inlineBlocks.get(item.block)!;
         paintBlockLayerRoot(blockLayerRoot, b);
@@ -377,7 +375,6 @@ function paintInline(
   b: PaintBackend
 ) {
   const colors = paragraph.getColors();
-  const containingBlock = paragraph.ifc.containingBlock;
   const treeItems = paragraph.treeItems;
   const stack = root.box.children.slice().reverse();
   const ranges: [number, number][] = [];
@@ -398,7 +395,7 @@ function paintInline(
           }
         }
         if (!hasPositionedParent && item instanceof ShapedItem) {
-          drawText(containingBlock, item, colors, b);
+          drawText(item, colors, b);
         }
         itemIndex++;
       }

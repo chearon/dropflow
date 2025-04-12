@@ -155,14 +155,23 @@ export abstract class RenderItem {
     if (flush) log.flush();
   }
 
+  /**
+   * Typically the time to shape text and gather font metrics
+   */
   prelayout() {
     // should be overridden
   }
 
+  /**
+   * Typically the time to absolutize relative coordinates
+   */
   postlayoutPreorder() {
     // should be overridden
   }
 
+  /**
+   * Typically the time to snap pixels
+   */
   postlayoutPostorder() {
     // should be overridden
   }

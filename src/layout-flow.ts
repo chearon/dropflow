@@ -722,7 +722,7 @@ export class BlockContainer extends Box {
   };
 
   constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
-    super(style, children, attrs);
+    super(style, attrs);
     this.children = children;
 
     const area = new BoxArea(this);
@@ -1297,7 +1297,7 @@ export class Inline extends Box {
   public end: number;
 
   constructor(start: number, end: number, style: Style, children: InlineLevel[], attrs: number) {
-    super(style, children, attrs);
+    super(style, attrs);
     this.start = start;
     this.end = end;
     this.children = children;

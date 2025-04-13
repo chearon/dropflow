@@ -142,7 +142,7 @@ export abstract class RenderItem {
 
     log.text('\n');
 
-    if (this.isBox() && this.children.length) {
+    if (this.isBlockContainer() || this.isInline()) {
       log.pushIndent();
 
       for (let i = 0; i < this.children.length; i++) {
@@ -179,7 +179,6 @@ export abstract class RenderItem {
 
 export class Box extends RenderItem {
   public id: string;
-  public children: RenderItem[];
   public containingBlock: BoxArea;
   /**
    * General boolean bitfield shared by all box subclasses. The bits labeled
@@ -250,10 +249,9 @@ export class Box extends RenderItem {
 
   static BITFIELD_END = 8;
 
-  constructor(style: Style, children: RenderItem[], attrs: number) {
+  constructor(style: Style, attrs: number) {
     super(style);
     this.id = id();
-    this.children = children;
     this.bitfield = attrs;
     this.containingBlock = EmptyContainingBlock;
   }

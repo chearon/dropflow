@@ -821,14 +821,6 @@ export class BlockContainer extends Box {
     log.reset();
   }
 
-  get writingModeAsParticipant() {
-    return this.containingBlock.writingMode;
-  }
-
-  get directionAsParticipant() {
-    return this.containingBlock.direction;
-  }
-
   setBlockPosition(position: number) {
     this.borderArea.blockStart = position;
   }
@@ -1411,10 +1403,6 @@ export class IfcInline extends Inline {
 
   isIfcInline(): this is IfcInline {
     return true;
-  }
-
-  get writingModeAsParticipant() {
-    return this.containingBlock.writingMode;
   }
 
   loggingEnabled() {

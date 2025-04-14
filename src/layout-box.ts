@@ -268,6 +268,14 @@ export class Box extends RenderItem {
     this.containingBlock = EmptyContainingBlock;
   }
 
+  get writingModeAsParticipant() {
+    return this.containingBlock.writingMode;
+  }
+
+  get directionAsParticipant() {
+    return this.containingBlock.direction;
+  }
+
   propagate(parent: Box) {
     if (!this.isLayerRoot()) {
       if (this.hasBackground() || this.hasBackgroundInLayerRoot()) {

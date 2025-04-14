@@ -1,5 +1,5 @@
-import {BlockContainer, IfcInline} from './layout-flow.js';
 import {HTMLElement, TextNode} from './dom.js';
+import {Box} from './layout-box.js';
 
 export const inherited = Symbol('inherited');
 
@@ -282,7 +282,7 @@ interface ComputedStyle {
   overflow: 'visible' | 'hidden';
 }
 
-function resolvePercent(box: BlockContainer | IfcInline, cssVal: number | {value: number, unit: '%'}) {
+function resolvePercent(box: Box, cssVal: number | {value: number, unit: '%'}) {
   if (typeof cssVal === 'object') {
     if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
     const inlineSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].inlineSize];
@@ -478,79 +478,79 @@ export class Style {
       || this.borderLeftWidth > 0;
   }
 
-  getMarginBlockStart(box: BlockContainer | IfcInline) {
+  getMarginBlockStart(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockStart];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
-  getMarginBlockEnd(box: BlockContainer | IfcInline) {
+  getMarginBlockEnd(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockEnd];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
-  getMarginLineLeft(box: BlockContainer | IfcInline) {
+  getMarginLineLeft(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineLeft];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
-  getMarginLineRight(box: BlockContainer | IfcInline) {
+  getMarginLineRight(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineRight];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
-  getPaddingBlockStart(box: BlockContainer | IfcInline) {
+  getPaddingBlockStart(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockStart];
     return resolvePercent(box, cssVal);
   }
 
-  getPaddingBlockEnd(box: BlockContainer | IfcInline) {
+  getPaddingBlockEnd(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockEnd];
     return resolvePercent(box, cssVal);
   }
 
-  getPaddingLineLeft(box: BlockContainer | IfcInline) {
+  getPaddingLineLeft(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineLeft];
     return resolvePercent(box, cssVal);
   }
 
-  getPaddingLineRight(box: BlockContainer | IfcInline) {
+  getPaddingLineRight(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineRight];
     return resolvePercent(box, cssVal);
   }
 
-  getBorderBlockStartWidth(box: BlockContainer | IfcInline) {
+  getBorderBlockStartWidth(box: Box) {
     let cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
-  getBorderBlockEndWidth(box: BlockContainer | IfcInline) {
+  getBorderBlockEndWidth(box: Box) {
     const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
-  getBorderLineLeftWidth(box: BlockContainer | IfcInline) {
+  getBorderLineLeftWidth(box: Box) {
     const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftWidth]
     return resolvePercent(box, cssWidthVal);
   }
 
-  getBorderLineRightWidth(box: BlockContainer | IfcInline) {
+  getBorderLineRightWidth(box: Box) {
     const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
-  getBlockSize(box: BlockContainer | IfcInline) {
+  getBlockSize(box: Box) {
     let cssVal = this[LogicalMaps[box.writingModeAsParticipant].blockSize];
     if (typeof cssVal === 'object') {
       const parentBlockSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].blockSize];
@@ -567,7 +567,7 @@ export class Style {
     return cssVal;
   }
 
-  getInlineSize(box: BlockContainer | IfcInline) {
+  getInlineSize(box: Box) {
     let cssVal = this[LogicalMaps[box.writingModeAsParticipant].inlineSize];
     if (cssVal === 'auto') {
       cssVal = 'auto';

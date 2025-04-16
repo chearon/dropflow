@@ -199,6 +199,7 @@ export class Box extends RenderItem {
    * do so conditionally.
    */
   public bitfield: number;
+  private area: BoxArea;
 
   /**
    * Bitfield allocations. Box subclasses with different inheritance are allowed
@@ -266,6 +267,126 @@ export class Box extends RenderItem {
     this.id = id();
     this.bitfield = attrs;
     this.containingBlock = EmptyContainingBlock;
+    this.area = new BoxArea(this);
+
+    const hasBorder = this.style.hasBorder();
+    const hasPadding = this.style.hasPadding();
+    if (hasBorder && hasPadding) { // b -> p -> c
+      const b = new BoxArea(this);
+      const p = new BoxArea(this);
+      this.area.setParent(p);
+      p.setParent(b);
+    } else if (hasBorder || hasPadding) { // b -> c or p -> c
+      this.area.setParent(new BoxArea(this));
+    }
+  }
+
+  getBorderArea(): BoxArea {
+    const hasBorder = this.style.hasBorder();
+    const hasPadding = this.style.hasPadding();
+    if (hasBorder && hasPadding) {
+      return this.area.parent!.parent!;
+    } else if (hasBorder || hasPadding) {
+      return this.area.parent!;
+    } else {
+      return this.area;
+    }
+  }
+
+  getPaddingArea(): BoxArea {
+    if (this.style.hasPadding()) {
+      return this.area.parent!;
+    } else {
+      return this.area;
+    }
+  }
+
+  getContentArea(): BoxArea {
+    return this.area;
+  }
+
+  prelayoutPreorder(ctx: PrelayoutContext) {
+    // CSS2.2 10.1
+    if (this.style.position === 'absolute') {
+      this.containingBlock = ctx.lastPositionedArea;
+    } else {
+      this.containingBlock = ctx.lastBlockContainerArea;
+    }
+
+    this.getBorderArea().setParent(this.containingBlock);
+  }
+
+  /**
+   * Assign the offsets of the border and padding areas from the content area,
+   * as defined by the style. This is the first layout step, and block
+   * containers must have been laid out for percentages to work.
+   */
+  fillAreas() {
+    if (this.style.hasBorder()) {
+      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+      const paddingArea = this.getPaddingArea();
+      paddingArea.blockStart = borderBlockStartWidth;
+      paddingArea.lineLeft = borderLineLeftWidth;
+    }
+
+    if (this.style.hasPadding()) {
+      const paddingBlockStart = this.style.getPaddingBlockStart(this);
+      const paddingLineLeft = this.style.getPaddingLineLeft(this);
+      const contentArea = this.getContentArea();
+      contentArea.blockStart = paddingBlockStart;
+      contentArea.lineLeft = paddingLineLeft;
+    }
+  }
+
+  setBlockPosition(position: number) {
+    this.getBorderArea().blockStart = position;
+  }
+
+  setBlockSize(size: number) {
+    this.getContentArea().blockSize = size;
+
+    if (this.style.hasPadding()) {
+      const paddingBlockStart = this.style.getPaddingBlockStart(this);
+      const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
+      const paddingSize = size + paddingBlockStart + paddingBlockEnd;
+      const paddingArea = this.getPaddingArea();
+      paddingArea.blockSize = paddingSize;
+    }
+
+    if (this.style.hasBorder()) {
+      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
+      const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
+      const paddingArea = this.getPaddingArea();
+      const borderArea = this.getBorderArea();
+      const borderSize = paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
+      borderArea.blockSize = borderSize;
+    }
+  }
+
+  setInlinePosition(lineLeft: number) {
+    this.getBorderArea().lineLeft = lineLeft;
+  }
+
+  setInlineOuterSize(size: number) {
+    this.getBorderArea().inlineSize = size;
+
+    if (this.style.hasBorder()) {
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+      const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
+      const paddingArea = this.getPaddingArea();
+      paddingArea.inlineSize = paddingSize;
+    }
+
+    if (this.style.hasPadding()) {
+      const paddingLineLeft = this.style.getPaddingLineLeft(this);
+      const paddingLineRight = this.style.getPaddingLineRight(this);
+      const paddingArea = this.getPaddingArea();
+      const contentArea = this.getContentArea();
+      const contentSize = paddingArea.inlineSize - paddingLineLeft - paddingLineRight;
+      contentArea.inlineSize = contentSize;
+    }
   }
 
   get writingModeAsParticipant() {
@@ -294,6 +415,18 @@ export class Box extends RenderItem {
     if (this.hasForeground() || this.hasForegroundInDescendent()) {
       parent.bitfield |= Box.BITS.hasForegroundInDescendent;
     }
+  }
+
+  prelayout(ctx: PrelayoutContext) {
+    // CSS2.2 10.1
+    if (this.style.position === 'absolute') {
+      this.containingBlock = ctx.lastPositionedArea;
+    } else {
+      this.containingBlock = ctx.lastBlockContainerArea;
+    }
+
+    this.fillAreas();
+    this.getBorderArea().setParent(this.containingBlock);
   }
 
   isBox(): this is Box {

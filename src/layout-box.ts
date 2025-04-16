@@ -127,7 +127,7 @@ export abstract class RenderItem {
     log.text(`${this.getLogSymbol()} `);
     this.logName(log, options);
 
-    if (options?.containingBlocks && this.isBlockContainer()) {
+    if (options?.containingBlocks && this.isBox()) {
       log.text(` (cb: ${this.containingBlock?.box.id ?? '(null)'})`);
     }
 

@@ -17,6 +17,11 @@ export interface RenderItemLogOptions {
   bits?: boolean;
 }
 
+export interface PrelayoutContext {
+  lastBlockContainerArea: BoxArea,
+  lastPositionedArea: BoxArea
+}
+
 export abstract class RenderItem {
   public style: Style;
 
@@ -156,9 +161,16 @@ export abstract class RenderItem {
   }
 
   /**
+   * Typically the time to assign the containing block
+   */
+  prelayoutPreorder(ctx: PrelayoutContext) {
+    // should be overridden
+  }
+
+  /**
    * Typically the time to shape text and gather font metrics
    */
-  prelayout() {
+  prelayoutPostorder(ctx: PrelayoutContext) {
     // should be overridden
   }
 
@@ -502,6 +514,12 @@ export function prelayout(root: BlockContainer) {
   const stack: (InlineLevel | {sentinel: true})[] = [root];
   const parents: Box[] = [];
   const ifcs: IfcInline[] = [];
+  const pstack = [root.containingBlock];
+  const bstack = [root.containingBlock];
+  const ctx: PrelayoutContext = {
+    lastPositionedArea: root.containingBlock,
+    lastBlockContainerArea: root.containingBlock
+  };
 
   while (stack.length) {
     const box = stack.pop()!;
@@ -509,13 +527,31 @@ export function prelayout(root: BlockContainer) {
     if ('sentinel' in box) {
       const box = parents.pop()!;
       if (box.isIfcInline()) ifcs.pop();
+
+      if (box.isBlockContainer()) {
+        bstack.pop();
+        if (box.style.position !== 'static') pstack.pop();
+      }
+      ctx.lastPositionedArea = pstack.at(-1)!;
+      ctx.lastBlockContainerArea = bstack.at(-1)!;
+
       const parent = parents.at(-1);
       if (parent) box.propagate(parent);
-      box.prelayout();
+      box.prelayoutPostorder(ctx);
     } else if (box.isBox()) {
       parents.push(box);
       if (box.isIfcInline()) ifcs.push(box);
+
+      ctx.lastPositionedArea = pstack.at(-1)!;
+      ctx.lastBlockContainerArea = bstack.at(-1)!;
+
       stack.push({sentinel: true});
+      box.prelayoutPreorder(ctx);
+      if (box.isBlockContainer()) {
+        bstack.push(box.contentArea);
+        if (box.style.position !== 'static') pstack.push(box.paddingArea);
+      }
+
       for (let i = box.children.length - 1; i >= 0; i--) {
         stack.push(box.children[i]);
       }

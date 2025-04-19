@@ -36,12 +36,7 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
 
   root.containingBlock = initialContainingBlock;
   prelayout(root);
-  layoutBlockBox(root, {
-    bfc: new BlockFormattingContext(0),
-    lastBlockContainerArea: initialContainingBlock,
-    lastPositionedArea: initialContainingBlock,
-    mode: 'normal'
-  });
+  layoutBlockBox(root, {bfc: new BlockFormattingContext(0), mode: 'normal'});
   postlayout(root);
 }
 

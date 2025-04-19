@@ -12,7 +12,7 @@ import {
   createParagraph,
   getFontMetrics
 } from './layout-text.js';
-import {Box, BoxArea, RenderItem} from './layout-box.js';
+import {Box, BoxArea, RenderItem, PrelayoutContext} from './layout-box.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -33,8 +33,6 @@ function writingModeInlineAxis(el: HTMLElement) {
 }
 
 export interface LayoutContext {
-  lastBlockContainerArea: BoxArea,
-  lastPositionedArea: BoxArea,
   mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext
 }
@@ -739,6 +737,22 @@ export class BlockContainer extends Box {
     }
   }
 
+  prelayoutPreorder(ctx: PrelayoutContext) {
+    // CSS2.2 10.1
+    if (this.style.position === 'absolute') {
+      this.containingBlock = ctx.lastPositionedArea;
+    } else {
+      this.containingBlock = ctx.lastBlockContainerArea;
+    }
+
+    this.borderArea.setParent(this.containingBlock);
+  }
+
+  /**
+   * Assign the offsets of the border and padding areas from the content area,
+   * as defined by the style. This is the first layout step, and block
+   * containers must have been laid out for percentages to work.
+   */
   fillAreas() {
     if (this.style.hasBorder()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
@@ -909,24 +923,6 @@ export class BlockContainer extends Box {
     }
   }
 
-  assignContainingBlocks(ctx: LayoutContext) {
-    // CSS2.2 10.1
-    if (this.style.position === 'absolute') {
-      this.containingBlock = ctx.lastPositionedArea;
-    } else {
-      this.containingBlock = ctx.lastBlockContainerArea;
-    }
-
-    this.fillAreas();
-    this.borderArea.setParent(this.containingBlock);
-
-    ctx.lastBlockContainerArea = this.contentArea;
-
-    if (this.style.position !== 'static') {
-      ctx.lastPositionedArea = this.paddingArea;
-    }
-  }
-
   isBlockContainer(): this is BlockContainer {
     return true;
   }
@@ -1019,16 +1015,6 @@ export class BlockContainer extends Box {
   }
 }
 
-function preBlockContainer(box: BlockContainer, ctx: LayoutContext) {
-  // Containing blocks first, for absolute positioning later
-  box.assignContainingBlocks(ctx);
-
-  if (box.isBlockContainerOfInlines()) {
-    const [inline] = box.children;
-    inline.assignContainingBlocks(ctx);
-  }
-}
-
 // §10.3.3
 function doInlineBoxModelForBlockBox(box: BlockContainer) {
   const cInlineSize = box.containingBlock.inlineSizeForPotentiallyOrthogonal(box);
@@ -1116,7 +1102,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   const bfc = ctx.bfc;
   const cctx = {...ctx};
 
-  preBlockContainer(box, cctx);
+  box.fillAreas();
 
   doInlineBoxModelForBlockBox(box);
   doBlockBoxModelForBlockBox(box);
@@ -1170,7 +1156,7 @@ function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-
   let intrinsicSize = 0;
 
   cctx.mode = mode;
-  preBlockContainer(box, cctx);
+  box.fillAreas();
 
   const definiteSize = box.getDefiniteInlineSize();
   if (definiteSize !== undefined) return definiteSize;
@@ -1230,8 +1216,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   }
 
   const cctx = {...ctx};
-
-  preBlockContainer(box, cctx);
+  box.fillAreas();
 
   let inlineSize = box.getDefiniteInlineSize();
 
@@ -1305,7 +1290,8 @@ export class Inline extends Box {
     this.metrics = EmptyInlineMetrics;
   }
 
-  prelayout() {
+  prelayoutPreorder(ctx: PrelayoutContext) {
+    this.containingBlock = ctx.lastBlockContainerArea;
     this.metrics = getFontMetrics(this);
   }
 
@@ -1435,13 +1421,6 @@ export class Inline extends Box {
     log.reset();
   }
 
-  assignContainingBlocks(ctx: LayoutContext) {
-    this.containingBlock = ctx.lastBlockContainerArea;
-    for (const child of this.children) {
-      if (child.isInline()) child.assignContainingBlocks(ctx);
-    }
-  }
-
   absolutify() {
     // noop: inlines are painted in a different way than block containers
   }
@@ -1476,9 +1455,7 @@ export class IfcInline extends Inline {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
-  prelayout() {
-    super.prelayout();
-
+  prelayoutPostorder(ctx: PrelayoutContext) {
     if (this.shouldLayoutContent()) {
       if (this.hasCollapsibleWs()) collapseWhitespace(this);
       this.paragraph.destroy();

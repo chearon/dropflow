@@ -503,7 +503,7 @@ A `BlockContainer` is generated for absolutely positioned elements, floated elem
 Most of the time you can assume it's a `BlockContainer`:
 
 ```ts
-const dom = flow.parse('<div id="d" style="width: 100px; height: 100px;"></div>');
+const dom = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
 const root = flow.generate(dom);
 flow.layout(root, 200, 200);
 const [box] = dom.query('#d')!.boxes as flow.BlockContainer[];

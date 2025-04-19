@@ -1260,18 +1260,21 @@ export class Inline extends Box {
     return this.style.hasLineRightGap();
   }
 
-  getLineLeftMarginBorderPadding(ifc: IfcInline) {
-    const marginLineLeft = this.style.getMarginLineLeft(ifc);
-    return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-      + this.style.getBorderLineLeftWidth(ifc)
-      + this.style.getPaddingLineLeft(ifc);
-  }
-
-  getLineRightMarginBorderPadding(ifc: IfcInline) {
-    const marginLineRight = this.style.getMarginLineRight(ifc);
-    return (marginLineRight === 'auto' ? 0 : marginLineRight)
-      + this.style.getBorderLineRightWidth(ifc)
-      + this.style.getPaddingLineRight(ifc);
+  getInlineSideSize(side: 'pre' | 'post') {
+    if (
+      this.directionAsParticipant === 'ltr' && side === 'pre' ||
+      this.directionAsParticipant === 'rtl' && side === 'post'
+    ) {
+      const marginLineLeft = this.style.getMarginLineLeft(this);
+      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+        + this.style.getBorderLineLeftWidth(this)
+        + this.style.getPaddingLineLeft(this);
+    } else {
+      const marginLineRight = this.style.getMarginLineRight(this);
+      return (marginLineRight === 'auto' ? 0 : marginLineRight)
+        + this.style.getBorderLineRightWidth(this)
+        + this.style.getPaddingLineRight(this);
+    }
   }
 
   isInline(): this is Inline {

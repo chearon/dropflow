@@ -2178,7 +2178,6 @@ export class Paragraph {
 
   contribution(mode: 'min-content' | 'max-content') {
     const width = new LineWidthTracker();
-    const basedir = this.ifc.style.direction;
     let contribution = 0;
 
     for (const mark of this.createMarkIterator(mode)) {
@@ -2187,13 +2186,8 @@ export class Paragraph {
 
       if (inkAdvance) width.addInk(inkAdvance);
       if (mark.trailingWs) width.addWs(mark.trailingWs, true /* TODO */);
-
-      if (mark.inlinePre || mark.inlinePost) {
-        const p = basedir === 'ltr' ? 'getLineLeftMarginBorderPadding' : 'getLineRightMarginBorderPadding';
-        const op = basedir === 'ltr' ? 'getLineRightMarginBorderPadding' : 'getLineLeftMarginBorderPadding';
-        const w = (mark.inlinePre?.[p](this.ifc) ?? 0) + (mark.inlinePost?.[op](this.ifc) ?? 0);
-        width.addInk(w);
-      }
+      if (mark.inlinePre) width.addInk(mark.inlinePre.getInlineSideSize('pre'));
+      if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
       if (mark.block) {
         width.addInk(mark.block.contribution(mode));
@@ -2224,7 +2218,6 @@ export class Paragraph {
     /** Tracks the height, ascenders and descenders of the line being worked on */
     const height = new LineHeightTracker(this.ifc);
     const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
-    const basedir = this.ifc.style.direction;
     const parents: Inline[] = [];
     let line: Linebox | null = null;
     let lastBreakMark: IfcMark | undefined;
@@ -2285,12 +2278,8 @@ export class Paragraph {
         }
       }
 
-      if (mark.inlinePre || mark.inlinePost) {
-        const p = basedir === 'ltr' ? 'getLineLeftMarginBorderPadding' : 'getLineRightMarginBorderPadding';
-        const op = basedir === 'ltr' ? 'getLineRightMarginBorderPadding' : 'getLineLeftMarginBorderPadding';
-        const w = (mark.inlinePre?.[p](this.ifc) ?? 0) + (mark.inlinePost?.[op](this.ifc) ?? 0);
-        candidates.width.addInk(w);
-      }
+      if (mark.inlinePre) candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
+      if (mark.inlinePost) candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
       if (mark.block?.isInlineBlock()) {
         layoutFloatBox(mark.block, ctx);

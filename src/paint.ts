@@ -116,10 +116,11 @@ function drawText(
  */
 function paintBlockBackground(block: BlockContainer, b: PaintBackend, isRoot = false) {
   const style = block.style;
-  const borderArea = block.borderArea;
+  const borderArea = block.getBorderArea();
 
   if (!isRoot) {
-    const {paddingArea, contentArea} = block;
+    const paddingArea = block.getPaddingArea();
+    const contentArea = block.getContentArea();
     const {backgroundColor, backgroundClip} = style;
     const area = backgroundClip === 'border-box' ? borderArea :
       backgroundClip === 'padding-box' ? paddingArea :
@@ -174,7 +175,7 @@ function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBacke
         parents.push(box);
 
         if (box.isBlockContainer() && box.style.overflow === 'hidden' && box !== root) {
-          const {x, y, width, height} = box.paddingArea;
+          const {x, y, width, height} = box.getPaddingArea();
           b.pushClip(x, y, width, height);
         }
 
@@ -354,7 +355,7 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
         (box.hasForegroundInLayerRoot() || root.isInInlineBlockPath(box))
       ) {
         if (box !== root.box && box.style.overflow === 'hidden') {
-          const {x, y, width, height} = box.paddingArea;
+          const {x, y, width, height} = box.getPaddingArea();
           b.pushClip(x, y, width, height);
           stack.push({sentinel: true});
         }
@@ -677,7 +678,7 @@ function paintBlockLayerRoot(
   if (root.box.hasBackground() && !isRoot) paintBlockBackground(root.box, b);
 
   if (!isRoot && root.box.style.overflow === 'hidden') {
-    const {x, y, width, height} = root.box.paddingArea;
+    const {x, y, width, height} = root.box.getPaddingArea();
     b.pushClip(x, y, width, height);
   }
 
@@ -703,7 +704,7 @@ function paintBlockLayerRoot(
 function paintLayerRoot(paintRoot: LayerRoot, b: PaintBackend) {
   for (const parent of paintRoot.parents) {
     if (parent.isBlockContainer() && parent.style.overflow === 'hidden') {
-      const {x, y, width, height} = parent.paddingArea;
+      const {x, y, width, height} = parent.getPaddingArea();
       b.pushClip(x, y, width, height);
     }
   }

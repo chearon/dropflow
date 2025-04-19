@@ -1038,11 +1038,11 @@ export function inlineBlockMetrics(block: BlockContainer) {
     const paddingBlockEnd = block.style.getPaddingBlockEnd(block);
     const borderBlockStart = block.style.getBorderBlockStartWidth(block);
     const borderBlockEnd = block.style.getBorderBlockEndWidth(block);
-    const blockSize = block.contentArea.blockSize;
+    const blockSize = block.getContentArea().blockSize;
     ascender = marginBlockStart + borderBlockStart + paddingBlockStart + baseline;
     descender = (blockSize - baseline) + paddingBlockEnd + borderBlockEnd + marginBlockEnd;
   } else {
-    ascender = marginBlockStart + block.borderArea.blockSize + marginBlockEnd;
+    ascender = marginBlockStart + block.getBorderArea().blockSize + marginBlockEnd;
     descender = 0;
   }
 
@@ -1274,7 +1274,7 @@ class LineHeightTracker {
 
     for (const block of this.blocks) {
       if (block.style.verticalAlign === 'bottom') {
-        const blockSize = block.borderArea.blockSize;
+        const blockSize = block.getBorderArea().blockSize;
         const {blockStart, blockEnd} = block.getMarginsAutoIsZero();
         bottomsHeight = Math.max(bottomsHeight, blockStart + blockSize + blockEnd);
       }
@@ -1303,7 +1303,7 @@ class LineHeightTracker {
         height = Math.max(height, ctx.ascender + ctx.descender);
       }
       for (const block of this.blocks) {
-        const blockSize = block.borderArea.blockSize;
+        const blockSize = block.getBorderArea().blockSize;
         const {blockStart, blockEnd} = block.getMarginsAutoIsZero();
         height = Math.max(height, blockStart + blockSize + blockEnd);
       }
@@ -2295,7 +2295,8 @@ export class Paragraph {
       if (mark.block?.isInlineBlock()) {
         layoutFloatBox(mark.block, ctx);
         const {lineLeft, lineRight} = mark.block.getMarginsAutoIsZero();
-        candidates.width.addInk(lineLeft + mark.block.borderArea.inlineSize + lineRight);
+        const borderArea = mark.block.getBorderArea();
+        candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
         candidates.height.stampBlock(mark.block, parent);
       }
 
@@ -2473,7 +2474,7 @@ export class Paragraph {
         const B = line.blockOffset.toFixed(2);
         log.text(`Line ${i} (W:${W} A:${A} D:${D} B:${B}): `);
         for (let n = line.head; n; n = n.next) {
-          log.text(n.value instanceof ShapedItem ? `“${n.value.text()}” ` : '“” ');
+          log.text(n.value instanceof ShapedItem ? `"${n.value.text()}" ` : '"" ');
         }
         log.text('\n');
       }
@@ -2629,6 +2630,7 @@ export class Paragraph {
         } else if (item.block) {
           const parent = item.inlines.at(-1) || ifc;
           const {lineLeft, blockStart, lineRight} = item.block.getMarginsAutoIsZero();
+          const borderArea = item.block.getBorderArea();
 
           if (item.block.style.verticalAlign === 'top') {
             item.block.setBlockPosition(linebox.blockOffset + blockStart);
@@ -2645,9 +2647,9 @@ export class Paragraph {
 
           if (direction === 'ltr') {
             item.block.setInlinePosition(x + lineLeft);
-            x += lineLeft + item.block.borderArea.width + lineRight;
+            x += lineLeft + borderArea.width + lineRight;
           } else {
-            x -= lineRight + item.block.borderArea.width + lineLeft;
+            x -= lineRight + borderArea.width + lineLeft;
             item.block.setInlinePosition(x + lineLeft);
           }
         }

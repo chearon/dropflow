@@ -243,7 +243,7 @@ export class BlockFormattingContext {
     if (blockSize === 'auto') {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
-        lineboxHeight = box.contentArea.blockSize;
+        lineboxHeight = box.getContentArea().blockSize;
       }
       box.setBlockSize(Math.max(lineboxHeight, this.cbBlockStart, this.fctx?.getBothBottom() ?? 0));
     }
@@ -272,7 +272,7 @@ export class BlockFormattingContext {
           box.setBlockSize(childSize);
         }
 
-        const blockSize = box.borderArea.blockSize;
+        const blockSize = box.getBorderArea().blockSize;
 
         sizeStack[level] += blockSize;
         this.cbBlockStart = offset + blockSize;
@@ -451,9 +451,10 @@ class FloatSide {
 
     this.splitIfShelfDropped();
 
+    const borderArea = box.getBorderArea();
     const startTrack = this.shelfTrackIndex;
     const margins = box.getMarginsAutoIsZero();
-    const blockSize = box.borderArea.height + margins.blockStart + margins.blockEnd;
+    const blockSize = borderArea.height + margins.blockStart + margins.blockEnd;
     const blockEndOffset = this.shelfBlockOffset + blockSize;
     let endTrack;
 
@@ -476,16 +477,16 @@ class FloatSide {
       box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
     } else {
       const inlineSize = box.containingBlock.inlineSize;
-      const size = box.borderArea.inlineSize;
+      const size = borderArea.inlineSize;
       box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
     }
 
     for (let track = startTrack; track < endTrack; track += 1) {
       if (this.floatCounts[track] === 0) {
         this.inlineOffsets[track] = cbOffset;
-        this.inlineSizes[track] = marginOffset + box.borderArea.width + marginEnd;
+        this.inlineSizes[track] = marginOffset + borderArea.width + marginEnd;
       } else {
-        this.inlineSizes[track] = cbOffset - this.inlineOffsets[track] + marginOffset + box.borderArea.width + marginEnd;
+        this.inlineSizes[track] = cbOffset - this.inlineOffsets[track] + marginOffset + borderArea.width + marginEnd;
       }
       this.floatCounts[track] += 1;
     }
@@ -563,7 +564,7 @@ export class FloatContext {
     const inlineOffset = float === 'left' ? -this.bfc.cbLineLeft : -this.bfc.cbLineRight;
     const oppositeInlineOffset = float === 'left' ? -this.bfc.cbLineRight : -this.bfc.cbLineLeft;
     const blockOffset = floats.shelfBlockOffset;
-    const blockSize = box.borderArea.height;
+    const blockSize = box.getBorderArea().height;
     const startTrack = floats.shelfTrackIndex;
     const endTrack = floats.getEndTrack(startTrack, blockOffset, blockSize);
     const inlineSpace = floats.getSizeOfTracks(startTrack, endTrack, inlineOffset);
@@ -646,7 +647,7 @@ export class FloatContext {
 
       const vacancy = this.getVacancyForBox(box, lineWidth);
       const margins = box.getMarginsAutoIsZero();
-      const inlineSize = box.borderArea.width + margins.lineLeft + margins.lineRight;
+      const inlineSize = box.getBorderArea().width + margins.lineLeft + margins.lineRight;
 
       if (vacancy.fits(inlineSize) || lineIsEmpty && !vacancy.hasFloats()) {
         box.setBlockPosition(side.shelfBlockOffset + margins.blockStart - this.bfc.cbBlockStart);
@@ -708,9 +709,7 @@ export interface BlockContainerOfBlockContainers extends BlockContainer {
 
 export class BlockContainer extends Box {
   public children: IfcInline[] | BlockContainer[];
-  public borderArea: BoxArea;
-  public paddingArea: BoxArea;
-  public contentArea: BoxArea;
+  private area: BoxArea;
 
   static ATTRS = {
     ...Box.ATTRS,
@@ -722,18 +721,42 @@ export class BlockContainer extends Box {
     super(style, attrs);
     this.children = children;
 
-    const area = new BoxArea(this);
-    this.borderArea = area;
-    this.paddingArea = area;
-    this.contentArea = area;
+    this.area = new BoxArea(this);
 
-    if (this.style.hasBorder()) {
-      this.contentArea = this.paddingArea = this.borderArea.clone();
+    const hasBorder = this.style.hasBorder();
+    const hasPadding = this.style.hasPadding();
+    if (hasBorder && hasPadding) { // b -> p -> c
+      const b = new BoxArea(this);
+      const p = new BoxArea(this);
+      this.area.setParent(p);
+      p.setParent(b);
+    } else if (hasBorder || hasPadding) { // b -> c or p -> c
+      this.area.setParent(new BoxArea(this));
     }
+  }
 
+  getBorderArea(): BoxArea {
+    const hasBorder = this.style.hasBorder();
+    const hasPadding = this.style.hasPadding();
+    if (hasBorder && hasPadding) {
+      return this.area.parent!.parent!;
+    } else if (hasBorder || hasPadding) {
+      return this.area.parent!;
+    } else {
+      return this.area;
+    }
+  }
+
+  getPaddingArea(): BoxArea {
     if (this.style.hasPadding()) {
-      this.contentArea = this.paddingArea.clone();
+      return this.area.parent!;
+    } else {
+      return this.area;
     }
+  }
+
+  getContentArea(): BoxArea {
+    return this.area;
   }
 
   prelayoutPreorder(ctx: PrelayoutContext) {
@@ -744,7 +767,7 @@ export class BlockContainer extends Box {
       this.containingBlock = ctx.lastBlockContainerArea;
     }
 
-    this.borderArea.setParent(this.containingBlock);
+    this.getBorderArea().setParent(this.containingBlock);
   }
 
   /**
@@ -756,17 +779,17 @@ export class BlockContainer extends Box {
     if (this.style.hasBorder()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      this.paddingArea.blockStart = borderBlockStartWidth;
-      this.paddingArea.lineLeft = borderLineLeftWidth;
-      this.paddingArea.setParent(this.borderArea);
+      const paddingArea = this.getPaddingArea();
+      paddingArea.blockStart = borderBlockStartWidth;
+      paddingArea.lineLeft = borderLineLeftWidth;
     }
 
     if (this.style.hasPadding()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(this);
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
-      this.contentArea.blockStart = paddingBlockStart;
-      this.contentArea.lineLeft = paddingLineLeft;
-      this.contentArea.setParent(this.paddingArea);
+      const contentArea = this.getContentArea();
+      contentArea.blockStart = paddingBlockStart;
+      contentArea.lineLeft = paddingLineLeft;
     }
   }
 
@@ -822,46 +845,52 @@ export class BlockContainer extends Box {
   }
 
   setBlockPosition(position: number) {
-    this.borderArea.blockStart = position;
+    this.getBorderArea().blockStart = position;
   }
 
   setBlockSize(size: number) {
-    this.contentArea.blockSize = size;
+    this.getContentArea().blockSize = size;
 
     if (this.style.hasPadding()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(this);
       const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
-      const paddingSize = size + paddingBlockStart + paddingBlockEnd
-      this.paddingArea.blockSize = paddingSize;
+      const paddingSize = size + paddingBlockStart + paddingBlockEnd;
+      const paddingArea = this.getPaddingArea();
+      paddingArea.blockSize = paddingSize;
     }
 
     if (this.style.hasBorder()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
       const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
-      const borderSize = this.paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
-      this.borderArea.blockSize = borderSize;
+      const paddingArea = this.getPaddingArea();
+      const borderArea = this.getBorderArea();
+      const borderSize = paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
+      borderArea.blockSize = borderSize;
     }
   }
 
   setInlinePosition(lineLeft: number) {
-    this.borderArea.lineLeft = lineLeft;
+    this.getBorderArea().lineLeft = lineLeft;
   }
 
   setInlineOuterSize(size: number) {
-    this.borderArea.inlineSize = size;
+    this.getBorderArea().inlineSize = size;
 
     if (this.style.hasBorder()) {
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
       const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
       const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
-      this.paddingArea.inlineSize = paddingSize;
+      const paddingArea = this.getPaddingArea();
+      paddingArea.inlineSize = paddingSize;
     }
 
     if (this.style.hasPadding()) {
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
       const paddingLineRight = this.style.getPaddingLineRight(this);
-      const contentSize = this.paddingArea.inlineSize - paddingLineLeft - paddingLineRight;
-      this.contentArea.inlineSize = contentSize;
+      const paddingArea = this.getPaddingArea();
+      const contentArea = this.getContentArea();
+      const contentSize = paddingArea.inlineSize - paddingLineLeft - paddingLineRight;
+      contentArea.inlineSize = contentSize;
     }
   }
 
@@ -869,9 +898,11 @@ export class BlockContainer extends Box {
     const inlineSize = this.containingBlock.inlineSizeForPotentiallyOrthogonal(this);
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
-    const bLineLeft = this.borderArea.lineLeft;
+    const borderArea = this.getBorderArea();
+    const contentArea = this.getContentArea();
+    const bLineLeft = borderArea.lineLeft;
     const blockStart = borderBlockStartWidth + paddingBlockStart;
-    const cInlineSize = this.contentArea.inlineSize;
+    const cInlineSize = contentArea.inlineSize;
     const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
     const paddingLineLeft = this.style.getPaddingLineLeft(this);
     const lineLeft = bLineLeft + borderLineLeftWidth + paddingLineLeft;
@@ -938,8 +969,8 @@ export class BlockContainer extends Box {
 
         for (const child of block.children) {
           const offset = parentOffset
-            + child.borderArea.blockStart
-            + child.style.getBorderBlockStartWidth(child);
+            + child.getBorderArea().blockStart
+            + child.style.getBorderBlockStartWidth(child)
             + child.style.getPaddingBlockStart(child);
 
           stack.push({block: child, offset});
@@ -1007,20 +1038,21 @@ export class BlockContainer extends Box {
   }
 
   postlayoutPreorder() {
+    const borderArea = this.getBorderArea();
     if (this.style.position === 'relative') {
-      this.borderArea.x += this.getRelativeHorizontalShift();
-      this.borderArea.y += this.getRelativeVerticalShift();
+      borderArea.x += this.getRelativeHorizontalShift();
+      borderArea.y += this.getRelativeVerticalShift();
     }
 
-    this.borderArea.absolutify();
-    if (this.paddingArea !== this.borderArea) this.paddingArea.absolutify();
-    if (this.contentArea !== this.paddingArea) this.contentArea.absolutify();
+    borderArea.absolutify();
+    if (this.style.hasBorder()) this.getPaddingArea().absolutify();
+    if (this.style.hasPadding()) this.getContentArea().absolutify();
   }
 
   postlayoutPostorder() {
-    this.borderArea.snapPixels();
-    if (this.paddingArea !== this.borderArea) this.paddingArea.snapPixels();
-    if (this.contentArea !== this.paddingArea) this.contentArea.snapPixels();
+    this.getBorderArea().snapPixels();
+    if (this.style.hasBorder()) this.getPaddingArea().snapPixels();
+    if (this.style.hasPadding()) this.getContentArea().snapPixels();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1133,7 +1165,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   doBlockBoxModelForBlockBox(box);
 
   if (box.isBfcRoot()) {
-    const inlineSize = box.contentArea.inlineSize;
+    const inlineSize = box.getContentArea().inlineSize;
     cctx.bfc = new BlockFormattingContext(inlineSize);
   }
 
@@ -1196,7 +1228,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   doInlineBoxModelForFloatBox(box, inlineSize);
   doBlockBoxModelForBlockBox(box);
 
-  const cInlineSize = box.contentArea.inlineSize;
+  const cInlineSize = box.getContentArea().inlineSize;
   cctx.bfc = new BlockFormattingContext(cInlineSize);
 
   if (box.isBlockContainerOfInlines()) {
@@ -1460,9 +1492,10 @@ export class IfcInline extends Inline {
 
         inlineShifts.set(box, {dx, dy});
       } else if (box.isBlockContainer()) {
+        const borderArea = box.getBorderArea();
         // floats or inline-blocks
-        box.borderArea.x += dx;
-        box.borderArea.y += dy;
+        borderArea.x += dx;
+        borderArea.y += dy;
       }
     }
 

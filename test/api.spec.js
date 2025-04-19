@@ -191,7 +191,7 @@ describe('DOM API', function () {
     const html = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
     layout(generate(html));
     const [box] = html.query('#d').boxes;
-    expect(box.contentArea.width).to.equal(100);
-    expect(box.contentArea.height).to.equal(100);
+    expect(box.getContentArea().width).to.equal(100);
+    expect(box.getContentArea().height).to.equal(100);
   });
 });

@@ -778,7 +778,7 @@ describe('Lines', function () {
    `);
     /** @type import('../src/layout-flow').BlockContainer */
     const ifc = this.get('div');
-    expect(ifc.contentArea.height).to.equal(32 + 64);
+    expect(ifc.getContentArea().height).to.equal(32 + 64);
   });
 
   it('uses the correct inline side to create shaping boundaries', function () {
@@ -819,7 +819,7 @@ describe('Lines', function () {
       </div>
     `);
 
-    expect(this.get('div').contentArea.height).to.equal(61);
+    expect(this.get('div').getContentArea().height).to.equal(61);
   });
 
   it('doesn\'t set the height if it\'s explicitly set', function () {
@@ -829,7 +829,7 @@ describe('Lines', function () {
       </div>
     `);
 
-    expect(this.get('div').contentArea.height).to.equal(50);
+    expect(this.get('div').getContentArea().height).to.equal(50);
   });
 
   it('carries over colors and line heights correctly', function () {
@@ -898,7 +898,7 @@ describe('Lines', function () {
 
     /** @type import('../src/layout-flow').BlockContainer */
     const t = this.get('#t');
-    expect(t.contentArea.height).to.equal(20);
+    expect(t.getContentArea().height).to.equal(20);
   });
 
   it('uses the right block position for a wrapped word with a hard break at the end', function () {
@@ -1283,7 +1283,7 @@ describe('Lines', function () {
           <span style="margin-right: 1px;"></span>
         </div>
       `);
-      expect(this.get('div').borderArea.height).to.equal(20);
+      expect(this.get('div').getBorderArea().height).to.equal(20);
     });
 
     it('uses the font\'s internal leading when a shaped item is split onto a new line', function () {
@@ -1354,8 +1354,8 @@ describe('Lines', function () {
       expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(3);
       expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(5);
 
-      expect(this.get('#t2').contentArea.x).to.equal(0);
-      expect(this.get('#t2').contentArea.y).to.equal(10);
+      expect(this.get('#t2').getContentArea().x).to.equal(0);
+      expect(this.get('#t2').getContentArea().y).to.equal(10);
     });
 
     it('measures and places inlines inside break-word correctly', function () {
@@ -1383,7 +1383,7 @@ describe('Lines', function () {
         </div>
       `);
 
-      expect(this.get('#t').contentArea.width).to.equal(10);
+      expect(this.get('#t').getContentArea().width).to.equal(10);
     });
 
     it('break-word doesn\'t affect min-content', function () {
@@ -1393,7 +1393,7 @@ describe('Lines', function () {
         </div>
       `);
 
-      expect(this.get('#t').contentArea.width).to.equal(50);
+      expect(this.get('#t').getContentArea().width).to.equal(50);
     });
 
     it('anywhere doesn\'t infinite loop on an ifc with only floats', function () {
@@ -1449,8 +1449,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.320, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(6);
-    expect(this.get('#t3').contentArea.y).to.equal(1);
+    expect(this.get('#t2').getContentArea().y).to.equal(6);
+    expect(this.get('#t3').getContentArea().y).to.equal(1);
   });
 
   it('aligns text to subscript', function () {
@@ -1481,8 +1481,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(23.200, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(9);
-    expect(this.get('#t3').contentArea.y).to.equal(3);
+    expect(this.get('#t2').getContentArea().y).to.equal(9);
+    expect(this.get('#t3').getContentArea().y).to.equal(3);
   });
 
   it('aligns text to superscript', function () {
@@ -1513,8 +1513,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(25.440, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(20.987, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(6);
-    expect(this.get('#t3').contentArea.y).to.equal(0);
+    expect(this.get('#t2').getContentArea().y).to.equal(6);
+    expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
 
   it('aligns text to text-top', function () {
@@ -1545,8 +1545,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(1);
-    expect(this.get('#t3').contentArea.y).to.equal(1);
+    expect(this.get('#t2').getContentArea().y).to.equal(1);
+    expect(this.get('#t3').getContentArea().y).to.equal(1);
   });
 
   it('aligns text to text-bottom', function () {
@@ -1577,8 +1577,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(21.063, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(16.609, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(10);
-    expect(this.get('#t3').contentArea.y).to.equal(0);
+    expect(this.get('#t2').getContentArea().y).to.equal(10);
+    expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
 
   it('aligns text with pixels', function () {
@@ -1609,8 +1609,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(50);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(45.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(6);
-    expect(this.get('#t3').contentArea.y).to.equal(0);
+    expect(this.get('#t2').getContentArea().y).to.equal(6);
+    expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
 
   it('aligns text with percentage', function () {
@@ -1641,8 +1641,8 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(20);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.546, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(1);
-    expect(this.get('#t3').contentArea.y).to.equal(0);
+    expect(this.get('#t2').getContentArea().y).to.equal(1);
+    expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
 
   it('aligns top', function () {
@@ -1674,7 +1674,7 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(30);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(15.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(0);
+    expect(this.get('#t2').getContentArea().y).to.equal(0);
   });
 
   it('aligns bottom', function () {
@@ -1706,7 +1706,7 @@ describe('Vertical Align', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(30);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(25.547, 0.001);
-    expect(this.get('#t2').contentArea.y).to.equal(0);
+    expect(this.get('#t2').getContentArea().y).to.equal(0);
   });
 
   it('aligns strut with the bottom when there are tops and bottoms', function () {
@@ -1882,8 +1882,8 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.be.approximately(30.453, 0.001);
     expect(ifc.paragraph.lineboxes[0].ascender).to.equal(26);
-    expect(t.borderArea.x).to.equal(85);
-    expect(t.borderArea.y).to.equal(1);
+    expect(t.getBorderArea().x).to.equal(85);
+    expect(t.getBorderArea().y).to.equal(1);
   });
 
   it('sizes to intrinsics correctly', function () {
@@ -1902,8 +1902,8 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes[0].height()).to.equal(80);
     expect(ifc.paragraph.lineboxes[0].ascender).to.be.approximately(75.547, 0.001);
-    expect(t.borderArea.x).to.equal(127);
-    expect(t.borderArea.y).to.equal(0);
+    expect(t.getBorderArea().x).to.equal(127);
+    expect(t.getBorderArea().y).to.equal(0);
   });
 
   it('fills the entire cb width at most', function () {
@@ -1919,8 +1919,8 @@ describe('Inline Blocks', function () {
 
     /** @type import('../src/layout-flow').BlockContainer */
     const t = this.get('#t');
-    expect(t.contentArea.width).to.equal(100);
-    expect(t.contentArea.y).to.equal(20);
+    expect(t.getContentArea().width).to.equal(100);
+    expect(t.getContentArea().y).to.equal(20);
     /** @type import('../src/layout-flow').IfcInline[] */
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.lineboxes.length).to.equal(3);
@@ -1944,8 +1944,8 @@ describe('Inline Blocks', function () {
 
     /** @type import('../src/layout-flow').BlockContainer */
     const t = this.get('#t');
-    expect(t.contentArea.x).to.equal(10);
-    expect(t.contentArea.inlineSize).to.equal(180);
+    expect(t.getContentArea().x).to.equal(10);
+    expect(t.getContentArea().inlineSize).to.equal(180);
   });
 
   it('doesn\'t collapse through a solitary inline-block', function () {
@@ -1962,7 +1962,7 @@ describe('Inline Blocks', function () {
     expect(ifc.paragraph.lineboxes.length).to.equal(1);
     /** @type import('../src/layout-flow').BlockContainer */
     const t = this.get('#t');
-    expect(t.contentArea.height).to.equal(20);
+    expect(t.getContentArea().height).to.equal(20);
   });
 
   it('positions correctly among bidirectional text', function () {
@@ -1973,7 +1973,7 @@ describe('Inline Blocks', function () {
     `);
 
     const t = this.get('#t');
-    expect(t.contentArea.x).to.equal(66);
+    expect(t.getContentArea().x).to.equal(66);
   });
 
   it('breaks before and after', function () {
@@ -1990,16 +1990,16 @@ describe('Inline Blocks', function () {
     expect(ifc.paragraph.lineboxes.length).to.equal(3);
     /** @type import('../src/layout-flow').BlockContainer */
     const t2 = this.get('#t2');
-    expect(t2.contentArea.x).to.equal(0);
-    expect(t2.contentArea.y).to.equal(6);
+    expect(t2.getContentArea().x).to.equal(0);
+    expect(t2.getContentArea().y).to.equal(6);
     /** @type import('../src/layout-flow').BlockContainer */
     const t3 = this.get('#t3');
-    expect(t3.contentArea.x).to.equal(0);
-    expect(t3.contentArea.y).to.equal(26);
+    expect(t3.getContentArea().x).to.equal(0);
+    expect(t3.getContentArea().y).to.equal(26);
     /** @type import('../src/layout-flow').BlockContainer */
     const t4 = this.get('#t4');
-    expect(t4.contentArea.x).to.equal(0);
-    expect(t4.contentArea.y).to.equal(46);
+    expect(t4.getContentArea().x).to.equal(0);
+    expect(t4.getContentArea().y).to.equal(46);
   });
 
   it('doesn\'t end with an empty line of space', function () {
@@ -2024,7 +2024,7 @@ describe('Inline Blocks', function () {
 
     /** @type import('../src/layout-flow').BlockContainer */
     const t = this.get('#t');
-    expect(t.contentArea.x).to.be.equal(90);
+    expect(t.getContentArea().x).to.be.equal(90);
   });
 
   it('paints backgrounds behind inline-block correctly', function () {
@@ -2053,7 +2053,7 @@ describe('Inline Blocks', function () {
 
     /** @type import('../src/layout-flow').BlockContainer */
     const t = this.get('#t');
-    expect(t.contentArea.height).to.equal(100);
+    expect(t.getContentArea().height).to.equal(100);
   });
 
   it('occupies the right amount of space for text-align', function () {
@@ -2081,8 +2081,8 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('#t1').children;
     expect(ifc.paragraph.lineboxes.length).to.equal(2);
     const t2 = this.get('#t2');
-    expect(t2.contentArea.y).to.equal(36);
-    expect(t2.contentArea.x).to.equal(100);
+    expect(t2.getContentArea().y).to.equal(36);
+    expect(t2.getContentArea().x).to.equal(100);
   });
 
   it('uses the bottom margin edge if overflow is hidden', function () {
@@ -2097,6 +2097,6 @@ describe('Inline Blocks', function () {
     expect(ifc.paragraph.lineboxes[0].ascender).to.equal(20);
     /** @type import('../src/layout-flow').BlockContainer */
     const t2 = this.get('#t2');
-    expect(t2.borderArea.y).to.equal(0);
+    expect(t2.getBorderArea().y).to.equal(0);
   });
 });

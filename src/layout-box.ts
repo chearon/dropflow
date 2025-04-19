@@ -556,8 +556,8 @@ export function prelayout(root: BlockContainer) {
       stack.push({sentinel: true});
       box.prelayoutPreorder(ctx);
       if (box.isBlockContainer()) {
-        bstack.push(box.contentArea);
-        if (box.style.position !== 'static') pstack.push(box.paddingArea);
+        bstack.push(box.getContentArea());
+        if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
       }
 
       for (let i = box.children.length - 1; i >= 0; i--) {

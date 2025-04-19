@@ -66,16 +66,16 @@ flow.paintToCanvas(blockContainer, ctx);
 const [image1El] = rootElement.query('#image1')!.boxes as flow.BlockContainer[];
 ctx.drawImage(
   image1,
-  Math.round(image1El.contentArea.x),
-  Math.round(image1El.contentArea.y)
+  Math.round(image1El.getContentArea().x),
+  Math.round(image1El.getContentArea().y)
 );
 
 // Paint image 2
 const [image2El] = rootElement.query('#image2')!.boxes as flow.BlockContainer[];
 ctx.drawImage(
   image2,
-  Math.round(image2El.contentArea.x),
-  Math.round(image2El.contentArea.y)
+  Math.round(image2El.getContentArea().x),
+  Math.round(image2El.getContentArea().y)
 );
 
 fs.writeFileSync(new URL('images-1.png', import.meta.url), canvas.toBuffer());

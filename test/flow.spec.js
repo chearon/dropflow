@@ -1545,6 +1545,47 @@ describe('Flow', function () {
         const t = this.get('#t');
         expect(t.contentArea.width).to.equal(185);
       });
+
+      it('considers nested _inline_ margin, border, padding for min-content', function () {
+        this.layout(`
+          <div id="t" style="float: left;">
+            <span style="padding: 2px; margin: 5px; border: 7px solid green;">!</span>
+          </div>
+        `);
+
+        /** @type import('../src/layout-flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(32);
+      });
+
+      it('considers hard-broken lines separately for max-content', function () {
+        this.layout(`
+          <div style="width: 300px; font: 16px Arimo;">
+            <div id="t" style="float: left;">
+              topiary garden<br>park
+            </div>
+          </div>
+        `);
+
+        /** @type import('../src/layout-flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(102);
+      });
+
+      it('considers inline-blocks separately for min-content', function () {
+        this.layout(`
+          <div style="width: 0; font: 16px Arimo;">
+            <div id="t" style="float: left;">
+              <div style="display: inline-block;">topiary garden</div>
+              <div style="display: inline-block;">park</div>
+            </div>
+          </div>
+        `);
+
+        /** @type import('../src/layout-flow').BlockContainer */
+        const t = this.get('#t');
+        expect(t.contentArea.width).to.equal(50);
+      });
     });
   });
 
@@ -1603,17 +1644,17 @@ describe('Flow', function () {
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87.03125);
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(133.28125);
-      expect(ifc.paragraph.brokenItems[1].x).to.equal(87.03125);
+      expect(ifc.paragraph.items[1].x).to.equal(87.03125);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(139.7265625);
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(211.7734375);
-      expect(ifc.paragraph.brokenItems[3].x).to.equal(139.7265625);
+      expect(ifc.paragraph.items[3].x).to.equal(139.7265625);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
-      expect(ifc.paragraph.brokenItems[5].y).to.equal(13.74609375);
+      expect(ifc.paragraph.items[5].y).to.equal(13.74609375);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t4'))[0].blockOffset).to.equal(15.74609375);
-      expect(ifc.paragraph.brokenItems[7].y).to.equal(15.74609375);
+      expect(ifc.paragraph.items[7].y).to.equal(15.74609375);
     });
 
     it('positions inline text and backgrounds inside other positioned spans', function () {
@@ -1637,17 +1678,17 @@ describe('Flow', function () {
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88.03125);
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].end).to.equal(134.28125);
-      expect(ifc.paragraph.brokenItems[1].x).to.equal(88.03125);
+      expect(ifc.paragraph.items[1].x).to.equal(88.03125);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].start).to.equal(140.7265625);
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t2'))[0].end).to.equal(212.7734375);
-      expect(ifc.paragraph.brokenItems[3].x).to.equal(140.7265625);
+      expect(ifc.paragraph.items[3].x).to.equal(140.7265625);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);
-      expect(ifc.paragraph.brokenItems[5].y).to.equal(14.74609375);
+      expect(ifc.paragraph.items[5].y).to.equal(14.74609375);
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t4'))[0].blockOffset).to.equal(16.74609375);
-      expect(ifc.paragraph.brokenItems[8].y).to.equal(16.74609375);
+      expect(ifc.paragraph.items[8].y).to.equal(16.74609375);
     });
 
     it('positions floats', function () {

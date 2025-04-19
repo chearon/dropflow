@@ -93,10 +93,10 @@ describe('Fonts', function () {
     it('looks up based on script when nothing is specified', function () {
       const bc1 = flow.generate(parse('هل تتحدث لغة أخرى بجانب العربية؟'));
       flow.layout(bc1);
-      expect(bc1.children[0].paragraph.wholeItems[0].face.family).to.equal('Cairo');
+      expect(bc1.children[0].paragraph.items[0].face.family).to.equal('Cairo');
       const bc2 = flow.generate(parse('Do you speak another language besides Arabic?'));
       flow.layout(bc2);
-      expect(bc2.children[0].paragraph.wholeItems[0].face.family).to.equal('Arimo');
+      expect(bc2.children[0].paragraph.items[0].face.family).to.equal('Arimo');
     });
 
     it('selects 500 if 400 is requested but not found', function () {

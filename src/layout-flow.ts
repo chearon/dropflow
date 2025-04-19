@@ -33,7 +33,6 @@ function writingModeInlineAxis(el: HTMLElement) {
 }
 
 export interface LayoutContext {
-  mode: 'min-content' | 'max-content' | 'normal',
   bfc: BlockFormattingContext
 }
 
@@ -771,6 +770,40 @@ export class BlockContainer extends Box {
     }
   }
 
+  contribution(mode: 'min-content' | 'max-content'): number {
+    const marginLineLeft = this.style.getMarginLineLeft(this);
+    const marginLineRight = this.style.getMarginLineRight(this);
+    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+    const paddingLineLeft = this.style.getPaddingLineLeft(this);
+    const paddingLineRight = this.style.getPaddingLineRight(this);
+    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+    let isize = this.style.getInlineSize(this);
+    let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+      + borderLineLeftWidth
+      + paddingLineLeft
+      + paddingLineRight
+      + borderLineRightWidth
+      + (marginLineRight === 'auto' ? 0 : marginLineRight);
+
+    if (isize === 'auto') {
+      isize = 0;
+      if (this.isBlockContainerOfBlockContainers()) {
+        for (const child of this.children) {
+          isize = Math.max(isize, child.contribution(mode));
+        }
+      } else if (this.isBlockContainerOfInlines()) {
+        const [ifc] = this.children;
+        if (ifc.shouldLayoutContent()) {
+          isize = ifc.paragraph.contribution(mode);
+        }
+      }
+    }
+
+    contribution += isize;
+
+    return contribution;
+  }
+
   getLogSymbol() {
     if (this.isFloat()) {
       return '○︎';
@@ -1151,65 +1184,6 @@ function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
   );
 }
 
-function layoutContribution(box: BlockContainer, ctx: LayoutContext, mode: 'min-content' | 'max-content') {
-  const cctx = {...ctx};
-  let intrinsicSize = 0;
-
-  cctx.mode = mode;
-  box.fillAreas();
-
-  const definiteSize = box.getDefiniteInlineSize();
-  if (definiteSize !== undefined) return definiteSize;
-
-  if (box.isBfcRoot()) cctx.bfc = new BlockFormattingContext(mode === 'min-content' ? 0 : Infinity);
-
-  ctx.bfc.boxStart(box, cctx);
-
-  if (box.isBlockContainerOfInlines()) {
-    const [ifc] = box.children;
-    for (const line of ifc.paragraph.lineboxes) {
-      intrinsicSize = Math.max(intrinsicSize, line.width);
-    }
-  } else if (box.isBlockContainerOfBlockContainers()) {
-    for (const child of box.children) {
-      intrinsicSize = Math.max(intrinsicSize, layoutContribution(child, cctx, mode));
-    }
-  } else {
-    throw new Error(`Unknown box type: ${box.id}`);
-  }
-
-  if (box.isBfcRoot()) {
-    cctx.bfc.finalize(box);
-    if (cctx.bfc.fctx) {
-      if (mode === 'max-content') {
-        intrinsicSize += cctx.bfc.fctx.leftFloats.getOverflow();
-        intrinsicSize += cctx.bfc.fctx.rightFloats.getOverflow();
-      } else {
-        intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.leftFloats.getOverflow());
-        intrinsicSize = Math.max(intrinsicSize, cctx.bfc.fctx.rightFloats.getOverflow());
-      }
-    }
-  }
-
-  ctx.bfc.boxEnd(box);
-
-  const marginLineLeft = box.style.getMarginLineLeft(box);
-  const marginLineRight = box.style.getMarginLineRight(box);
-  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
-  const paddingLineLeft = box.style.getPaddingLineLeft(box);
-  const paddingLineRight = box.style.getPaddingLineRight(box);
-  const borderLineRightWidth = box.style.getBorderLineRightWidth(box);
-
-  intrinsicSize += (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-    + borderLineLeftWidth
-    + paddingLineLeft
-    + paddingLineRight
-    + borderLineRightWidth
-    + (marginLineRight === 'auto' ? 0 : marginLineRight);
-
-  return intrinsicSize;
-}
-
 export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   if (!box.isBfcRoot()) {
     throw new Error(`Box ${box.id} is float but not BFC root, that should be impossible`);
@@ -1221,18 +1195,10 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   let inlineSize = box.getDefiniteInlineSize();
 
   if (inlineSize === undefined) {
-    const cctx = {...ctx};
-    cctx.bfc = new BlockFormattingContext(0); // Not used, but children call it
-    if (ctx.mode === 'min-content') {
-      inlineSize = layoutContribution(box, cctx, 'min-content');
-    } else if (ctx.mode === 'max-content') {
-      inlineSize = layoutContribution(box, cctx, 'max-content');
-    } else {
-      const minContent = layoutContribution(box, cctx, 'min-content');
-      const maxContent = layoutContribution(box, cctx, 'max-content');
-      const availableSpace = box.containingBlock.inlineSize;
-      inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
-    }
+    const minContent = box.contribution('min-content');
+    const maxContent = box.contribution('max-content');
+    const availableSpace = box.containingBlock.inlineSize;
+    inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
   }
 
   doInlineBoxModelForFloatBox(box, inlineSize);
@@ -1476,10 +1442,10 @@ export class IfcInline extends Inline {
 
       if ('sentinel' in box) {
         while (
-          itemIndex < this.paragraph.brokenItems.length &&
-          this.paragraph.brokenItems[itemIndex].offset < box.sentinel.end
+          itemIndex < this.paragraph.items.length &&
+          this.paragraph.items[itemIndex].offset < box.sentinel.end
         ) {
-          const item = this.paragraph.brokenItems[itemIndex];
+          const item = this.paragraph.items[itemIndex];
           item.x += this.containingBlock.x;
           item.y += this.containingBlock.y;
           if (item.end() > box.sentinel.start) {

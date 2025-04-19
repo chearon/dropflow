@@ -1662,8 +1662,7 @@ export class Paragraph {
   ifc: IfcInline;
   string: string;
   buffer: AllocatedUint16Array;
-  brokenItems: ShapedItem[];
-  wholeItems: ShapedItem[];
+  items: ShapedItem[];
   treeItems: (ShapedItem | ShapedShim)[];
   lineboxes: Linebox[];
   backgroundBoxes: Map<Inline, BackgroundBox[]>;
@@ -1673,8 +1672,7 @@ export class Paragraph {
     this.ifc = ifc;
     this.string = ifc.text;
     this.buffer = buffer;
-    this.brokenItems = [];
-    this.wholeItems = [];
+    this.items = [];
     this.treeItems = [];
     this.lineboxes = [];
     this.backgroundBoxes = new Map();
@@ -1691,7 +1689,7 @@ export class Paragraph {
   }
 
   split(itemIndex: number, offset: number) {
-    const left = this.brokenItems[itemIndex];
+    const left = this.items[itemIndex];
     const {needsReshape, right} = left.split(offset - left.offset);
 
     if (needsReshape) {
@@ -1699,7 +1697,7 @@ export class Paragraph {
       right.reshape(false);
     }
 
-    this.brokenItems.splice(itemIndex + 1, 0, right);
+    this.items.splice(itemIndex + 1, 0, right);
     if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
       const hyphen = getHyphen(left);
       if (hyphen?.length) {
@@ -1999,7 +1997,7 @@ export class Paragraph {
     log?.popIndent();
     log?.flush();
 
-    this.wholeItems = items.sort((a, b) => a.offset - b.offset);
+    this.items = items.sort((a, b) => a.offset - b.offset);
 
     if (this.ifc.hasSoftHyphen()) {
       let j = 0;
@@ -2012,7 +2010,7 @@ export class Paragraph {
     }
   }
 
-  createMarkIterator(ctx: LayoutContext) {
+  createMarkIterator(mode: 'min-content' | 'max-content' | 'normal') {
     // Inline iterator
     const inlineIterator = createInlineIterator(this.ifc);
     let inline = inlineIterator.next();
@@ -2048,12 +2046,12 @@ export class Paragraph {
         split
       };
 
-      if (inline.done && !linebreak && itemIndex >= this.brokenItems.length) {
+      if (inline.done && !linebreak && itemIndex >= this.items.length) {
         return {done: true};
       }
 
-      if (itemIndex < this.brokenItems.length && itemIndex > -1) {
-        const item = this.brokenItems[itemIndex];
+      if (itemIndex < this.items.length && itemIndex > -1) {
+        const item = this.items[itemIndex];
         const {advance, trailingWs} = item.measure(mark.position, 1, itemMeasureState);
         mark.advance = advance;
         mark.trailingWs = trailingWs;
@@ -2095,7 +2093,7 @@ export class Paragraph {
         if (!inline.done) {
           if (inline.value.state === 'text') {
             inlineMark += inline.value.item.length;
-            if (!inline.value.item.wrapsOverflowAnywhere(ctx.mode)) {
+            if (!inline.value.item.wrapsOverflowAnywhere(mode)) {
               graphemeBreakMark = inlineMark;
             }
             inline = inlineIterator.next();
@@ -2112,11 +2110,11 @@ export class Paragraph {
 
       if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
 
-      if (itemIndex < this.brokenItems.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
+      if (itemIndex < this.items.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
         itemIndex += 1;
 
-        if (itemIndex < this.brokenItems.length) {
-          const item = this.brokenItems[itemIndex];
+        if (itemIndex < this.items.length) {
+          const item = this.items[itemIndex];
           itemMark += item.length;
           itemMeasureState = item.createMeasureState();
           mark.isItemStart = true;
@@ -2167,7 +2165,7 @@ export class Paragraph {
       this.itemIndex += 1;
       mark.itemIndex += 1;
 
-      const item = paragraph.brokenItems[this.itemIndex];
+      const item = paragraph.items[this.itemIndex];
 
       if (itemIndex === this.itemIndex) {
         itemMeasureState = item.createMeasureState();
@@ -2176,6 +2174,45 @@ export class Paragraph {
     }
 
     return {[Symbol.iterator]: () => ({next})};
+  }
+
+  contribution(mode: 'min-content' | 'max-content') {
+    const width = new LineWidthTracker();
+    const basedir = this.ifc.style.direction;
+    let contribution = 0;
+
+    for (const mark of this.createMarkIterator(mode)) {
+      const inkAdvance = mark.advance - mark.trailingWs;
+      const isBreak = mark.isBreak || mark.isGraphemeBreak;
+
+      if (inkAdvance) width.addInk(inkAdvance);
+      if (mark.trailingWs) width.addWs(mark.trailingWs, true /* TODO */);
+
+      if (mark.inlinePre || mark.inlinePost) {
+        const p = basedir === 'ltr' ? 'getLineLeftMarginBorderPadding' : 'getLineRightMarginBorderPadding';
+        const op = basedir === 'ltr' ? 'getLineRightMarginBorderPadding' : 'getLineLeftMarginBorderPadding';
+        const w = (mark.inlinePre?.[p](this.ifc) ?? 0) + (mark.inlinePost?.[op](this.ifc) ?? 0);
+        width.addInk(w);
+      }
+
+      if (mark.block) {
+        width.addInk(mark.block.contribution(mode));
+        // floats don't have breaks before/after them
+        if (mode === 'min-content') {
+          contribution = Math.max(contribution, width.trimmed());
+          width.reset();
+        }
+      }
+
+      if (isBreak && (mode === 'min-content' || mark.isBreakForced)) {
+        contribution = Math.max(contribution, width.trimmed());
+        width.reset();
+      }
+    }
+
+    if (mode === 'max-content') contribution = Math.max(contribution, width.trimmed());
+
+    return contribution;
   }
 
   createLineboxes(ctx: LayoutContext) {
@@ -2195,16 +2232,6 @@ export class Paragraph {
     let floatsInWord = [];
     let blockOffset = bfc.cbBlockStart;
     let lineHasWord = false;
-
-    // Optimization: here we assume that (1) doTextLayout will never be called
-    // on the same ifc with a 'normal' mode twice and (2) that when the mode is
-    // 'normal', that is the final doTextLayout call for this instance
-    if (ctx.mode === 'min-content') {
-      this.brokenItems = this.wholeItems.map(item => item.clone());
-    } else {
-      this.brokenItems = this.wholeItems;
-    }
-
     this.treeItems = [];
 
     const finishLine = (line: Linebox) => {
@@ -2219,9 +2246,9 @@ export class Paragraph {
       lineHasWord = false;
     };
 
-    for (const mark of this.createMarkIterator(ctx)) {
+    for (const mark of this.createMarkIterator('normal')) {
       const parent = parents[parents.length - 1] || this.ifc;
-      const item = this.brokenItems[mark.itemIndex];
+      const item = this.items[mark.itemIndex];
 
       if (mark.inlinePre) {
         candidates.height.pushInline(mark.inlinePre);
@@ -2273,7 +2300,7 @@ export class Paragraph {
       }
 
       if (mark.inlinePre && mark.inlinePost || mark.block?.isInlineBlock()) {
-        const [left, right] = [item, this.brokenItems[mark.itemIndex + 1]];
+        const [left, right] = [item, this.items[mark.itemIndex + 1]];
         let level: number = 0;
         // Treat the empty span as an Other Neutral (ON) according to UAX29. I
         // think that's what browsers are doing.
@@ -2337,12 +2364,12 @@ export class Paragraph {
           const lastLine = line;
           if (!lastBreakMark) throw new Error('Assertion failed');
           lines.push(line = new Linebox(lastBreakMark.position, this));
-          const lastBreakMarkItem = this.brokenItems[lastBreakMark.itemIndex];
+          const lastBreakMarkItem = this.items[lastBreakMark.itemIndex];
 
           if (lastBreakMarkItem?.hasCharacterInside(lastBreakMark.position)) {
             this.split(lastBreakMark.itemIndex, lastBreakMark.position);
             lastBreakMark.split(mark);
-            candidates.unshift(this.brokenItems[lastBreakMark.itemIndex]);
+            candidates.unshift(this.items[lastBreakMark.itemIndex]);
             // Stamp the brand new line with its metrics, since the only other
             // place this happens is mark.itemStart
             candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
@@ -2426,9 +2453,9 @@ export class Paragraph {
 
     if (this.ifc.loggingEnabled()) {
       const log = new Logger();
-      log.text(`Paragraph ${this.ifc.id} (layout mode ${ctx.mode}):\n`);
+      log.text(`Paragraph ${this.ifc.id}:\n`);
       log.pushIndent();
-      for (const item of this.brokenItems) {
+      for (const item of this.items) {
         const lead = `@${item.offset} `.padEnd(5);
         log.text(lead);
         log.pushIndent(' '.repeat(lead.length));

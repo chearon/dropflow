@@ -20,6 +20,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun build site/index.html --outdir=dist/site
+      - run: cp -r assets dist/site
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:

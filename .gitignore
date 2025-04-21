@@ -8,3 +8,6 @@ zig-out/
 # dist. track wasm since it changes so infrequently and is complicated to build
 dist/
 !dist/dropflow.wasm
+
+# mac
+.DS_Store

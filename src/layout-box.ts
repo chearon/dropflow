@@ -53,68 +53,6 @@ export abstract class RenderItem {
     return false;
   }
 
-  /**
-   * A layer is a stacking context root or an element that CSS 2.1 appendix E
-   * says to treat like one.
-   */
-  isLayerRoot(): boolean {
-    return this.isBlockContainer() && this.isFloat() || this.isBox() && this.isPositioned();
-  }
-
-  /**
-   * Does this paint anything in the background layer? Borders, box-shadow, etc.
-   */
-  hasBackground() {
-    return false;
-  }
-
-  /**
-   * Does this paint anything in the foreground layer? Text, images, etc.
-   */
-  hasForeground() {
-    return false;
-  }
-
-  /**
-   * There is a background in some descendent that is part of the same paint
-   * layer (not necessarily in the subject). (See also isLayerRoot).
-   *
-   * A background is a background-color or anything CSS 2.1 appendix E groups
-   * with it.
-   */
-  hasBackgroundInLayerRoot() {
-    return false;
-  }
-
-  /**
-   * There is a foreground in some descendent that is part of the same paint
-   * layer (not necessarily in the subject). (See also isLayerRoot).
-   *
-   * A foreground is a text run or anything CSS 2.1 appendix E groups with it
-   */
-  hasForegroundInLayerRoot() {
-    return false;
-  }
-
-  /**
-   * There is a background somewhere beneath this node
-   *
-   * A background is a background-color or anything CSS 2.1 appendix E groups
-   * with it
-   */
-  hasBackgroundInDescendent() {
-    return false;
-  }
-
-  /**
-   * There is a foreground somewhere beneath this node
-   *
-   * A foreground is a text run or anything CSS 2.1 appendix E groups with it
-   */
-  hasForegroundInDescendent() {
-    return false;
-  }
-
   abstract logName(log: Logger, options?: RenderItemLogOptions): void;
 
   abstract getLogSymbol(): string;
@@ -445,18 +383,64 @@ export class Box extends RenderItem {
     return this.isPositioned() && this.style.zIndex !== 'auto';
   }
 
+  /**
+   * A layer is a stacking context root or an element that CSS 2.1 appendix E
+   * says to treat like one.
+   */
+  isLayerRoot(): boolean {
+    return this.isBlockContainer() && this.isFloat() || this.isBox() && this.isPositioned();
+  }
+
+  /**
+   * Does this paint anything in the background layer? Borders, box-shadow, etc.
+   */
+  hasBackground() {
+    return false;
+  }
+
+  /**
+   * Does this paint anything in the foreground layer? Text, images, etc.
+   */
+  hasForeground() {
+    return false;
+  }
+
+  /**
+   * There is a background in some descendent that is part of the same paint
+   * layer (not necessarily in the subject). (See also isLayerRoot).
+   *
+   * A background is a background-color or anything CSS 2.1 appendix E groups
+   * with it.
+   */
   hasBackgroundInLayerRoot() {
     return Boolean(this.bitfield & Box.BITS.hasBackgroundInLayer);
   }
 
+  /**
+   * There is a foreground in some descendent that is part of the same paint
+   * layer (not necessarily in the subject). (See also isLayerRoot).
+   *
+   * A foreground is a text run or anything CSS 2.1 appendix E groups with it
+   */
   hasForegroundInLayerRoot() {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInLayer);
   }
 
+  /**
+   * There is a background somewhere beneath this node
+   *
+   * A background is a background-color or anything CSS 2.1 appendix E groups
+   * with it
+   */
   hasBackgroundInDescendent() {
     return Boolean(this.bitfield & Box.BITS.hasBackgroundInDescendent);
   }
 
+  /**
+   * There is a foreground somewhere beneath this node
+   *
+   * A foreground is a text run or anything CSS 2.1 appendix E groups with it
+   */
   hasForegroundInDescendent() {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }

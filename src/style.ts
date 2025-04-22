@@ -584,9 +584,8 @@ export class Style {
     return cssVal;
   }
 
-  hasLineLeftGap() {
-    // TODO: bug: need to check box.writingMode, but it isn't assigned yet :(
-    const writingMode = 'horizontal-tb';
+  hasLineLeftGap(box: Box) {
+    const writingMode = box.writingModeAsParticipant;
     const marginLineLeft = this[LogicalMaps[writingMode].marginLineLeft];
     if (marginLineLeft === 'auto') return false;
     if (typeof marginLineLeft === 'object' && marginLineLeft.value !== 0) return true;
@@ -598,9 +597,8 @@ export class Style {
     if (this[LogicalMaps[writingMode].borderLineLeftWidth] > 0) return true;
   }
 
-  hasLineRightGap() {
-    // TODO: bug: need to check writingMode, but it isn't assigned yet :(
-    const writingMode = 'horizontal-tb';
+  hasLineRightGap(box: Box) {
+    const writingMode = box.writingModeAsParticipant;
     const marginLineRight = this[LogicalMaps[writingMode].marginLineRight];
     if (marginLineRight === 'auto') return false;
     if (typeof marginLineRight === 'object' && marginLineRight.value !== 0) return true;

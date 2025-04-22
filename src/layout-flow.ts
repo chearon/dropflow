@@ -1253,11 +1253,11 @@ export class Inline extends Box {
   }
 
   hasLineLeftGap() {
-    return this.style.hasLineLeftGap();
+    return this.style.hasLineLeftGap(this);
   }
 
   hasLineRightGap() {
-    return this.style.hasLineRightGap();
+    return this.style.hasLineRightGap(this);
   }
 
   getInlineSideSize(side: 'pre' | 'post') {

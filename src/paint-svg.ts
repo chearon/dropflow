@@ -43,7 +43,7 @@ function createId() {
   return ret;
 }
 
-export default class HtmlPaintBackend implements PaintBackend {
+export default class SvgPaintBackend implements PaintBackend {
   main: string;
   defs: string;
   clips: Rect[];

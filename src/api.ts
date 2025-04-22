@@ -241,7 +241,7 @@ export async function load(root: HTMLElement): Promise<void> {
   // TODO: images too
 }
 
-export async function loadSync(root: HTMLElement): Promise<void> {
-  await loadFontsSync(root);
+export function loadSync(root: HTMLElement): void {
+  loadFontsSync(root);
   // TODO: images too
 }

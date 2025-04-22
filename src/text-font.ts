@@ -1246,6 +1246,6 @@ export async function loadFonts(root: HTMLElement) {
   await Promise.all(promises);
 }
 
-export async function loadFontsSync(root: HTMLElement) {
+export function loadFontsSync(root: HTMLElement) {
   loadFontsImpl(root, face => face.loadSync());
 }

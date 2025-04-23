@@ -550,6 +550,20 @@ describe('Painting', function () {
     ]);
   });
 
+  it('paints layer-root inlines that only contribute a background', function () {
+    this.layout(`
+      <div style="font-size: 10px;">
+        my hammock color:
+        <span style="background-color: #8f0; padding-left: 5px; position: relative;"></span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 8, text: 'my hammock color:', fillColor: '#000'},
+      {t: 'rect', x: 170, y: 0, width: 5, height: 10, fillColor: '#8f0'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

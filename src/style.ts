@@ -478,6 +478,14 @@ export class Style {
       || this.borderLeftWidth > 0;
   }
 
+  hasPaint() {
+    return this.backgroundColor.a > 0
+      || this.borderTopWidth > 0 && this.borderTopColor.a > 0
+      || this.borderRightWidth > 0 && this.borderRightColor.a > 0
+      || this.borderBottomWidth > 0 && this.borderBottomColor.a > 0
+      || this.borderLeftWidth > 0 && this.borderLeftColor.a > 0;
+  }
+
   getMarginBlockStart(box: Box) {
     const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockStart];
     if (cssVal === 'auto') return cssVal;

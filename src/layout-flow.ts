@@ -942,11 +942,11 @@ export class BlockContainer extends Box {
   }
 
   hasBackground() {
-    return this.style.backgroundColor.a > 0
-      || this.style.borderTopWidth > 0 && this.style.borderTopColor.a > 0
-      || this.style.borderRightWidth > 0 && this.style.borderRightColor.a > 0
-      || this.style.borderBottomWidth > 0 && this.style.borderBottomColor.a > 0
-      || this.style.borderLeftWidth > 0 && this.style.borderLeftColor.a > 0;
+    return this.style.hasPaint();
+  }
+
+  hasForeground() {
+    return false;
   }
 }
 
@@ -1296,8 +1296,12 @@ export class Inline extends Box {
     // noop: inlines are painted in a different way than block containers
   }
 
+  hasBackground() {
+    return false;
+  }
+
   hasForeground() {
-    return Boolean(this.hasLineLeftGap() || this.hasLineRightGap());
+    return this.style.hasPaint();
   }
 }
 

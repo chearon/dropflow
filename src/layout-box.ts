@@ -127,7 +127,7 @@ export abstract class RenderItem {
   }
 }
 
-export class Box extends RenderItem {
+export abstract class Box extends RenderItem {
   public id: string;
   public containingBlock: BoxArea;
   /**
@@ -394,16 +394,12 @@ export class Box extends RenderItem {
   /**
    * Does this paint anything in the background layer? Borders, box-shadow, etc.
    */
-  hasBackground() {
-    return false;
-  }
+  abstract hasBackground(): boolean;
 
   /**
    * Does this paint anything in the foreground layer? Text, images, etc.
    */
-  hasForeground() {
-    return false;
-  }
+  abstract hasForeground(): boolean;
 
   /**
    * There is a background in some descendent that is part of the same paint

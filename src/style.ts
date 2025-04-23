@@ -464,26 +464,34 @@ export class Style {
     return this.textAlign;
   }
 
-  hasPadding() {
+  hasPaddingArea() {
     return percentGtZero(this.paddingTop)
       || percentGtZero(this.paddingRight)
       || percentGtZero(this.paddingBottom)
       || percentGtZero(this.paddingLeft);
   }
 
-  hasBorder() {
-    return this.borderTopWidth > 0
-      || this.borderRightWidth > 0
-      || this.borderBottomWidth > 0
-      || this.borderLeftWidth > 0;
+  hasBorderArea() {
+    return this.borderTopWidth > 0 && this.borderTopStyle !== 'none'
+      || this.borderRightWidth > 0 && this.borderRightStyle !== 'none'
+      || this.borderBottomWidth > 0 && this.borderBottomStyle !== 'none'
+      || this.borderLeftWidth > 0 && this.borderLeftStyle !== 'none';
   }
 
   hasPaint() {
     return this.backgroundColor.a > 0
-      || this.borderTopWidth > 0 && this.borderTopColor.a > 0
-      || this.borderRightWidth > 0 && this.borderRightColor.a > 0
-      || this.borderBottomWidth > 0 && this.borderBottomColor.a > 0
-      || this.borderLeftWidth > 0 && this.borderLeftColor.a > 0;
+      || this.borderTopWidth > 0
+        && this.borderTopColor.a > 0
+        && this.borderTopStyle !== 'none'
+      || this.borderRightWidth > 0
+        && this.borderRightColor.a > 0
+        && this.borderRightStyle !== 'none'
+      || this.borderBottomWidth > 0
+        && this.borderBottomColor.a > 0
+        && this.borderBottomStyle !== 'none'
+      || this.borderLeftWidth > 0
+        && this.borderLeftColor.a > 0
+        && this.borderLeftStyle !== 'none';
   }
 
   getMarginBlockStart(box: Box) {

@@ -207,8 +207,8 @@ export abstract class Box extends RenderItem {
     this.containingBlock = EmptyContainingBlock;
     this.area = new BoxArea(this);
 
-    const hasBorder = this.style.hasBorder();
-    const hasPadding = this.style.hasPadding();
+    const hasBorder = this.style.hasBorderArea();
+    const hasPadding = this.style.hasPaddingArea();
     if (hasBorder && hasPadding) { // b -> p -> c
       const b = new BoxArea(this);
       const p = new BoxArea(this);
@@ -220,8 +220,8 @@ export abstract class Box extends RenderItem {
   }
 
   getBorderArea(): BoxArea {
-    const hasBorder = this.style.hasBorder();
-    const hasPadding = this.style.hasPadding();
+    const hasBorder = this.style.hasBorderArea();
+    const hasPadding = this.style.hasPaddingArea();
     if (hasBorder && hasPadding) {
       return this.area.parent!.parent!;
     } else if (hasBorder || hasPadding) {
@@ -232,7 +232,7 @@ export abstract class Box extends RenderItem {
   }
 
   getPaddingArea(): BoxArea {
-    if (this.style.hasPadding()) {
+    if (this.style.hasPaddingArea()) {
       return this.area.parent!;
     } else {
       return this.area;
@@ -260,7 +260,7 @@ export abstract class Box extends RenderItem {
    * containers must have been laid out for percentages to work.
    */
   fillAreas() {
-    if (this.style.hasBorder()) {
+    if (this.style.hasBorderArea()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
       const paddingArea = this.getPaddingArea();
@@ -268,7 +268,7 @@ export abstract class Box extends RenderItem {
       paddingArea.lineLeft = borderLineLeftWidth;
     }
 
-    if (this.style.hasPadding()) {
+    if (this.style.hasPaddingArea()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(this);
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
       const contentArea = this.getContentArea();
@@ -284,7 +284,7 @@ export abstract class Box extends RenderItem {
   setBlockSize(size: number) {
     this.getContentArea().blockSize = size;
 
-    if (this.style.hasPadding()) {
+    if (this.style.hasPaddingArea()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(this);
       const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
       const paddingSize = size + paddingBlockStart + paddingBlockEnd;
@@ -292,7 +292,7 @@ export abstract class Box extends RenderItem {
       paddingArea.blockSize = paddingSize;
     }
 
-    if (this.style.hasBorder()) {
+    if (this.style.hasBorderArea()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
       const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
       const paddingArea = this.getPaddingArea();
@@ -309,7 +309,7 @@ export abstract class Box extends RenderItem {
   setInlineOuterSize(size: number) {
     this.getBorderArea().inlineSize = size;
 
-    if (this.style.hasBorder()) {
+    if (this.style.hasBorderArea()) {
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
       const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
       const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
@@ -317,7 +317,7 @@ export abstract class Box extends RenderItem {
       paddingArea.inlineSize = paddingSize;
     }
 
-    if (this.style.hasPadding()) {
+    if (this.style.hasPaddingArea()) {
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
       const paddingLineRight = this.style.getPaddingLineRight(this);
       const paddingArea = this.getPaddingArea();

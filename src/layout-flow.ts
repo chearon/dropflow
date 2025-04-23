@@ -923,14 +923,14 @@ export class BlockContainer extends Box {
     }
 
     borderArea.absolutify();
-    if (this.style.hasBorder()) this.getPaddingArea().absolutify();
-    if (this.style.hasPadding()) this.getContentArea().absolutify();
+    if (this.style.hasBorderArea()) this.getPaddingArea().absolutify();
+    if (this.style.hasPaddingArea()) this.getContentArea().absolutify();
   }
 
   postlayoutPostorder() {
     this.getBorderArea().snapPixels();
-    if (this.style.hasBorder()) this.getPaddingArea().snapPixels();
-    if (this.style.hasPadding()) this.getContentArea().snapPixels();
+    if (this.style.hasBorderArea()) this.getPaddingArea().snapPixels();
+    if (this.style.hasPaddingArea()) this.getContentArea().snapPixels();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1168,7 +1168,7 @@ export class Inline extends Box {
 
     if (parent.isInline()) {
       parent.bitfield |= Box.BITS.hasInlines;
-      if (this.style.backgroundColor.a !== 0 || this.style.hasBorder()) {
+      if (this.style.backgroundColor.a !== 0 || this.style.hasBorderArea()) {
         parent.bitfield |= Box.BITS.hasPaintedInlines;
       }
       if (this.style.position === 'relative') {

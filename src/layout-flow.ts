@@ -1171,9 +1171,6 @@ export class Inline extends Box {
       if (this.style.backgroundColor.a !== 0 || this.style.hasBorderArea()) {
         parent.bitfield |= Box.BITS.hasPaintedInlines;
       }
-      if (this.style.position === 'relative') {
-        parent.bitfield |= Box.BITS.hasPositionedInline;
-      }
       if (
         !parent.hasSizedInline() &&
         (this.hasLineLeftGap() || this.hasLineRightGap())
@@ -1234,10 +1231,6 @@ export class Inline extends Box {
 
   hasPaintedInlines() {
     return this.bitfield & Box.BITS.hasPaintedInlines;
-  }
-
-  hasPositionedInline() {
-    return this.bitfield & Box.BITS.hasPositionedInline;
   }
 
   hasInlineBlocks() {

@@ -174,18 +174,17 @@ export abstract class Box extends RenderItem {
     hasNewlines:               1 << 11,
     hasSoftWrap:               1 << 12,
     hasCollapsibleWs:          1 << 13,
-    // 14..18: propagation bits: Inline <- Inline
+    // 14..17: propagation bits: Inline <- Inline
     hasInlines:                1 << 14,
     hasPaintedInlines:         1 << 15,
-    hasPositionedInline:       1 << 16,
-    hasColoredInline:          1 << 17,
-    hasSizedInline:            1 << 18,
-    // 19: propagation bits: Inline <- Break
-    hasBreaks:                 1 << 19,
-    // 20..21: propagation bits: Inline <- BlockContainer
-    hasFloats:                 1 << 20,
-    hasInlineBlocks:           1 << 21,
-    // 22..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    hasColoredInline:          1 << 16,
+    hasSizedInline:            1 << 17,
+    // 18: propagation bits: Inline <- Break
+    hasBreaks:                 1 << 18,
+    // 19..20: propagation bits: Inline <- BlockContainer
+    hasFloats:                 1 << 19,
+    hasInlineBlocks:           1 << 20,
+    // 21..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**
@@ -196,9 +195,7 @@ export abstract class Box extends RenderItem {
     enableLogging: Box.BITS.enableLogging,
   };
 
-  static PROPAGATES_TO_INLINE_BITS = 0xffffff00;
-
-  static BITFIELD_END = 8;
+  static PROPAGATES_TO_INLINE_BITS = 0xffffffc0;
 
   constructor(style: Style, attrs: number) {
     super(style);

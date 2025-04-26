@@ -985,6 +985,12 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 
   if (computed.zoom === 0) computed.zoom = 1;
 
+  // Blockify floats (TODO: abspos too) (CSS Display §2.7). This drives what
+  // type of box is created (-> not an inline), but otherwise has no effect.
+  if (computed.float !== 'none' && computed.display.outer !== 'none') {
+    computed.display = {outer: 'block', inner: computed.display.inner};
+  }
+
   return new Style(computed, parentStyle, cascadedStyle);
 }
 

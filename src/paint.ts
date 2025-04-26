@@ -615,7 +615,7 @@ function createLayerRoot(box: BlockContainer) {
         }
       } else if (box.isBlockContainer()) {
         const parent = parents.at(-1);
-        const isInlineBlock = box.isInlineBlock() && parent?.isInline();
+        const isInlineBlock = box.isInlineLevel() && parent?.isInline();
         if (box.isFloat() || isInlineBlock) {
           const parentIndex = parents.findLastIndex(box => parentRoot.box === box);
           const paintRootParents = parents.slice(parentIndex + 1);

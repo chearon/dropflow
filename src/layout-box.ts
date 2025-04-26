@@ -165,7 +165,7 @@ export abstract class Box extends RenderItem {
     // Other CSS rules that affect how a block container is treated during
     // layout do not have this problem (position: absolute, display: inline-
     // block) because anonymously created boxes cannot invoke those modes.
-    isInline:                  1 << 8,
+    isInline:                  1 << 8, // style.display.outer for anon boxes too
     isBfcRoot:                 1 << 9,
     // 8..13: propagation bits: Inline <- Run
     hasText:                   1 << 8,

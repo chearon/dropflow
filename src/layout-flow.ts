@@ -873,8 +873,8 @@ export class BlockContainer extends Box {
     return this.style.float !== 'none';
   }
 
-  isInlineBlock() {
-    return this.isInlineLevel() && this.style.float === 'none';
+  isOutOfFlow() {
+    return this.style.float !== 'none'; // TODO: or position === 'absolute'
   }
 
   loggingEnabled() {
@@ -909,7 +909,7 @@ export class BlockContainer extends Box {
       parent.bitfield |= Box.BITS.hasFloats;
     }
 
-    if (this.isInlineBlock()) {
+    if (this.isInlineLevel()) {
       // TODO: and not absolutely positioned
       parent.bitfield |= Box.BITS.hasInlineBlocks;
     }
@@ -1625,16 +1625,20 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
 
       if (child.tagName === 'br') {
         inlines.push(new Break(child.style));
-      } else if (child.style.float !== 'none') {
-        inlines.push(generateBlockContainer(child));
       } else if (child.style.display.outer === 'block') {
-        if (inlines.length) {
-          blocks.push(wrapInBlockContainer(el, inlines, text));
-          inlines = [];
-          text.value = '';
-        }
+        const block = generateBlockContainer(child);
 
-        blocks.push(generateBlockContainer(child));
+        if (block.isOutOfFlow()) {
+          inlines.push(block);
+        } else {
+          if (inlines.length) {
+            blocks.push(wrapInBlockContainer(el, inlines, text));
+            inlines = [];
+            text.value = '';
+          }
+
+          blocks.push(block);
+        }
       } else { // inline
         if (child.style.display.inner === 'flow-root') { // inline-block
           inlines.push(generateBlockContainer(child));

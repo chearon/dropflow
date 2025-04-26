@@ -2101,7 +2101,7 @@ export class Paragraph {
             mark.isBreak = true;
             mark.isBreakForced = true;
             inline = inlineIterator.next();
-          } else if (inline.value.state === 'block' && inline.value.item.isInlineBlock()) {
+          } else if (inline.value.state === 'block' && inline.value.item.isInlineLevel()) {
             mark.block = inline.value.item;
             inline = inlineIterator.next();
           }
@@ -2281,7 +2281,7 @@ export class Paragraph {
       if (mark.inlinePre) candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
       if (mark.inlinePost) candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
-      if (mark.block?.isInlineBlock()) {
+      if (mark.block?.isInlineLevel()) {
         layoutFloatBox(mark.block, ctx);
         const {lineLeft, lineRight} = mark.block.getMarginsAutoIsZero();
         const borderArea = mark.block.getBorderArea();
@@ -2289,7 +2289,7 @@ export class Paragraph {
         candidates.height.stampBlock(mark.block, parent);
       }
 
-      if (mark.inlinePre && mark.inlinePost || mark.block?.isInlineBlock()) {
+      if (mark.inlinePre && mark.inlinePost || mark.block?.isInlineLevel()) {
         const [left, right] = [item, this.items[mark.itemIndex + 1]];
         let level: number = 0;
         // Treat the empty span as an Other Neutral (ON) according to UAX29. I

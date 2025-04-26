@@ -12,7 +12,7 @@ import {
   createParagraph,
   getFontMetrics
 } from './layout-text.js';
-import {Box, RenderItem, PrelayoutContext} from './layout-box.js';
+import {Box, BoxContainer, RenderItem, PrelayoutContext} from './layout-box.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -314,7 +314,7 @@ export class BlockFormattingContext {
 }
 
 class FloatSide {
-  items: BlockContainer[];
+  items: BoxContainer[];
   // Moving shelf area (stretches to infinity in the block direction)
   shelfBlockOffset: number;
   shelfTrackIndex: number;
@@ -440,7 +440,7 @@ class FloatSide {
     }
   }
 
-  placeFloat(box: BlockContainer, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
+  placeFloat(box: BoxContainer, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
     if (box.style.float === 'none') {
       throw new Error('Tried to place float:none');
     }
@@ -534,7 +534,7 @@ export class FloatContext {
   bfc: BlockFormattingContext;
   leftFloats: FloatSide;
   rightFloats: FloatSide;
-  misfits: BlockContainer[];
+  misfits: BoxContainer[];
 
   constructor(bfc: BlockFormattingContext, blockOffset: number) {
     this.bfc = bfc;
@@ -557,7 +557,7 @@ export class FloatContext {
     return new IfcVacancy(leftOffset, rightOffset, blockOffset, inlineSize, 0, 0);
   }
 
-  getVacancyForBox(box: BlockContainer, lineWidth: number) {
+  getVacancyForBox(box: BoxContainer, lineWidth: number) {
     const float = box.style.float;
     const floats = float === 'left' ? this.leftFloats : this.rightFloats;
     const oppositeFloats = float === 'left' ? this.rightFloats : this.leftFloats;
@@ -627,7 +627,7 @@ export class FloatContext {
     return this.getVacancyForLine(blockOffset, blockSize);
   }
 
-  placeFloat(lineWidth: number, lineIsEmpty: boolean, box: BlockContainer) {
+  placeFloat(lineWidth: number, lineIsEmpty: boolean, box: BoxContainer) {
     if (box.style.float === 'none') {
       throw new Error('Attempted to place float: none');
     }
@@ -707,7 +707,7 @@ export interface BlockContainerOfBlockContainers extends BlockContainer {
   children: BlockContainer[];
 }
 
-export class BlockContainer extends Box {
+export class BlockContainer extends BoxContainer {
   public children: IfcInline[] | BlockContainer[];
 
   static ATTRS = {
@@ -789,47 +789,6 @@ export class BlockContainer extends Box {
     return {blockStart, lineLeft, lineRight};
   }
 
-  getDefiniteInlineSize() {
-    const inlineSize = this.style.getInlineSize(this);
-
-    if (inlineSize !== 'auto') {
-      const marginLineLeft = this.style.getMarginLineLeft(this);
-      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      const paddingLineLeft = this.style.getPaddingLineLeft(this);
-
-      const paddingLineRight = this.style.getPaddingLineRight(this);
-      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-      const marginLineRight = this.style.getMarginLineRight(this);
-
-      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-        + borderLineLeftWidth
-        + paddingLineLeft
-        + inlineSize
-        + paddingLineRight
-        + borderLineRightWidth
-        + (marginLineRight === 'auto' ? 0 : marginLineRight);
-    }
-  }
-
-  getMarginsAutoIsZero() {
-    let marginLineLeft = this.style.getMarginLineLeft(this);
-    let marginLineRight = this.style.getMarginLineRight(this);
-    let marginBlockStart = this.style.getMarginBlockStart(this);
-    let marginBlockEnd = this.style.getMarginBlockEnd(this);
-
-    if (marginBlockStart === 'auto') marginBlockStart = 0;
-    if (marginLineRight === 'auto') marginLineRight = 0;
-    if (marginBlockEnd === 'auto') marginBlockEnd = 0;
-    if (marginLineLeft === 'auto') marginLineLeft = 0;
-
-    return {
-      blockStart: marginBlockStart,
-      lineRight: marginLineRight,
-      blockEnd: marginBlockEnd,
-      lineLeft: marginLineLeft
-    };
-  }
-
   getLastBaseline(): number | undefined {
     const stack: {block: BlockContainer, offset: number}[] = [{block: this, offset: 0}];
 
@@ -861,20 +820,8 @@ export class BlockContainer extends Box {
     return true;
   }
 
-  isInlineLevel() {
-    return Boolean(this.bitfield & Box.BITS.isInline);
-  }
-
   isBfcRoot() {
     return Boolean(this.bitfield & Box.BITS.isBfcRoot);
-  }
-
-  isFloat() {
-    return this.style.float !== 'none';
-  }
-
-  isOutOfFlow() {
-    return this.style.float !== 'none'; // TODO: or position === 'absolute'
   }
 
   loggingEnabled() {
@@ -905,32 +852,10 @@ export class BlockContainer extends Box {
   propagate(parent: Box) {
     super.propagate(parent);
 
-    if (this.isFloat()) {
-      parent.bitfield |= Box.BITS.hasFloats;
-    }
-
     if (this.isInlineLevel()) {
       // TODO: and not absolutely positioned
       parent.bitfield |= Box.BITS.hasInlineBlocks;
     }
-  }
-
-  postlayoutPreorder() {
-    const borderArea = this.getBorderArea();
-    if (this.style.position === 'relative') {
-      borderArea.x += this.getRelativeHorizontalShift();
-      borderArea.y += this.getRelativeVerticalShift();
-    }
-
-    borderArea.absolutify();
-    if (this.style.hasBorderArea()) this.getPaddingArea().absolutify();
-    if (this.style.hasPaddingArea()) this.getContentArea().absolutify();
-  }
-
-  postlayoutPostorder() {
-    this.getBorderArea().snapPixels();
-    if (this.style.hasBorderArea()) this.getPaddingArea().snapPixels();
-    if (this.style.hasPaddingArea()) this.getContentArea().snapPixels();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1076,7 +1001,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
   bfc.boxEnd(box);
 }
 
-function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
+function doInlineBoxModelForFloatBox(box: BoxContainer, inlineSize: number) {
   const marginLineLeft = box.style.getMarginLineLeft(box);
   const marginLineRight = box.style.getMarginLineRight(box);
   box.setInlineOuterSize(
@@ -1159,7 +1084,7 @@ export class Inline extends Box {
   }
 
   prelayoutPreorder(ctx: PrelayoutContext) {
-    this.containingBlock = ctx.lastBlockContainerArea;
+    super.prelayoutPreorder(ctx);
     this.metrics = getFontMetrics(this);
   }
 
@@ -1271,6 +1196,10 @@ export class Inline extends Box {
   }
 
   isInline(): this is Inline {
+    return true;
+  }
+
+  isInlineLevel() {
     return true;
   }
 

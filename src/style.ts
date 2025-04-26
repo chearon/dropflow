@@ -903,7 +903,11 @@ export function cascadeStyles(styles: DeclaredStyle[]): DeclaredStyle {
   return cascaded;
 }
 
-function defaultProperty(parentStyle: Style, style: DeclaredStyle, p: keyof typeof initialPlainStyle) {
+function defaultProperty(
+  parentStyle: Style,
+  style: DeclaredStyle,
+  p: keyof DeclaredStyleProperties
+) {
   const properties = style.properties;
   if (properties[p] === inherited || !(p in properties) && inheritedStyle[p]) {
     return parentStyle.computed[p];
@@ -928,7 +932,7 @@ function resolveEm(
 function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
   const properties = cascadedStyle.properties;
   const parentFontSize = parentStyle.computed.fontSize;
-  const computed: any = {};
+  const working = {} as DeclaredStyleProperties;
 
   // Compute fontSize first since em values depend on it
   const specifiedFontSize = defaultProperty(parentStyle, cascadedStyle, 'fontSize');
@@ -938,36 +942,42 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
     fontSize = fontSize.value / 100 * parentFontSize;
   }
 
+  // Default and inherit
   for (const _ in initialPlainStyle) {
-    const p = _ as keyof typeof initialPlainStyle;
+    const p = _ as keyof ComputedStyle;
     const specifiedValue = defaultProperty(parentStyle, cascadedStyle, p);
-    computed[p] = resolveEm(specifiedValue, fontSize);
+    // as any because TS does not know that resolveEm will only reduce the union
+    // of possible values at a per-property level
+    (working as any)[p] = resolveEm(specifiedValue, fontSize)!;
   }
 
-  computed.fontSize = fontSize;
+  working.fontSize = fontSize;
 
   // https://www.w3.org/TR/css-fonts-4/#relative-weights
   if (properties.fontWeight === 'bolder' || properties.fontWeight === 'lighter') {
     const bolder = properties.fontWeight === 'bolder';
     const pWeight = parentStyle.computed.fontWeight;
     if (pWeight < 100) {
-      computed.fontWeight = bolder ? 400 : parentStyle.computed.fontWeight;
+      working.fontWeight = bolder ? 400 : parentStyle.computed.fontWeight;
     } else if (pWeight >= 100 && pWeight < 350) {
-      computed.fontWeight = bolder ? 400 : 100;
+      working.fontWeight = bolder ? 400 : 100;
     } else if (pWeight >= 350 && pWeight < 550) {
-      computed.fontWeight = bolder ? 700 : 100;
+      working.fontWeight = bolder ? 700 : 100;
     } else if (pWeight >= 550 && pWeight < 750) {
-      computed.fontWeight = bolder ? 900 : 400;
+      working.fontWeight = bolder ? 900 : 400;
     } else if (pWeight >= 750 && pWeight < 900) {
-      computed.fontWeight = bolder ? 900 : 700;
+      working.fontWeight = bolder ? 900 : 700;
     } else {
-      computed.fontWeight = bolder ? parentStyle.computed.fontWeight : 700;
+      working.fontWeight = bolder ? parentStyle.computed.fontWeight : 700;
     }
   }
 
   if (typeof properties.lineHeight === 'object' && properties.lineHeight.unit === '%') {
-    computed.lineHeight = properties.lineHeight.value / 100 * fontSize;
+    working.lineHeight = properties.lineHeight.value / 100 * fontSize;
   }
+
+  // At this point we've reduced all value types to their computed counterparts
+  const computed = working as ComputedStyle;
 
   if (typeof properties.zoom === 'object') {
     computed.zoom = properties.zoom.value / 100;

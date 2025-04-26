@@ -12,7 +12,7 @@ import {
   createParagraph,
   getFontMetrics
 } from './layout-text.js';
-import {Box, RenderItem, PrelayoutContext} from './layout-box.js';
+import {Box, FormattingBox, RenderItem, PrelayoutContext} from './layout-box.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -707,11 +707,11 @@ export interface BlockContainerOfBlockContainers extends BlockContainer {
   children: BlockContainer[];
 }
 
-export class BlockContainer extends Box {
+export class BlockContainer extends FormattingBox {
   public children: IfcInline[] | BlockContainer[];
 
   static ATTRS = {
-    ...Box.ATTRS,
+    ...FormattingBox.ATTRS,
     isInline: Box.BITS.isInline,
     isBfcRoot: Box.BITS.isBfcRoot
   };
@@ -789,43 +789,6 @@ export class BlockContainer extends Box {
     return {blockStart, lineLeft, lineRight};
   }
 
-  getDefiniteOuterInlineSize() {
-    const inlineSize = this.style.getInlineSize(this);
-
-    if (inlineSize !== 'auto') {
-      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      const paddingLineLeft = this.style.getPaddingLineLeft(this);
-
-      const paddingLineRight = this.style.getPaddingLineRight(this);
-      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-
-      return borderLineLeftWidth
-        + paddingLineLeft
-        + inlineSize
-        + paddingLineRight
-        + borderLineRightWidth;
-    }
-  }
-
-  getMarginsAutoIsZero() {
-    let marginLineLeft = this.style.getMarginLineLeft(this);
-    let marginLineRight = this.style.getMarginLineRight(this);
-    let marginBlockStart = this.style.getMarginBlockStart(this);
-    let marginBlockEnd = this.style.getMarginBlockEnd(this);
-
-    if (marginBlockStart === 'auto') marginBlockStart = 0;
-    if (marginLineRight === 'auto') marginLineRight = 0;
-    if (marginBlockEnd === 'auto') marginBlockEnd = 0;
-    if (marginLineLeft === 'auto') marginLineLeft = 0;
-
-    return {
-      blockStart: marginBlockStart,
-      lineRight: marginLineRight,
-      blockEnd: marginBlockEnd,
-      lineLeft: marginLineLeft
-    };
-  }
-
   getLastBaseline(): number | undefined {
     const stack: {block: BlockContainer, offset: number}[] = [{block: this, offset: 0}];
 
@@ -865,10 +828,6 @@ export class BlockContainer extends Box {
     return Boolean(this.bitfield & Box.BITS.isBfcRoot);
   }
 
-  isFloat() {
-    return this.style.float !== 'none';
-  }
-
   loggingEnabled() {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
@@ -897,32 +856,10 @@ export class BlockContainer extends Box {
   propagate(parent: Box) {
     super.propagate(parent);
 
-    if (this.isFloat()) {
-      parent.bitfield |= Box.BITS.hasFloats;
-    }
-
     if (this.isInlineLevel()) {
       // TODO: and not absolutely positioned
       parent.bitfield |= Box.BITS.hasInlineBlocks;
     }
-  }
-
-  postlayoutPreorder() {
-    const borderArea = this.getBorderArea();
-    if (this.style.position === 'relative') {
-      borderArea.x += this.getRelativeHorizontalShift();
-      borderArea.y += this.getRelativeVerticalShift();
-    }
-
-    borderArea.absolutify();
-    if (this.style.hasBorderArea()) this.getPaddingArea().absolutify();
-    if (this.style.hasPaddingArea()) this.getContentArea().absolutify();
-  }
-
-  postlayoutPostorder() {
-    this.getBorderArea().snapPixels();
-    if (this.style.hasBorderArea()) this.getPaddingArea().snapPixels();
-    if (this.style.hasPaddingArea()) this.getContentArea().snapPixels();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1149,7 +1086,7 @@ export class Inline extends Box {
   }
 
   prelayoutPreorder(ctx: PrelayoutContext) {
-    this.containingBlock = ctx.lastBlockContainerArea;
+    super.prelayoutPreorder(ctx);
     this.nshaped = 0;
     this.metrics = getFontMetrics(this);
   }
@@ -1258,6 +1195,10 @@ export class Inline extends Box {
   }
 
   isInline(): this is Inline {
+    return true;
+  }
+
+  isInlineLevel() {
     return true;
   }
 

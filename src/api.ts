@@ -9,6 +9,7 @@ import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canv
 import paint from './paint.js';
 import {BoxArea, prelayout, postlayout} from './layout-box.js';
 import {id} from './util.js';
+import {loadImages, loadImagesSync} from './layout-image.js';
 
 export {environment} from './environment.js';
 
@@ -202,7 +203,7 @@ export function t(text: string): TextNode {
 export function staticLayoutContribution(box: BlockContainer): number {
   let intrinsicSize = 0;
 
-  const definiteSize = box.getDefiniteInlineSize();
+  const definiteSize = box.getDefiniteInnerIsize();
   if (definiteSize !== undefined) return definiteSize;
 
   if (box.isBlockContainerOfInlines()) {
@@ -213,7 +214,12 @@ export function staticLayoutContribution(box: BlockContainer): number {
     // TODO: floats
   } else if (box.isBlockContainerOfBlockContainers()) {
     for (const child of box.children) {
-      intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+      if (child.isBlockContainer()) {
+        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+      } else {
+        // TODO:
+        intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
+      }
     }
   } else {
     throw new Error(`Unknown box type: ${box.id}`);
@@ -238,10 +244,10 @@ export function staticLayoutContribution(box: BlockContainer): number {
 
 export async function load(root: HTMLElement): Promise<void> {
   await loadFonts(root);
-  // TODO: images too
+  await loadImages(root);
 }
 
 export function loadSync(root: HTMLElement): void {
   loadFontsSync(root);
-  // TODO: images too
+  loadImagesSync(root);
 }

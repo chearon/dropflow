@@ -1,4 +1,5 @@
 import type {LoadedFontFace} from './text-font.js';
+import type {Image} from './layout-image.js';
 
 // !!! NOTE !!! if you change anything below, change the readme too
 export interface Environment {
@@ -39,6 +40,8 @@ export interface Environment {
    * loadSync on a document with asynchronous-only URLs.
    */
   resolveUrlSync(url: URL): ArrayBufferLike;
+  createDecodedImage(image: Image): Promise<unknown>;
+  destroyDecodedImage(handle: unknown): void;
 }
 
 export const defaultEnvironment: Environment = {
@@ -57,6 +60,12 @@ export const defaultEnvironment: Environment = {
   },
   resolveUrlSync() {
     throw new Error('Invalid build! Your bundler needs to support "exports" in package.json.');
+  },
+  async createDecodedImage() {
+    // optional (svg doesn't use it)
+  },
+  destroyDecodedImage() {
+    // optional (node-canvas just gc's, but browser needs revokeObjectURI)
   }
 };
 

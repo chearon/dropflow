@@ -64,5 +64,9 @@
     "ua"
   ],
   "author": "Caleb Hearon <caleb@chearon.net>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.69",
+    "skia-canvas": "^2.0.2"
+  }
 }

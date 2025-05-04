@@ -3,7 +3,6 @@ import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
 // Register fonts before layout. This is a required step.
-// This is synchronous only when the source is an ArrayBuffer or file URL in node
 const file = (relative: string) => new URL(`../assets/${relative}`, import.meta.url);
 const roboto1 = new flow.FontFace('Roboto', file('Roboto/Roboto-Regular.ttf'), {weight: 400});
 const roboto2 = new flow.FontFace('Roboto', file('Roboto/Roboto-Bold.ttf'), {weight: 700});

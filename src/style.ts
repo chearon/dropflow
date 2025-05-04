@@ -814,6 +814,9 @@ export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
     fontSize: {value: 1/1.2, unit: 'em'},
     verticalAlign: 'sub'
   }),
+  img: createDeclaredStyle({
+    display: {outer: 'inline', inner: 'flow'}
+  }),
   h1: createDeclaredStyle({
     fontSize: {value: 2, unit: 'em'},
     display: {outer: 'block', inner: 'flow'},

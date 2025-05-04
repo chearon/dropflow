@@ -95,8 +95,7 @@ import * as flow from 'dropflow';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-// Register fonts before layout. This is a required step. `load()` is synchronous
-// only when the source is an ArrayBuffer or file URL in node, async otherwise
+// Register fonts before layout. This is a required step.
 const roboto1 = new flow.FontFace('Roboto', new URL('file:///Roboto-Regular.ttf'), {weight: 400});
 const roboto2 = new flow.FontFace('Roboto', new URL('file:///Roboto-Bold.ttf'), {weight: 700});
 flow.fonts.add(roboto1).add(roboto2);
@@ -385,16 +384,28 @@ Renders the whole layout to the canvas, using its width and height as the viewpo
 ## Load
 
 ```ts
-function load(rootElement: HTMLElement): Promise<void>;
+function load(rootElement: HTMLElement, options?: LoadOptions): Promise<void>;
+
+interface LoadOptions {
+  decode?: boolean; // defaults to true
+}
 ```
 
-Ensures that all of the fonts required by the document are loaded. This efficiently walks the document and matches styles to `FontFace` `unicodeRange`, `family`, etc. In the future, this will also fetch images.
+Ensures that all of the fonts and images required by the document are loaded.
+
+For fonts, that means looking at the `style`'s `font-family` and other font descriptors as well as the text of the document in order to find suitable `FontFace`s from `flow.fonts`.
+
+For images, it means fetching the image data so it's ready for layout. In addition to calling `flow.environment.resolveUrl` for each image, this will call `flow.environment.createDecodedImage` for the data.
+
+Some paint backends don't require decoding, for example, SVG. If you're painting both to SVG and canvas, you may have `flow.environment.createDecodedImage` set, which is what the `decode` option is for: it will skip that call. Dropflow doesn't know what target you'll paint to ahead of time, so you need to pass `{decode: false}` if you don't want any unnecessary decoding to happen.
 
 ```ts
 function loadSync(rootElement: HTMLElement): void;
 ```
 
-If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies
+If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies.
+
+If the document contains images, painting to `node-canvas`, `skia-canvas`, or `@napi-rs/canvas` will throw an error. Those backends require decoding images asynchronously.
 
 ## Generate
 

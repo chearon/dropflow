@@ -1,8 +1,10 @@
 import {binarySearchTuple, basename, loggableText, Logger} from './util.js';
-import {Box, RenderItem, RenderItemLogOptions} from './layout-box.js';
+import {Box, BoxContainer, RenderItem, RenderItemLogOptions} from './layout-box.js';
 import {Style, Color, TextAlign, WhiteSpace} from './style.js';
 import {
   BlockContainer,
+  ReplacedBox,
+  BlockLevel,
   IfcInline,
   IfcVacancy,
   Inline,
@@ -243,7 +245,7 @@ export function collapseWhitespace(ifc: IfcInline) {
         if (i < 0) throw new Error('Assertion failed');
         parent.children.splice(i, 1);
       }
-    } else if (item.isBlockContainer() && !item.isFloat()) { // inline-block
+    } else if (item.isBoxContainer() && item.isInlineLevel()) { // inline-block, etc
       inWhitespace = false;
     }
   }
@@ -508,9 +510,9 @@ export class ShapedShim implements IfcRenderItem {
   inlines: Inline[];
   attrs: ShapingAttrs;
   /** Defined when the shim is containing an inline-block */
-  block: BlockContainer | undefined;
+  block: BlockContainer | ReplacedBox | undefined;
 
-  constructor(offset: number, inlines: Inline[], attrs: ShapingAttrs, block?: BlockContainer) {
+  constructor(offset: number, inlines: Inline[], attrs: ShapingAttrs, block?: BlockContainer | ReplacedBox) {
     this.offset = offset;
     this.inlines = inlines;
     this.attrs = attrs;
@@ -1028,7 +1030,7 @@ function baselineStep(parent: Inline, inline: Inline) {
   return 0;
 }
 
-export function inlineBlockMetrics(block: BlockContainer) {
+export function inlineBoxContainerMetrics(block: BoxContainer) {
   const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = block.getMarginsAutoIsZero();
   const baseline = block.style.overflow === 'hidden' ? undefined : block.getLastBaseline();
   let ascender, descender;
@@ -1049,55 +1051,55 @@ export function inlineBlockMetrics(block: BlockContainer) {
   return {ascender, descender};
 }
 
-function inlineBlockBaselineStep(parent: Inline, block: BlockContainer) {
-  if (block.style.overflow === 'hidden') {
+function boxContainerBaselineStep(parent: Inline, box: BoxContainer) {
+  if (box.style.overflow === 'hidden') {
     return 0;
   }
 
-  if (block.style.verticalAlign === 'baseline') {
+  if (box.style.verticalAlign === 'baseline') {
     return 0;
   }
 
-  if (block.style.verticalAlign === 'super') {
+  if (box.style.verticalAlign === 'super') {
     return parent.metrics.superscript;
   }
 
-  if (block.style.verticalAlign === 'sub') {
+  if (box.style.verticalAlign === 'sub') {
     return -parent.metrics.subscript;
   }
 
-  if (block.style.verticalAlign === 'middle') {
-    const {ascender, descender} = inlineBlockMetrics(block);
+  if (box.style.verticalAlign === 'middle') {
+    const {ascender, descender} = inlineBoxContainerMetrics(box);
     const midParent = parent.metrics.xHeight / 2;
     const midInline = (ascender - descender) / 2;
     return midParent - midInline;
   }
 
-  if (block.style.verticalAlign === 'text-top') {
-    const {ascender} = inlineBlockMetrics(block);
+  if (box.style.verticalAlign === 'text-top') {
+    const {ascender} = inlineBoxContainerMetrics(box);
     return parent.metrics.ascender - ascender;
   }
 
-  if (block.style.verticalAlign === 'text-bottom') {
-    const {descender} = inlineBlockMetrics(block);
+  if (box.style.verticalAlign === 'text-bottom') {
+    const {descender} = inlineBoxContainerMetrics(box);
     return descender - parent.metrics.descender;
   }
 
-  if (typeof block.style.verticalAlign === 'object') {
-    const lineHeight = block.style.lineHeight;
+  if (typeof box.style.verticalAlign === 'object') {
+    const lineHeight = box.style.lineHeight;
     if (lineHeight === 'normal') {
       // TODO: is there a better/faster way to do this? currently struts only
       // exist if there is a paragraph, but I think spec is saying do this
-      const [strutFace] = getLangCascade(block.style, 'en');
-      const metrics = getMetrics(block.style, strutFace);
-      return (metrics.ascenderBox + metrics.descenderBox) * block.style.verticalAlign.value / 100;
+      const [strutFace] = getLangCascade(box.style, 'en');
+      const metrics = getMetrics(box.style, strutFace);
+      return (metrics.ascenderBox + metrics.descenderBox) * box.style.verticalAlign.value / 100;
     } else {
-      return lineHeight * block.style.verticalAlign.value / 100;
+      return lineHeight * box.style.verticalAlign.value / 100;
     }
   }
 
-  if (typeof block.style.verticalAlign === 'number') {
-    return block.style.verticalAlign;
+  if (typeof box.style.verticalAlign === 'number') {
+    return box.style.verticalAlign;
   }
 
   return 0;
@@ -1127,9 +1129,9 @@ class AlignmentContext {
     this.descender = Math.max(this.descender, bottom);
   }
 
-  stampBlock(block: BlockContainer, parent: Inline) {
-    const {ascender, descender} = inlineBlockMetrics(block);
-    const baselineShift = this.baselineShift + inlineBlockBaselineStep(parent, block);
+  stampBlock(block: BoxContainer, parent: Inline) {
+    const {ascender, descender} = inlineBoxContainerMetrics(block);
+    const baselineShift = this.baselineShift + boxContainerBaselineStep(parent, block);
     const top = baselineShift + ascender;
     const bottom = descender - baselineShift;
     this.ascender = Math.max(this.ascender, top);
@@ -1180,8 +1182,8 @@ class LineHeightTracker {
   parents: Inline[];
   contextStack: AlignmentContext[];
   contextRoots: Map<Inline, AlignmentContext>;
-  /** Inline blocks */
-  blocks: BlockContainer[];
+  /** Inline blocks, images */
+  blocks: BoxContainer[];
   markedContextRoots: Inline[];
 
   constructor(ifc: IfcInline) {
@@ -1199,7 +1201,7 @@ class LineHeightTracker {
     this.contextStack.at(-1)!.stampMetrics(metrics);
   }
 
-  stampBlock(block: BlockContainer, parent: Inline) {
+  stampBlock(block: BoxContainer, parent: Inline) {
     if (block.style.verticalAlign === 'top' || block.style.verticalAlign === 'bottom') {
       this.blocks.push(block);
     } else {
@@ -1595,7 +1597,7 @@ interface IfcMark {
   isItemStart: boolean;
   inlinePre: Inline | null;
   inlinePost: Inline | null;
-  block: BlockContainer | null;
+  block: BlockLevel | null;
   advance: number;
   trailingWs: number;
   itemIndex: number;
@@ -2301,7 +2303,7 @@ export class Paragraph {
         // it isn't a character. Taking the min should fit most scenarios.
         if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
         // If there are no left or right, there is no text, so level=0 is OK
-        const style = mark.inlinePre?.style || (mark.block as BlockContainer).style;
+        const style = mark.inlinePre?.style || (mark.block as Box).style;
         const attrs = {level, isEmoji: false, script: 'Latn', style};
         const shiv = new ShapedShim(mark.position, parents.slice(), attrs, mark.block || undefined);
         candidates.push(shiv);
@@ -2624,13 +2626,13 @@ export class Paragraph {
           if (item.block.style.verticalAlign === 'top') {
             item.block.setBlockPosition(linebox.blockOffset + blockStart);
           } else if (item.block.style.verticalAlign === 'bottom') {
-            const {ascender, descender} = inlineBlockMetrics(item.block);
+            const {ascender, descender} = inlineBoxContainerMetrics(item.block);
             item.block.setBlockPosition(
               linebox.blockOffset + linebox.height() - descender - ascender + blockStart
             );
           } else {
-            const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(parent, item.block);
-            const {ascender} = inlineBlockMetrics(item.block);
+            const inlineBlockBaselineShift = baselineShift + boxContainerBaselineStep(parent, item.block);
+            const {ascender} = inlineBoxContainerMetrics(item.block);
             item.block.setBlockPosition(y - inlineBlockBaselineShift - ascender + blockStart);
           }
 

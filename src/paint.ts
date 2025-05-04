@@ -1,7 +1,8 @@
-import {BlockContainer, Inline, InlineLevel, IfcInline} from './layout-flow.js';
+import {BlockContainer, ReplacedBox, Inline, InlineLevel, IfcInline} from './layout-flow.js';
+import {Image} from './layout-image.js';
 import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './layout-text.js';
 import {Color} from './style.js';
-import {Box} from './layout-box.js';
+import {Box, BoxContainer} from './layout-box.js';
 import {binarySearchOf} from './util.js';
 
 import type {LoadedFontFace} from './text-font.js';
@@ -18,6 +19,7 @@ export interface PaintBackend {
   rect(x: number, y: number, w: number, h: number): void;
   pushClip(x: number, y: number, w: number, h: number): void;
   popClip(): void;
+  image(x: number, y: number, width: number, height: number, image: Image): void;
 }
 
 function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
@@ -114,7 +116,7 @@ function drawText(
 /**
  * Paints the background and borders
  */
-function paintBlockBackground(block: BlockContainer, b: PaintBackend, isRoot = false) {
+function paintBlockBackground(block: BoxContainer, b: PaintBackend, isRoot = false) {
   const style = block.style;
   const borderArea = block.getBorderArea();
 
@@ -152,8 +154,8 @@ function paintBlockBackground(block: BlockContainer, b: PaintBackend, isRoot = f
   }
 }
 
-function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBackend) {
-  const stack: (BlockContainer | Inline | {sentinel: true})[] = [root];
+function paintBackgroundDescendents(root: BoxContainer | Inline, b: PaintBackend) {
+  const stack: (BoxContainer | Inline | {sentinel: true})[] = [root];
   const parents: Box[] = [];
 
   while (stack.length) {
@@ -162,19 +164,19 @@ function paintBackgroundDescendents(root: BlockContainer | Inline, b: PaintBacke
     if ('sentinel' in box) {
       const box = parents.pop()!;
 
-      if (box.isBlockContainer() && box.style.overflow === 'hidden' && box !== root) {
+      if (box.isBoxContainer() && box.style.overflow === 'hidden' && box !== root) {
         b.popClip();
       }
     } else {
-      if (box.isBlockContainer() && !box.isInlineLevel() && box !== root) {
+      if (!box.isInline() && !box.isInlineLevel() && box !== root) {
         paintBlockBackground(box, b);
       }
 
-      if (box.hasBackgroundInLayerRoot()) {
+      if (box.isBlockContainer() && box.hasBackgroundInLayerRoot()) {
         stack.push({sentinel: true});
         parents.push(box);
 
-        if (box.isBlockContainer() && box.style.overflow === 'hidden' && box !== root) {
+        if (box.isBoxContainer() && box.style.overflow === 'hidden' && box !== root) {
           const {x, y, width, height} = box.getPaddingArea();
           b.pushClip(x, y, width, height);
         }
@@ -295,6 +297,14 @@ function paintInlineBackground(
   }
 }
 
+function paintReplacedBox(box: ReplacedBox, b: PaintBackend) {
+  const image = box.getImage();
+  if (image) {
+    const {x, y, width, height} = box.getContentArea();
+    b.image(x, y, width, height, image);
+  }
+}
+
 function paintInlines(root: BlockLayerRoot, ifc: IfcInline, b: PaintBackend) {
   const colors = ifc.paragraph.getColors();
   const lineboxes = ifc.paragraph.lineboxes;
@@ -332,15 +342,19 @@ function paintInlines(root: BlockLayerRoot, ifc: IfcInline, b: PaintBackend) {
       if (item instanceof ShapedItem) {
         drawText(item, colors, b);
       } else if (item.block) {
-        const blockLayerRoot = root.inlineBlocks.get(item.block)!;
-        paintBlockLayerRoot(blockLayerRoot, b);
+        if (item.block.isBlockContainer()) {
+          const blockLayerRoot = root.inlineBlocks.get(item.block)!;
+          paintBlockLayerRoot(blockLayerRoot, b);
+        } else {
+          paintReplacedBox(item.block, b);
+        }
       }
     }
   }
 }
 
 function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
-  const stack: (IfcInline | BlockContainer | {sentinel: true})[] = [root.box];
+  const stack: (IfcInline | BoxContainer | {sentinel: true})[] = [root.box];
 
   while (stack.length) {
     const box = stack.pop()!;
@@ -364,8 +378,10 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
           stack.push(box.children[i]);
         }
       }
-    } else {
+    } else if (box.isInline()) {
       paintInlines(root, box, b);
+    } else if (box.isReplacedBox()) {
+      paintReplacedBox(box, b);
     }
   }
 }
@@ -430,7 +446,7 @@ function paintInline(
 }
 
 class LayerRoot {
-  box: BlockContainer | Inline;
+  box: Box;
   parents: Box[];
   negativeRoots: LayerRoot[];
   floats: LayerRoot[];
@@ -443,7 +459,7 @@ class LayerRoot {
    */
   inlineBlocks: Map<BlockContainer, BlockLayerRoot>;
 
-  constructor(box: BlockContainer | Inline, parents: Box[]) {
+  constructor(box: Box | Inline, parents: Box[]) {
     this.box = box;
     this.parents = parents;
     this.negativeRoots = [];
@@ -506,9 +522,9 @@ class LayerRoot {
 }
 
 class BlockLayerRoot extends LayerRoot {
-  box: BlockContainer;
+  box: BlockContainer | ReplacedBox;
 
-  constructor(box: BlockContainer, parents: Box[]) {
+  constructor(box: BlockContainer | ReplacedBox, parents: Box[]) {
     super(box, parents);
     this.box = box;
   }
@@ -571,7 +587,7 @@ function createLayerRoot(box: BlockContainer) {
             } else {
               parentRoot.positionedRoots.push(layerRoot);
             }
-          } else if (box.isBlockContainer() && box.isFloat()) {
+          } else if (box.isBoxContainer() && box.isFloat()) {
             parentRoot.floats.push(layerRoot);
           }
 
@@ -613,9 +629,9 @@ function createLayerRoot(box: BlockContainer) {
         } else {
           layerRoot = new BlockLayerRoot(box, paintRootParents);
         }
-      } else if (box.isBlockContainer()) {
+      } else if (box.isBlockContainer() || box.isReplacedBox()) {
         const parent = parents.at(-1);
-        const isInlineBlock = box.isInlineLevel() && parent?.isInline();
+        const isInlineBlock = box.isBlockContainer() && box.isInlineLevel() && parent?.isInline();
         if (box.isFloat() || isInlineBlock) {
           const parentIndex = parents.findLastIndex(box => parentRoot.box === box);
           const paintRootParents = parents.slice(parentIndex + 1);
@@ -633,8 +649,10 @@ function createLayerRoot(box: BlockContainer) {
         stack.push({sentinel: true});
         parents.push(box);
         if (layerRoot) parentRoots.push(layerRoot);
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
+        if (box.isBlockContainer() || box.isInline()) {
+          for (let i = box.children.length - 1; i >= 0; i--) {
+            stack.push(box.children[i]);
+          }
         }
       }
     }
@@ -690,7 +708,7 @@ function paintBlockLayerRoot(
 
   for (const r of root.floats) paintLayerRoot(r, b);
 
-  if (root.box.hasForegroundInLayerRoot() || root.inlineBlocks.size) {
+  if (root.box.hasForeground() || root.box.hasForegroundInLayerRoot() || root.inlineBlocks.size) {
     paintBlockForeground(root, b);
   }
 

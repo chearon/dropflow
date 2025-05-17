@@ -789,7 +789,7 @@ export class BlockContainer extends Box {
     return {blockStart, lineLeft, lineRight};
   }
 
-  getDefiniteInlineSize() {
+  getDefiniteOuterInlineSizeWithMargins() {
     const inlineSize = this.style.getInlineSize(this);
 
     if (inlineSize !== 'auto') {
@@ -1094,7 +1094,7 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   const cctx = {...ctx};
   box.fillAreas();
 
-  let inlineSize = box.getDefiniteInlineSize();
+  let inlineSize = box.getDefiniteOuterInlineSizeWithMargins();
 
   if (inlineSize === undefined) {
     const minContent = box.contribution('min-content');

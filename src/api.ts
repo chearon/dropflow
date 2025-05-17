@@ -202,7 +202,7 @@ export function t(text: string): TextNode {
 export function staticLayoutContribution(box: BlockContainer): number {
   let intrinsicSize = 0;
 
-  const definiteSize = box.getDefiniteInlineSize();
+  const definiteSize = box.getDefiniteOuterInlineSizeWithMargins();
   if (definiteSize !== undefined) return definiteSize;
 
   if (box.isBlockContainerOfInlines()) {

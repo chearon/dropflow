@@ -33,7 +33,11 @@ function writingModeInlineAxis(el: HTMLElement) {
 }
 
 export interface LayoutContext {
-  bfc: BlockFormattingContext
+  /**
+   * The block formatting context that formats the subject in a layout function.
+   * This is only undefined for the root box or when an element is out of flow.
+   */
+  bfc?: BlockFormattingContext
 }
 
 class MarginCollapseCollection {
@@ -703,12 +707,14 @@ export interface BlockContainerOfInlines extends BlockContainer {
   children: IfcInline[];
 }
 
+export type BlockLevel = BlockContainer;
+
 export interface BlockContainerOfBlockContainers extends BlockContainer {
-  children: BlockContainer[];
+  children: BlockLevel[];
 }
 
 export class BlockContainer extends FormattingBox {
-  public children: IfcInline[] | BlockContainer[];
+  public children: IfcInline[] | BlockLevel[];
 
   static ATTRS = {
     ...FormattingBox.ATTRS,
@@ -716,7 +722,7 @@ export class BlockContainer extends FormattingBox {
     isBfcRoot: Box.BITS.isBfcRoot
   };
 
-  constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
+  constructor(style: Style, children: IfcInline[] | BlockLevel[], attrs: number) {
     super(style, attrs);
     this.children = children;
   }
@@ -962,59 +968,70 @@ function doBlockBoxModelForBlockBox(box: BlockContainer) {
   }
 }
 
-export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
-  const bfc = ctx.bfc;
+function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
+  const containingBfc = ctx.bfc;
   const cctx = {...ctx};
-
-  box.fillAreas();
-
-  doInlineBoxModelForBlockBox(box);
-  doBlockBoxModelForBlockBox(box);
+  let establishedBfc;
 
   if (box.isBfcRoot()) {
     const inlineSize = box.getContentArea().inlineSize;
     cctx.bfc = new BlockFormattingContext(inlineSize);
+    establishedBfc = cctx.bfc;
   }
 
-  bfc.boxStart(box, cctx); // Assign block position if it's an IFC
+  containingBfc?.boxStart(box, cctx); // Assign block position if it's an IFC
   // Child flow is now possible
 
   if (box.isBlockContainerOfInlines()) {
-    // text layout happens in bfc.boxStart
-  } else if (box.isBlockContainerOfBlockContainers()) {
-    for (const child of box.children) {
-      layoutBlockBox(child, cctx);
+    if (containingBfc) {
+      // text layout happens in bfc.boxStart
+    } else {
+      box.doTextLayout(cctx);
     }
+  } else if (box.isBlockContainerOfBlockContainers()) {
+    for (const child of box.children) layoutBlockLevelBox(child, cctx);
   } else {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  if (box.isBfcRoot()) {
-    cctx.bfc.finalize(box);
-    if (cctx.bfc.fctx) {
+  if (establishedBfc) {
+    establishedBfc.finalize(box);
+    if (establishedBfc.fctx) {
       if (box.loggingEnabled()) {
         console.log('Left floats');
-        console.log(cctx.bfc.fctx.leftFloats.repr());
+        console.log(establishedBfc.fctx.leftFloats.repr());
         console.log('Right floats');
-        console.log(cctx.bfc.fctx.rightFloats.repr());
+        console.log(establishedBfc.fctx.rightFloats.repr());
         console.log();
       }
     }
   }
 
-  bfc.boxEnd(box);
+  containingBfc?.boxEnd(box);
+}
+
+function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
+  box.fillAreas();
+  doInlineBoxModelForBlockBox(box);
+  doBlockBoxModelForBlockBox(box);
+  layoutBlockBoxInner(box, ctx);
+}
+
+export function layoutBlockLevelBox(box: BlockLevel, ctx: LayoutContext) {
+  layoutBlockBox(box, ctx);
 }
 
 function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
   box.setInlineOuterSize(inlineSize);
 }
 
-export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
-  if (!box.isBfcRoot()) {
-    throw new Error(`Box ${box.id} is float but not BFC root, that should be impossible`);
-  }
+function doBlockBoxModelForFloatBox(box: FormattingBox) {
+  const size = box.style.getBlockSize(box);
+  if (size !== 'auto') box.setBlockSize(size);
+}
 
-  const cctx = {...ctx};
+export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
+  const cctx: LayoutContext = {...ctx, bfc: undefined};
   box.fillAreas();
 
   let inlineSize = box.getDefiniteOuterInlineSize();
@@ -1031,22 +1048,8 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   }
 
   doInlineBoxModelForFloatBox(box, inlineSize);
-  doBlockBoxModelForBlockBox(box);
-
-  const cInlineSize = box.getContentArea().inlineSize;
-  cctx.bfc = new BlockFormattingContext(cInlineSize);
-
-  if (box.isBlockContainerOfInlines()) {
-    box.doTextLayout(cctx);
-  } else if (box.isBlockContainerOfBlockContainers()) {
-    for (const child of box.children) {
-      layoutBlockBox(child, cctx);
-    }
-  } else {
-    throw new Error(`Unknown box type: ${box.id}`);
-  }
-
-  cctx.bfc.finalize(box);
+  doBlockBoxModelForFloatBox(box);
+  layoutBlockBoxInner(box, cctx);
 }
 
 export class Break extends RenderItem {
@@ -1343,7 +1346,7 @@ export type InlineLevel = Inline | BlockContainer | Run | Break;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
-  | {state: 'block', item: BlockContainer}
+  | {state: 'block', item: BlockLevel}
   | {state: 'break'}
   | {state: 'breakop'};
 
@@ -1508,7 +1511,7 @@ function generateInlineBox(
   el: HTMLElement,
   text: ParagraphText,
   path: number[]
-): [boolean, Inline | BlockContainer] {
+): [boolean, Inline | BlockLevel] {
   const target = el.getEl(path);
 
   if (target instanceof HTMLElement && target.style.display.outer === 'block') {
@@ -1533,7 +1536,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
 export function generateBlockContainer(el: HTMLElement): BlockContainer {
   const text: ParagraphText = {value: ''};
   const enableLogging = 'x-dropflow-log' in el.attrs;
-  const blocks: BlockContainer[] = [];
+  const blocks: BlockLevel[] = [];
   let inlines: InlineLevel[] = [];
   let attrs = 0;
 
@@ -1608,7 +1611,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
     attrs |= BlockContainer.ATTRS.isInline;
   }
 
-  let children: BlockContainer[] | IfcInline[];
+  let children: BlockLevel[] | IfcInline[];
 
   if (inlines.length) {
     if (blocks.length) {

@@ -2,7 +2,7 @@ import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
 import {fonts, FontFace, loadFonts, loadFontsSync, createFaceFromTables, createFaceFromTablesSync} from './text-font.js';
-import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
+import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
@@ -36,7 +36,7 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
 
   root.containingBlock = initialContainingBlock;
   prelayout(root);
-  layoutBlockBox(root, {bfc: new BlockFormattingContext(0)});
+  layoutBlockLevelBox(root, {});
   postlayout(root);
 }
 

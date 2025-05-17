@@ -2199,7 +2199,7 @@ export class Paragraph {
   }
 
   createLineboxes(ctx: LayoutContext) {
-    const bfc = ctx.bfc;
+    const bfc = ctx.bfc!;
     /** Holds shaped items, width and height trackers for the current word */
     const candidates = new LineCandidates(this.ifc);
     /** Tracks the width of the line being worked on */

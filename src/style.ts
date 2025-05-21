@@ -464,6 +464,10 @@ export class Style {
     return this.textAlign;
   }
 
+  isOutOfFlow() {
+    return this.float !== 'none'; // TODO: or this.position === 'absolute'
+  }
+
   hasPaddingArea() {
     return percentGtZero(this.paddingTop)
       || percentGtZero(this.paddingRight)

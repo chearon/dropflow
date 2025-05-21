@@ -873,10 +873,6 @@ export class BlockContainer extends Box {
     return this.style.float !== 'none';
   }
 
-  isOutOfFlow() {
-    return this.style.float !== 'none'; // TODO: or position === 'absolute'
-  }
-
   loggingEnabled() {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
@@ -1540,14 +1536,18 @@ function mapTree(
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
         child = new Break(childEl.style);
-      } else if (childEl.style.float !== 'none') {
-        child = generateBlockContainer(childEl);
       } else if (childEl.style.display.outer === 'block') {
-        bail = true;
-      } else if (childEl.style.display.inner === 'flow-root') {
-        child = generateBlockContainer(childEl);
-      } else {
-        [bail, child] = mapTree(childEl, text, path, level + 1);
+        if (childEl.style.isOutOfFlow()) {
+          child = generateBlockContainer(childEl);
+        } else {
+          bail = true;
+        }
+      } else { // inline
+        if (childEl.style.display.inner === 'flow-root') {
+          child = generateBlockContainer(childEl);
+        } else {
+          [bail, child] = mapTree(childEl, text, path, level + 1);
+        }
       }
     } else if (childEl instanceof TextNode) {
       const start = text.value.length;
@@ -1604,7 +1604,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
   const blocks: BlockContainer[] = [];
   let inlines: InlineLevel[] = [];
   let attrs = 0;
-  
+
   // TODO: it's time to start moving some of this type of logic to HTMLElement.
   // For example add the methods establishesBfc, generatesBlockContainerOfBlocks,
   // generatesBreak, etc
@@ -1628,7 +1628,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       } else if (child.style.display.outer === 'block') {
         const block = generateBlockContainer(child);
 
-        if (block.isOutOfFlow()) {
+        if (block.style.isOutOfFlow()) {
           inlines.push(block);
         } else {
           if (inlines.length) {

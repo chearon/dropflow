@@ -300,6 +300,7 @@ export class Style {
   // General
   id: number;
   computed: ComputedStyle;
+  blockified: boolean;
   // Cache related
   parentId: number;
   cascadeId: number;
@@ -387,6 +388,7 @@ export class Style {
   constructor(style: ComputedStyle, parent?: Style, cascadedStyle?: DeclaredStyle) {
     this.id = ++id;
     this.computed = style;
+    this.blockified = false;
     this.parentId = parent ? parent.id : 0;
     this.cascadeId = cascadedStyle ? cascadedStyle.id : 0;
     this.nextInCache = null;
@@ -442,6 +444,13 @@ export class Style {
     this.wordBreak = style.wordBreak;
     this.overflowWrap = style.overflowWrap;
     this.overflow = style.overflow;
+  }
+
+  blockify() {
+    if (!this.blockified && this.display.outer === 'inline') {
+      this.display = {outer: 'block', inner: this.display.inner};
+      this.blockified = true;
+    }
   }
 
   getTextAlign() {
@@ -989,13 +998,13 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 
   if (computed.zoom === 0) computed.zoom = 1;
 
+  const style = new Style(computed, parentStyle, cascadedStyle);
+
   // Blockify floats (TODO: abspos too) (CSS Display §2.7). This drives what
   // type of box is created (-> not an inline), but otherwise has no effect.
-  if (computed.float !== 'none' && computed.display.outer !== 'none') {
-    computed.display = {outer: 'block', inner: computed.display.inner};
-  }
+  if (computed.float !== 'none') style.blockify();
 
-  return new Style(computed, parentStyle, cascadedStyle);
+  return style;
 }
 
 const computedCache = new Map<number, Style>;

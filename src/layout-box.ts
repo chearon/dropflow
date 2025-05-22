@@ -195,7 +195,7 @@ export abstract class Box extends RenderItem {
     enableLogging: Box.BITS.enableLogging,
   };
 
-  static PROPAGATES_TO_INLINE_BITS = 0xffffffc0;
+  static PROPAGATES_TO_INLINE_BITS = 0xffffff00;
 
   constructor(style: Style, attrs: number) {
     super(style);

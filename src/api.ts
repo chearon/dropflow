@@ -202,8 +202,13 @@ export function t(text: string): TextNode {
 export function staticLayoutContribution(box: BlockContainer): number {
   let intrinsicSize = 0;
 
-  const definiteSize = box.getDefiniteOuterInlineSizeWithMargins();
-  if (definiteSize !== undefined) return definiteSize;
+  const definiteSize = box.getDefiniteOuterInlineSize();
+  if (definiteSize !== undefined) {
+    const marginLineLeft = box.style.getMarginLineLeft(box);
+    const marginLineRight = box.style.getMarginLineRight(box);
+    return definiteSize + (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+      + (marginLineRight === 'auto' ? 0 : marginLineRight)
+  }
 
   if (box.isBlockContainerOfInlines()) {
     const [ifc] = box.children;

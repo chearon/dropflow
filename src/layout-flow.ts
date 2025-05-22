@@ -789,25 +789,21 @@ export class BlockContainer extends Box {
     return {blockStart, lineLeft, lineRight};
   }
 
-  getDefiniteOuterInlineSizeWithMargins() {
+  getDefiniteOuterInlineSize() {
     const inlineSize = this.style.getInlineSize(this);
 
     if (inlineSize !== 'auto') {
-      const marginLineLeft = this.style.getMarginLineLeft(this);
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
 
       const paddingLineRight = this.style.getPaddingLineRight(this);
       const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-      const marginLineRight = this.style.getMarginLineRight(this);
 
-      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-        + borderLineLeftWidth
+      return borderLineLeftWidth
         + paddingLineLeft
         + inlineSize
         + paddingLineRight
-        + borderLineRightWidth
-        + (marginLineRight === 'auto' ? 0 : marginLineRight);
+        + borderLineRightWidth;
     }
   }
 
@@ -1073,13 +1069,7 @@ export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
 }
 
 function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
-  const marginLineLeft = box.style.getMarginLineLeft(box);
-  const marginLineRight = box.style.getMarginLineRight(box);
-  box.setInlineOuterSize(
-    inlineSize -
-    (marginLineLeft === 'auto' ? 0 : marginLineLeft) -
-    (marginLineRight === 'auto' ? 0 : marginLineRight)
-  );
+  box.setInlineOuterSize(inlineSize);
 }
 
 export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
@@ -1090,13 +1080,17 @@ export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
   const cctx = {...ctx};
   box.fillAreas();
 
-  let inlineSize = box.getDefiniteOuterInlineSizeWithMargins();
+  let inlineSize = box.getDefiniteOuterInlineSize();
 
   if (inlineSize === undefined) {
     const minContent = box.contribution('min-content');
     const maxContent = box.contribution('max-content');
     const availableSpace = box.containingBlock.inlineSize;
+    const marginLineLeft = box.style.getMarginLineLeft(box);
+    const marginLineRight = box.style.getMarginLineRight(box);
     inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
+    if (marginLineLeft !== 'auto') inlineSize -= marginLineLeft;
+    if (marginLineRight !== 'auto') inlineSize -= marginLineRight;
   }
 
   doInlineBoxModelForFloatBox(box, inlineSize);

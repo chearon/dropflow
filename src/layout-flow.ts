@@ -1128,7 +1128,7 @@ export class Break extends RenderItem {
   }
 
   propagate(parent: Box) {
-    parent.bitfield |= Box.BITS.hasBreaks;
+    parent.bitfield |= Box.BITS.hasBreakOrInline;
   }
 }
 
@@ -1157,7 +1157,7 @@ export class Inline extends Box {
     super.propagate(parent);
 
     if (parent.isInline()) {
-      parent.bitfield |= Box.BITS.hasInlines;
+      parent.bitfield |= Box.BITS.hasBreakOrInline;
       if (this.style.backgroundColor.a !== 0 || this.style.hasBorderArea()) {
         parent.bitfield |= Box.BITS.hasPaintedInlines;
       }
@@ -1199,12 +1199,8 @@ export class Inline extends Box {
     return this.bitfield & Box.BITS.hasFloats;
   }
 
-  hasInlines() {
-    return this.bitfield & Box.BITS.hasInlines;
-  }
-
-  hasBreaks() {
-    return this.bitfield & Box.BITS.hasBreaks;
+  hasBreakOrInline() {
+    return this.bitfield & Box.BITS.hasBreakOrInline;
   }
 
   hasComplexText() {

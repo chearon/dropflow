@@ -626,7 +626,7 @@ export function createItemizeState(ifc: IfcInline): ItemizeState {
     newlineState = createNewlineIteratorState(ifc.text);
   }
 
-  if (ifc.hasInlines() || ifc.hasBreaks() || ifc.hasInlineBlocks()) {
+  if (ifc.hasBreakOrInline() || ifc.hasInlineBlocks()) {
     inlineState = createStyleIteratorState(ifc);
   }
 

@@ -1822,6 +1822,11 @@ describe('Flow', function () {
       expect(t.getContentArea().y).to.equal(-25);
     });
 
+    it('multiplies vertical-align', function () {
+      this.layout('<div style="font-size: 0;">1<span style="zoom: 2; vertical-align: 100px;">2');
+      expect(this.get('div').getContentArea().height).to.equal(200);
+    })
+
     it('treats 0 as 100%', function () {
       this.layout('<div style="zoom: 0; margin-left: 1px;"></div>');
 

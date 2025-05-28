@@ -402,7 +402,7 @@ export class Style {
     this.fontStretch = style.fontStretch;
     this.fontFamily = style.fontFamily;
     this.lineHeight = this.usedLineHeight(style);
-    this.verticalAlign = style.verticalAlign;
+    this.verticalAlign = this.usedMaybeLength(style.verticalAlign);
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;

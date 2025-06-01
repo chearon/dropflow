@@ -477,6 +477,13 @@ export class Style {
     return this.float !== 'none'; // TODO: or this.position === 'absolute'
   }
 
+  isWsCollapsible() {
+    const whiteSpace = this.whiteSpace;
+    return whiteSpace === 'normal'
+      || whiteSpace === 'nowrap'
+      || whiteSpace === 'pre-line';
+  }
+
   hasPaddingArea() {
     return percentGtZero(this.paddingTop)
       || percentGtZero(this.paddingRight)

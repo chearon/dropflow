@@ -33,10 +33,6 @@ const decoder = new TextDecoder('utf-16');
 
 const NON_ASCII_MASK = 0b1111_1111_1000_0000;
 
-function isWsCollapsible(whiteSpace: WhiteSpace) {
-  return whiteSpace === 'normal' || whiteSpace === 'nowrap' || whiteSpace === 'pre-line';
-}
-
 function isNowrap(whiteSpace: WhiteSpace) {
   return whiteSpace === 'nowrap' || whiteSpace === 'pre';
 }
@@ -96,7 +92,7 @@ export class Run extends RenderItem {
   }
 
   get wsCollapsible() {
-    return isWsCollapsible(this.style.whiteSpace);
+    return this.style.isWsCollapsible();
   }
 
   wrapsOverflowAnywhere(mode: 'min-content' | 'max-content' | 'normal') {
@@ -124,7 +120,7 @@ export class Run extends RenderItem {
   propagate(parent: Box, paragraph: string) {
     if (!parent.isInline()) throw new Error('Assertion failed');
 
-    if (!isWsCollapsible(this.style.whiteSpace)) {
+    if (!this.style.isWsCollapsible()) {
       parent.bitfield |= Run.TEXT_BITS;
     }
 
@@ -764,7 +760,7 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   collapseWhitespace(at: 'start' | 'end') {
-    if (!isWsCollapsible(this.attrs.style.whiteSpace)) return true;
+    if (!this.attrs.style.isWsCollapsible()) return true;
 
     if (at === 'start') {
       let index = 0;
@@ -2251,7 +2247,7 @@ export class Paragraph {
         parents.push(mark.inlinePre);
       }
 
-      const wsCollapsible = isWsCollapsible(parent.style.whiteSpace);
+      const wsCollapsible = parent.style.isWsCollapsible();
       const nowrap = isNowrap(parent.style.whiteSpace);
       const inkAdvance = mark.advance - mark.trailingWs;
 

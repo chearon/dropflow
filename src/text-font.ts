@@ -1210,6 +1210,7 @@ function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
     if (el instanceof HTMLElement) {
       for (const child of el.children) stack.push(child);
     } else {
+      const isWsCollapsible = el.style.isWsCollapsible();
       let i = 0;
       while (i < el.text.length) {
         const code = el.text.charCodeAt(i++);
@@ -1221,6 +1222,11 @@ function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
           i++;
           unicode = ((code - 0xd800) * 0x400) + (next - 0xdc00) + 0x10000;
         }
+
+        if (
+          isWsCollapsible &&
+          (unicode === 0x20 || unicode === 0x09 || unicode === 0x0a || unicode === 0x0d)
+        ) continue;
 
         // Only recalc the cascade when the style changes or when the old list's
         // _first_ match doesn't support the character. That means that fallback

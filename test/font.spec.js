@@ -479,5 +479,19 @@ describe('Fonts', function () {
       }
       expect(e).to.be.instanceOf(Error);
     });
+
+    it('won\'t load fonts for paragraphs that don\'t have any text', async function () {
+      const f1 = new FontFace('f1', url('Roboto/Roboto-Regular.ttf'));
+      const f2 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+      flow.fonts.add(f1);
+      flow.fonts.add(f2);
+      const doc = parse(`
+        <div style="font-family: f1; white-space: pre;"> \t\r\n</div>
+        <div style="font-family: f2;"> \t\r\n</div>
+      `)
+      await loadFonts(doc);
+      expect(f1.status).to.equal('loaded');
+      expect(f2.status).to.equal('unloaded');
+    });
   });
 });

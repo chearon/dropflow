@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 (Unreleased)
 ==================
 ### Changed
+* `flow.load` no longer loads fonts used only on whitespace
+
 ### Added
 ### Fixed
 

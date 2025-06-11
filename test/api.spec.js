@@ -4,6 +4,9 @@ import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {HTMLElement} from '../src/dom.js';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
+import {mock} from './util.js';
+
+const url = path => new URL(`../assets/${path}`, import.meta.url);
 
 describe('Hyperscript API', function () {
   describe('h()', function () {
@@ -207,5 +210,65 @@ describe('DOM API', function () {
     const [box] = html.query('#d').boxes;
     expect(box.getContentArea().width).to.equal(100);
     expect(box.getContentArea().height).to.equal(100);
+  });
+});
+
+describe('Load API', function () {
+  afterEach(function () {
+    mock.reset();
+    flow.fonts.clear();
+  });
+
+  it('returns failed fonts', async function () {
+    const f = new flow.FontFace('f', new URL('http://notarealdomain.notarealtld/'));
+    flow.fonts.add(f);
+    mock.method(global, 'fetch', async () => ({ok: false, status: 400}));
+    const results = await flow.load(parse('<span style="font-family: f;">woo</span>'));
+    expect(results.length).to.equal(1);
+    expect(results[0]).to.equal(f);
+    expect(results[0].status).to.equal('error');
+    let error;
+    try {
+      await results[0].loaded;
+    } catch (e) {
+      error = e;
+    }
+    expect(error).to.be.an.instanceOf(Error);
+  });
+
+  it('loads all fonts even if some of them fail', async function () {
+    const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+    const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    const doc = parse(`
+      <span style="font-family: f1;">I love</span>
+      <span style="font-family: f2;">pinwheels</span>
+    `);
+    flow.fonts.add(f1);
+    flow.fonts.add(f2);
+    const results = await flow.load(doc);
+    expect(results.length).to.equal(2);
+    expect(results[0]).to.equal(f1);
+    expect(results[0].status).to.equal('error');
+    expect(results[1]).to.equal(f2);
+    expect(results[1].status).to.equal('loaded');
+
+    const loading = [...flow.fonts].filter(f => f.status === 'loaded');
+    expect(loading).to.have.lengthOf(1);
+    const error = [...flow.fonts].filter(f => f.status === 'error');
+    expect(error).to.have.lengthOf(1);
+  });
+
+  it('won\'t load fonts for paragraphs that don\'t have any text', async function () {
+    const f1 = new flow.FontFace('f1', url('Roboto/Roboto-Regular.ttf'));
+    const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    flow.fonts.add(f1);
+    flow.fonts.add(f2);
+    const doc = parse(`
+      <div style="font-family: f1; white-space: pre;"> \t\r\n</div>
+      <div style="font-family: f2;"> \t\r\n</div>
+    `)
+    await flow.load(doc);
+    expect(f1.status).to.equal('loaded');
+    expect(f2.status).to.equal('unloaded');
   });
 });

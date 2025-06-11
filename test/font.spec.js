@@ -7,6 +7,7 @@ import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {getLangCascade, fonts, FontFace, createFaceFromTablesSync, loadFonts} from '../src/text-font.js';
 import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
+import {mock} from './util.js';
 
 /** @param {import("../src/style.js").DeclaredStyleProperties} style */
 function style(style) {
@@ -14,22 +15,6 @@ function style(style) {
 }
 
 const url = path => new URL(`../assets/${path}`, import.meta.url);
-
-// Simple version of {mock} from node:test. Bun doesn't support node:test yet.
-// Eventually the tests should get migrated to either jest or node:test since
-// those will work in both bun and node
-const mock = {
-  undo: [],
-  method(target, key, impl) {
-    const old = target[key];
-    target[key] = impl;
-    this.undo.push(() => target[key] = old);
-  },
-  reset() {
-    for (const fn of this.undo.reverse()) fn();
-    this.undo.length = 0;
-  }
-};
 
 const arrayBuffer = () => fs.readFileSync(url('Cairo/Cairo-Bold.ttf'));
 
@@ -458,66 +443,6 @@ describe('Fonts', function () {
       expect(loading[0].family).to.equal('Noto Sans Khmer');
       expect(loading[0].weight).to.equal(700);
       await fonts.ready;
-    });
-  });
-
-  describe('loadFonts', function () {
-    afterEach(function () {
-      mock.reset();
-      flow.fonts.clear();
-    });
-
-    it('returns failed fonts', async function () {
-      const f = new FontFace('f', new URL('http://notarealdomain.notarealtld/'));
-      flow.fonts.add(f);
-      mock.method(global, 'fetch', async () => ({ok: false, status: 400}));
-      const results = await loadFonts(parse('<span style="font-family: f;">woo</span>'));
-      expect(results.length).to.equal(1);
-      expect(results[0]).to.equal(f);
-      expect(results[0].status).to.equal('error');
-      let error;
-      try {
-        await results[0].loaded;
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.be.an.instanceOf(Error);
-    });
-
-    it('loads all fonts even if some of them fail', async function () {
-      const f1 = new FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
-      const f2 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
-      const doc = parse(`
-        <span style="font-family: f1;">I love</span>
-        <span style="font-family: f2;">pinwheels</span>
-      `);
-      flow.fonts.add(f1);
-      flow.fonts.add(f2);
-      const results = await loadFonts(doc);
-      expect(results.length).to.equal(2);
-      expect(results[0]).to.equal(f1);
-      expect(results[0].status).to.equal('error');
-      expect(results[1]).to.equal(f2);
-      expect(results[1].status).to.equal('loaded');
-
-      const loading = [...flow.fonts].filter(f => f.status === 'loaded');
-      expect(loading).to.have.lengthOf(1);
-      const error = [...flow.fonts].filter(f => f.status === 'error');
-      expect(error).to.have.lengthOf(1);
-    });
-
-    it('won\'t load fonts for paragraphs that don\'t have any text', async function () {
-      const f1 = new FontFace('f1', url('Roboto/Roboto-Regular.ttf'));
-      const f2 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
-      flow.fonts.add(f1);
-      flow.fonts.add(f2);
-      const doc = parse(`
-        <div style="font-family: f1; white-space: pre;"> \t\r\n</div>
-        <div style="font-family: f2;"> \t\r\n</div>
-      `)
-      await loadFonts(doc);
-      expect(f1.status).to.equal('loaded');
-      expect(f2.status).to.equal('unloaded');
     });
   });
 });

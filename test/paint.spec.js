@@ -564,6 +564,21 @@ describe('Painting', function () {
     ]);
   });
 
+  it('paints inline backgrounds correctly after laying out twice', function () {
+    this.layout(`
+      <div style="font-size: 10px;">
+        <span style="background-color: #8f0;">start</span>stop
+      </div>
+    `);
+
+    flow.layout(this.blockContainer);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 50, height: 10, fillColor: '#8f0'},
+      {t: 'text', x: 0, y: 8, text: 'startstop', fillColor: '#000'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

@@ -1150,6 +1150,7 @@ export class Inline extends Box {
 
   prelayoutPreorder(ctx: PrelayoutContext) {
     this.containingBlock = ctx.lastBlockContainerArea;
+    this.nshaped = 0;
     this.metrics = getFontMetrics(this);
   }
 

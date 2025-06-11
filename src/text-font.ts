@@ -5,6 +5,7 @@ import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANG
 import {environment} from './environment.js';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
 import {HTMLElement} from './dom.js';
+import {Deferred} from './util.js';
 
 import type {HbFace, HbFont} from './text-harfbuzz.js';
 import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.js';
@@ -484,32 +485,6 @@ export class LoadedFontFace {
 
   toFontString(size: number) {
     return `${size}px ${this.uniqueFamily}`;
-  }
-}
-
-class Deferred<T> {
-  status: 'unresolved' | 'resolved' | 'rejected';
-  promise: Promise<T>;
-  resolve!: (v: T) => void;
-  reject!: (e?: unknown) => void;
-
-  constructor() {
-    this.status = 'unresolved';
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = (t: T) => {
-        if (this.status === 'unresolved') {
-          this.status = 'resolved';
-          resolve(t);
-        }
-      };
-
-      this.reject = (e: unknown) => {
-        if (this.status === 'unresolved') {
-          this.status = 'rejected';
-          reject(e);
-        }
-      };
-    });
   }
 }
 

@@ -193,3 +193,29 @@ export class Logger {
     this.indent.pop();
   }
 }
+
+export class Deferred<T> {
+  status: 'unresolved' | 'resolved' | 'rejected';
+  promise: Promise<T>;
+  resolve!: (v: T) => void;
+  reject!: (e?: unknown) => void;
+
+  constructor() {
+    this.status = 'unresolved';
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = (t: T) => {
+        if (this.status === 'unresolved') {
+          this.status = 'resolved';
+          resolve(t);
+        }
+      };
+
+      this.reject = (e: unknown) => {
+        if (this.status === 'unresolved') {
+          this.status = 'rejected';
+          reject(e);
+        }
+      };
+    });
+  }
+}

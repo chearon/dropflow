@@ -1,4 +1,4 @@
-import {G_ID, G_CL, G_SZ} from './layout-text.js';
+import {G_ID, G_CL, G_SZ} from './text-harfbuzz.js';
 import type {Style} from './style.js';
 
 /**

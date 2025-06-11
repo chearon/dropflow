@@ -2,16 +2,9 @@ import {
   prevCluster,
   nextCluster,
   nextGrapheme,
-  prevGrapheme,
-  G_ID,
-  G_CL,
-  G_AX,
-  G_AY,
-  G_DX,
-  G_DY,
-  G_FL,
-  G_SZ
+  prevGrapheme
 } from './layout-text.js';
+import {G_ID, G_CL, G_AX, G_AY, G_DX, G_DY, G_FL, G_SZ} from './text-harfbuzz.js';
 
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';

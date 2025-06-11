@@ -3,7 +3,7 @@ import {expect} from 'chai';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {G_ID, G_AX, G_SZ} from '../src/layout-text.js';
+import {G_ID, G_AX, G_SZ} from '../src/text-harfbuzz.js';
 import paintBlockContainer from '../src/paint.js';
 import PaintSpy from './paint-spy.js';
 import {Logger} from '../src/util.js';
@@ -101,7 +101,7 @@ describe('Whitespace collapsing', function () {
     this.layout(`
       <div id="t">
         \there
-        \t\t  I  go killin  
+        \t\t  I  go killin
         <span style="white-space: pre;">  \n\t\n\t  again  </span>
       </div>
     `);

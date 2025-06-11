@@ -1,5 +1,6 @@
 import {BlockContainer, Inline, InlineLevel, IfcInline} from './layout-flow.js';
-import {ShapedItem, Paragraph, BackgroundBox, G_CL, G_AX, G_SZ} from './layout-text.js';
+import {G_CL, G_AX, G_SZ} from './text-harfbuzz.js';
+import {ShapedItem, Paragraph, BackgroundBox} from './layout-text.js';
 import {Color} from './style.js';
 import {Box} from './layout-box.js';
 import {binarySearchOf} from './util.js';

@@ -136,7 +136,7 @@ export class Run extends RenderItem {
       } else if (code === 0xa0) {
         parent.bitfield |= Box.BITS.hasNewlines;
       }
-      
+
       if (!parent.hasText() && !isSpaceOrTabOrNewline(paragraph[i])) {
         parent.bitfield |= Run.TEXT_BITS;
       }
@@ -263,14 +263,7 @@ export function getFontMetrics(inline: Inline) {
   return getMetrics(inline.style, strutFace);
 }
 
-export const G_ID = 0;
-export const G_CL = 1;
-export const G_AX = 2;
-export const G_AY = 3;
-export const G_DX = 4;
-export const G_DY = 5;
-export const G_FL = 6;
-export const G_SZ = 7;
+const {G_ID, G_CL, G_AX, G_FL, G_SZ} = hb;
 
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
 

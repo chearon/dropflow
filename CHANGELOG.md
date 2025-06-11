@@ -9,6 +9,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ==================
 ### Changed
 * `flow.load` no longer loads fonts used only on whitespace
+* `flow.load` no longer throws errors. Check the `status` or `loaded` promise on the returned `FontFace`s instead.
 
 ### Added
 ### Fixed

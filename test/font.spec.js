@@ -467,17 +467,43 @@ describe('Fonts', function () {
       flow.fonts.clear();
     });
 
-    it('chains promise rejections', async function () {
+    it('returns failed fonts', async function () {
       const f = new FontFace('f', new URL('http://notarealdomain.notarealtld/'));
-      let e;
       flow.fonts.add(f);
       mock.method(global, 'fetch', async () => ({ok: false, status: 400}));
+      const results = await loadFonts(parse('<span style="font-family: f;">woo</span>'));
+      expect(results.length).to.equal(1);
+      expect(results[0]).to.equal(f);
+      expect(results[0].status).to.equal('error');
+      let error;
       try {
-        await loadFonts(parse('<span style="font-family: f;">woo</span>'));
-      } catch (_e) {
-        e = _e;
+        await results[0].loaded;
+      } catch (e) {
+        error = e;
       }
-      expect(e).to.be.instanceOf(Error);
+      expect(error).to.be.an.instanceOf(Error);
+    });
+
+    it('loads all fonts even if some of them fail', async function () {
+      const f1 = new FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+      const f2 = new FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+      const doc = parse(`
+        <span style="font-family: f1;">I love</span>
+        <span style="font-family: f2;">pinwheels</span>
+      `);
+      flow.fonts.add(f1);
+      flow.fonts.add(f2);
+      const results = await loadFonts(doc);
+      expect(results.length).to.equal(2);
+      expect(results[0]).to.equal(f1);
+      expect(results[0].status).to.equal('error');
+      expect(results[1]).to.equal(f2);
+      expect(results[1].status).to.equal('loaded');
+
+      const loading = [...flow.fonts].filter(f => f.status === 'loaded');
+      expect(loading).to.have.lengthOf(1);
+      const error = [...flow.fonts].filter(f => f.status === 'error');
+      expect(error).to.have.lengthOf(1);
     });
 
     it('won\'t load fonts for paragraphs that don\'t have any text', async function () {

@@ -385,13 +385,17 @@ Renders the whole layout to the canvas, using its width and height as the viewpo
 ## Load
 
 ```ts
-function load(rootElement: HTMLElement): Promise<void>;
+type LoadedResource = FontFace;
+
+function load(rootElement: HTMLElement): Promise<LoadedResource[]>;
 ```
 
 Ensures that all of the fonts required by the document are loaded. This efficiently walks the document and matches styles to `FontFace` `unicodeRange`, `family`, etc. In the future, this will also fetch images.
 
+Because the whole fallback list for every unique set of font properties is appended to the returned loaded list, it may contain duplicates. Deduplication is left up to the caller since it impacts performance. The list is in document order.
+
 ```ts
-function loadSync(rootElement: HTMLElement): void;
+function loadSync(rootElement: HTMLElement): LoadedResource[];
 ```
 
 If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies

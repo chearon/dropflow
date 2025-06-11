@@ -1198,7 +1198,7 @@ export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
 }
 
 function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
-  const stack = root.children.slice();
+  const stack = root.children.slice().reverse();
   const cache: {style: Style, faces: FontFace[]}[] = [];
   const cascade = getUrangeCascade();
   let entry: {style: Style, faces: FontFace[]} | undefined;
@@ -1208,7 +1208,7 @@ function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
   while (stack.length) {
     const el = stack.pop()!;
     if (el instanceof HTMLElement) {
-      for (const child of el.children) stack.push(child);
+      for (let i = el.children.length - 1; i >= 0; i--) stack.push(el.children[i]);
     } else {
       const isWsCollapsible = el.style.isWsCollapsible();
       let i = 0;
@@ -1247,11 +1247,33 @@ function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
 }
 
 export async function loadFonts(root: HTMLElement) {
-  const promises: Promise<FontFace>[] = [];
-  loadFontsImpl(root, face => promises.push(face.load()));
+  const promises: Promise<any>[] = [];
+  const faces: FontFace[] = [];
+
+  loadFontsImpl(root, face => {
+    faces.push(face);
+    const promise = face.load().catch(() => {
+      // Swallowed. Users can unwrap face.loaded to get the error.
+    });
+    promises.push(promise);
+  });
+
   await Promise.all(promises);
+
+  return faces;
 }
 
 export function loadFontsSync(root: HTMLElement) {
-  loadFontsImpl(root, face => face.loadSync());
+  const faces: FontFace[] = [];
+
+  loadFontsImpl(root, face => {
+    faces.push(face);
+    try {
+      face.loadSync();
+    } catch (e) {
+      // Swallowed. Users can unwrap face.loaded to get the error.
+    }
+  });
+
+  return faces;
 }

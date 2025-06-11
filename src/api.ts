@@ -241,12 +241,14 @@ export function staticLayoutContribution(box: BlockContainer): number {
   return intrinsicSize;
 }
 
-export async function load(root: HTMLElement): Promise<void> {
-  await loadFonts(root);
+type LoadedResource = FontFace; // TODO: | Image too
+
+export async function load(root: HTMLElement): Promise<LoadedResource[]> {
+  return await loadFonts(root);
   // TODO: images too
 }
 
-export function loadSync(root: HTMLElement): void {
-  loadFontsSync(root);
+export function loadSync(root: HTMLElement): LoadedResource[] {
+  return loadFontsSync(root);
   // TODO: images too
 }

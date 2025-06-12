@@ -95,8 +95,7 @@ import * as flow from 'dropflow';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-// Register fonts before layout. This is a required step. `load()` is synchronous
-// only when the source is an ArrayBuffer or file URL in node, async otherwise
+// Register fonts before layout. This is a required step.
 const roboto1 = new flow.FontFace('Roboto', new URL('file:///Roboto-Regular.ttf'), {weight: 400});
 const roboto2 = new flow.FontFace('Roboto', new URL('file:///Roboto-Bold.ttf'), {weight: 700});
 flow.fonts.add(roboto1).add(roboto2);
@@ -148,8 +147,9 @@ import parse from 'dropflow/parse.js';
 import {createCanvas} from 'canvas';
 import fs from 'node:fs';
 
-await flow.registerFont(new URL('fonts/Roboto-Regular.ttf', import.meta.url));
-await flow.registerFont(new URL('fonts/Roboto-Bold.ttf', import.meta.url));
+const roboto1 = new flow.FontFace('Roboto', new URL('file:///Roboto-Regular.ttf'), {weight: 400});
+const roboto2 = new flow.FontFace('Roboto', new URL('file:///Roboto-Bold.ttf'), {weight: 700});
+flow.fonts.add(roboto1).add(roboto2);
 
 const rootElement = parse(`
   <div style="background-color: #1c0a00; color: #b3c890; text-align: center;">

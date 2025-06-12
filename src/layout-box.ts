@@ -1,7 +1,7 @@
 import {id, Logger} from './util.js';
 import {Style} from './style.js';
 import {Run} from './layout-text.js';
-import {Break, Inline, IfcInline, BlockContainer, InlineLevel} from './layout-flow.js';
+import {Break, Inline, IfcInline, BlockContainer, ReplacedBox, InlineLevel} from './layout-flow.js';
 
 export interface LogicalArea {
   blockStart: number | undefined;
@@ -34,6 +34,10 @@ export abstract class RenderItem {
   }
 
   isFormattingBox(): this is FormattingBox {
+    return false;
+  }
+
+  isReplacedBox(): this is ReplacedBox {
     return false;
   }
 
@@ -182,10 +186,10 @@ export abstract class Box extends RenderItem {
     hasPaintedInlines:         1 << 14,
     hasColoredInline:          1 << 15,
     hasSizedInline:            1 << 16,
-    // 17: propagation bits: Inline <- Break, Inline
-    hasBreakOrInline:          1 << 17,
-    // 18..19: propagation bits: Inline <- BlockContainer
-    hasFloats:                 1 << 18,
+    // 17: propagation bits: Inline <- Break, Inline, ReplacedBox
+    hasBreakInlineOrReplaced:  1 << 17,
+    // 18..19: propagation bits: Inline <- FormattingBox
+    hasFloatOrReplaced:        1 << 18,
     hasInlineBlocks:           1 << 19,
     // 20..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
@@ -527,13 +531,16 @@ export abstract class FormattingBox extends Box {
     return true;
   }
 
-  getDefiniteOuterInlineSize() {
+  getDefiniteInnerInlineSize() {
     const inlineSize = this.style.getInlineSize(this);
+    if (inlineSize !== 'auto') return inlineSize;
+  }
 
-    if (inlineSize !== 'auto') {
+  getDefiniteOuterInlineSize() {
+    const inlineSize = this.getDefiniteInnerInlineSize();
+    if (inlineSize !== undefined) {
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
       const paddingLineLeft = this.style.getPaddingLineLeft(this);
-
       const paddingLineRight = this.style.getPaddingLineRight(this);
       const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
 
@@ -543,6 +550,11 @@ export abstract class FormattingBox extends Box {
         + paddingLineRight
         + borderLineRightWidth;
     }
+  }
+
+  getDefiniteInnerBlockSize() {
+    const blockSize = this.style.getBlockSize(this);
+    if (blockSize !== 'auto') return blockSize;
   }
 
   getMarginsAutoIsZero() {
@@ -580,7 +592,7 @@ export abstract class FormattingBox extends Box {
     super.propagate(parent);
 
     if (this.isFloat()) {
-      parent.bitfield |= Box.BITS.hasFloats;
+      parent.bitfield |= Box.BITS.hasFloatOrReplaced;
     }
   }
 
@@ -656,7 +668,7 @@ export class BoxArea {
     this.parent = p;
   }
 
-  inlineSizeForPotentiallyOrthogonal(box: BlockContainer) {
+  inlineSizeForPotentiallyOrthogonal(box: FormattingBox) {
     if (!this.parent) return this.inlineSize; // root area
     if (!this.box.isBlockContainer()) return this.inlineSize; // cannot be orthogonal
     if (
@@ -775,8 +787,10 @@ export function prelayout(root: BlockContainer) {
         if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
       }
 
-      for (let i = box.children.length - 1; i >= 0; i--) {
-        stack.push(box.children[i]);
+      if (box.isBlockContainer() || box.isInline()) {
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
       }
     } else if (box.isRun()) {
       box.propagate(parents.at(-1)!, ifcs.at(-1)!.paragraph.string);
@@ -802,7 +816,12 @@ export function postlayout(root: BlockContainer) {
       parents.push(box);
       for (let i = box.children.length - 1; i >= 0; i--) {
         const child = box.children[i];
-        if (child.isBox()) stack.push(child);
+        if (child.isBlockContainer() || child.isInline()) {
+          stack.push(child);
+        } else {
+          child.postlayoutPreorder()
+          child.postlayoutPostorder();
+        }
       }
     }
   }

@@ -3,6 +3,7 @@ import {getMetrics, ShapedItem} from './layout-text.js';
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
 import type {LoadedFontFace} from './text-font.js';
+import type {Image} from './layout-image.js';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
@@ -91,6 +92,17 @@ export default class HtmlPaintBackend implements PaintBackend {
       backgroundColor: `rgba(${r}, ${g}, ${b}, ${a})`
     });
     this.s += `<div style="${style}"></div>`;
+  }
+
+  image(x: number, y: number, w: number, h: number, image: Image) {
+    const style = this.style({
+      position: 'absolute',
+      left: x + 'px',
+      top: y + 'px',
+      width: w + 'px',
+      height: h + 'px'
+    });
+    this.s += `<img style="${style}" src="${image.src}" />`;
   }
 
   pushClip(x: number, y: number, width: number, height: number) {

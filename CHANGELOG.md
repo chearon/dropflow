@@ -12,6 +12,9 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * `flow.load` no longer throws errors. Check the `status` or `loaded` promise on the returned `FontFace`s instead.
 
 ### Added
+* Support for the `<img>` element (JPEG, PNG, GIF, and BMP)
+* `flow.createObjectURL` and `flow.revokeObjectURL` APIs
+
 ### Fixed
 * `zoom` wasn't applied to length values of line-height
 * `flow.layout` twice before paint could result in incorrect inline backgrounds

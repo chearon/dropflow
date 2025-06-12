@@ -8,6 +8,7 @@ Dropflow is a CSS layout engine created to explore the reaches of the foundation
 * Bidirectional and RTL text
 * Hyperscript (`h()`) API with styles as objects in addition to accepting HTML and CSS
 * Any OpenType/TrueType buffer can (and must) be registered
+* JPEG, BMP, PNG, and GIF `<img>`s supported (backend support may differ)
 * Font fallbacks at the grapheme level
 * Colored diacritics
 * Desirable line breaking (e.g. carries starting padding to the next line)
@@ -385,20 +386,40 @@ Renders the whole layout to the canvas, using its width and height as the viewpo
 ## Load
 
 ```ts
-type LoadableResource = FontFace;
+type LoadableResource = FontFace | Image;
+
+class Image {
+  src: string;
+  reason: unknown;
+}
 
 function load(rootElement: HTMLElement): Promise<LoadableResource[]>;
 ```
 
-Ensures that all of the fonts required by the document are loaded. This efficiently walks the document and matches styles to `FontFace` `unicodeRange`, `family`, etc. In the future, this will also fetch images.
+Ensures that all of the fonts and images required by the document are loaded.
 
-Because the whole fallback list for every unique set of font properties is appended to the returned loaded list, it may contain duplicates. Deduplication is left up to the caller since it impacts performance. The list is in document order.
+For fonts, that means looking at the `style`'s `font-family` and other font properties as well as the text of the document in order to find suitable `FontFace`s from `flow.fonts`.
+
+For images, it means fetching the image data so it's ready for layout. In addition to calling `flow.environment.resolveUrl` for each image, this will call `flow.environment.createDecodedImage`.
+
+Because the whole fallback list for every unique set of font properties is appended to the returned loaded list, it may contain duplicate fonts. And since there is only one `Image` instance per unique URL, there may be duplicate images. Deduplication is left up to the caller since it impacts performance. The list is in document order.
 
 ```ts
 function loadSync(rootElement: HTMLElement): LoadableResource[];
 ```
 
-If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies
+If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies.
+
+If the document contains images, painting to canvas will throw an error. The canvas backend requires decoding images asynchronously.
+
+### `createObjectURL` and `revokeObjectURL`
+
+```ts
+function createObjectURL(buffer: ArrayBufferLike): string;
+function revokeObjectURL(url: string): void;
+```
+
+These functions can be used to send image buffers to `<img src>`. Since there is no associated document (unlike the browser), memory is retained between `createObjectURL` and `revokeObjectURL`.
 
 ## Generate
 
@@ -553,7 +574,7 @@ class BoxArea {
 
 ## Environments
 
-Dropflow is designed to support a flexible configuration of environments. In the browser, it loads fonts (soon, images too) via `fetch` and registers font buffers to `document.fonts`. In Nodejs, dropflow can load fonts synchronously via `fs.readFileSync`.
+Dropflow is designed to be adaptable to a wide array of environments. In the browser, it loads fonts and images via `fetch` and registers font buffers to `document.fonts`. In Nodejs, dropflow can load fonts synchronously via `fs.readFileSync`.
 
 When you use the canvas backend with dropflow and `node-canvas` is present, it will call node-canvas's `registerFont`. Node-canvas doesn't support font buffers, so you have to use file:// URLs.
 
@@ -597,20 +618,34 @@ export interface Environment {
    * Must return a promise of a buffer for the given URL. This used for fonts
    * and will be used for images.
    */
-  resolveUrl(url: URL): Promise<ArrayBufferLike>
+  resolveUrl(url: URL): Promise<ArrayBufferLike>;
   /**
    * Same as `resolveUrl`, but synchronous if it's a file:// URL. This should
    * throw if URL is not a file:// URL, which would mean the user called
    * loadSync on a document with asynchronous-only URLs.
    */
   resolveUrlSync(url: URL): ArrayBufferLike;
+  /**
+   * During `flow.load` this will get called for paint backends that need to
+   * decode images first, asynchronously (canvas). The result will be stored on
+   * on the image so that it's ready to go for synchronous painting. Backends
+   * like SVG and HTML do not use the result of this, so it can safely be set
+   * to a function that returns undefined so no unnecessary work is done.
+   */
+  createDecodedImage(image: Image): Promise<unknown>;
+  /**
+   * In case createDecodedImage allocates external resources, this can be used
+   * to clean up. It gets called when the image cache grows beyond a certain
+   * threshold and is cleared.
+   */
+  destroyDecodedImage(handle: unknown): void;
 }
 ```
 
 ### Using `@napi-rs/canvas`
 
 ```ts
-import {GlobalFonts} from '@napi-rs/canvas';
+import {GlobalFonts, loadImage} from '@napi-rs/canvas';
 import * as flow from 'dropflow';
 
 // Configure @napi-rs/canvas
@@ -618,17 +653,25 @@ flow.environment.registerFont = face => {
   const key = GlobalFonts.register(face.getBuffer(), face.uniqueFamily);
   if (key) return () => GlobalFonts.remove(key);
 };
+
+flow.environment.createDecodedImage = async image => {
+  return await loadImage(Buffer.from(image.buffer!));
+};
 ```
 
 ### Using `skia-canvas`
 
 ```ts
-import {FontLibrary} from 'skia-canvas';
+import {FontLibrary, loadImage} from 'skia-canvas';
 import * as flow from 'dropflow';
 
 // Configure skia-canvas
 flow.environment.registerFont = face => {
   FontLibrary.use(face.uniqueFamily, fileURLToPath(face.url));
+};
+
+flow.environment.createDecodedImage = async image => {
+  return await loadImage(Buffer.from(image.buffer!));
 };
 ```
 

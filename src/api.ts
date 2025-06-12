@@ -1,6 +1,6 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredStyle, getOriginStyle, computeElementStyle, Style} from './style.js';
+import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
 import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts} from './text-font.js';
 import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
@@ -8,7 +8,11 @@ import SvgPaintBackend from './paint-svg.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paint from './paint.js';
 import {BoxArea, prelayout, postlayout} from './layout-box.js';
-import {id} from './util.js';
+import {onLoadWalkerElementForImage} from './layout-image.js';
+import {id, uuid} from './util.js';
+
+import type {Style} from './style.js';
+import type {Image} from './layout-image.js';
 
 export {environment} from './environment.js';
 
@@ -218,7 +222,12 @@ export function staticLayoutContribution(box: BlockContainer): number {
     // TODO: floats
   } else if (box.isBlockContainerOfBlockContainers()) {
     for (const child of box.children) {
-      intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+      if (child.isBlockContainer()) {
+        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+      } else {
+        // TODO:
+        intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
+      }
     }
   } else {
     throw new Error(`Unknown box type: ${box.id}`);
@@ -241,7 +250,7 @@ export function staticLayoutContribution(box: BlockContainer): number {
   return intrinsicSize;
 }
 
-type LoadableResource = FontFace; // TODO: | Image too
+type LoadableResource = FontFace | Image;
 
 export interface LoadWalkerContext {
   fontCache: {style: Style, faces: FontFace[]}[];
@@ -255,6 +264,7 @@ function loadWalker(root: HTMLElement, ctx: LoadWalkerContext) {
   while (stack.length) {
     const el = stack.pop()!;
     if (el instanceof HTMLElement) {
+      onLoadWalkerElementForImage(ctx, el);
       for (let i = el.children.length - 1; i >= 0; i--) stack.push(el.children[i]);
     } else {
       onLoadWalkerTextNodeForFonts(ctx, el);
@@ -272,7 +282,7 @@ export async function load(root: HTMLElement): Promise<LoadableResource[]> {
     onLoadableResource(resource) {
       resources.push(resource);
       const promise = resource.load().catch(() => {
-        // Swallowed. Error is wrapped in FontFace.ready.
+        // Swallowed. Error is wrapped in FontFace.ready (images don't throw)
       });
       promises.push(promise);
     }
@@ -294,10 +304,22 @@ export function loadSync(root: HTMLElement): LoadableResource[] {
       try {
         resource.loadSync();
       } catch (e) {
-        // Swallowed. Error is wrapped in FontFace.ready.
+        // Swallowed. Error is wrapped in FontFace.ready (images don't throw)
       }
     }
   });
 
   return resources;
+}
+
+export const objectStore = new Map<string, ArrayBufferLike>();
+
+export function createObjectURL(buffer: ArrayBufferLike): string {
+  let url = 'blob:dropflow.local/' + uuid();
+  objectStore.set(url, buffer);
+  return url;
+}
+
+export function revokeObjectURL(url: string): void {
+  objectStore.delete(url);
 }

@@ -47,8 +47,13 @@ const watch = EditorView.updateListener.of(update => {
 
 const state = EditorState.create({
   doc: `<html style="background-color: #067; margin: 1em; color: #afe">
-
-  <h1>dropflow playground</h1>
+  <h1>
+    <img
+      src="https://chearon.github.io/dropflow/assets/logo-afe.png"
+      style="height: 35px; vertical-align: -8px"
+    >
+    playground
+  </h1>
   <h2 style="text-align: center;">this is all being rendered to a canvas</h2>
   <h3 style="text-align: right;">edit the html to the left to see live updates</h3>
 

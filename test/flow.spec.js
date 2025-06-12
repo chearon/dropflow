@@ -7,6 +7,7 @@ import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {Logger} from '../src/util.js';
 
 const log = new Logger();
+const adaUrl = new URL('../assets/images/ada.png', import.meta.url);
 
 describe('Flow', function () {
   before(function () {
@@ -17,6 +18,7 @@ describe('Flow', function () {
      */
     this.layout = function (html) {
       this.rootElement = parse(html);
+      flow.loadSync(this.rootElement);
       this.blockContainer = flow.generate(this.rootElement);
       flow.layout(this.blockContainer, 300, 500);
       this.get = function (...args) {
@@ -118,6 +120,32 @@ describe('Flow', function () {
       // end
       expect(this.get(0).children).to.have.lengthOf(5);
     });
+
+    it('breaks out block-level <img> and wraps inline-level <img>', function () {
+      this.layout(`
+        <div>I have too many plants  <span><img style="display: block;"></span></div>
+        <img>
+        <img style="display: block;">
+      `);
+
+      // <div><anon div>
+      expect(this.get(0, 0).isInlineLevel()).to.be.false;
+      // ifc for "I have too many plants"
+      expect(this.get(0, 0, 0).isInlineLevel()).to.be.true;
+      // <span>
+      expect(this.get(0, 0, 0, 1).isInlineLevel()).to.be.true;
+      // first <img>
+      expect(this.get(0, 1).isInlineLevel()).to.be.false;
+      expect(this.get(0, 1).isReplacedBox()).to.be.true;
+      // <anon div>
+      expect(this.get(1).isInlineLevel()).to.be.false;
+      // second <img>
+      expect(this.get(1, 0).isInlineLevel()).to.be.true;
+      expect(this.get(0, 1).isReplacedBox()).to.be.true;
+      // third <img>
+      expect(this.get(2).isInlineLevel()).to.be.false;
+      expect(this.get(2).isReplacedBox()).to.be.true;
+    })
 
     it('generates BFCs', function () {
       this.layout('<div style="display: flow-root;"></div>');
@@ -1833,6 +1861,121 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow').BlockContainer */
       const t = this.get('div');
       expect(t.getBorderArea().x).to.equal(1);
+    });
+
+    it('zooms natural image size', function () {
+      this.layout(`<img src="${adaUrl}" style="zoom: 200%;">`);
+      expect(this.get('img').getContentArea().width).to.equal(738);
+      expect(this.get('img').getContentArea().height).to.equal(752);
+    });
+  });
+
+  describe('Images', function () {
+    it('sizes to natural dimensions', function () {
+      this.layout(`<img src="${adaUrl}">`);
+      expect(this.get('img').getContentArea().width).to.equal(369);
+      expect(this.get('img').getContentArea().height).to.equal(376);
+      this.layout(`<img src="${adaUrl}" style="margin: 10px;">`);
+      expect(this.get('img').getContentArea().width).to.equal(369);
+      expect(this.get('img').getContentArea().height).to.equal(376);
+    });
+
+    it('sizes height based on width', function () {
+      this.layout(`<img src="${adaUrl}" style="width: 100px;">`);
+      expect(this.get('img').getContentArea().width).to.equal(100);
+      expect(this.get('img').getContentArea().height).to.equal(102);
+    });
+
+    it('sizes width based on height', function () {
+      this.layout(`<img src="${adaUrl}" style="height: 100px;">`);
+      expect(this.get('img').getContentArea().width).to.equal(98);
+      expect(this.get('img').getContentArea().height).to.equal(100);
+    });
+
+    it('correctly positions text after sized images without content', function () {
+      this.layout(`
+        <div style="width: 200px; font-size: 10px;">
+          no
+          <img src="nooo" style="height: 25px;">
+          <img src="nooo" style="width: 25px;">
+          <img style="width: 25px;">
+          <img style="height: 25px;">
+          oo
+        </div>
+      `);
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.items[4].x).to.equal(122.236328125);
+      expect(ifc.paragraph.items[4].y).to.equal(25);
+    });
+
+    it('correctly positions text after unsized images without content', function () {
+      this.layout('<div style="font-size: 10px;">no<img>oo');
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      expect(ifc.paragraph.items[1].x).to.equal(11.123046875);
+    });
+
+    it('floats images', function () {
+      this.layout(`
+        <img src="${adaUrl}" style="float: left; width: 100px; margin: 10px;">
+        <span style="line-height: 122px;">dog!</span>
+        <br>underdog!
+      `);
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get().children;
+      expect(ifc.paragraph.items[0].x).to.equal(120);
+      expect(ifc.paragraph.items[0].y).to.equal(66.546875);
+      expect(ifc.paragraph.items[1].x).to.equal(0);
+    });
+
+    it('displays images inline', function () {
+      this.layout(`<img src="${adaUrl}" style="width: 100px; height: 100px; margin: 10px;">dog`);
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get().children;
+      expect(ifc.paragraph.items[0].x).to.equal(120);
+      expect(ifc.paragraph.items[0].y).to.equal(120);
+    });
+
+    it('displays images inline-block', function () {
+      this.layout(`
+        <img
+          src="${adaUrl}"
+          style="width: 100px; height: 100px; margin: 10px; display: inline-block;"
+        >dog
+      `);
+      /** @type import('../src/layout-flow').IfcInline[] */
+      const [ifc] = this.get().children;
+      expect(ifc.paragraph.items[0].x).to.equal(120);
+      expect(ifc.paragraph.items[0].y).to.equal(120);
+    });
+
+    it('applies border, margin, and padding', function () {
+      this.layout(`
+        <img
+          src="${adaUrl}"
+          style="width: 100px; height: 100px; padding: 5px; border: 2px solid #123;"
+        >
+      `);
+      /** @type import('../src/layout-flow').ReplacedBox */
+      const img = this.get('img');
+      expect(img.getPaddingArea().width).to.equal(110);
+      expect(img.getPaddingArea().height).to.equal(110);
+      expect(img.getBorderArea().width).to.equal(114);
+      expect(img.getBorderArea().height).to.equal(114);
+    });
+
+    it('displays images as block', function () {
+      this.layout(`<div style="width: 1000px;"><img src="${adaUrl}" style="display: block;">`);
+      expect(this.get('img').getContentArea().x).to.equal(0);
+      expect(this.get('img').getContentArea().y).to.equal(0);
+      expect(this.get('img').getContentArea().width).to.equal(369);
+      expect(this.get('img').getContentArea().height).to.equal(376);
+      this.layout(`<div style="width: 1000px; direction: rtl;"><img src="${adaUrl}" style="display: block;">`);
+      expect(this.get('img').getContentArea().x).to.equal(1000 - 369);
+      expect(this.get('img').getContentArea().y).to.equal(0);
+      expect(this.get('img').getContentArea().width).to.equal(369);
+      expect(this.get('img').getContentArea().height).to.equal(376);
     });
   });
 });

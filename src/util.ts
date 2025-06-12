@@ -79,6 +79,27 @@ export function id(): string {
   return String(_id++);
 }
 
+const bytes = new Uint8Array(16);
+
+export function uuid() {
+  let uuid = '';
+
+  crypto.getRandomValues(bytes);
+
+  // Set version (4) in the most significant 4 bits of byte 6
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+
+  // Set variant (10) in the most significant 2 bits of byte 8
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  for (let i = 0; i < bytes.length; i++) {
+    switch (i) { case 4: case 6: case 8: case 10: uuid += '-'; }
+    uuid += bytes[i].toString(16).padStart(2, '0');
+  }
+
+  return uuid;
+}
+
 export function loggableText(text: string): string {
   return text.replace(/\n/g, '⏎').replace(/\t/g, '␉');
 }

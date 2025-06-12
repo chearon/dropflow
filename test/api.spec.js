@@ -5,6 +5,8 @@ import {HTMLElement} from '../src/dom.js';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import {mock} from './util.js';
+import {clearImageCache, Image} from '../src/layout-image.js';
+import fs from 'node:fs';
 
 const url = path => new URL(`../assets/${path}`, import.meta.url);
 
@@ -270,5 +272,87 @@ describe('Load API', function () {
     await flow.load(doc);
     expect(f1.status).to.equal('loaded');
     expect(f2.status).to.equal('unloaded');
+  });
+
+  it('continues loading images after failure', function () {
+    clearImageCache();
+    const el = parse(`
+      <img src="relative/path/to.png">
+      <img id="t" src="${new URL('../assets/images/ada.png', import.meta.url)}">
+    `);
+    const images = flow.loadSync(el);
+    expect(images[0].status).to.equal('error');
+    expect(images[0].reason).to.be.instanceOf(Error);
+    expect(images[1].status).to.equal('loaded');
+  });
+
+  it('loads mixed fonts and images, failure and success', function () {
+    const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+    const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    flow.fonts.add(f1);
+    flow.fonts.add(f2);
+    const doc = parse(`
+      <div style="font-family: f1;">
+        I'm in
+        <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
+        <img src="im/in.png">
+        <span style="font-family: f2;">the sky!</span>
+        <img src="im/in.png">
+        <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
+      </div>
+    `);
+
+    const resources = flow.loadSync(doc);
+    expect(resources.length).to.equal(6);
+    expect(resources[0].status).to.equal('error');       // f1
+    expect(resources[0]).to.be.instanceOf(flow.FontFace);
+    expect(resources[1].status).to.equal('loaded');      // frogmage.gif
+    expect(resources[1]).to.be.instanceOf(Image);
+    expect(resources[2].status).to.equal('error');       // im/in.png
+    expect(resources[2]).to.be.instanceOf(Image);
+    expect(resources[3].status).to.equal('loaded');      // f2
+    expect(resources[3]).to.be.instanceOf(flow.FontFace);
+    expect(resources[4].status).to.equal('error');       // im/in.png
+    expect(resources[4]).to.be.instanceOf(Image);
+    expect(resources[5].status).to.equal('loaded');      // frogmage.gif
+    expect(resources[5]).to.be.instanceOf(Image);
+  });
+
+  it('won\'t load images with an empty/absent src', function () {
+    const doc = parse('<img><img src="">');
+    const resources = flow.loadSync(doc);
+    expect(resources.length).to.equal(0);
+  });
+});
+
+describe('createObjectURL', function () {
+  it('creates and loads an object URL for an image', function () {
+    const buffer = fs.readFileSync(new URL('../assets/images/frogmage.gif', import.meta.url));
+    const url = flow.createObjectURL(buffer.buffer);
+    const style = flow.style({display: {outer: 'block', inner: 'flow'}});
+    const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
+    flow.loadSync(doc);
+    flow.layout(flow.generate(doc));
+    const [box] = doc.query('img').boxes;
+    expect(box.getContentArea().width).to.equal(1170);
+    expect(box.getContentArea().height).to.equal(1157);
+    flow.revokeObjectURL(url);
+  });
+
+  it('revokes object URLs', function () {
+    const buffer = fs.readFileSync(new URL('../assets/images/frogmage.gif', import.meta.url));
+    const url = flow.createObjectURL(buffer.buffer);
+
+    // If we revoked after loadSync, then tried loadSync again, it'd use the
+    // cached image (valid behavior) so revoke immediately to test.
+    flow.revokeObjectURL(url);
+
+    const style = flow.style({display: {outer: 'block', inner: 'flow'}});
+    const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
+    flow.loadSync(doc);
+    flow.layout(flow.generate(doc));
+    const [box] = doc.query('img').boxes;
+    expect(box.getContentArea().width).to.equal(0);
+    expect(box.getContentArea().height).to.equal(0);
   });
 });

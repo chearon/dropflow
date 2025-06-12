@@ -409,6 +409,20 @@ describe('Itemization', function () {
       expect(state.done).to.be.true;
     });
 
+    it('stops after <img>', function () {
+      /** @type {import('../src/layout-flow.js').IfcInline} */
+      const ifc = layout('a<img>b').children[0];
+      const state = createStyleIteratorState(ifc);
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(1);
+      expect(state.done).to.be.false;
+
+      styleIteratorNext(state);
+      expect(state.offset).to.equal(2);
+      expect(state.done).to.be.true;
+    });
+
     after(function () {
       unregisterFontAsset('Arimo/Arimo-Regular.ttf');
     });

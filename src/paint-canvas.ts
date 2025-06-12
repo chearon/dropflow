@@ -10,6 +10,7 @@ import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
 import type {ShapedItem} from './layout-text.js';
 import type {LoadedFontFace} from './text-font.js';
+import type {Image} from './layout-image.js';
 
 // This is used in the public API to ensure the external context has the right
 // API (there are four known to dropflow: node-canvas, @napi-rs/canvas,
@@ -47,6 +48,7 @@ export interface CanvasRenderingContext2D {
   get textAlign(): unknown; // no use so far
   rect(x: number, y: number, w: number, h: number): void;
   clip(): void;
+  drawImage(image: unknown, x: number, y: number, w?: number, h?: number): void;
 }
 
 export interface Canvas {
@@ -250,5 +252,12 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   popClip() {
     this.ctx.restore();
+  }
+
+  image(x: number, y: number, w: number, h: number, image: Image) {
+    if (!image.decoded) {
+      throw new Error('Image handle missing. Did you call flow.loadSync instead of flow.load?');
+    }
+    this.ctx.drawImage(image.decoded, x, y, w, h);
   }
 }

@@ -3,6 +3,7 @@ import {ShapedItem} from './layout-text.js';
 import type {Color} from './style.js';
 import type {PaintBackend} from './paint.js';
 import type {LoadedFontFace} from './text-font.js';
+import type {Image} from './layout-image.js';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
@@ -136,6 +137,10 @@ export default class SvgPaintBackend implements PaintBackend {
 
   popClip() {
     this.clips.pop();
+  }
+
+  image(x: number, y: number, w: number, h: number, image: Image) {
+    this.main += `<image x="${x}" y="${y}" width="${w}" height="${h}" href="${image.src}" />`;
   }
 
   body() {

@@ -573,7 +573,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
           break;
         }
       }
-    } else if (item.isBreak()) {
+    } else if (item.isBreak() || item.isReplacedBox()) {
       if (state.offset !== state.lastOffset) {
         state.leader = item;
         break;
@@ -626,7 +626,7 @@ export function createItemizeState(ifc: IfcInline): ItemizeState {
     newlineState = createNewlineIteratorState(ifc.text);
   }
 
-  if (ifc.hasBreakOrInline() || ifc.hasInlineBlocks()) {
+  if (ifc.hasBreakOrInlineOrReplaced() || ifc.hasInlineBlocks()) {
     inlineState = createStyleIteratorState(ifc);
   }
 

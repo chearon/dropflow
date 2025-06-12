@@ -201,6 +201,12 @@ describe('Whitespace collapsing', function () {
     const [ifc] = this.get().children
     expect(ifc.text).to.equal('abc  123');
   });
+
+  it('preserves whitespace around images', function () {
+    this.layout('abc  <img>  123');
+    const [ifc] = this.get().children
+    expect(ifc.text).to.equal('abc  123');
+  });
 });
 
 describe('Shaping', function () {

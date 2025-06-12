@@ -3,12 +3,17 @@
 // leaks ambient types: https://github.com/Brooooooklyn/canvas/issues/659
 import * as flow from 'dropflow';
 import fs from 'fs';
-import {createCanvas, GlobalFonts} from '@napi-rs/canvas';
+import {createCanvas, GlobalFonts, loadImage} from '@napi-rs/canvas';
 
-// Configure @napi-rs/canvas
+// Configure @napi-rs/canvas (1/2)
 flow.environment.registerFont = face => {
   const key = GlobalFonts.register(face.getBuffer(), face.uniqueFamily);
   if (key) return () => GlobalFonts.remove(key);
+};
+
+// Configure @napi-rs/canvas (2/2)
+flow.environment.createDecodedImage = async image => {
+  return await loadImage(Buffer.from(image.buffer!));
 };
 
 // Register fonts
@@ -41,15 +46,21 @@ const spanStyle = flow.style({
 // Create the document!
 const rootElement = flow.dom(
   flow.h('html', {style: rootStyle, attrs: {'x-dropflow-log': 'true'}}, [
+    flow.h('img', {
+      style: flow.style({width: 50, float: 'left'}),
+      attrs: {src: 'https://chearon.github.io/dropflow/assets/images/frogmage.gif'}
+    }),
     flow.h('div', ['Hello ', flow.h('span', {style: spanStyle}, '@napi-rs/canvas'), '!'])
   ])
 );
 
 // Normal layout, logging
-flow.loadSync(rootElement);
+await flow.load(rootElement);
 const blockContainer = flow.generate(rootElement);
 blockContainer.log();
 flow.layout(blockContainer, 200 * zoom, 100 * zoom);
+
+// Finally, paint to the surface
 const canvas = createCanvas(200 * zoom, 100 * zoom);
 const ctx = canvas.getContext('2d');
 flow.paintToCanvas(blockContainer, ctx);

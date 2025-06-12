@@ -8,6 +8,7 @@ import PaintSpy from './paint-spy.js';
 import {Logger} from '../src/util.js';
 
 const log = new Logger();
+const adaUrl = new URL('../assets/images/ada.png', import.meta.url).href;
 
 function setupLayoutTests() {
   this.layout = function (html) {
@@ -576,6 +577,102 @@ describe('Painting', function () {
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'rect', x: 0, y: 0, width: 50, height: 10, fillColor: '#8f0'},
       {t: 'text', x: 0, y: 8, text: 'startstop', fillColor: '#000'}
+    ]);
+  });
+
+  const imgBase = `
+    border: 10px solid #123;
+    background-color: #456;
+    padding: 20px;
+    width: 100px;
+    height: 100px;
+  `;
+
+  it('paints inline images, borders, and background', function () {
+    this.layout(`<img src="${adaUrl}" style="${imgBase}">`);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 160, height: 160, fillColor: '#456'},
+      {t: 'edge', side: 'top', x: 0, y: 5, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'right', x: 155, y: 0, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'bottom', x: 0, y: 155, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'left', x: 5, y: 0, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'image', x: 30, y: 30, width: 100, height: 100, src: adaUrl},
+    ]);
+  });
+
+  it('paints floating images, borders, and background', function () {
+    this.layout(`<img src="${adaUrl}" style="${imgBase} float: left;">`);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 160, height: 160, fillColor: '#456'},
+      {t: 'edge', side: 'top', x: 0, y: 5, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'right', x: 155, y: 0, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'bottom', x: 0, y: 155, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'left', x: 5, y: 0, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'image', x: 30, y: 30, width: 100, height: 100, src: adaUrl},
+    ]);
+  });
+
+  it('paints block-level images, borders, and background', function () {
+    this.layout(`
+      <div style="width: 200px;">
+        <img src="${adaUrl}" style="${imgBase} display: block; margin: 0 auto;">
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 20, y: 0, width: 160, height: 160, fillColor: '#456'},
+      {t: 'edge', side: 'top', x: 20, y: 5, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'right', x: 175, y: 0, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'bottom', x: 20, y: 155, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'left', x: 25, y: 0, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'image', x: 50, y: 30, width: 100, height: 100, src: adaUrl},
+    ]);
+  });
+
+  it('paints positioned inline images, borders, and background', function () {
+    this.layout(`
+      <div style="font-size: 10px;">
+        one
+        <img src="${adaUrl}" style="${imgBase} position: relative; top: 10px;">
+        two
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 160, text: 'one ', fillColor: '#000'},
+      {t: 'text', x: 200, y: 160, text: ' two', fillColor: '#000'},
+      {t: 'rect', x: 40, y: 10, width: 160, height: 160, fillColor: '#456'},
+      {t: 'edge', side: 'top', x: 40, y: 15, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'right', x: 195, y: 10, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'bottom', x: 40, y: 165, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'left', x: 45, y: 10, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'image', x: 70, y: 40, width: 100, height: 100, src: adaUrl},
+    ]);
+  });
+
+  it('paints inline image, border, background underneath a positioned inline', function () {
+    this.layout(`
+      <div style="font-size: 10px;">
+        one
+        <span style="position: relative; top: 10px;">
+          <img src="${adaUrl}" style="${imgBase}">
+        </span>
+        two
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 160, text: 'one ', fillColor: '#000'},
+      {t: 'text', x: 210, y: 160, text: 'two', fillColor: '#000'},
+      {t: 'rect', x: 40, y: 10, width: 160, height: 160, fillColor: '#456'},
+      {t: 'edge', side: 'top', x: 40, y: 15, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'right', x: 195, y: 10, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'bottom', x: 40, y: 165, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'edge', side: 'left', x: 45, y: 10, length: 160, lineWidth: 10, strokeColor: '#123'},
+      {t: 'image', x: 70, y: 40, width: 100, height: 100, src: adaUrl},
+      {t: 'text', x: 200, y: 170, text: ' ', fillColor: '#000'}
     ]);
   });
 

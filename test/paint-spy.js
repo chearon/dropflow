@@ -47,6 +47,10 @@ export default class PaintSpy {
     this.calls.push({t: 'text', x, y, text, fillColor});
   }
 
+  image(x, y, width, height, image) {
+    this.calls.push({t: 'image', x, y, width, height, src: image.src});
+  }
+
   drewText(text) {
     const calls = this.calls.filter(call => call.t === 'text');
     const ret = calls.find(c => c.text === text);

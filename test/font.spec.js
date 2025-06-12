@@ -5,7 +5,7 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {getLangCascade, fonts, FontFace, createFaceFromTablesSync, loadFonts} from '../src/text-font.js';
+import {getLangCascade, fonts, FontFace, createFaceFromTablesSync} from '../src/text-font.js';
 import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
 import {mock} from './util.js';
 
@@ -390,7 +390,7 @@ describe('Fonts', function () {
     });
 
     it('loads arabic', async function () {
-      loadFonts(parse('المادة'));
+      flow.load(parse('المادة'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans Arabic');
@@ -398,7 +398,7 @@ describe('Fonts', function () {
     });
 
     it('loads latin', async function () {
-      loadFonts(parse('the quick brown <strong>fox</strong>'));
+      flow.load(parse('the quick brown <strong>fox</strong>'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(2);
       expect(loading[0].family).to.equal('Noto Sans');
@@ -409,7 +409,7 @@ describe('Fonts', function () {
     });
 
     it('loads devanagari', async function () {
-      loadFonts(parse('अनुच्छेद'));
+      flow.load(parse('अनुच्छेद'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans');
@@ -418,7 +418,7 @@ describe('Fonts', function () {
     });
 
     it('loads khmer', async function () {
-      loadFonts(parse('មាត្រា'));
+      flow.load(parse('មាត្រា'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans Khmer');
@@ -426,7 +426,7 @@ describe('Fonts', function () {
     });
 
     it('loads chinese', async function () {
-      loadFonts(parse('<strong>人人</strong>生而自由在尊严和权利上律平等'));
+      flow.load(parse('<strong>人人</strong>生而自由在尊严和权利上律平等'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(2);
       expect(loading[0].family).to.equal('Noto Sans SC');
@@ -437,7 +437,7 @@ describe('Fonts', function () {
     });
 
     it('picks bold versions of a language', async function () {
-      loadFonts(parse('<strong>មាត្រា'));
+      flow.load(parse('<strong>មាត្រា'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans Khmer');

@@ -1,7 +1,7 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
-import {fonts, FontFace, loadFonts, loadFontsSync, createFaceFromTables, createFaceFromTablesSync} from './text-font.js';
+import {DeclaredStyle, getOriginStyle, computeElementStyle, Style} from './style.js';
+import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts} from './text-font.js';
 import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
@@ -241,14 +241,63 @@ export function staticLayoutContribution(box: BlockContainer): number {
   return intrinsicSize;
 }
 
-type LoadedResource = FontFace; // TODO: | Image too
+type LoadableResource = FontFace; // TODO: | Image too
 
-export async function load(root: HTMLElement): Promise<LoadedResource[]> {
-  return await loadFonts(root);
-  // TODO: images too
+export interface LoadWalkerContext {
+  fontCache: {style: Style, faces: FontFace[]}[];
+  fontEntry: {style: Style, faces: FontFace[]} | undefined;
+  onLoadableResource: (resource: LoadableResource) => void;
 }
 
-export function loadSync(root: HTMLElement): LoadedResource[] {
-  return loadFontsSync(root);
-  // TODO: images too
+function loadWalker(root: HTMLElement, ctx: LoadWalkerContext) {
+  const stack = root.children.slice().reverse();
+
+  while (stack.length) {
+    const el = stack.pop()!;
+    if (el instanceof HTMLElement) {
+      for (let i = el.children.length - 1; i >= 0; i--) stack.push(el.children[i]);
+    } else {
+      onLoadWalkerTextNodeForFonts(ctx, el);
+    }
+  }
+}
+
+export async function load(root: HTMLElement): Promise<LoadableResource[]> {
+  const promises: Promise<any>[] = [];
+  const resources: LoadableResource[] = [];
+
+  loadWalker(root, {
+    fontCache: [],
+    fontEntry: undefined,
+    onLoadableResource(resource) {
+      resources.push(resource);
+      const promise = resource.load().catch(() => {
+        // Swallowed. Error is wrapped in FontFace.ready.
+      });
+      promises.push(promise);
+    }
+  });
+
+  await Promise.all(promises);
+
+  return resources;
+}
+
+export function loadSync(root: HTMLElement): LoadableResource[] {
+  const resources: LoadableResource[] = [];
+
+  loadWalker(root, {
+    fontCache: [],
+    fontEntry: undefined,
+    onLoadableResource(resource) {
+      resources.push(resource);
+      try {
+        resource.loadSync();
+      } catch (e) {
+        // Swallowed. Error is wrapped in FontFace.ready.
+      }
+    }
+  });
+
+  return resources;
 }

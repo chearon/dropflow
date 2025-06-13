@@ -455,7 +455,7 @@ Paints the layout to a browser canvas, node-canvas, or similar standards-complia
 function paintToSvg(root: BlockContainer): string;
 ```
 
-Paints the layout to an SVG string, with `@font-face` rules referencing the URL you passed to `registerFont`.
+Paints the layout to an SVG string, with `@font-face` rules referencing the URL you passed to `flow.FontFace`.
 
 ### `paintToSvgElements`
 

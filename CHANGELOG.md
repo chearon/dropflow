@@ -13,6 +13,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 ### Fixed
+* `zoom` wasn't applied to length values of line-height
+* `flow.layout` twice before paint could result in incorrect inline backgrounds
 
 0.5.1
 ==================

@@ -1,7 +1,7 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
-import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts} from './text-font.js';
+import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.js';
 import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
@@ -265,6 +265,7 @@ function loadWalker(root: HTMLElement, ctx: LoadWalkerContext) {
     const el = stack.pop()!;
     if (el instanceof HTMLElement) {
       onLoadWalkerElementForImage(ctx, el);
+      onLoadWalkerElementForFonts(ctx, el);
       for (let i = el.children.length - 1; i >= 0; i--) stack.push(el.children[i]);
     } else {
       onLoadWalkerTextNodeForFonts(ctx, el);

@@ -242,8 +242,9 @@ describe('Load API', function () {
     const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
     const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
     const doc = parse(`
-      <span style="font-family: f1;">I love</span>
-      <span style="font-family: f2;">pinwheels</span>
+      <html style="font-family: f1;">
+        I love <span style="font-family: f2;">pinwheels</span>
+      </html>
     `);
     flow.fonts.add(f1);
     flow.fonts.add(f2);
@@ -260,18 +261,22 @@ describe('Load API', function () {
     expect(error).to.have.lengthOf(1);
   });
 
-  it('won\'t load fonts for paragraphs that don\'t have any text', async function () {
+  it('loads fonts needed by struts', async function () {
     const f1 = new flow.FontFace('f1', url('Roboto/Roboto-Regular.ttf'));
     const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    const f3 = new flow.FontFace('f3', url('Roboto/Roboto-BoldItalic.ttf'));
     flow.fonts.add(f1);
     flow.fonts.add(f2);
+    flow.fonts.add(f3);
     const doc = parse(`
-      <div style="font-family: f1; white-space: pre;"> \t\r\n</div>
-      <div style="font-family: f2;"> \t\r\n</div>
+      <div style="font-family: f1;">
+        <span style="font-family: f2;"><span style="font-family: f3;">1401</span></span>
+      </div>
     `)
     await flow.load(doc);
     expect(f1.status).to.equal('loaded');
-    expect(f2.status).to.equal('unloaded');
+    expect(f2.status).to.equal('loaded');
+    expect(f3.status).to.equal('loaded');
   });
 
   it('continues loading images after failure', function () {
@@ -292,14 +297,14 @@ describe('Load API', function () {
     flow.fonts.add(f1);
     flow.fonts.add(f2);
     const doc = parse(`
-      <div style="font-family: f1;">
+      <html style="font-family: f1;">
         I'm in
         <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
         <img src="im/in.png">
         <span style="font-family: f2;">the sky!</span>
         <img src="im/in.png">
         <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
-      </div>
+      </html>
     `);
 
     const resources = flow.loadSync(doc);

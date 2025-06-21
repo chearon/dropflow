@@ -9,7 +9,7 @@ import {Deferred} from './util.js';
 import type {HbFace, HbFont} from './text-harfbuzz.js';
 import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.js';
 import type {LoadWalkerContext} from './api.js';
-import type {TextNode} from './dom.js';
+import type {HTMLElement, TextNode} from './dom.js';
 
 // See FcStrContainsIgnoreCase in fcstr.c
 function strContainsIgnoreCase(s1: string, s2: string) {
@@ -1173,10 +1173,28 @@ export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
   }
 }
 
-export function onLoadWalkerTextNodeForFonts(ctx: LoadWalkerContext, el: TextNode) {
+function onFontNeeded(ctx: LoadWalkerContext, style: Style, unicode: number) {
   const cascade = getUrangeCascade();
   if (!cascade.source.length) return;
-  const isWsCollapsible = el.style.isWsCollapsible();
+  // Only recalc the cascade when the style changes or when the old list's
+  // _first_ match doesn't support the character. That means that fallback
+  // list for later characters may not be ideal, but we aren't required to
+  // load every font in the user-specified fallback list.
+  if (
+    !ctx.fontEntry?.style.fontsEqual(style, false) ||
+    !ctx.fontEntry.faces[0]._hasUnicode(unicode)
+  ) {
+    ctx.fontEntry = ctx.fontCache.find(entry => entry.style.fontsEqual(style, false));
+    if (!ctx.fontEntry || !ctx.fontEntry.faces[0]._hasUnicode(unicode)) {
+      const matches = cascade.sortByUnicode(style, unicode);
+      for (const font of matches) ctx.onLoadableResource(font);
+      ctx.fontEntry = {style, faces: matches};
+      ctx.fontCache.push(ctx.fontEntry);
+    }
+  }
+}
+
+export function onLoadWalkerTextNodeForFonts(ctx: LoadWalkerContext, el: TextNode) {
   let i = 0;
   while (i < el.text.length) {
     const code = el.text.charCodeAt(i++);
@@ -1189,26 +1207,10 @@ export function onLoadWalkerTextNodeForFonts(ctx: LoadWalkerContext, el: TextNod
       unicode = ((code - 0xd800) * 0x400) + (next - 0xdc00) + 0x10000;
     }
 
-    if (
-      isWsCollapsible &&
-      (unicode === 0x20 || unicode === 0x09 || unicode === 0x0a || unicode === 0x0d)
-    ) continue;
-
-    // Only recalc the cascade when the style changes or when the old list's
-    // _first_ match doesn't support the character. That means that fallback
-    // list for later characters may not be ideal, but we aren't required to
-    // load every font in the user-specified fallback list.
-    if (
-      !ctx.fontEntry?.style.fontsEqual(el.style, false) ||
-      !ctx.fontEntry.faces[0]._hasUnicode(unicode)
-    ) {
-      ctx.fontEntry = ctx.fontCache.find(entry => entry.style.fontsEqual(el.style, false));
-      if (!ctx.fontEntry || !ctx.fontEntry.faces[0]._hasUnicode(unicode)) {
-        const matches = cascade.sortByUnicode(el.style, unicode);
-        for (const font of matches) ctx.onLoadableResource(font);
-        ctx.fontEntry = {style: el.style, faces: matches};
-        ctx.fontCache.push(ctx.fontEntry);
-      }
-    }
+    onFontNeeded(ctx, el.style, unicode)
   }
+}
+
+export function onLoadWalkerElementForFonts(ctx: LoadWalkerContext, el: HTMLElement) {
+  onFontNeeded(ctx, el.style, 0x20);
 }

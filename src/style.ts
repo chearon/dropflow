@@ -562,13 +562,6 @@ export class Style {
     return this.float !== "none"; // TODO: or this.position === 'absolute'
   }
 
-  blockify() {
-    this.blockified = true;
-    if (this.display.outer !== "none") {
-      this.display = { outer: "block", inner: this.display.inner };
-    }
-  }
-
   isWsCollapsible() {
     const whiteSpace = this.whiteSpace;
     return (

@@ -5,7 +5,17 @@
     <script type="module" src="./index.js"></script>
   </head>
   <body style="margin: 0; height: 100%">
-    <div style="display: flex; white-space: nowrap; height: 100%">
+    <div style="
+      background-color: #2c3e50; 
+      padding: 0.5em; 
+      border-bottom: 2px solid #34495e;
+      display: flex;
+      gap: 0.5em;
+      align-items: center;
+    ">
+      <div id="toolbar-buttons"></div>
+    </div>
+    <div style="display: flex; white-space: nowrap; height: calc(100% - 60px)">
       <div style="width: 50%; min-width: 0" id="editor"></div>
       <div
         style="

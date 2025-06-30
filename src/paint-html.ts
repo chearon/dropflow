@@ -142,7 +142,9 @@ export default class HtmlPaintBackend implements PaintBackend {
   path(pathData: string) {
     // For HTML backend, render SVG path as an inline SVG element
     const { r, g, b, a } = this.strokeColor;
+    const { r: fr, g: fg, b: fb, a: fa } = this.fillColor;
     const stroke = `rgba(${r}, ${g}, ${b}, ${a})`;
+    const fill = fa > 0 ? `rgba(${fr}, ${fg}, ${fb}, ${fa})` : "none";
 
     const strokeDasharray = this.strokeDasharray
       ? `stroke-dasharray="${this.strokeDasharray}"`
@@ -156,7 +158,7 @@ export default class HtmlPaintBackend implements PaintBackend {
 
     // Create a minimal SVG container for the path
     this.s += `<svg style="position: absolute; top: 0; left: 0; pointer-events: none;" xmlns="http://www.w3.org/2000/svg">`;
-    this.s += `<path d="${pathData}" stroke="${stroke}" stroke-width="${this.lineWidth}" ${strokeDasharray} ${strokeLinecap} ${strokeLinejoin} fill="none" />`;
+    this.s += `<path d="${pathData}" stroke="${stroke}" stroke-width="${this.lineWidth}" ${strokeDasharray} ${strokeLinecap} ${strokeLinejoin} fill="${fill}" />`;
     this.s += `</svg>`;
   }
 

@@ -14,24 +14,8 @@ import type { InlineLevel, BlockLevel } from "./layout-flow.ts";
 import type { BackgroundBox } from "./layout-text.ts";
 import type { Color } from "./style.ts";
 import type { LoadedFontFace } from "./text-font.ts";
-
-// Border rendering constants
-const BORDER_DASHED_ARRAY = [4, 4];
-const BORDER_DOTTED_ARRAY = [0, 2];
-
-interface BorderInfo {
-  width: number;
-  style: string;
-  color: Color;
-}
-
-interface BoxBorderSegment {
-  firstSide: "left" | "top" | "right" | "bottom";
-  left: boolean;
-  top: boolean;
-  right: boolean;
-  bottom: boolean;
-}
+import { getBorderSegments, isBorderVisible, getStrokePropertiesFromBorder, generateBorderPath, } from "./box-border.ts";
+import type { BoxBorderSegment,  BoxBorder,  BorderInfo } from "./box-border.ts";
 
 export interface PaintBackend {
   fillColor: Color;
@@ -186,25 +170,8 @@ function paintFormattingBoxBackground(
   const style = box.style;
   const borderArea = box.getBorderArea();
 
-  if (!isRoot) {
-    const paddingArea = box.getPaddingArea();
-    const contentArea = box.getContentArea();
-    const { backgroundColor, backgroundClip } = style;
-    const area =
-      backgroundClip === "border-box"
-        ? borderArea
-        : backgroundClip === "padding-box"
-        ? paddingArea
-        : contentArea;
-
-    if (backgroundColor.a > 0) {
-      b.fillColor = backgroundColor;
-      b.rect(area.x, area.y, area.width, area.height);
-    }
-  }
-
   // Advanced border rendering with path-based system
-  const borders = {
+  const borders: BoxBorder = {
     left: {
       width: style.borderLeftWidth,
       style: style.borderLeftStyle,
@@ -235,13 +202,58 @@ function paintFormattingBoxBackground(
     bottomLeft: box.style.getBorderBottomLeftRadius(box),
   };
 
+  const hasRadius = borders.topLeft.horizontal > 0 || borders.topLeft.vertical > 0 || borders.topRight.horizontal > 0 || borders.topRight.vertical > 0 || borders.bottomRight.horizontal > 0 || borders.bottomRight.vertical > 0 || borders.bottomLeft.horizontal > 0 || borders.bottomLeft.vertical > 0;
+
+  if (!isRoot) {
+    const paddingArea = box.getPaddingArea();
+    const contentArea = box.getContentArea();
+    const { backgroundColor, backgroundClip } = style;
+    const area =
+      backgroundClip === "border-box"
+        ? borderArea
+        : backgroundClip === "padding-box"
+        ? paddingArea
+        : contentArea;
+
+    if (backgroundColor.a > 0) {
+      b.fillColor = backgroundColor;
+      // if a border radius is set we'll need to draw the background with a path;
+      // otherwise we can just draw a rect
+      if (hasRadius) {
+        // for background we pretend there's a solid border on all sides; we just care about
+        // capturing radius and the theoretical border area; we set the width of each border to 0
+        // so that the fill is not inset
+        const emptyBorder: BorderInfo = {
+          width: 0,
+          style: "solid",
+          color: { r: 0, g: 0, b: 0, a: 0 },
+        };
+        const backgroundSegment: BoxBorderSegment = {
+          firstSide: "top",
+          left: true,
+          top: true,
+          right: true,
+          bottom: true,
+        };
+
+        b.fillColor = { r: backgroundColor.r, g: backgroundColor.g, b: backgroundColor.b, a: backgroundColor.a };
+        b.lineWidth = 0;
+        b.strokeColor = { r: 0, g: 0, b: 0, a: 0 };
+        b.path(generateBorderPath(area.x, area.y, area.width, area.height, { ...borders, left: emptyBorder, top: emptyBorder, right: emptyBorder, bottom: emptyBorder }, backgroundSegment, "solid"));
+      } else {
+        b.rect(area.x, area.y, area.width, area.height);
+      }
+    }
+  }
+
+  // determine which border segments need to be drawn, and which is first
   const segments = getBorderSegments(borders);
 
   for (const segment of segments) {
-    const border = borders[segment.firstSide];
-    if (!isBorderVisible(border)) continue;
+    const localBorder = borders[segment.firstSide];
+    if (!isBorderVisible(localBorder)) continue;
 
-    const strokeProps = getStrokePropertiesFromBorder(border);
+    const strokeProps = getStrokePropertiesFromBorder(localBorder);
 
     // Apply stroke properties to backend
     b.strokeColor = strokeProps.strokeColor;
@@ -249,54 +261,16 @@ function paintFormattingBoxBackground(
     b.strokeDasharray = strokeProps.strokeDasharray;
     b.strokeLinecap = strokeProps.strokeLinecap;
 
-    if (border.style === "double") {
-      // For double borders, we need to draw two separate lines
-      // Each line should be 1/3 of the total border width
-      // The outer line is at the border edge, the inner line is 2/3 inset
-
-      // Set stroke width to 1/3 of border width for double borders
-      const doubleStrokeWidth = border.width > 0 ? border.width / 3 : 0;
-      b.lineWidth = doubleStrokeWidth;
-
-      // Draw the outer border (at border edge)
-      const outerPath = generateBorderPathForDouble(
-        borderArea.x,
-        borderArea.y,
-        borderArea.width,
-        borderArea.height,
-        borders,
-        borderRadii,
-        segment,
-        "outer"
-      );
-      b.path(outerPath);
-
-      // Draw the inner border (inset by 2/3 of border width)
-      const innerPath = generateBorderPathForDouble(
-        borderArea.x,
-        borderArea.y,
-        borderArea.width,
-        borderArea.height,
-        borders,
-        borderRadii,
-        segment,
-        "inner"
-      );
-      b.path(innerPath);
-    } else {
-      // For all other border styles, draw a single path
-      const path = generateBorderPath(
-        borderArea.x,
-        borderArea.y,
-        borderArea.width,
-        borderArea.height,
-        borders,
-        borderRadii,
-        segment,
-        1
-      );
-      b.path(path);
-    }
+    const path = generateBorderPath(
+      borderArea.x,
+      borderArea.y,
+      borderArea.width,
+      borderArea.height,
+      borders,
+      segment,
+      localBorder.style
+    );
+    b.path(path);
 
     // Reset stroke properties to defaults
     b.strokeDasharray = undefined;
@@ -985,663 +959,4 @@ export default function paint(block: BlockContainer, b: PaintBackend) {
   }
 }
 
-// Get stroke properties for a border style
-function getStrokePropertiesFromBorder(border: BorderInfo): {
-  strokeWidth: number;
-  strokeColor: Color;
-  strokeDasharray?: string;
-  strokeLinecap?: "butt" | "round" | "square";
-} {
-  const base = {
-    strokeWidth: border.width,
-    strokeColor: border.color,
-  };
 
-  switch (border.style) {
-    case "dashed":
-      return {
-        ...base,
-        strokeDasharray: BORDER_DASHED_ARRAY.map((x) => x * border.width).join(
-          " "
-        ),
-        strokeLinecap: "butt",
-      };
-    case "dotted":
-      return {
-        ...base,
-        strokeDasharray: BORDER_DOTTED_ARRAY.map((x) => x * border.width).join(
-          " "
-        ),
-        strokeLinecap: "round",
-      };
-    case "solid":
-    case "double":
-    default:
-      return {
-        ...base,
-        strokeLinecap: "butt",
-      };
-  }
-}
-
-// Check if a border is visible (has width, style, and color alpha > 0)
-function isBorderVisible(border: BorderInfo): boolean {
-  return (
-    border.width > 0 &&
-    border.style !== "none" &&
-    border.style !== "hidden" &&
-    border.color.a > 0
-  );
-}
-
-// Check if two borders match (same width, style, and color)
-function bordersMatch(border1: BorderInfo, border2: BorderInfo): boolean {
-  return (
-    border1.width === border2.width &&
-    border1.style === border2.style &&
-    border1.color.r === border2.color.r &&
-    border1.color.g === border2.color.g &&
-    border1.color.b === border2.color.b &&
-    border1.color.a === border2.color.a
-  );
-}
-
-// Detect contiguous border segments for optimization
-function getBorderSegments(borders: {
-  left: BorderInfo;
-  top: BorderInfo;
-  right: BorderInfo;
-  bottom: BorderInfo;
-}): BoxBorderSegment[] {
-  const { left, top, right, bottom } = borders;
-
-  // Check for full uniform border
-  if (
-    isBorderVisible(left) &&
-    isBorderVisible(top) &&
-    isBorderVisible(right) &&
-    isBorderVisible(bottom) &&
-    bordersMatch(left, top) &&
-    bordersMatch(top, right) &&
-    bordersMatch(right, bottom)
-  ) {
-    return [
-      {
-        firstSide: "left",
-        left: true,
-        top: true,
-        right: true,
-        bottom: true,
-      },
-    ];
-  }
-
-  // Check for three-side matches
-  const segments: BoxBorderSegment[] = [];
-
-  // Left-Top-Right
-  if (
-    isBorderVisible(left) &&
-    isBorderVisible(top) &&
-    isBorderVisible(right) &&
-    bordersMatch(left, top) &&
-    bordersMatch(top, right)
-  ) {
-    segments.push({
-      firstSide: "left",
-      left: true,
-      top: true,
-      right: true,
-      bottom: false,
-    });
-    if (isBorderVisible(bottom)) {
-      segments.push({
-        firstSide: "bottom",
-        left: false,
-        top: false,
-        right: false,
-        bottom: true,
-      });
-    }
-    return segments;
-  }
-
-  // Top-Right-Bottom
-  if (
-    isBorderVisible(top) &&
-    isBorderVisible(right) &&
-    isBorderVisible(bottom) &&
-    bordersMatch(top, right) &&
-    bordersMatch(right, bottom)
-  ) {
-    segments.push({
-      firstSide: "top",
-      left: false,
-      top: true,
-      right: true,
-      bottom: true,
-    });
-    if (isBorderVisible(left)) {
-      segments.push({
-        firstSide: "left",
-        left: true,
-        top: false,
-        right: false,
-        bottom: false,
-      });
-    }
-    return segments;
-  }
-
-  // Right-Bottom-Left
-  if (
-    isBorderVisible(right) &&
-    isBorderVisible(bottom) &&
-    isBorderVisible(left) &&
-    bordersMatch(right, bottom) &&
-    bordersMatch(bottom, left)
-  ) {
-    segments.push({
-      firstSide: "right",
-      left: true,
-      top: false,
-      right: true,
-      bottom: true,
-    });
-    if (isBorderVisible(top)) {
-      segments.push({
-        firstSide: "top",
-        left: false,
-        top: true,
-        right: false,
-        bottom: false,
-      });
-    }
-    return segments;
-  }
-
-  // Bottom-Left-Top
-  if (
-    isBorderVisible(bottom) &&
-    isBorderVisible(left) &&
-    isBorderVisible(top) &&
-    bordersMatch(bottom, left) &&
-    bordersMatch(left, top)
-  ) {
-    segments.push({
-      firstSide: "bottom",
-      left: true,
-      top: true,
-      right: false,
-      bottom: true,
-    });
-    if (isBorderVisible(right)) {
-      segments.push({
-        firstSide: "right",
-        left: false,
-        top: false,
-        right: true,
-        bottom: false,
-      });
-    }
-    return segments;
-  }
-
-  // Check for two-side matches
-  // Left-Top
-  if (
-    isBorderVisible(left) &&
-    isBorderVisible(top) &&
-    bordersMatch(left, top)
-  ) {
-    segments.push({
-      firstSide: "left",
-      left: true,
-      top: true,
-      right: false,
-      bottom: false,
-    });
-  } else {
-    if (isBorderVisible(left)) {
-      segments.push({
-        firstSide: "left",
-        left: true,
-        top: false,
-        right: false,
-        bottom: false,
-      });
-    }
-    if (isBorderVisible(top)) {
-      segments.push({
-        firstSide: "top",
-        left: false,
-        top: true,
-        right: false,
-        bottom: false,
-      });
-    }
-  }
-
-  // Right-Bottom
-  if (
-    isBorderVisible(right) &&
-    isBorderVisible(bottom) &&
-    bordersMatch(right, bottom)
-  ) {
-    segments.push({
-      firstSide: "right",
-      left: false,
-      top: false,
-      right: true,
-      bottom: true,
-    });
-  } else {
-    if (isBorderVisible(right)) {
-      segments.push({
-        firstSide: "right",
-        left: false,
-        top: false,
-        right: true,
-        bottom: false,
-      });
-    }
-    if (isBorderVisible(bottom)) {
-      segments.push({
-        firstSide: "bottom",
-        left: false,
-        top: false,
-        right: false,
-        bottom: true,
-      });
-    }
-  }
-
-  return segments;
-}
-
-// Generate SVG path for a border segment with radius support
-function generateSegmentPath(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radii: {
-    tlHor: number;
-    tlVer: number;
-    trHor: number;
-    trVer: number;
-    brHor: number;
-    brVer: number;
-    blHor: number;
-    blVer: number;
-  },
-  segment: BoxBorderSegment
-): string {
-  let path = "";
-  let started = false;
-
-  const addLineOrMoveTo = (targetX: number, targetY: number) => {
-    if (!started) {
-      path += `M ${targetX} ${targetY}`;
-      started = true;
-    } else {
-      path += ` L ${targetX} ${targetY}`;
-    }
-  };
-
-  const addArcTo = (
-    rx: number,
-    ry: number,
-    targetX: number,
-    targetY: number
-  ) => {
-    if (rx > 0 && ry > 0) {
-      path += ` A ${rx} ${ry} 0 0 1 ${targetX} ${targetY}`;
-    } else {
-      addLineOrMoveTo(targetX, targetY);
-    }
-  };
-
-  // Handle each side of the segment
-  if (segment.left) {
-    // Left side: bottom-left corner to top-left corner
-    if (segment.bottom) {
-      // Start from bottom-left corner (after radius)
-      addLineOrMoveTo(x, y + height - radii.blVer);
-    } else {
-      // Start from bottom of left side
-      addLineOrMoveTo(x, y + height);
-    }
-
-    // Draw to top-left corner (before radius)
-    if (radii.tlHor > 0 || radii.tlVer > 0) {
-      addLineOrMoveTo(x, y + radii.tlVer);
-      if (segment.top) {
-        // Draw top-left arc
-        addArcTo(radii.tlHor, radii.tlVer, x + radii.tlHor, y);
-      }
-    } else {
-      addLineOrMoveTo(x, y);
-      if (segment.top) {
-        addLineOrMoveTo(x + radii.tlHor, y);
-      }
-    }
-  }
-
-  if (segment.top) {
-    // Top side: top-left corner to top-right corner
-    if (!segment.left) {
-      // Start from left end of top side
-      addLineOrMoveTo(x, y);
-    }
-
-    // Draw to top-right corner (before radius)
-    if (radii.trHor > 0 || radii.trVer > 0) {
-      addLineOrMoveTo(x + width - radii.trHor, y);
-      if (segment.right) {
-        // Draw top-right arc
-        addArcTo(radii.trHor, radii.trVer, x + width, y + radii.trVer);
-      }
-    } else {
-      addLineOrMoveTo(x + width, y);
-      if (segment.right) {
-        addLineOrMoveTo(x + width, y + radii.trVer);
-      }
-    }
-  }
-
-  if (segment.right) {
-    // Right side: top-right corner to bottom-right corner
-    if (!segment.top) {
-      // Start from top of right side
-      addLineOrMoveTo(x + width, y);
-    }
-
-    // Draw to bottom-right corner (before radius)
-    if (radii.brHor > 0 || radii.brVer > 0) {
-      addLineOrMoveTo(x + width, y + height - radii.brVer);
-      if (segment.bottom) {
-        // Draw bottom-right arc
-        addArcTo(radii.brHor, radii.brVer, x + width - radii.brHor, y + height);
-      }
-    } else {
-      addLineOrMoveTo(x + width, y + height);
-      if (segment.bottom) {
-        addLineOrMoveTo(x + width - radii.brHor, y + height);
-      }
-    }
-  }
-
-  if (segment.bottom) {
-    // Bottom side: bottom-right corner to bottom-left corner
-    if (!segment.right) {
-      // Start from right end of bottom side
-      addLineOrMoveTo(x + width, y + height);
-    }
-
-    // Draw to bottom-left corner (before radius)
-    if (radii.blHor > 0 || radii.blVer > 0) {
-      addLineOrMoveTo(x + radii.blHor, y + height);
-      if (segment.left) {
-        // Draw bottom-left arc
-        addArcTo(radii.blHor, radii.blVer, x, y + height - radii.blVer);
-      }
-    } else {
-      addLineOrMoveTo(x, y + height);
-      if (segment.left) {
-        addLineOrMoveTo(x, y + height - radii.blVer);
-      }
-    }
-  }
-
-  // Close path only if the segment includes all four sides
-  if (segment.left && segment.top && segment.right && segment.bottom) {
-    path += " Z";
-  }
-
-  return path;
-}
-
-// Generate border path with radius support
-function generateBorderPath(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  borders: {
-    left: BorderInfo;
-    top: BorderInfo;
-    right: BorderInfo;
-    bottom: BorderInfo;
-  },
-  borderRadii: {
-    topLeft: { horizontal: number; vertical: number };
-    topRight: { horizontal: number; vertical: number };
-    bottomRight: { horizontal: number; vertical: number };
-    bottomLeft: { horizontal: number; vertical: number };
-  },
-  segment: BoxBorderSegment,
-  insetFactor: number = 1
-): string {
-  // Calculate geometry based on inset factor
-  const calculateGeometry = (factor: number) => {
-    const leftInset = (borders.left.width * factor) / 2;
-    const topInset = (borders.top.width * factor) / 2;
-    const rightInset = (borders.right.width * factor) / 2;
-    const bottomInset = (borders.bottom.width * factor) / 2;
-
-    const adjustedX = x + leftInset;
-    const adjustedY = y + topInset;
-    const adjustedWidth = width - leftInset - rightInset;
-    const adjustedHeight = height - topInset - bottomInset;
-
-    // Scale border radii proportionally with proper overlap handling
-    // Only apply corner radii when both adjacent borders are present in the segment
-    let tlHor =
-      segment.left && segment.top
-        ? Math.max(0, borderRadii.topLeft.horizontal - leftInset)
-        : 0;
-    let tlVer =
-      segment.left && segment.top
-        ? Math.max(0, borderRadii.topLeft.vertical - topInset)
-        : 0;
-    let trHor =
-      segment.top && segment.right
-        ? Math.max(0, borderRadii.topRight.horizontal - rightInset)
-        : 0;
-    let trVer =
-      segment.top && segment.right
-        ? Math.max(0, borderRadii.topRight.vertical - topInset)
-        : 0;
-    let brHor =
-      segment.right && segment.bottom
-        ? Math.max(0, borderRadii.bottomRight.horizontal - rightInset)
-        : 0;
-    let brVer =
-      segment.right && segment.bottom
-        ? Math.max(0, borderRadii.bottomRight.vertical - bottomInset)
-        : 0;
-    let blHor =
-      segment.bottom && segment.left
-        ? Math.max(0, borderRadii.bottomLeft.horizontal - leftInset)
-        : 0;
-    let blVer =
-      segment.bottom && segment.left
-        ? Math.max(0, borderRadii.bottomLeft.vertical - bottomInset)
-        : 0;
-
-    // Adjust radii ratios if they overlap (like in reference implementation)
-    const topRatio = adjustedWidth / (tlHor + trHor || 1);
-    const rightRatio = adjustedHeight / (trVer + brVer || 1);
-    const bottomRatio = adjustedWidth / (blHor + brHor || 1);
-    const leftRatio = adjustedHeight / (blVer + tlVer || 1);
-    const smallestRatio = Math.min(
-      topRatio,
-      rightRatio,
-      bottomRatio,
-      leftRatio
-    );
-
-    if (smallestRatio < 1) {
-      tlHor *= smallestRatio;
-      tlVer *= smallestRatio;
-      trHor *= smallestRatio;
-      trVer *= smallestRatio;
-      brHor *= smallestRatio;
-      brVer *= smallestRatio;
-      blHor *= smallestRatio;
-      blVer *= smallestRatio;
-    }
-
-    return {
-      x: adjustedX,
-      y: adjustedY,
-      width: adjustedWidth,
-      height: adjustedHeight,
-      radii: {
-        tlHor,
-        tlVer,
-        trHor,
-        trVer,
-        brHor,
-        brVer,
-        blHor,
-        blVer,
-      },
-    };
-  };
-
-  const geometry = calculateGeometry(insetFactor);
-  return generateSegmentPath(
-    geometry.x,
-    geometry.y,
-    geometry.width,
-    geometry.height,
-    geometry.radii,
-    segment
-  );
-}
-
-// Generate path for double borders with proper positioning
-function generateBorderPathForDouble(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  borders: {
-    left: BorderInfo;
-    top: BorderInfo;
-    right: BorderInfo;
-    bottom: BorderInfo;
-  },
-  borderRadii: {
-    topLeft: { horizontal: number; vertical: number };
-    topRight: { horizontal: number; vertical: number };
-    bottomRight: { horizontal: number; vertical: number };
-    bottomLeft: { horizontal: number; vertical: number };
-  },
-  segment: BoxBorderSegment,
-  position: "outer" | "inner"
-): string {
-  // For double borders, each line is 1/3 of the total border width
-  // Gap between lines is also 1/3 of the total border width
-  // Outer offset: strokeWidth/2 (centers stroke on border edge)
-  // Inner offset: strokeWidth/2 + gapWidth + strokeWidth/2 = 1.5 * strokeWidth
-
-  const totalWidth = borders[segment.firstSide].width;
-  const strokeWidth = totalWidth > 0 ? totalWidth / 3 : 0;
-  const gapWidth = strokeWidth;
-
-  let insetFactor: number;
-  if (position === "outer") {
-    // Outer border: inset by strokeWidth/2 to center on border edge
-    insetFactor = strokeWidth / 2 / totalWidth;
-  } else {
-    // Inner border: inset by strokeWidth/2 + gapWidth + strokeWidth/2
-    insetFactor = (strokeWidth / 2 + gapWidth + strokeWidth / 2) / totalWidth;
-  }
-
-  // Calculate per-side insets using the inset factor
-  const leftInset = borders.left.width * insetFactor;
-  const topInset = borders.top.width * insetFactor;
-  const rightInset = borders.right.width * insetFactor;
-  const bottomInset = borders.bottom.width * insetFactor;
-
-  const adjustedX = x + leftInset;
-  const adjustedY = y + topInset;
-  const adjustedWidth = width - leftInset - rightInset;
-  const adjustedHeight = height - topInset - bottomInset;
-
-  // Scale border radii proportionally with proper overlap handling
-  // Only apply corner radii when both adjacent borders are present in the segment
-  let tlHor =
-    segment.left && segment.top
-      ? Math.max(0, borderRadii.topLeft.horizontal - leftInset)
-      : 0;
-  let tlVer =
-    segment.left && segment.top
-      ? Math.max(0, borderRadii.topLeft.vertical - topInset)
-      : 0;
-  let trHor =
-    segment.top && segment.right
-      ? Math.max(0, borderRadii.topRight.horizontal - rightInset)
-      : 0;
-  let trVer =
-    segment.top && segment.right
-      ? Math.max(0, borderRadii.topRight.vertical - topInset)
-      : 0;
-  let brHor =
-    segment.right && segment.bottom
-      ? Math.max(0, borderRadii.bottomRight.horizontal - rightInset)
-      : 0;
-  let brVer =
-    segment.right && segment.bottom
-      ? Math.max(0, borderRadii.bottomRight.vertical - bottomInset)
-      : 0;
-  let blHor =
-    segment.bottom && segment.left
-      ? Math.max(0, borderRadii.bottomLeft.horizontal - leftInset)
-      : 0;
-  let blVer =
-    segment.bottom && segment.left
-      ? Math.max(0, borderRadii.bottomLeft.vertical - bottomInset)
-      : 0;
-
-  // Adjust radii ratios if they overlap (like in reference implementation)
-  const topRatio = adjustedWidth / (tlHor + trHor || 1);
-  const rightRatio = adjustedHeight / (trVer + brVer || 1);
-  const bottomRatio = adjustedWidth / (blHor + brHor || 1);
-  const leftRatio = adjustedHeight / (blVer + tlVer || 1);
-  const smallestRatio = Math.min(topRatio, rightRatio, bottomRatio, leftRatio);
-
-  if (smallestRatio < 1) {
-    tlHor *= smallestRatio;
-    tlVer *= smallestRatio;
-    trHor *= smallestRatio;
-    trVer *= smallestRatio;
-    brHor *= smallestRatio;
-    brVer *= smallestRatio;
-    blHor *= smallestRatio;
-    blVer *= smallestRatio;
-  }
-
-  const adjustedRadii = {
-    tlHor,
-    tlVer,
-    trHor,
-    trVer,
-    brHor,
-    brVer,
-    blHor,
-    blVer,
-  };
-
-  return generateSegmentPath(
-    adjustedX,
-    adjustedY,
-    adjustedWidth,
-    adjustedHeight,
-    adjustedRadii,
-    segment
-  );
-}

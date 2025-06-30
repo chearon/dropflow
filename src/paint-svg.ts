@@ -143,7 +143,9 @@ export default class SvgPaintBackend implements PaintBackend {
 
   path(pathData: string) {
     const { r, g, b, a } = this.strokeColor;
+    const { r: fr, g: fg, b: fb, a: fa } = this.fillColor;
     const stroke = `rgba(${r}, ${g}, ${b}, ${a})`;
+    const fill = fa > 0 ? `rgba(${fr}, ${fg}, ${fb}, ${fa})` : "none";
     const rect = this.clips.at(-1);
     const clipPath = rect ? `clip-path="url(#${rect.id}) "` : " ";
 
@@ -157,7 +159,7 @@ export default class SvgPaintBackend implements PaintBackend {
       ? `stroke-linejoin="${this.strokeLinejoin}" `
       : "";
 
-    this.main += `<path d="${pathData}" stroke="${stroke}" stroke-width="${this.lineWidth}" ${strokeDasharray}${strokeLinecap}${strokeLinejoin}fill="none" ${clipPath}/>`;
+    this.main += `<path d="${pathData}" stroke="${stroke}" stroke-width="${this.lineWidth}" ${strokeDasharray}${strokeLinecap}${strokeLinejoin}fill="${fill}" ${clipPath}/>`;
   }
 
   pushClip(x: number, y: number, width: number, height: number) {

@@ -43,6 +43,7 @@ export default class PaintSpy {
 
   path(pathData) {
     const strokeColor = this.strokeColor;
+    const fillColor = this.fillColor;
     const lineWidth = this.lineWidth;
     const strokeDasharray = this.strokeDasharray;
     const strokeLinecap = this.strokeLinecap;
@@ -50,6 +51,7 @@ export default class PaintSpy {
       t: "path",
       pathData,
       strokeColor,
+      fillColor,
       lineWidth,
       strokeDasharray,
       strokeLinecap,
@@ -92,9 +94,17 @@ export default class PaintSpy {
       if (call.t === "rect" || call.t === "text") {
         const { r, g, b, a } = call.fillColor;
         return { ...call, fillColor: hex(r, g, b, a) };
-      } else if (call.t === "edge" || call.t === "path") {
+      } else if (call.t === "edge") {
         const { r, g, b, a } = call.strokeColor;
         return { ...call, strokeColor: hex(r, g, b, a) };
+      } else if (call.t === "path") {
+        const { r, g, b, a } = call.strokeColor;
+        const { r: fr, g: fg, b: fb, a: fa } = call.fillColor;
+        return { 
+          ...call, 
+          strokeColor: hex(r, g, b, a),
+          fillColor: hex(fr, fg, fb, fa)
+        };
       } else {
         return call;
       }

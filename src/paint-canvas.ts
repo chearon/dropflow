@@ -42,7 +42,7 @@ export interface CanvasRenderingContext2D {
   scale(x: number, y: number): void;
   stroke(): void;
   stroke(path?: any): void; // For Path2D
-  fill(): void;
+  fill(path?: any): void; // For Path2D
   beginPath(): void;
   closePath(): void;
   save(): void;
@@ -331,10 +331,12 @@ export default class CanvasPaintBackend implements PaintBackend {
 
   path(pathData: string) {
     const { r, g, b, a } = this.strokeColor;
+    const { r: fr, g: fg, b: fb, a: fa } = this.fillColor;
     this.ctx.beginPath();
 
     // Apply stroke properties
     this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+    this.ctx.fillStyle = `rgba(${fr}, ${fg}, ${fb}, ${fa})`;
     this.ctx.lineWidth = this.lineWidth;
 
     if (this.strokeLinecap) {
@@ -358,6 +360,9 @@ export default class CanvasPaintBackend implements PaintBackend {
     if (typeof Path2D !== "undefined") {
       try {
         const path2D = new Path2D(pathData);
+        if ( fa > 0 ) {
+          this.ctx.fill(path2D);
+        }
         this.ctx.stroke(path2D);
         return;
       } catch (e) {
@@ -367,6 +372,9 @@ export default class CanvasPaintBackend implements PaintBackend {
 
     // Basic SVG path parsing for simple cases (fallback for node-canvas and older browsers)
     this.parseSvgPath(pathData);
+    if ( fa > 0 ) {
+      this.ctx.fill();
+    }
     this.ctx.stroke();
   }
 

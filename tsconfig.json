@@ -1,5 +1,11 @@
 {
-  "include": ["*.ts", "src/**/*", "*.d.ts", "examples/*.ts", "assets/register.ts"],
+  "include": [
+    "*.ts",
+    "src/**/*",
+    "*.d.ts",
+    "examples/*.ts",
+    "assets/register.ts"
+  ],
   "exclude": [
     "node_modules",
     // https://github.com/Brooooooklyn/canvas/issues/659
@@ -12,7 +18,7 @@
     "outDir": "dist",
     "declaration": true,
     "customConditions": ["buildtime"],
-    "lib": ["esnext"],
+    "lib": ["esnext", "dom"],
     "target": "esnext",
     "module": "node16",
     "strict": true,

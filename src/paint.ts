@@ -229,10 +229,10 @@ function paintFormattingBoxBackground(
 
   // Get border radius values from the style
   const borderRadii = {
-    topLeft: block.style.getBorderTopLeftRadius(block),
-    topRight: block.style.getBorderTopRightRadius(block),
-    bottomRight: block.style.getBorderBottomRightRadius(block),
-    bottomLeft: block.style.getBorderBottomLeftRadius(block),
+    topLeft: style.getBorderTopLeftRadius(box),
+    topRight: style.getBorderTopRightRadius(box),
+    bottomRight: style.getBorderBottomRightRadius(box),
+    bottomLeft: style.getBorderBottomLeftRadius(box),
   };
 
   const segments = getBorderSegments(borders);

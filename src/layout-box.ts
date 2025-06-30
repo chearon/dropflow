@@ -1,7 +1,7 @@
 import {id, Logger} from './util.js';
 import {Style} from './style.js';
 import {Run} from './layout-text.js';
-import {Break, Inline, IfcInline, BlockContainer, InlineLevel} from './layout-flow.js';
+import {Break, Inline, IfcInline, BlockContainer, ReplacedBox, InlineLevel} from './layout-flow.js';
 
 export interface LogicalArea {
   blockStart: number | undefined;
@@ -30,6 +30,14 @@ export abstract class RenderItem {
   }
 
   isBlockContainer(): this is BlockContainer {
+    return false;
+  }
+
+  isFormattingBox(): this is FormattingBox {
+    return false;
+  }
+
+  isReplacedBox(): this is ReplacedBox {
     return false;
   }
 
@@ -165,7 +173,7 @@ export abstract class Box extends RenderItem {
     // Other CSS rules that affect how a block container is treated during
     // layout do not have this problem (position: absolute, display: inline-
     // block) because anonymously created boxes cannot invoke those modes.
-    isInline:                  1 << 8, // style.display.outer for anon boxes too
+    isInline:                  1 << 8,
     isBfcRoot:                 1 << 9,
     // 8..13: propagation bits: Inline <- Run
     hasText:                   1 << 8,
@@ -174,17 +182,16 @@ export abstract class Box extends RenderItem {
     hasNewlines:               1 << 11,
     hasSoftWrap:               1 << 12,
     hasCollapsibleWs:          1 << 13,
-    // 14..17: propagation bits: Inline <- Inline
-    hasInlines:                1 << 14,
-    hasPaintedInlines:         1 << 15,
-    hasColoredInline:          1 << 16,
-    hasSizedInline:            1 << 17,
-    // 18: propagation bits: Inline <- Break
-    hasBreaks:                 1 << 18,
-    // 19..20: propagation bits: Inline <- BlockContainer
-    hasFloats:                 1 << 19,
-    hasInlineBlocks:           1 << 20,
-    // 21..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    // 14..16: propagation bits: Inline <- Inline
+    hasPaintedInlines:         1 << 14,
+    hasColoredInline:          1 << 15,
+    hasSizedInline:            1 << 16,
+    // 17: propagation bits: Inline <- Break, Inline, ReplacedBox
+    hasBreakInlineOrReplaced:  1 << 17,
+    // 18..19: propagation bits: Inline <- FormattingBox
+    hasFloatOrReplaced:        1 << 18,
+    hasInlineBlocks:           1 << 19,
+    // 20..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**
@@ -195,7 +202,7 @@ export abstract class Box extends RenderItem {
     enableLogging: Box.BITS.enableLogging,
   };
 
-  static PROPAGATES_TO_INLINE_BITS = 0xffffffc0;
+  static PROPAGATES_TO_INLINE_BITS = 0xffffff00;
 
   constructor(style: Style, attrs: number) {
     super(style);
@@ -376,6 +383,8 @@ export abstract class Box extends RenderItem {
     return this.style.position !== 'static';
   }
 
+  abstract isInlineLevel(): boolean;
+
   isStackingContextRoot() {
     return this.isPositioned() && this.style.zIndex !== 'auto';
   }
@@ -385,7 +394,7 @@ export abstract class Box extends RenderItem {
    * says to treat like one.
    */
   isLayerRoot(): boolean {
-    return this.isBlockContainer() && this.isFloat() || this.isBox() && this.isPositioned();
+    return this.isFormattingBox() && this.isFloat() || this.isPositioned();
   }
 
   /**
@@ -438,6 +447,27 @@ export abstract class Box extends RenderItem {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }
 
+  postlayoutPreorder() {
+    // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
+    // and use normal inline areas instead, with fragmentation
+    const borderArea = this.getBorderArea();
+    if (this.style.position === 'relative') {
+      borderArea.x += this.getRelativeHorizontalShift();
+      borderArea.y += this.getRelativeVerticalShift();
+    }
+
+    borderArea.absolutify();
+    if (this.style.hasBorderArea()) this.getPaddingArea().absolutify();
+    if (this.style.hasPaddingArea()) this.getContentArea().absolutify();
+  }
+
+  postlayoutPostorder() {
+    // TODO: same TODO as above
+    this.getBorderArea().snapPixels();
+    if (this.style.hasBorderArea()) this.getPaddingArea().snapPixels();
+    if (this.style.hasPaddingArea()) this.getContentArea().snapPixels();
+  }
+
   getRelativeVerticalShift() {
     const height = this.containingBlock.height;
     let {top, bottom} = this.style;
@@ -486,6 +516,93 @@ export abstract class Box extends RenderItem {
     s = '0b' + s;
     return s;
   }
+}
+
+/**
+ * Base class for BlockContainer, ReplacedBox, and theoretically, GridContainer
+ * and FlexContainer. Subclasses are all able to establish their own independent
+ * formatting contexts (replaced boxes arguably, not officially, do so) whereas
+ * Inlines cannot.
+ */
+export abstract class FormattingBox extends Box {
+  static ATTRS = {...Box.ATTRS};
+
+  isFormattingBox(): this is FormattingBox {
+    return true;
+  }
+
+  getDefiniteInnerInlineSize() {
+    const inlineSize = this.style.getInlineSize(this);
+    if (inlineSize !== 'auto') return inlineSize;
+  }
+
+  getDefiniteOuterInlineSize() {
+    const inlineSize = this.getDefiniteInnerInlineSize();
+    if (inlineSize !== undefined) {
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+      const paddingLineLeft = this.style.getPaddingLineLeft(this);
+      const paddingLineRight = this.style.getPaddingLineRight(this);
+      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+
+      return borderLineLeftWidth
+        + paddingLineLeft
+        + inlineSize
+        + paddingLineRight
+        + borderLineRightWidth;
+    }
+  }
+
+  getDefiniteInnerBlockSize() {
+    const blockSize = this.style.getBlockSize(this);
+    if (blockSize !== 'auto') return blockSize;
+  }
+
+  getMarginsAutoIsZero() {
+    let marginLineLeft = this.style.getMarginLineLeft(this);
+    let marginLineRight = this.style.getMarginLineRight(this);
+    let marginBlockStart = this.style.getMarginBlockStart(this);
+    let marginBlockEnd = this.style.getMarginBlockEnd(this);
+
+    if (marginBlockStart === 'auto') marginBlockStart = 0;
+    if (marginLineRight === 'auto') marginLineRight = 0;
+    if (marginBlockEnd === 'auto') marginBlockEnd = 0;
+    if (marginLineLeft === 'auto') marginLineLeft = 0;
+
+    return {
+      blockStart: marginBlockStart,
+      lineRight: marginLineRight,
+      blockEnd: marginBlockEnd,
+      lineLeft: marginLineLeft
+    };
+  }
+
+  canCollapseThrough() {
+    return false;
+  }
+
+  isFloat() {
+    return this.style.float !== 'none';
+  }
+
+  isOutOfFlow() {
+    return this.style.float !== 'none'; // TODO: or position === 'absolute'
+  }
+
+  propagate(parent: Box) {
+    super.propagate(parent);
+
+    if (this.isFloat()) {
+      parent.bitfield |= Box.BITS.hasFloatOrReplaced;
+    }
+  }
+
+  isInlineLevel() {
+    return this.style.display.outer === 'inline';
+  }
+
+  abstract getLastBaseline(): number | undefined;
+
+  abstract contribution(mode: 'min-content' | 'max-content'): number;
 }
 
 export class BoxArea {
@@ -551,7 +668,7 @@ export class BoxArea {
     this.parent = p;
   }
 
-  inlineSizeForPotentiallyOrthogonal(box: BlockContainer) {
+  inlineSizeForPotentiallyOrthogonal(box: FormattingBox) {
     if (!this.parent) return this.inlineSize; // root area
     if (!this.box.isBlockContainer()) return this.inlineSize; // cannot be orthogonal
     if (
@@ -670,8 +787,10 @@ export function prelayout(root: BlockContainer) {
         if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
       }
 
-      for (let i = box.children.length - 1; i >= 0; i--) {
-        stack.push(box.children[i]);
+      if (box.isBlockContainer() || box.isInline()) {
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
       }
     } else if (box.isRun()) {
       box.propagate(parents.at(-1)!, ifcs.at(-1)!.paragraph.string);
@@ -697,7 +816,12 @@ export function postlayout(root: BlockContainer) {
       parents.push(box);
       for (let i = box.children.length - 1; i >= 0; i--) {
         const child = box.children[i];
-        if (child.isBox()) stack.push(child);
+        if (child.isBlockContainer() || child.isInline()) {
+          stack.push(child);
+        } else {
+          child.postlayoutPreorder()
+          child.postlayoutPostorder();
+        }
       }
     }
   }

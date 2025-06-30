@@ -1,9 +1,7 @@
 import * as flow from 'dropflow';
 import fs from 'fs';
-import {createCanvas, loadImage} from 'canvas';
+import {createCanvas} from 'canvas';
 
-const image1 = await loadImage('https://picsum.photos/100/100');
-const image2 = await loadImage('https://picsum.photos/50/50');
 const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
 flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Regular.ttf')));
 
@@ -13,69 +11,74 @@ const rootStyle = flow.style({
   paddingBottom: 10,
   paddingLeft: 10,
   backgroundColor: {r: 200, g: 200, b: 200, a: 1},
-  lineHeight: {value: 2, unit: null}
+  lineHeight: {value: 2, unit: null},
+  zoom: 2
 });
 
 const image1Style = flow.style({
   float: 'left',
-  width: image1.width,
-  height: image1.height,
   marginTop: 6,
   marginRight: 6,
   marginBottom: 6,
-  marginLeft: 6
+  marginLeft: 6,
+  width: 200
 });
 
 const image2Style = flow.style({
-  // note: an upcoming API change is that this will become display: 'inline-block'
-  display: {outer: 'inline', inner: 'flow-root'},
-  width: image2.width,
-  height: image2.height
+  width: 50,
+  verticalAlign: 'middle'
+});
+
+const image3Style = flow.style({
+  display: {inner: 'flow-root', outer: 'block'},
+  marginLeft: 'auto',
+  marginRight: 'auto',
+  width: {value: 50, unit: '%'}
 });
 
 const rootElement = flow.dom(
   flow.h('html', {style: rootStyle, attrs: {'x-dropflow-log': 'true'}}, [
-    flow.h('div', {
+    flow.h('img', {
       style: image1Style,
-      attrs: {id: 'image1'}
+      attrs: {src: 'https://chearon.github.io/dropflow/assets/images/frogmage.gif'}
     }),
-    `Images aren't supported yet, but there is a way to get them working for the
-    impatient, as long as you don't need any other layout layered on top of them.
-    To the left is a float allocated to take up the same size as the image. After
-    the layout is painted, you can query for that element's block container and
-    paint the image into its contentArea. And here's an example of an inline
-    image: `,
-    flow.h('div', {
-      style: image2Style,
-      attrs: {id: 'image2'}
+    flow.h('p', `
+      Dropflow now supports images! These are loaded by calling flow.load()
+      on the document that contains them.
+    `),
+    flow.h('p', `
+      In CSS2, images fall under the category of "replaced elements". Layout
+      sees images, canvas, flash, etc. in the same way: opaque boxes with an
+      intrinsic size and a default size of 300x150.
+    `),
+    flow.h('p', {attrs: {'x-dropflow-log': 'true'}}, [
+      `On the left is a floating image. You know it's floating because this
+      text always starts to the right of it or underneath it. Here's a picture
+      of Ada Lovelace, the well-tempered Great Pyrenees mix as an inline image: `,
+      flow.h('img', {
+        style: image2Style,
+        attrs: {src: 'https://chearon.github.io/dropflow/assets/images/ada.png'}
+      }),
+      ' after'
+    ]),
+    flow.h('p', `
+      And below you'll see another meme, this time as a block-level element:
+    `),
+    flow.h('img', {
+      style: image3Style,
+      attrs: {src: 'https://chearon.github.io/dropflow/assets/images/tiramisu.jpeg'}
     })
   ])
 );
 
 
 // Normal layout, logging
-flow.loadSync(rootElement);
+await flow.load(rootElement);
 const blockContainer = flow.generate(rootElement);
-blockContainer.log();
-flow.layout(blockContainer, 600, 400);
-const canvas = createCanvas(600, 400);
+flow.layout(blockContainer, 1200, 1800);
+blockContainer.log({containingBlocks: true});
+const canvas = createCanvas(1200, 1800);
 const ctx = canvas.getContext('2d');
 flow.paintToCanvas(blockContainer, ctx);
-
-// Paint image 1
-const [image1El] = rootElement.query('#image1')!.boxes as flow.BlockContainer[];
-ctx.drawImage(
-  image1,
-  Math.round(image1El.getContentArea().x),
-  Math.round(image1El.getContentArea().y)
-);
-
-// Paint image 2
-const [image2El] = rootElement.query('#image2')!.boxes as flow.BlockContainer[];
-ctx.drawImage(
-  image2,
-  Math.round(image2El.getContentArea().x),
-  Math.round(image2El.getContentArea().y)
-);
 
 fs.writeFileSync(new URL('images-1.png', import.meta.url), canvas.toBuffer());

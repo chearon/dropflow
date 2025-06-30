@@ -11,6 +11,22 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 ### Fixed
 
+0.6.0
+==================
+
+Images are supported! `<img>` acts just like it does in the browser: natural ratios are known, they can be floated, positioned, inline, block, etc. JPEG, BMP, PNG, and GIF are supported, and images paint to every backend.
+
+### Changed
+* `flow.load` no longer throws errors. Check the `status` or `loaded` promise on the returned `FontFace`s instead.
+
+### Added
+* Support for the `<img>` element (JPEG, PNG, GIF, and BMP)
+* `flow.createObjectURL` and `flow.revokeObjectURL` APIs
+
+### Fixed
+* `zoom` wasn't applied to length values of line-height
+* `flow.layout` twice before paint could result in incorrect inline backgrounds
+
 0.5.1
 ==================
 ### Fixed

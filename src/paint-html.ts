@@ -3,6 +3,7 @@ import { getMetrics, ShapedItem } from "./layout-text.js";
 import type { Color } from "./style.js";
 import type { PaintBackend } from "./paint.js";
 import type { LoadedFontFace } from "./text-font.js";
+import type { Image } from "./layout-image.js";
 
 function encode(s: string) {
   return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
@@ -146,6 +147,17 @@ export default class HtmlPaintBackend implements PaintBackend {
     this.s += `<svg style="position: absolute; top: 0; left: 0; pointer-events: none;" xmlns="http://www.w3.org/2000/svg">`;
     this.s += `<path d="${pathData}" stroke="${stroke}" stroke-width="${this.lineWidth}" ${strokeDasharray} ${strokeLinecap} ${strokeLinejoin} fill="none" />`;
     this.s += `</svg>`;
+  }
+
+  image(x: number, y: number, w: number, h: number, image: Image) {
+    const style = this.style({
+      position: "absolute",
+      left: x + "px",
+      top: y + "px",
+      width: w + "px",
+      height: h + "px",
+    });
+    this.s += `<img style="${style}" src="${image.src}" />`;
   }
 
   pushClip(x: number, y: number, width: number, height: number) {

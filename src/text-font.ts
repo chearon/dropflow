@@ -4,10 +4,12 @@ import wasm from './wasm.js';
 import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
 import {environment} from './environment.js';
 import {nameToCode, tagToCode} from '../gen/script-names.js';
-import {HTMLElement} from './dom.js';
+import {Deferred} from './util.js';
 
 import type {HbFace, HbFont} from './text-harfbuzz.js';
 import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.js';
+import type {LoadWalkerContext} from './api.js';
+import type {HTMLElement, TextNode} from './dom.js';
 
 // See FcStrContainsIgnoreCase in fcstr.c
 function strContainsIgnoreCase(s1: string, s2: string) {
@@ -484,32 +486,6 @@ export class LoadedFontFace {
 
   toFontString(size: number) {
     return `${size}px ${this.uniqueFamily}`;
-  }
-}
-
-class Deferred<T> {
-  status: 'unresolved' | 'resolved' | 'rejected';
-  promise: Promise<T>;
-  resolve!: (v: T) => void;
-  reject!: (e?: unknown) => void;
-
-  constructor() {
-    this.status = 'unresolved';
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = (t: T) => {
-        if (this.status === 'unresolved') {
-          this.status = 'resolved';
-          resolve(t);
-        }
-      };
-
-      this.reject = (e: unknown) => {
-        if (this.status === 'unresolved') {
-          this.status = 'rejected';
-          reject(e);
-        }
-      };
-    });
   }
 }
 
@@ -1197,55 +1173,44 @@ export function eachRegisteredFont(cb: (family: LoadedFontFace) => void) {
   }
 }
 
-function loadFontsImpl(root: HTMLElement, cb: (face: FontFace) => void) {
-  const stack = root.children.slice();
-  const cache: {style: Style, faces: FontFace[]}[] = [];
+function onFontNeeded(ctx: LoadWalkerContext, style: Style, unicode: number) {
   const cascade = getUrangeCascade();
-  let entry: {style: Style, faces: FontFace[]} | undefined;
-
   if (!cascade.source.length) return;
-
-  while (stack.length) {
-    const el = stack.pop()!;
-    if (el instanceof HTMLElement) {
-      for (const child of el.children) stack.push(child);
-    } else {
-      let i = 0;
-      while (i < el.text.length) {
-        const code = el.text.charCodeAt(i++);
-        const next = el.text.charCodeAt(i);
-        let unicode = code;
-
-        // Faster than using the string's builtin iterator in Firefox
-        if ((0xd800 <= code && code <= 0xdbff) && (0xdc00 <= next && next <= 0xdfff)) {
-          i++;
-          unicode = ((code - 0xd800) * 0x400) + (next - 0xdc00) + 0x10000;
-        }
-
-        // Only recalc the cascade when the style changes or when the old list's
-        // _first_ match doesn't support the character. That means that fallback
-        // list for later characters may not be ideal, but we aren't required to
-        // load every font in the user-specified fallback list.
-        if (!entry?.style.fontsEqual(el.style, false) || !entry.faces[0]._hasUnicode(unicode)) {
-          entry = cache.find(entry => entry.style.fontsEqual(el.style, false));
-          if (!entry || !entry.faces[0]._hasUnicode(unicode)) {
-            const matches = cascade.sortByUnicode(el.style, unicode);
-            for (const font of matches) cb(font);
-            entry = {style: el.style, faces: matches};
-            cache.push(entry);
-          }
-        }
-      }
+  // Only recalc the cascade when the style changes or when the old list's
+  // _first_ match doesn't support the character. That means that fallback
+  // list for later characters may not be ideal, but we aren't required to
+  // load every font in the user-specified fallback list.
+  if (
+    !ctx.fontEntry?.style.fontsEqual(style, false) ||
+    !ctx.fontEntry.faces[0]._hasUnicode(unicode)
+  ) {
+    ctx.fontEntry = ctx.fontCache.find(entry => entry.style.fontsEqual(style, false));
+    if (!ctx.fontEntry || !ctx.fontEntry.faces[0]._hasUnicode(unicode)) {
+      const matches = cascade.sortByUnicode(style, unicode);
+      for (const font of matches) ctx.onLoadableResource(font);
+      ctx.fontEntry = {style, faces: matches};
+      ctx.fontCache.push(ctx.fontEntry);
     }
   }
 }
 
-export async function loadFonts(root: HTMLElement) {
-  const promises: Promise<FontFace>[] = [];
-  loadFontsImpl(root, face => promises.push(face.load()));
-  await Promise.all(promises);
+export function onLoadWalkerTextNodeForFonts(ctx: LoadWalkerContext, el: TextNode) {
+  let i = 0;
+  while (i < el.text.length) {
+    const code = el.text.charCodeAt(i++);
+    const next = el.text.charCodeAt(i);
+    let unicode = code;
+
+    // Faster than using the string's builtin iterator in Firefox
+    if ((0xd800 <= code && code <= 0xdbff) && (0xdc00 <= next && next <= 0xdfff)) {
+      i++;
+      unicode = ((code - 0xd800) * 0x400) + (next - 0xdc00) + 0x10000;
+    }
+
+    onFontNeeded(ctx, el.style, unicode)
+  }
 }
 
-export function loadFontsSync(root: HTMLElement) {
-  loadFontsImpl(root, face => face.loadSync());
+export function onLoadWalkerElementForFonts(ctx: LoadWalkerContext, el: HTMLElement) {
+  onFontNeeded(ctx, el.style, 0x20);
 }

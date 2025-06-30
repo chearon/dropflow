@@ -5,8 +5,9 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import registerNotoFonts from 'dropflow/register-noto-fonts.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {getLangCascade, fonts, FontFace, createFaceFromTablesSync, loadFonts} from '../src/text-font.js';
+import {getLangCascade, fonts, FontFace, createFaceFromTablesSync} from '../src/text-font.js';
 import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
+import {mock} from './util.js';
 
 /** @param {import("../src/style.js").DeclaredStyleProperties} style */
 function style(style) {
@@ -14,22 +15,6 @@ function style(style) {
 }
 
 const url = path => new URL(`../assets/${path}`, import.meta.url);
-
-// Simple version of {mock} from node:test. Bun doesn't support node:test yet.
-// Eventually the tests should get migrated to either jest or node:test since
-// those will work in both bun and node
-const mock = {
-  undo: [],
-  method(target, key, impl) {
-    const old = target[key];
-    target[key] = impl;
-    this.undo.push(() => target[key] = old);
-  },
-  reset() {
-    for (const fn of this.undo.reverse()) fn();
-    this.undo.length = 0;
-  }
-};
 
 const arrayBuffer = () => fs.readFileSync(url('Cairo/Cairo-Bold.ttf'));
 
@@ -405,7 +390,7 @@ describe('Fonts', function () {
     });
 
     it('loads arabic', async function () {
-      loadFonts(parse('المادة'));
+      flow.load(parse('المادة'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans Arabic');
@@ -413,7 +398,7 @@ describe('Fonts', function () {
     });
 
     it('loads latin', async function () {
-      loadFonts(parse('the quick brown <strong>fox</strong>'));
+      flow.load(parse('the quick brown <strong>fox</strong>'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(2);
       expect(loading[0].family).to.equal('Noto Sans');
@@ -424,7 +409,7 @@ describe('Fonts', function () {
     });
 
     it('loads devanagari', async function () {
-      loadFonts(parse('अनुच्छेद'));
+      flow.load(parse('अनुच्छेद'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans');
@@ -433,7 +418,7 @@ describe('Fonts', function () {
     });
 
     it('loads khmer', async function () {
-      loadFonts(parse('មាត្រា'));
+      flow.load(parse('មាត្រា'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans Khmer');
@@ -441,7 +426,7 @@ describe('Fonts', function () {
     });
 
     it('loads chinese', async function () {
-      loadFonts(parse('<strong>人人</strong>生而自由在尊严和权利上律平等'));
+      flow.load(parse('<strong>人人</strong>生而自由在尊严和权利上律平等'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(2);
       expect(loading[0].family).to.equal('Noto Sans SC');
@@ -452,32 +437,12 @@ describe('Fonts', function () {
     });
 
     it('picks bold versions of a language', async function () {
-      loadFonts(parse('<strong>មាត្រា'));
+      flow.load(parse('<strong>មាត្រា'));
       const loading = [...flow.fonts].filter(f => f.status === 'loading');
       expect(loading).to.have.lengthOf(1);
       expect(loading[0].family).to.equal('Noto Sans Khmer');
       expect(loading[0].weight).to.equal(700);
       await fonts.ready;
-    });
-  });
-
-  describe('loadFonts', function () {
-    afterEach(function () {
-      mock.reset();
-      flow.fonts.clear();
-    });
-
-    it('chains promise rejections', async function () {
-      const f = new FontFace('f', new URL('http://notarealdomain.notarealtld/'));
-      let e;
-      flow.fonts.add(f);
-      mock.method(global, 'fetch', async () => ({ok: false, status: 400}));
-      try {
-        await loadFonts(parse('<span style="font-family: f;">woo</span>'));
-      } catch (_e) {
-        e = _e;
-      }
-      expect(e).to.be.instanceOf(Error);
     });
   });
 });

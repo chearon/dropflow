@@ -2,13 +2,18 @@
 import {expect} from 'chai';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
 import {HTMLElement} from '../src/dom.js';
-import {h, dom, generate, layout, style} from 'dropflow';
+import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
+import {mock} from './util.js';
+import {clearImageCache, Image} from '../src/layout-image.js';
+import fs from 'node:fs';
+
+const url = path => new URL(`../assets/${path}`, import.meta.url);
 
 describe('Hyperscript API', function () {
   describe('h()', function () {
     it('accepts children argument', function () {
-      const div = h('div', [h('span'), 'chocolate']);
+      const div = flow.h('div', [flow.h('span'), 'chocolate']);
       expect(div.tagName).to.equal('div');
       expect(div.children).to.have.lengthOf(2);
       expect(div.children[0].tagName).to.equal('span');
@@ -16,15 +21,15 @@ describe('Hyperscript API', function () {
     });
 
     it('accepts text content argument', function () {
-      const div = h('div', 'text content');
+      const div = flow.h('div', 'text content');
       expect(div.tagName).to.equal('div');
       expect(div.children).to.have.lengthOf(1);
       expect(div.children[0].text).to.equal('text content');
     });
 
     it('accepts attrs argument', function () {
-      const div = h('div', {
-        style: style({fontSize: 66}),
+      const div = flow.h('div', {
+        style: flow.style({fontSize: 66}),
         attrs: {direction: 'rtl'}
       });
       expect(div.declaredStyle.properties.fontSize).to.equal(66);
@@ -32,14 +37,14 @@ describe('Hyperscript API', function () {
     });
 
     it('accepts attrs, children arguments', function () {
-      const div = h('div', {style: style({lineHeight: 20})}, [h('span')]);
+      const div = flow.h('div', {style: flow.style({lineHeight: 20})}, [flow.h('span')]);
       expect(div.declaredStyle.properties.lineHeight).to.equal(20);
       expect(div.children).to.have.lengthOf(1);
       expect(div.children[0].tagName).to.equal('span');
     });
 
     it('accepts attrs, text content arguments', function () {
-      const div = h('div', {style: style({display: 'inline'})}, 'text content');
+      const div = flow.h('div', {style: flow.style({display: 'inline'})}, 'text content');
       expect(div.declaredStyle.properties.display).to.equal('inline');
       expect(div.children).to.have.lengthOf(1);
       expect(div.children[0].text).to.equal('text content');
@@ -48,39 +53,43 @@ describe('Hyperscript API', function () {
 
   describe('dom()', function () {
     it('sets parents', function () {
-      const div = dom(h('div', [h('div')]));
+      const div = flow.dom(flow.h('div', [flow.h('div')]));
       expect(div.children[0].parent).to.equal(div);
       expect(div.children[0].children[0].parent).to.equal(div.children[0]);
     });
 
     it('computes styles', function () {
-      const h1 = dom(h('div', {style: style({fontSize: 99})}, 'abc'));
+      const style1 = flow.style({fontSize: 99});
+      const h1 = flow.dom(flow.h('div', {style: style1}, 'abc'));
       expect(h1.children[0].style.fontSize).to.equal(99);
-      const h2 = dom(h('div', {style: style({lineHeight: {value: 123, unit: null}})}, [h('div')]));
+
+      const style2 = flow.style({lineHeight: {value: 123, unit: null}});
+      const h2 = flow.dom(flow.h('div', {style: style2}, [flow.h('div')]));
       expect(h2.children[0].style.lineHeight).to.deep.equal(123 * 16);
     });
 
     it('cascades styles', function () {
-      const s1 = style({textAlign: 'left', fontWeight: 900});
-      const s2 = style({textAlign: 'right'});
-      const e = dom(h('div', {style: [s2, s1]}));
+      const s1 = flow.style({textAlign: 'left', fontWeight: 900});
+      const s2 = flow.style({textAlign: 'right'});
+      const e = flow.dom(flow.h('div', {style: [s2, s1]}));
       expect(e.children[0].style.textAlign).to.equal('right');
       expect(e.children[0].style.fontWeight).to.equal(900);
     });
 
     it('uses the html element', function () {
-      expect(dom(h('html', {})).children.length).to.equal(0);
+      expect(flow.dom(flow.h('html', {})).children.length).to.equal(0);
     });
 
     it('makes the root element block-level, flow-root', function () {
-      const html = dom(h('html', {style: style({display: {outer: 'inline', inner: 'flow'}})}));
+      const style = flow.style({display: {outer: 'inline', inner: 'flow'}});
+      const html = flow.dom(flow.h('html', {style: style}));
       expect(html.style.display.outer).to.equal('block');
       expect(html.style.display.inner).to.equal('flow-root');
     });
 
     it('accepts a mixed list', function () {
-      const html = dom([
-        h('div', {attrs: {div1: 'div1'}}),
+      const html = flow.dom([
+        flow.h('div', {attrs: {div1: 'div1'}}),
         'text1'
       ]);
 
@@ -91,16 +100,21 @@ describe('Hyperscript API', function () {
   });
 
   it('lays out successfully', async function () {
-    const tree = dom([
-      h('div', {style: style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']})}, [
-        h('div', 'Chapter 1'),
-        h('div', {attrs: {id: 't'}}, ['The quick brown fox jumps over the lazy dog', h('br'), 'The end'])
+    const style = flow.style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']});
+    const tree = flow.dom([
+      flow.h('div', {style}, [
+        flow.h('div', 'Chapter 1'),
+        flow.h('div', {attrs: {id: 't'}}, [
+          'The quick brown fox jumps over the lazy dog',
+          flow.h('br'),
+          'The end'
+        ])
       ])
     ]);
 
-    const box = generate(tree);
+    const box = flow.generate(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
-    layout(box, 100);
+    flow.layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
     expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
@@ -115,17 +129,22 @@ describe('Hyperscript API', function () {
   });
 
   it('layout twice is successful', async function () {
-    const tree = dom([
-      h('div', {style: style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']})}, [
-        h('div', 'Chapter 1'),
-        h('div', {attrs: {id: 't'}}, ['The quick brown fox jumps over the lazy dog', h('br'), 'The end'])
+    const style = flow.style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']});
+    const tree = flow.dom([
+      flow.h('div', {style}, [
+        flow.h('div', 'Chapter 1'),
+        flow.h('div', {attrs: {id: 't'}}, [
+          'The quick brown fox jumps over the lazy dog',
+          flow.h('br'),
+          'The end'
+        ])
       ])
     ]);
 
-    const box = generate(tree);
+    const box = flow.generate(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
-    layout(box, 100);
-    layout(box, 100);
+    flow.layout(box, 100);
+    flow.layout(box, 100);
     const ifc = box.children[0].children[1].children[0];
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
@@ -189,9 +208,156 @@ describe('DOM API', function () {
 
   it('exposes boxes', function () {
     const html = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
-    layout(generate(html));
+    flow.layout(flow.generate(html));
     const [box] = html.query('#d').boxes;
     expect(box.getContentArea().width).to.equal(100);
     expect(box.getContentArea().height).to.equal(100);
+  });
+});
+
+describe('Load API', function () {
+  afterEach(function () {
+    mock.reset();
+    flow.fonts.clear();
+  });
+
+  it('returns failed fonts', async function () {
+    const f = new flow.FontFace('f', new URL('http://notarealdomain.notarealtld/'));
+    flow.fonts.add(f);
+    mock.method(global, 'fetch', async () => ({ok: false, status: 400}));
+    const results = await flow.load(parse('<span style="font-family: f;">woo</span>'));
+    expect(results.length).to.equal(1);
+    expect(results[0]).to.equal(f);
+    expect(results[0].status).to.equal('error');
+    let error;
+    try {
+      await results[0].loaded;
+    } catch (e) {
+      error = e;
+    }
+    expect(error).to.be.an.instanceOf(Error);
+  });
+
+  it('loads all fonts even if some of them fail', async function () {
+    const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+    const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    const doc = parse(`
+      <html style="font-family: f1;">
+        I love <span style="font-family: f2;">pinwheels</span>
+      </html>
+    `);
+    flow.fonts.add(f1);
+    flow.fonts.add(f2);
+    const results = await flow.load(doc);
+    expect(results.length).to.equal(2);
+    expect(results[0]).to.equal(f1);
+    expect(results[0].status).to.equal('error');
+    expect(results[1]).to.equal(f2);
+    expect(results[1].status).to.equal('loaded');
+
+    const loading = [...flow.fonts].filter(f => f.status === 'loaded');
+    expect(loading).to.have.lengthOf(1);
+    const error = [...flow.fonts].filter(f => f.status === 'error');
+    expect(error).to.have.lengthOf(1);
+  });
+
+  it('loads fonts needed by struts', async function () {
+    const f1 = new flow.FontFace('f1', url('Roboto/Roboto-Regular.ttf'));
+    const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    const f3 = new flow.FontFace('f3', url('Roboto/Roboto-BoldItalic.ttf'));
+    flow.fonts.add(f1);
+    flow.fonts.add(f2);
+    flow.fonts.add(f3);
+    const doc = parse(`
+      <div style="font-family: f1;">
+        <span style="font-family: f2;"><span style="font-family: f3;">1401</span></span>
+      </div>
+    `)
+    await flow.load(doc);
+    expect(f1.status).to.equal('loaded');
+    expect(f2.status).to.equal('loaded');
+    expect(f3.status).to.equal('loaded');
+  });
+
+  it('continues loading images after failure', function () {
+    clearImageCache();
+    const el = parse(`
+      <img src="relative/path/to.png">
+      <img id="t" src="${new URL('../assets/images/ada.png', import.meta.url)}">
+    `);
+    const images = flow.loadSync(el);
+    expect(images[0].status).to.equal('error');
+    expect(images[0].reason).to.be.instanceOf(Error);
+    expect(images[1].status).to.equal('loaded');
+  });
+
+  it('loads mixed fonts and images, failure and success', function () {
+    const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+    const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
+    flow.fonts.add(f1);
+    flow.fonts.add(f2);
+    const doc = parse(`
+      <html style="font-family: f1;">
+        I'm in
+        <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
+        <img src="im/in.png">
+        <span style="font-family: f2;">the sky!</span>
+        <img src="im/in.png">
+        <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
+      </html>
+    `);
+
+    const resources = flow.loadSync(doc);
+    expect(resources.length).to.equal(6);
+    expect(resources[0].status).to.equal('error');       // f1
+    expect(resources[0]).to.be.instanceOf(flow.FontFace);
+    expect(resources[1].status).to.equal('loaded');      // frogmage.gif
+    expect(resources[1]).to.be.instanceOf(Image);
+    expect(resources[2].status).to.equal('error');       // im/in.png
+    expect(resources[2]).to.be.instanceOf(Image);
+    expect(resources[3].status).to.equal('loaded');      // f2
+    expect(resources[3]).to.be.instanceOf(flow.FontFace);
+    expect(resources[4].status).to.equal('error');       // im/in.png
+    expect(resources[4]).to.be.instanceOf(Image);
+    expect(resources[5].status).to.equal('loaded');      // frogmage.gif
+    expect(resources[5]).to.be.instanceOf(Image);
+  });
+
+  it('won\'t load images with an empty/absent src', function () {
+    const doc = parse('<img><img src="">');
+    const resources = flow.loadSync(doc);
+    expect(resources.length).to.equal(0);
+  });
+});
+
+describe('createObjectURL', function () {
+  it('creates and loads an object URL for an image', function () {
+    const buffer = fs.readFileSync(new URL('../assets/images/frogmage.gif', import.meta.url));
+    const url = flow.createObjectURL(buffer.buffer);
+    const style = flow.style({display: {outer: 'block', inner: 'flow'}});
+    const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
+    flow.loadSync(doc);
+    flow.layout(flow.generate(doc));
+    const [box] = doc.query('img').boxes;
+    expect(box.getContentArea().width).to.equal(1170);
+    expect(box.getContentArea().height).to.equal(1157);
+    flow.revokeObjectURL(url);
+  });
+
+  it('revokes object URLs', function () {
+    const buffer = fs.readFileSync(new URL('../assets/images/frogmage.gif', import.meta.url));
+    const url = flow.createObjectURL(buffer.buffer);
+
+    // If we revoked after loadSync, then tried loadSync again, it'd use the
+    // cached image (valid behavior) so revoke immediately to test.
+    flow.revokeObjectURL(url);
+
+    const style = flow.style({display: {outer: 'block', inner: 'flow'}});
+    const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
+    flow.loadSync(doc);
+    flow.layout(flow.generate(doc));
+    const [box] = doc.query('img').boxes;
+    expect(box.getContentArea().width).to.equal(0);
+    expect(box.getContentArea().height).to.equal(0);
   });
 });

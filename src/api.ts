@@ -1,14 +1,18 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.js';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
-import {fonts, FontFace, loadFonts, loadFontsSync, createFaceFromTables, createFaceFromTablesSync} from './text-font.js';
-import {generateBlockContainer, layoutBlockBox, BlockFormattingContext, BlockContainer} from './layout-flow.js';
+import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.js';
+import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
 import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 import paint from './paint.js';
 import {BoxArea, prelayout, postlayout} from './layout-box.js';
-import {id} from './util.js';
+import {onLoadWalkerElementForImage} from './layout-image.js';
+import {id, uuid} from './util.js';
+
+import type {Style} from './style.js';
+import type {Image} from './layout-image.js';
 
 export {environment} from './environment.js';
 
@@ -36,7 +40,7 @@ export function layout(root: BlockContainer, width = 640, height = 480) {
 
   root.containingBlock = initialContainingBlock;
   prelayout(root);
-  layoutBlockBox(root, {bfc: new BlockFormattingContext(0)});
+  layoutBlockLevelBox(root, {});
   postlayout(root);
 }
 
@@ -202,8 +206,13 @@ export function t(text: string): TextNode {
 export function staticLayoutContribution(box: BlockContainer): number {
   let intrinsicSize = 0;
 
-  const definiteSize = box.getDefiniteInlineSize();
-  if (definiteSize !== undefined) return definiteSize;
+  const definiteSize = box.getDefiniteOuterInlineSize();
+  if (definiteSize !== undefined) {
+    const marginLineLeft = box.style.getMarginLineLeft(box);
+    const marginLineRight = box.style.getMarginLineRight(box);
+    return definiteSize + (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+      + (marginLineRight === 'auto' ? 0 : marginLineRight)
+  }
 
   if (box.isBlockContainerOfInlines()) {
     const [ifc] = box.children;
@@ -213,7 +222,12 @@ export function staticLayoutContribution(box: BlockContainer): number {
     // TODO: floats
   } else if (box.isBlockContainerOfBlockContainers()) {
     for (const child of box.children) {
-      intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+      if (child.isBlockContainer()) {
+        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
+      } else {
+        // TODO:
+        intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
+      }
     }
   } else {
     throw new Error(`Unknown box type: ${box.id}`);
@@ -236,12 +250,77 @@ export function staticLayoutContribution(box: BlockContainer): number {
   return intrinsicSize;
 }
 
-export async function load(root: HTMLElement): Promise<void> {
-  await loadFonts(root);
-  // TODO: images too
+type LoadableResource = FontFace | Image;
+
+export interface LoadWalkerContext {
+  fontCache: {style: Style, faces: FontFace[]}[];
+  fontEntry: {style: Style, faces: FontFace[]} | undefined;
+  onLoadableResource: (resource: LoadableResource) => void;
 }
 
-export function loadSync(root: HTMLElement): void {
-  loadFontsSync(root);
-  // TODO: images too
+function loadWalker(root: HTMLElement, ctx: LoadWalkerContext) {
+  const stack = root.children.slice().reverse();
+
+  while (stack.length) {
+    const el = stack.pop()!;
+    if (el instanceof HTMLElement) {
+      onLoadWalkerElementForImage(ctx, el);
+      onLoadWalkerElementForFonts(ctx, el);
+      for (let i = el.children.length - 1; i >= 0; i--) stack.push(el.children[i]);
+    } else {
+      onLoadWalkerTextNodeForFonts(ctx, el);
+    }
+  }
+}
+
+export async function load(root: HTMLElement): Promise<LoadableResource[]> {
+  const promises: Promise<any>[] = [];
+  const resources: LoadableResource[] = [];
+
+  loadWalker(root, {
+    fontCache: [],
+    fontEntry: undefined,
+    onLoadableResource(resource) {
+      resources.push(resource);
+      const promise = resource.load().catch(() => {
+        // Swallowed. Error is wrapped in FontFace.ready (images don't throw)
+      });
+      promises.push(promise);
+    }
+  });
+
+  await Promise.all(promises);
+
+  return resources;
+}
+
+export function loadSync(root: HTMLElement): LoadableResource[] {
+  const resources: LoadableResource[] = [];
+
+  loadWalker(root, {
+    fontCache: [],
+    fontEntry: undefined,
+    onLoadableResource(resource) {
+      resources.push(resource);
+      try {
+        resource.loadSync();
+      } catch (e) {
+        // Swallowed. Error is wrapped in FontFace.ready (images don't throw)
+      }
+    }
+  });
+
+  return resources;
+}
+
+export const objectStore = new Map<string, ArrayBufferLike>();
+
+export function createObjectURL(buffer: ArrayBufferLike): string {
+  let url = 'blob:dropflow.local/' + uuid();
+  objectStore.set(url, buffer);
+  return url;
+}
+
+export function revokeObjectURL(url: string): void {
+  objectStore.delete(url);
 }

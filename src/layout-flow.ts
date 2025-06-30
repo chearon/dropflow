@@ -12,7 +12,8 @@ import {
   createParagraph,
   getFontMetrics
 } from './layout-text.js';
-import {Box, RenderItem, PrelayoutContext} from './layout-box.js';
+import {getImage} from './layout-image.js';
+import {Box, FormattingBox, RenderItem, PrelayoutContext} from './layout-box.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -33,7 +34,11 @@ function writingModeInlineAxis(el: HTMLElement) {
 }
 
 export interface LayoutContext {
-  bfc: BlockFormattingContext
+  /**
+   * The block formatting context that formats the subject in a layout function.
+   * This is only undefined for the root box or when an element is out of flow.
+   */
+  bfc?: BlockFormattingContext
 }
 
 class MarginCollapseCollection {
@@ -101,10 +106,7 @@ export class BlockFormattingContext {
     this.hypotheticals = EMPTY_MAP;
   }
 
-  boxStart(box: BlockContainer, ctx: LayoutContext) {
-    const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent();
-    const paddingBlockStart = box.style.getPaddingBlockStart(box);
-    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(box);
+  collapseStart(box: FormattingBox) {
     const marginBlockStart = box.style.getMarginBlockStart(box);
     let floatBottom = 0;
     let clearance = 0;
@@ -125,7 +127,6 @@ export class BlockFormattingContext {
     }
 
     const adjoinsPrevious = clearance === 0;
-    const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
 
     if (adjoinsPrevious) {
       this.margin.collection.add(marginBlockStart);
@@ -135,6 +136,15 @@ export class BlockFormattingContext {
       this.margin = {level: this.level, collection: new MarginCollapseCollection(c)};
       if (box.canCollapseThrough()) this.margin.clearanceAtLevel = this.level;
     }
+  }
+
+  boxStart(box: BlockContainer, ctx: LayoutContext) {
+    const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent();
+    const paddingBlockStart = box.style.getPaddingBlockStart(box);
+    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(box);
+    const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
+
+    this.collapseStart(box);
 
     this.last = 'start';
     this.level += 1;
@@ -204,6 +214,18 @@ export class BlockFormattingContext {
     // in the tree, since its siblings need to be shifted.
     if (this.level < this.margin.level) this.margin.level = this.level;
 
+    this.last = 'end';
+  }
+
+  boxAtomic(box: FormattingBox) {
+    const marginBlockEnd = box.style.getMarginBlockEnd(box);
+    assumePx(marginBlockEnd);
+    this.collapseStart(box);
+    this.fctx?.boxStart();
+    this.positionBlockContainers();
+    box.setBlockPosition(this.cbBlockStart);
+    this.margin.collection = new MarginCollapseCollection();
+    this.margin.collection.add(marginBlockEnd);
     this.last = 'end';
   }
 
@@ -314,7 +336,7 @@ export class BlockFormattingContext {
 }
 
 class FloatSide {
-  items: BlockContainer[];
+  items: FormattingBox[];
   // Moving shelf area (stretches to infinity in the block direction)
   shelfBlockOffset: number;
   shelfTrackIndex: number;
@@ -440,7 +462,7 @@ class FloatSide {
     }
   }
 
-  placeFloat(box: BlockContainer, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
+  placeFloat(box: FormattingBox, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
     if (box.style.float === 'none') {
       throw new Error('Tried to place float:none');
     }
@@ -534,7 +556,7 @@ export class FloatContext {
   bfc: BlockFormattingContext;
   leftFloats: FloatSide;
   rightFloats: FloatSide;
-  misfits: BlockContainer[];
+  misfits: FormattingBox[];
 
   constructor(bfc: BlockFormattingContext, blockOffset: number) {
     this.bfc = bfc;
@@ -557,7 +579,7 @@ export class FloatContext {
     return new IfcVacancy(leftOffset, rightOffset, blockOffset, inlineSize, 0, 0);
   }
 
-  getVacancyForBox(box: BlockContainer, lineWidth: number) {
+  getVacancyForBox(box: FormattingBox, lineWidth: number) {
     const float = box.style.float;
     const floats = float === 'left' ? this.leftFloats : this.rightFloats;
     const oppositeFloats = float === 'left' ? this.rightFloats : this.leftFloats;
@@ -627,7 +649,7 @@ export class FloatContext {
     return this.getVacancyForLine(blockOffset, blockSize);
   }
 
-  placeFloat(lineWidth: number, lineIsEmpty: boolean, box: BlockContainer) {
+  placeFloat(lineWidth: number, lineIsEmpty: boolean, box: FormattingBox) {
     if (box.style.float === 'none') {
       throw new Error('Attempted to place float: none');
     }
@@ -703,20 +725,22 @@ export interface BlockContainerOfInlines extends BlockContainer {
   children: IfcInline[];
 }
 
+export type BlockLevel = BlockContainer | ReplacedBox;
+
 export interface BlockContainerOfBlockContainers extends BlockContainer {
-  children: BlockContainer[];
+  children: BlockLevel[];
 }
 
-export class BlockContainer extends Box {
-  public children: IfcInline[] | BlockContainer[];
+export class BlockContainer extends FormattingBox {
+  public children: IfcInline[] | BlockLevel[];
 
   static ATTRS = {
-    ...Box.ATTRS,
+    ...FormattingBox.ATTRS,
     isInline: Box.BITS.isInline,
     isBfcRoot: Box.BITS.isBfcRoot
   };
 
-  constructor(style: Style, children: IfcInline[] | BlockContainer[], attrs: number) {
+  constructor(style: Style, children: IfcInline[] | BlockLevel[], attrs: number) {
     super(style, attrs);
     this.children = children;
   }
@@ -789,47 +813,6 @@ export class BlockContainer extends Box {
     return {blockStart, lineLeft, lineRight};
   }
 
-  getDefiniteInlineSize() {
-    const inlineSize = this.style.getInlineSize(this);
-
-    if (inlineSize !== 'auto') {
-      const marginLineLeft = this.style.getMarginLineLeft(this);
-      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      const paddingLineLeft = this.style.getPaddingLineLeft(this);
-
-      const paddingLineRight = this.style.getPaddingLineRight(this);
-      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-      const marginLineRight = this.style.getMarginLineRight(this);
-
-      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-        + borderLineLeftWidth
-        + paddingLineLeft
-        + inlineSize
-        + paddingLineRight
-        + borderLineRightWidth
-        + (marginLineRight === 'auto' ? 0 : marginLineRight);
-    }
-  }
-
-  getMarginsAutoIsZero() {
-    let marginLineLeft = this.style.getMarginLineLeft(this);
-    let marginLineRight = this.style.getMarginLineRight(this);
-    let marginBlockStart = this.style.getMarginBlockStart(this);
-    let marginBlockEnd = this.style.getMarginBlockEnd(this);
-
-    if (marginBlockStart === 'auto') marginBlockStart = 0;
-    if (marginLineRight === 'auto') marginLineRight = 0;
-    if (marginBlockEnd === 'auto') marginBlockEnd = 0;
-    if (marginLineLeft === 'auto') marginLineLeft = 0;
-
-    return {
-      blockStart: marginBlockStart,
-      lineRight: marginLineRight,
-      blockEnd: marginBlockEnd,
-      lineLeft: marginLineLeft
-    };
-  }
-
   getLastBaseline(): number | undefined {
     const stack: {block: BlockContainer, offset: number}[] = [{block: this, offset: 0}];
 
@@ -846,12 +829,14 @@ export class BlockContainer extends Box {
         const parentOffset = offset;
 
         for (const child of block.children) {
-          const offset = parentOffset
-            + child.getBorderArea().blockStart
-            + child.style.getBorderBlockStartWidth(child)
-            + child.style.getPaddingBlockStart(child);
+          if (child.isBlockContainer()) {
+            const offset = parentOffset
+              + child.getBorderArea().blockStart
+              + child.style.getBorderBlockStartWidth(child);
+              + child.style.getPaddingBlockStart(child);
 
-          stack.push({block: child, offset});
+            stack.push({block: child, offset});
+          }
         }
       }
     }
@@ -867,14 +852,6 @@ export class BlockContainer extends Box {
 
   isBfcRoot() {
     return Boolean(this.bitfield & Box.BITS.isBfcRoot);
-  }
-
-  isFloat() {
-    return this.style.float !== 'none';
-  }
-
-  isOutOfFlow() {
-    return this.style.float !== 'none'; // TODO: or position === 'absolute'
   }
 
   loggingEnabled() {
@@ -905,32 +882,10 @@ export class BlockContainer extends Box {
   propagate(parent: Box) {
     super.propagate(parent);
 
-    if (this.isFloat()) {
-      parent.bitfield |= Box.BITS.hasFloats;
-    }
-
     if (this.isInlineLevel()) {
       // TODO: and not absolutely positioned
       parent.bitfield |= Box.BITS.hasInlineBlocks;
     }
-  }
-
-  postlayoutPreorder() {
-    const borderArea = this.getBorderArea();
-    if (this.style.position === 'relative') {
-      borderArea.x += this.getRelativeHorizontalShift();
-      borderArea.y += this.getRelativeVerticalShift();
-    }
-
-    borderArea.absolutify();
-    if (this.style.hasBorderArea()) this.getPaddingArea().absolutify();
-    if (this.style.hasPaddingArea()) this.getContentArea().absolutify();
-  }
-
-  postlayoutPostorder() {
-    this.getBorderArea().snapPixels();
-    if (this.style.hasBorderArea()) this.getPaddingArea().snapPixels();
-    if (this.style.hasPaddingArea()) this.getContentArea().snapPixels();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -951,14 +906,14 @@ export class BlockContainer extends Box {
 }
 
 // §10.3.3
-function doInlineBoxModelForBlockBox(box: BlockContainer) {
+function doInlineBoxModelForBlockBox(box: FormattingBox) {
   const cInlineSize = box.containingBlock.inlineSizeForPotentiallyOrthogonal(box);
-  const inlineSize = box.style.getInlineSize(box);
+  const inlineSize = box.getDefiniteInnerInlineSize();
   let marginLineLeft = box.style.getMarginLineLeft(box);
   let marginLineRight = box.style.getMarginLineRight(box);
 
   // Paragraphs 2 and 3
-  if (inlineSize !== 'auto') {
+  if (inlineSize !== undefined) {
     const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
     const paddingLineLeft = box.style.getPaddingLineLeft(box);
     const paddingLineRight = box.style.getPaddingLineRight(box);
@@ -1003,7 +958,7 @@ function doInlineBoxModelForBlockBox(box: BlockContainer) {
   }
 
   // Paragraph 5: auto width
-  if (inlineSize === 'auto') {
+  if (inlineSize === undefined) {
     if (marginLineLeft === 'auto') marginLineLeft = 0;
     if (marginLineRight === 'auto') marginLineRight = 0;
   }
@@ -1033,93 +988,103 @@ function doBlockBoxModelForBlockBox(box: BlockContainer) {
   }
 }
 
-export function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
-  const bfc = ctx.bfc;
+function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
+  const containingBfc = ctx.bfc;
   const cctx = {...ctx};
-
-  box.fillAreas();
-
-  doInlineBoxModelForBlockBox(box);
-  doBlockBoxModelForBlockBox(box);
+  let establishedBfc;
 
   if (box.isBfcRoot()) {
     const inlineSize = box.getContentArea().inlineSize;
     cctx.bfc = new BlockFormattingContext(inlineSize);
+    establishedBfc = cctx.bfc;
   }
 
-  bfc.boxStart(box, cctx); // Assign block position if it's an IFC
+  containingBfc?.boxStart(box, cctx); // Assign block position if it's an IFC
   // Child flow is now possible
 
   if (box.isBlockContainerOfInlines()) {
-    // text layout happens in bfc.boxStart
-  } else if (box.isBlockContainerOfBlockContainers()) {
-    for (const child of box.children) {
-      layoutBlockBox(child, cctx);
+    if (containingBfc) {
+      // text layout happens in bfc.boxStart
+    } else {
+      box.doTextLayout(cctx);
     }
+  } else if (box.isBlockContainerOfBlockContainers()) {
+    for (const child of box.children) layoutBlockLevelBox(child, cctx);
   } else {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  if (box.isBfcRoot()) {
-    cctx.bfc.finalize(box);
-    if (cctx.bfc.fctx) {
+  if (establishedBfc) {
+    establishedBfc.finalize(box);
+    if (establishedBfc.fctx) {
       if (box.loggingEnabled()) {
         console.log('Left floats');
-        console.log(cctx.bfc.fctx.leftFloats.repr());
+        console.log(establishedBfc.fctx.leftFloats.repr());
         console.log('Right floats');
-        console.log(cctx.bfc.fctx.rightFloats.repr());
+        console.log(establishedBfc.fctx.rightFloats.repr());
         console.log();
       }
     }
   }
 
-  bfc.boxEnd(box);
+  containingBfc?.boxEnd(box);
 }
 
-function doInlineBoxModelForFloatBox(box: BlockContainer, inlineSize: number) {
-  const marginLineLeft = box.style.getMarginLineLeft(box);
-  const marginLineRight = box.style.getMarginLineRight(box);
-  box.setInlineOuterSize(
-    inlineSize -
-    (marginLineLeft === 'auto' ? 0 : marginLineLeft) -
-    (marginLineRight === 'auto' ? 0 : marginLineRight)
-  );
+function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
+  box.fillAreas();
+  doInlineBoxModelForBlockBox(box);
+  doBlockBoxModelForBlockBox(box);
+  layoutBlockBoxInner(box, ctx);
 }
 
-export function layoutFloatBox(box: BlockContainer, ctx: LayoutContext) {
-  if (!box.isBfcRoot()) {
-    throw new Error(`Box ${box.id} is float but not BFC root, that should be impossible`);
+function layoutReplacedBox(box: ReplacedBox, ctx: LayoutContext) {
+  box.fillAreas();
+  doInlineBoxModelForBlockBox(box);
+  box.setBlockSize(box.getDefiniteInnerBlockSize());
+  ctx.bfc!.boxAtomic(box);
+}
+
+export function layoutBlockLevelBox(box: BlockLevel, ctx: LayoutContext) {
+  if (box.isBlockContainer()) {
+    layoutBlockBox(box, ctx);
+  } else {
+    layoutReplacedBox(box, ctx);
   }
+}
 
-  const cctx = {...ctx};
+function doInlineBoxModelForFloatBox(box: FormattingBox, inlineSize: number) {
+  box.setInlineOuterSize(inlineSize);
+}
+
+function doBlockBoxModelForFloatBox(box: FormattingBox) {
+  const size = box.getDefiniteInnerBlockSize();
+  if (size !== undefined) box.setBlockSize(size);
+}
+
+export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
+  const cctx: LayoutContext = {...ctx, bfc: undefined};
   box.fillAreas();
 
-  let inlineSize = box.getDefiniteInlineSize();
+  let inlineSize = box.getDefiniteOuterInlineSize();
 
   if (inlineSize === undefined) {
     const minContent = box.contribution('min-content');
     const maxContent = box.contribution('max-content');
     const availableSpace = box.containingBlock.inlineSize;
+    const marginLineLeft = box.style.getMarginLineLeft(box);
+    const marginLineRight = box.style.getMarginLineRight(box);
     inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
+    if (marginLineLeft !== 'auto') inlineSize -= marginLineLeft;
+    if (marginLineRight !== 'auto') inlineSize -= marginLineRight;
   }
 
   doInlineBoxModelForFloatBox(box, inlineSize);
-  doBlockBoxModelForBlockBox(box);
-
-  const cInlineSize = box.getContentArea().inlineSize;
-  cctx.bfc = new BlockFormattingContext(cInlineSize);
-
-  if (box.isBlockContainerOfInlines()) {
-    box.doTextLayout(cctx);
-  } else if (box.isBlockContainerOfBlockContainers()) {
-    for (const child of box.children) {
-      layoutBlockBox(child, cctx);
-    }
+  doBlockBoxModelForFloatBox(box);
+  if (box.isBlockContainer()) {
+    layoutBlockBoxInner(box, cctx);
   } else {
-    throw new Error(`Unknown box type: ${box.id}`);
+    // replaced boxes have no layout. they were sized by doInline/Block above
   }
-
-  cctx.bfc.finalize(box);
 }
 
 export class Break extends RenderItem {
@@ -1138,7 +1103,7 @@ export class Break extends RenderItem {
   }
 
   propagate(parent: Box) {
-    parent.bitfield |= Box.BITS.hasBreaks;
+    parent.bitfield |= Box.BITS.hasBreakInlineOrReplaced;
   }
 }
 
@@ -1159,7 +1124,8 @@ export class Inline extends Box {
   }
 
   prelayoutPreorder(ctx: PrelayoutContext) {
-    this.containingBlock = ctx.lastBlockContainerArea;
+    super.prelayoutPreorder(ctx);
+    this.nshaped = 0;
     this.metrics = getFontMetrics(this);
   }
 
@@ -1167,7 +1133,7 @@ export class Inline extends Box {
     super.propagate(parent);
 
     if (parent.isInline()) {
-      parent.bitfield |= Box.BITS.hasInlines;
+      parent.bitfield |= Box.BITS.hasBreakInlineOrReplaced;
       if (this.style.backgroundColor.a !== 0 || this.style.hasBorderArea()) {
         parent.bitfield |= Box.BITS.hasPaintedInlines;
       }
@@ -1205,16 +1171,12 @@ export class Inline extends Box {
     return this.bitfield & Box.BITS.hasCollapsibleWs;
   }
 
-  hasFloats() {
-    return this.bitfield & Box.BITS.hasFloats;
+  hasFloatOrReplaced() {
+    return this.bitfield & Box.BITS.hasFloatOrReplaced;
   }
 
-  hasInlines() {
-    return this.bitfield & Box.BITS.hasInlines;
-  }
-
-  hasBreaks() {
-    return this.bitfield & Box.BITS.hasBreaks;
+  hasBreakOrInlineOrReplaced() {
+    return this.bitfield & Box.BITS.hasBreakInlineOrReplaced;
   }
 
   hasComplexText() {
@@ -1271,6 +1233,10 @@ export class Inline extends Box {
   }
 
   isInline(): this is Inline {
+    return true;
+  }
+
+  isInlineLevel() {
     return true;
   }
 
@@ -1369,7 +1335,7 @@ export class IfcInline extends Inline {
         }
 
         inlineShifts.set(box, {dx, dy});
-      } else if (box.isBlockContainer()) {
+      } else if (box.isFormattingBox()) {
         const borderArea = box.getBorderArea();
         // floats or inline-blocks
         borderArea.x += dx;
@@ -1399,7 +1365,7 @@ export class IfcInline extends Inline {
   shouldLayoutContent() {
     return this.hasText()
       || this.hasSizedInline()
-      || this.hasFloats()
+      || this.hasFloatOrReplaced()
       || this.hasInlineBlocks();
   }
 
@@ -1411,11 +1377,124 @@ export class IfcInline extends Inline {
   }
 }
 
-export type InlineLevel = Inline | BlockContainer | Run | Break;
+// So far this is always backed by an image (<img>) which, like browsers, always
+// has a natural width and height and always has a ratio. In the browsers it's
+// something like 20x20 and 1:1, but in dropflow, it's 0x0 and 1:1, since we
+// prefer not to paint anything.
+//
+// If there is ever another kind of replaced element, the hard-coding should be
+// replaced with an member that adheres to an interface.
+export class ReplacedBox extends FormattingBox {
+  src: string;
+
+  constructor(style: Style, src: string) {
+    super(style, 0);
+    this.src = src;
+  }
+
+  isReplacedBox(): this is ReplacedBox {
+    return true;
+  }
+
+  logName(log: Logger) {
+    log.text("Replaced " + this.id);
+  }
+
+  getLogSymbol() {
+    return "◼️";
+  }
+
+  hasBackground() {
+    return this.style.hasPaint();
+  }
+
+  hasForeground() {
+    return true;
+  }
+
+  getImage() {
+    return this.src === '' ? undefined : getImage(this.src);
+  }
+
+  getIntrinsicIsize() {
+    return (this.getImage()?.width ?? 0) * this.style.zoom;
+  }
+
+  getIntrinsicBsize() {
+    return (this.getImage()?.height ?? 0) * this.style.zoom;
+  }
+
+  getRatio() {
+    const image = this.getImage();
+    return image ? (image.width / image.height || 1) : 1;
+  }
+
+  propagate(parent: Box) {
+    super.propagate(parent);
+    parent.bitfield |= Box.BITS.hasBreakInlineOrReplaced;
+    parent.bitfield |= Box.BITS.hasFloatOrReplaced;
+  }
+
+  contribution() {
+    const marginLineLeft = this.style.getMarginLineLeft(this);
+    const marginLineRight = this.style.getMarginLineLeft(this);
+    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+    const paddingLineLeft = this.style.getPaddingLineLeft(this);
+    const paddingLineRight = this.style.getPaddingLineRight(this);
+    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+    let isize = this.style.getInlineSize(this);
+    let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+      + borderLineLeftWidth
+      + paddingLineLeft
+      + paddingLineRight
+      + borderLineRightWidth
+      + (marginLineRight === 'auto' ? 0 : marginLineRight);
+
+    if (isize === 'auto') isize = this.getIntrinsicIsize();
+
+    contribution += isize;
+
+    return contribution;
+  }
+
+  getLastBaseline() {
+    return undefined;
+  }
+
+  getDefiniteInnerInlineSize() {
+    let isize = this.style.getInlineSize(this);
+
+    if (isize === 'auto') {
+      let bsize;
+      if ((bsize = this.style.getBlockSize(this)) !== 'auto') { // isize from bsize
+        return bsize * this.getRatio();
+      } else {
+        return this.getIntrinsicIsize();
+      }
+    } else {
+      return isize;
+    }
+  }
+
+  getDefiniteInnerBlockSize() {
+    const bsize = this.style.getBlockSize(this);
+    let isize;
+
+    if (bsize !== 'auto') {
+      return bsize;
+    } else if ((isize = this.style.getInlineSize(this)) !== 'auto') { // bsize from isize
+      return isize / this.getRatio();
+    } else {
+      return this.getIntrinsicBsize();
+    }
+  }
+}
+
+export type InlineLevel = Inline | Run | Break | BlockContainer | ReplacedBox;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
   | {state: 'text', item: Run}
-  | {state: 'block', item: BlockContainer}
+  | {state: 'box', item: BlockLevel}
   | {state: 'break'}
   | {state: 'breakop'};
 
@@ -1464,11 +1543,11 @@ export function createInlineIterator(inline: IfcInline) {
           } else {
             if (item.isFloat()) {
               shouldFlushBreakop = true;
-              buffered.push({state: 'block', item});
+              buffered.push({state: 'box', item});
             } else {
               buffered.push(
                 {state: 'breakop'},
-                {state: 'block', item},
+                {state: 'box', item},
                 {state: 'breakop'}
               );
             }
@@ -1540,14 +1619,21 @@ function mapTree(
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
         child = new Break(childEl.style);
-      } else if (childEl.style.float !== 'none') {
-        child = generateBlockContainer(childEl);
       } else if (childEl.style.display.outer === 'block') {
-        bail = true;
-      } else if (childEl.style.display.inner === 'flow-root') {
-        child = generateBlockContainer(childEl);
-      } else {
-        [bail, child] = mapTree(childEl, text, path, level + 1);
+        if (childEl.style.isOutOfFlow()) {
+          child = generateFormattingBox(childEl);
+        } else {
+          bail = true;
+        }
+      } else { // inline
+        if (
+          childEl.style.display.inner === 'flow-root' ||
+          childEl.tagName === 'img'
+        ) {
+          child = generateFormattingBox(childEl);
+        } else {
+          [bail, child] = mapTree(childEl, text, path, level + 1);
+        }
       }
     } else if (childEl instanceof TextNode) {
       const start = text.value.length;
@@ -1576,12 +1662,12 @@ function generateInlineBox(
   el: HTMLElement,
   text: ParagraphText,
   path: number[]
-): [boolean, Inline | BlockContainer] {
+): [boolean, Inline | BlockLevel] {
   const target = el.getEl(path);
 
   if (target instanceof HTMLElement && target.style.display.outer === 'block') {
     ++path[path.length - 1];
-    return [true, generateBlockContainer(target)];
+    return [true, generateFormattingBox(target)];
   }
 
   return mapTree(el, text, path, 0);
@@ -1597,14 +1683,24 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
   return new BlockContainer(anonStyle, [ifc], attrs);
 }
 
+function generateFormattingBox(el: HTMLElement): BlockLevel {
+  if (el.tagName === 'img') {
+    const box = new ReplacedBox(el.style, el.attrs.src ?? "");
+    el.boxes.push(box);
+    return box;
+  } else {
+    return generateBlockContainer(el);
+  }
+}
+
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement): BlockContainer {
   const text: ParagraphText = {value: ''};
   const enableLogging = 'x-dropflow-log' in el.attrs;
-  const blocks: BlockContainer[] = [];
+  const blocks: BlockLevel[] = [];
   let inlines: InlineLevel[] = [];
   let attrs = 0;
-  
+
   // TODO: it's time to start moving some of this type of logic to HTMLElement.
   // For example add the methods establishesBfc, generatesBlockContainerOfBlocks,
   // generatesBreak, etc
@@ -1626,9 +1722,9 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       if (child.tagName === 'br') {
         inlines.push(new Break(child.style));
       } else if (child.style.display.outer === 'block') {
-        const block = generateBlockContainer(child);
+        const block = generateFormattingBox(child);
 
-        if (block.isOutOfFlow()) {
+        if (block.style.isOutOfFlow()) {
           inlines.push(block);
         } else {
           if (inlines.length) {
@@ -1640,8 +1736,11 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
           blocks.push(block);
         }
       } else { // inline
-        if (child.style.display.inner === 'flow-root') { // inline-block
-          inlines.push(generateBlockContainer(child));
+        if (
+          child.style.display.inner === 'flow-root' || // inline-block
+          child.tagName === 'img'
+        ) {
+          inlines.push(generateFormattingBox(child));
         } else {
           const path: number[] = [];
           let more, box;
@@ -1649,7 +1748,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
           do {
             ([more, box] = generateInlineBox(child, text, path));
 
-            if (box.isInline()) {
+            if (box.isInline() || box.isInlineLevel()) {
               inlines.push(box);
             } else {
               if (inlines.length) {
@@ -1676,7 +1775,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
     attrs |= BlockContainer.ATTRS.isInline;
   }
 
-  let children: BlockContainer[] | IfcInline[];
+  let children: BlockLevel[] | IfcInline[];
 
   if (inlines.length) {
     if (blocks.length) {

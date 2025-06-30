@@ -1,4 +1,4 @@
-import {G_ID, G_CL, G_SZ} from './layout-text.js';
+import {G_ID, G_CL, G_SZ} from './text-harfbuzz.js';
 import type {Style} from './style.js';
 
 /**
@@ -77,6 +77,27 @@ export function binarySearchTuple<T>(a: [T, number][], x: number): number {
 let _id = 0;
 export function id(): string {
   return String(_id++);
+}
+
+const bytes = new Uint8Array(16);
+
+export function uuid() {
+  let uuid = '';
+
+  crypto.getRandomValues(bytes);
+
+  // Set version (4) in the most significant 4 bits of byte 6
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+
+  // Set variant (10) in the most significant 2 bits of byte 8
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  for (let i = 0; i < bytes.length; i++) {
+    switch (i) { case 4: case 6: case 8: case 10: uuid += '-'; }
+    uuid += bytes[i].toString(16).padStart(2, '0');
+  }
+
+  return uuid;
 }
 
 export function loggableText(text: string): string {
@@ -191,5 +212,31 @@ export class Logger {
 
   popIndent() {
     this.indent.pop();
+  }
+}
+
+export class Deferred<T> {
+  status: 'unresolved' | 'resolved' | 'rejected';
+  promise: Promise<T>;
+  resolve!: (v: T) => void;
+  reject!: (e?: unknown) => void;
+
+  constructor() {
+    this.status = 'unresolved';
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = (t: T) => {
+        if (this.status === 'unresolved') {
+          this.status = 'resolved';
+          resolve(t);
+        }
+      };
+
+      this.reject = (e: unknown) => {
+        if (this.status === 'unresolved') {
+          this.status = 'rejected';
+          reject(e);
+        }
+      };
+    });
   }
 }

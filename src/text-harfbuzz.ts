@@ -540,6 +540,16 @@ function createJsString(text: string) {
 
 const langPtr = exports.malloc(3);
 
+// hbjs_extract_glyphs
+export const G_ID = 0;
+export const G_CL = 1;
+export const G_AX = 2;
+export const G_AY = 3;
+export const G_DX = 4;
+export const G_DY = 5;
+export const G_FL = 6;
+export const G_SZ = 7;
+
 export class HbBuffer {
   ptr: number;
 

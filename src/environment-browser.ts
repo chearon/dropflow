@@ -7,6 +7,7 @@ import {environment, defaultEnvironment} from './environment.js';
 // https://gist.github.com/RyanCavanaugh/702ebd1ca2fc060e58e634b4e30c1c1c
 declare const document: any;
 declare const FontFace: any;
+declare const Image: any;
 
 if (environment.registerFont === defaultEnvironment.registerFont) {
   environment.registerFont = function (face) {
@@ -28,6 +29,21 @@ if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(res.statusText);
     return await res.arrayBuffer();
+  };
+}
+
+if (environment.createDecodedImage === defaultEnvironment.createDecodedImage) {
+  environment.createDecodedImage = async (image) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(new Blob([image.buffer as ArrayBuffer]));
+    await img.decode();
+    return img;
+  };
+}
+
+if (environment.destroyDecodedImage === defaultEnvironment.destroyDecodedImage) {
+  environment.destroyDecodedImage = (handle: typeof Image) => {
+    URL.revokeObjectURL(handle.src);
   };
 }
 

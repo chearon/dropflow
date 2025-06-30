@@ -1,14 +1,19 @@
 // Note if you're running this in the dropflow repo, you'll have to npm install
 // skia-canvas and un-exclude this file from tsconfig.json. skia-canvas refers
 // to ambient types: https://github.com/samizdatco/skia-canvas/pull/220
-import * as flow from 'dropflow';
+import * as flow from '../src/api.js';
 import fs from 'fs';
 import {fileURLToPath} from 'url';
-import {Canvas, FontLibrary} from 'skia-canvas';
+import {Canvas, FontLibrary, loadImage} from 'skia-canvas';
 
-// Configure skia-canvas
+// Configure skia-canvas (1/2)
 flow.environment.registerFont = face => {
   FontLibrary.use(face.uniqueFamily, fileURLToPath(face.url));
+};
+
+// Configure skia-canvas (2/2)
+flow.environment.createDecodedImage = async image => {
+  return await loadImage(Buffer.from(image.buffer!));
 };
 
 // Register fonts
@@ -41,15 +46,21 @@ const spanStyle = flow.style({
 // Create the document!
 const rootElement = flow.dom(
   flow.h('html', {style: rootStyle, attrs: {'x-dropflow-log': 'true'}}, [
+    flow.h('img', {
+      style: flow.style({width: 50}),
+      attrs: {src: 'https://chearon.github.io/dropflow/assets/images/frogmage.gif'}
+    }),
     flow.h('div', ['Hello ', flow.h('span', {style: spanStyle}, 'skia-canvas'), '!'])
   ])
 );
 
 // Normal layout, logging
-flow.loadSync(rootElement);
+await flow.load(rootElement);
 const blockContainer = flow.generate(rootElement);
 blockContainer.log();
 flow.layout(blockContainer, 200 * zoom, 100 * zoom);
+
+// Finally, paint to the surface
 const canvas = new Canvas(200 * zoom, 100 * zoom);
 const ctx = canvas.getContext('2d');
 flow.paintToCanvas(blockContainer, ctx);

@@ -361,6 +361,7 @@ export class Style {
   // General
   id: number;
   computed: ComputedStyle;
+  blockified: boolean;
   // Cache related
   parentId: number;
   cascadeId: number;
@@ -468,6 +469,7 @@ export class Style {
   ) {
     this.id = ++id;
     this.computed = style;
+    this.blockified = false;
     this.parentId = parent ? parent.id : 0;
     this.cascadeId = cascadedStyle ? cascadedStyle.id : 0;
     this.nextInCache = null;
@@ -481,7 +483,7 @@ export class Style {
     this.fontStretch = style.fontStretch;
     this.fontFamily = style.fontFamily;
     this.lineHeight = this.usedLineHeight(style);
-    this.verticalAlign = style.verticalAlign;
+    this.verticalAlign = this.usedMaybeLength(style.verticalAlign);
     this.backgroundColor = style.backgroundColor;
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;
@@ -547,6 +549,19 @@ export class Style {
     }
 
     return this.textAlign;
+  }
+
+  isOutOfFlow() {
+    return this.float !== "none"; // TODO: or this.position === 'absolute'
+  }
+
+  isWsCollapsible() {
+    const whiteSpace = this.whiteSpace;
+    return (
+      whiteSpace === "normal" ||
+      whiteSpace === "nowrap" ||
+      whiteSpace === "pre-line"
+    );
   }
 
   hasPaddingArea() {
@@ -1196,13 +1211,16 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 
   if (computed.zoom === 0) computed.zoom = 1;
 
+  const style = new Style(computed, parentStyle, cascadedStyle);
+
   // Blockify floats (TODO: abspos too) (CSS Display §2.7). This drives what
   // type of box is created (-> not an inline), but otherwise has no effect.
+  if (computed.float !== "none") style.blockify();
   if (computed.float !== "none" && computed.display.outer !== "none") {
     computed.display = { outer: "block", inner: computed.display.inner };
   }
 
-  return new Style(computed, parentStyle, cascadedStyle);
+  return style;
 }
 
 const computedCache = new Map<number, Style>();

@@ -1,22 +1,22 @@
 // @ts-check
-import './config.js';
-import * as flow from 'dropflow';
-import parse from 'dropflow/parse.js';
-import registerNotoFonts from 'dropflow/register-noto-fonts.js';
-import {EditorView, basicSetup} from 'codemirror';
-import {EditorState} from '@codemirror/state';
-import {html} from '@codemirror/lang-html';
-import {solarizedDark} from '@ddietr/codemirror-themes/solarized-dark.js'
+import "./config.js";
+import * as flow from "dropflow";
+import parse from "dropflow/parse.js";
+import registerNotoFonts from "dropflow/register-noto-fonts.js";
+import { EditorView, basicSetup } from "codemirror";
+import { EditorState } from "@codemirror/state";
+import { html } from "@codemirror/lang-html";
+import { solarizedDark } from "@ddietr/codemirror-themes/theme/solarized-dark";
 
-const [canvas] = document.getElementsByTagName('canvas');
-const wrap = document.getElementById('wrap');
-const canvasLabel = document.getElementById('canvas-label');
+const [canvas] = document.getElementsByTagName("canvas");
+const wrap = document.getElementById("wrap");
+const canvasLabel = document.getElementById("canvas-label");
 
-flow.setOriginStyle({zoom: window.devicePixelRatio});
+flow.setOriginStyle({ zoom: window.devicePixelRatio });
 registerNotoFonts();
 
 async function loadLayoutPaint() {
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   const cssWidth = wrap.getBoundingClientRect().width;
   const cssHeight = wrap.getBoundingClientRect().height;
   const dpxWidth = Math.ceil(cssWidth * window.devicePixelRatio);
@@ -28,17 +28,17 @@ async function loadLayoutPaint() {
   canvas.width = dpxWidth;
   canvas.height = dpxHeight;
 
-  const {r, g, b, a} = documentElement.style.backgroundColor;
+  const { r, g, b, a } = documentElement.style.backgroundColor;
   canvasLabel.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   flow.layout(blockContainer, canvas.width, canvas.height);
-  flow.paintToCanvas(blockContainer, canvas.getContext('2d'));
+  flow.paintToCanvas(blockContainer, canvas.getContext("2d"));
   ctx.restore();
 }
 
-const watch = EditorView.updateListener.of(update => {
+const watch = EditorView.updateListener.of((update) => {
   if (update.docChanged) {
     parseGenerate();
     loadLayoutPaint();
@@ -141,12 +141,12 @@ const state = EditorState.create({
     this does interrupt shaping boundaries.
   </div>
 </html>`,
-  extensions: [basicSetup, html(), watch, solarizedDark]
+  extensions: [basicSetup, html(), watch, solarizedDark],
 });
 
 const view = new EditorView({
   state,
-  parent: document.querySelector('#editor')
+  parent: document.querySelector("#editor"),
 });
 
 let documentElement;
@@ -168,10 +168,10 @@ const observer = new ResizeObserver(function () {
 
 let lastDevicePixelRatio = window.devicePixelRatio;
 
-window.addEventListener('resize', function () {
+window.addEventListener("resize", function () {
   if (window.devicePixelRatio !== lastDevicePixelRatio) {
     lastDevicePixelRatio = window.devicePixelRatio;
-    flow.setOriginStyle({zoom: window.devicePixelRatio});
+    flow.setOriginStyle({ zoom: window.devicePixelRatio });
     parseGenerate();
     loadLayoutPaint();
   }
@@ -181,5 +181,5 @@ observer.observe(document.body);
 
 window.flow = flow;
 
-view.dom.style.height = '100%';
-view.scrollDOM.style.overflow = 'auto';
+view.dom.style.height = "100%";
+view.scrollDOM.style.overflow = "auto";

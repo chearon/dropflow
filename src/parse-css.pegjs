@@ -136,6 +136,11 @@ declaration
   / border_bottom_color_dec
   / border_left_color_dec
   / border_color_dec
+  / border_top_left_radius_dec
+  / border_top_right_radius_dec
+  / border_bottom_right_radius_dec
+  / border_bottom_left_radius_dec
+  / border_radius_dec
   / border_dec
   / width_dec
   / height_dec
@@ -666,6 +671,72 @@ border_color_dec
     return setTopRightBottomLeft({}, 'border', 'Color', s, s, s, s);
   }
 
+border_top_left_radius_dec
+  = 'border-top-left-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+    return {borderTopLeftRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-top-left-radius'i S* ':' S* r:(LENGTH / default) {
+    return {borderTopLeftRadius: r};
+  }
+
+border_top_right_radius_dec
+  = 'border-top-right-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+    return {borderTopRightRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-top-right-radius'i S* ':' S* r:(LENGTH / default) {
+    return {borderTopRightRadius: r};
+  }
+
+border_bottom_right_radius_dec
+  = 'border-bottom-right-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+    return {borderBottomRightRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-bottom-right-radius'i S* ':' S* r:(LENGTH / default) {
+    return {borderBottomRightRadius: r};
+  }
+
+border_bottom_left_radius_dec
+  = 'border-bottom-left-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+    return {borderBottomLeftRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-bottom-left-radius'i S* ':' S* r:(LENGTH / default) {
+    return {borderBottomLeftRadius: r};
+  }
+
+border_radius_dec
+  = 'border-radius'i S* ':' S* tl:LENGTH S* tr:LENGTH S* br:LENGTH S* bl:LENGTH {
+    return {
+      borderTopLeftRadius: tl,
+      borderTopRightRadius: tr,
+      borderBottomRightRadius: br,
+      borderBottomLeftRadius: bl
+    };
+  }
+  / 'border-radius'i S* ':' S* t:LENGTH S* h:LENGTH S* b:LENGTH {
+    return {
+      borderTopLeftRadius: t,
+      borderTopRightRadius: h,
+      borderBottomRightRadius: b,
+      borderBottomLeftRadius: h
+    };
+  }
+  / 'border-radius'i S* ':' S* v:LENGTH S* h:LENGTH {
+    return {
+      borderTopLeftRadius: v,
+      borderTopRightRadius: h,
+      borderBottomRightRadius: v,
+      borderBottomLeftRadius: h
+    };
+  }
+  / 'border-radius'i S* ':' S* r:(LENGTH / default) {
+    return {
+      borderTopLeftRadius: r,
+      borderTopRightRadius: r,
+      borderBottomRightRadius: r,
+      borderBottomLeftRadius: r
+    };
+  }
+
 border_s = '-top' / '-right' / '-bottom' / '-left'
 
 border_dec
@@ -697,21 +768,7 @@ border_dec
     if (s) setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
     return ret;
   }
-  / 'border'i t:border_s? S* ':' S* c:color S* s:border_style S* w:LENGTH? {
-    const ret = {};
-    setTopRightBottomLeftOr(t, ret, 'border', 'Color', c, c, c, c);
-    setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
-    if (w) setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
-    return ret;
-  }
-  / 'border'i t:border_s? S* ':' S* s:border_style S* c:color S* w:LENGTH? {
-    const ret = {};
-    setTopRightBottomLeftOr(t, ret, 'border', 'Color', c, c, c, c);
-    setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
-    if (w) setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
-    return ret;
-  }
-  / 'border'i t:border_s? S* ':' S* w:LENGTH S* {
+  / 'border'i t:border_s? S* ':' S* c:color S* w:LENGTH S* {
     return setTopRightBottomLeftOr(t, {}, 'border', 'Width', w, w, w, w);
   }
   / 'border'i t:border_s? S* ':' S* c:color S* {

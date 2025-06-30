@@ -1,124 +1,156 @@
-import {HTMLElement, TextNode} from './dom.ts';
-import {Box} from './layout-box.ts';
+import { HTMLElement, TextNode } from "./dom.ts";
+import { Box } from "./layout-box.ts";
 
-export const inherited = Symbol('inherited');
+export const inherited = Symbol("inherited");
 
 type Inherited = typeof inherited;
 
-export const initial = Symbol('initial');
+export const initial = Symbol("initial");
 
 type Initial = typeof initial;
 
 const LogicalMaps = Object.freeze({
-  'horizontal-tb': Object.freeze({
-    marginBlockStart: 'marginTop',
-    marginBlockEnd: 'marginBottom',
-    marginLineLeft: 'marginLeft',
-    marginLineRight: 'marginRight',
-    paddingBlockStart: 'paddingTop',
-    paddingBlockEnd: 'paddingBottom',
-    paddingLineLeft: 'paddingLeft',
-    paddingLineRight: 'paddingRight',
-    borderBlockStartWidth: 'borderTopWidth',
-    borderBlockEndWidth: 'borderBottomWidth',
-    borderLineLeftWidth: 'borderLeftWidth',
-    borderLineRightWidth: 'borderRightWidth',
-    borderBlockStartStyle: 'borderTopStyle',
-    borderBlockEndStyle: 'borderBottomStyle',
-    borderLineLeftStyle: 'borderLeftStyle',
-    borderLineRightStyle: 'borderRightStyle',
-    blockSize: 'height',
-    inlineSize: 'width'
+  "horizontal-tb": Object.freeze({
+    marginBlockStart: "marginTop",
+    marginBlockEnd: "marginBottom",
+    marginLineLeft: "marginLeft",
+    marginLineRight: "marginRight",
+    paddingBlockStart: "paddingTop",
+    paddingBlockEnd: "paddingBottom",
+    paddingLineLeft: "paddingLeft",
+    paddingLineRight: "paddingRight",
+    borderBlockStartWidth: "borderTopWidth",
+    borderBlockEndWidth: "borderBottomWidth",
+    borderLineLeftWidth: "borderLeftWidth",
+    borderLineRightWidth: "borderRightWidth",
+    borderBlockStartStyle: "borderTopStyle",
+    borderBlockEndStyle: "borderBottomStyle",
+    borderLineLeftStyle: "borderLeftStyle",
+    borderLineRightStyle: "borderRightStyle",
+    blockSize: "height",
+    inlineSize: "width",
   }),
-  'vertical-lr': Object.freeze({
-    marginBlockStart: 'marginLeft',
-    marginBlockEnd: 'marginRight',
-    marginLineLeft: 'marginTop',
-    marginLineRight: 'marginBottom',
-    paddingBlockStart: 'paddingLeft',
-    paddingBlockEnd: 'paddingRight',
-    paddingLineLeft: 'paddingTop',
-    paddingLineRight: 'paddingBottom',
-    borderBlockStartWidth: 'borderLeftWidth',
-    borderBlockEndWidth: 'borderRightWidth',
-    borderLineLeftWidth: 'borderTopWidth',
-    borderLineRightWidth: 'borderBottomWidth',
-    borderBlockStartStyle: 'borderLeftStyle',
-    borderBlockEndStyle: 'borderRightStyle',
-    borderLineLeftStyle: 'borderTopStyle',
-    borderLineRightStyle: 'borderBottomStyle',
-    blockSize: 'width',
-    inlineSize: 'height'
+  "vertical-lr": Object.freeze({
+    marginBlockStart: "marginLeft",
+    marginBlockEnd: "marginRight",
+    marginLineLeft: "marginTop",
+    marginLineRight: "marginBottom",
+    paddingBlockStart: "paddingLeft",
+    paddingBlockEnd: "paddingRight",
+    paddingLineLeft: "paddingTop",
+    paddingLineRight: "paddingBottom",
+    borderBlockStartWidth: "borderLeftWidth",
+    borderBlockEndWidth: "borderRightWidth",
+    borderLineLeftWidth: "borderTopWidth",
+    borderLineRightWidth: "borderBottomWidth",
+    borderBlockStartStyle: "borderLeftStyle",
+    borderBlockEndStyle: "borderRightStyle",
+    borderLineLeftStyle: "borderTopStyle",
+    borderLineRightStyle: "borderBottomStyle",
+    blockSize: "width",
+    inlineSize: "height",
   }),
-  'vertical-rl': Object.freeze({
-    marginBlockStart: 'marginRight',
-    marginBlockEnd: 'marginLeft',
-    marginLineLeft: 'marginTop',
-    marginLineRight: 'marginBottom',
-    paddingBlockStart: 'paddingRight',
-    paddingBlockEnd: 'paddingLeft',
-    paddingLineLeft: 'paddingTop',
-    paddingLineRight: 'paddingBottom',
-    borderBlockStartWidth: 'borderRightWidth',
-    borderBlockEndWidth: 'borderLeftWidth',
-    borderLineLeftWidth: 'borderTopWidth',
-    borderLineRightWidth: 'borderBottomWidth',
-    borderBlockStartStyle: 'borderRightStyle',
-    borderBlockEndStyle: 'borderLeftStyle',
-    borderLineLeftStyle: 'borderTopStyle',
-    borderLineRightStyle: 'borderBottomStyle',
-    blockSize: 'width',
-    inlineSize: 'height'
-  })
+  "vertical-rl": Object.freeze({
+    marginBlockStart: "marginRight",
+    marginBlockEnd: "marginLeft",
+    marginLineLeft: "marginTop",
+    marginLineRight: "marginBottom",
+    paddingBlockStart: "paddingRight",
+    paddingBlockEnd: "paddingLeft",
+    paddingLineLeft: "paddingTop",
+    paddingLineRight: "paddingBottom",
+    borderBlockStartWidth: "borderRightWidth",
+    borderBlockEndWidth: "borderLeftWidth",
+    borderLineLeftWidth: "borderTopWidth",
+    borderLineRightWidth: "borderBottomWidth",
+    borderBlockStartStyle: "borderRightStyle",
+    borderBlockEndStyle: "borderLeftStyle",
+    borderLineLeftStyle: "borderTopStyle",
+    borderLineRightStyle: "borderBottomStyle",
+    blockSize: "width",
+    inlineSize: "height",
+  }),
 });
 
-export type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
+export type WhiteSpace = "normal" | "nowrap" | "pre-wrap" | "pre-line" | "pre";
 
-type Length = number | {value: number, unit: 'em'};
+type Length =
+  | number
+  | { value: number; unit: "em" | "pt" | "pc" | "px" | "cm" | "mm" | "in" };
 
-type Percentage = {value: number, unit: '%'};
+type Percentage = { value: number; unit: "%" };
 
-type Number = {value: number, unit: null};
+type Number = { value: number; unit: null };
 
-export type FontWeight = number | 'normal' | 'bold' | 'bolder' | 'lighter';
+export type FontWeight = number | "normal" | "bold" | "bolder" | "lighter";
 
-export type FontStyle = 'normal' | 'italic' | 'oblique';
+export type FontStyle = "normal" | "italic" | "oblique";
 
-export type FontVariant = 'normal' | 'small-caps';
+export type FontVariant = "normal" | "small-caps";
 
-export type FontStretch = 'normal' | 'ultra-condensed' | 'extra-condensed' | 'condensed'
-  | 'semi-condensed' | 'semi-expanded' | 'expanded'
-  | 'extra-expanded' | 'ultra-expanded';
+export type FontStretch =
+  | "normal"
+  | "ultra-condensed"
+  | "extra-condensed"
+  | "condensed"
+  | "semi-condensed"
+  | "semi-expanded"
+  | "expanded"
+  | "extra-expanded"
+  | "ultra-expanded";
 
-type VerticalAlign = 'baseline' | 'middle' | 'sub' | 'super' | 'text-top'
-  | 'text-bottom' | Length | Percentage | 'top' | 'bottom';
+type VerticalAlign =
+  | "baseline"
+  | "middle"
+  | "sub"
+  | "super"
+  | "text-top"
+  | "text-bottom"
+  | Length
+  | Percentage
+  | "top"
+  | "bottom";
 
-type BackgroundClip = 'border-box' | 'padding-box' | 'content-box';
+type BackgroundClip = "border-box" | "padding-box" | "content-box";
 
-export type Direction = 'ltr' | 'rtl';
+export type Direction = "ltr" | "rtl";
 
-type Display = {outer: OuterDisplay, inner: InnerDisplay};
+type Display = { outer: OuterDisplay; inner: InnerDisplay };
 
-export type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
+export type WritingMode = "horizontal-tb" | "vertical-lr" | "vertical-rl";
 
-type Position = 'absolute' | 'relative' | 'static';
+type Position = "absolute" | "relative" | "static";
 
-export type Color = {r: number, g: number, b: number, a: number};
+export type Color = { r: number; g: number; b: number; a: number };
 
-type OuterDisplay = 'inline' | 'block' | 'none';
+type OuterDisplay = "inline" | "block" | "none";
 
-type InnerDisplay = 'flow' | 'flow-root' | 'none';
+type InnerDisplay = "flow" | "flow-root" | "none";
 
-type BorderStyle = 'none' | 'hidden' | 'dotted' | 'dashed' | 'solid'
-  | 'double' | 'groove' | 'ridge' | 'inset' | 'outset'
+type BorderStyle =
+  | "none"
+  | "hidden"
+  | "dotted"
+  | "dashed"
+  | "solid"
+  | "double"
+  | "groove"
+  | "ridge"
+  | "inset"
+  | "outset";
 
-type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
+type BoxSizing = "border-box" | "content-box" | "padding-box";
 
-export type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center';
+export type TextAlign = "start" | "end" | "left" | "right" | "center";
 
-type Float = 'left' | 'right' | 'none';
+type Float = "left" | "right" | "none";
 
-type Clear = 'left' | 'right' | 'both' | 'none';
+type Clear = "left" | "right" | "both" | "none";
+
+type BorderRadius =
+  | Length
+  | Percentage
+  | { horizontal: Length | Percentage; vertical: Length | Percentage };
 
 export interface DeclaredStyleProperties {
   zoom?: number | Percentage | Inherited | Initial;
@@ -130,7 +162,7 @@ export interface DeclaredStyleProperties {
   fontStyle?: FontStyle | Inherited | Initial;
   fontStretch?: FontStretch | Inherited | Initial;
   fontFamily?: string[] | Inherited | Initial;
-  lineHeight?: 'normal' | Length | Percentage | Number | Inherited | Initial;
+  lineHeight?: "normal" | Length | Percentage | Number | Inherited | Initial;
   verticalAlign?: VerticalAlign;
   backgroundColor?: Color | Inherited | Initial;
   backgroundClip?: BackgroundClip | Inherited | Initial;
@@ -149,30 +181,34 @@ export interface DeclaredStyleProperties {
   borderRightColor?: Color | Inherited | Initial;
   borderBottomColor?: Color | Inherited | Initial;
   borderLeftColor?: Color | Inherited | Initial;
+  borderTopLeftRadius?: BorderRadius | Inherited | Initial;
+  borderTopRightRadius?: BorderRadius | Inherited | Initial;
+  borderBottomRightRadius?: BorderRadius | Inherited | Initial;
+  borderBottomLeftRadius?: BorderRadius | Inherited | Initial;
   paddingTop?: Length | Percentage | Inherited | Initial;
   paddingRight?: Length | Percentage | Inherited | Initial;
   paddingBottom?: Length | Percentage | Inherited | Initial;
   paddingLeft?: Length | Percentage | Inherited | Initial;
-  marginTop?: Length | Percentage | 'auto' | Inherited | Initial;
-  marginRight?: Length | Percentage | 'auto' | Inherited | Initial;
-  marginBottom?: Length | Percentage | 'auto' | Inherited | Initial;
-  marginLeft?: Length | Percentage | 'auto' | Inherited | Initial;
+  marginTop?: Length | Percentage | "auto" | Inherited | Initial;
+  marginRight?: Length | Percentage | "auto" | Inherited | Initial;
+  marginBottom?: Length | Percentage | "auto" | Inherited | Initial;
+  marginLeft?: Length | Percentage | "auto" | Inherited | Initial;
   tabSize?: Length | Number | Inherited | Initial;
   position?: Position | Inherited | Initial;
-  width?: Length | Percentage | 'auto' | Inherited | Initial;
-  height?: Length | Percentage | 'auto' | Inherited | Initial;
-  top?: Length | Percentage | 'auto' | Inherited | Initial;
-  right?: Length | Percentage | 'auto' | Inherited | Initial;
-  bottom?: Length | Percentage | 'auto' | Inherited | Initial;
-  left?: Length | Percentage | 'auto' | Inherited | Initial;
+  width?: Length | Percentage | "auto" | Inherited | Initial;
+  height?: Length | Percentage | "auto" | Inherited | Initial;
+  top?: Length | Percentage | "auto" | Inherited | Initial;
+  right?: Length | Percentage | "auto" | Inherited | Initial;
+  bottom?: Length | Percentage | "auto" | Inherited | Initial;
+  left?: Length | Percentage | "auto" | Inherited | Initial;
   boxSizing?: BoxSizing | Inherited | Initial;
   textAlign?: TextAlign | Inherited | Initial;
   float?: Float | Inherited | Initial;
   clear?: Clear | Inherited | Initial;
-  zIndex?: number | 'auto' | Inherited | Initial;
-  wordBreak?: 'break-word' | 'normal' | Inherited | Initial;
-  overflowWrap?: 'anywhere' | 'break-word' | 'normal' | Inherited | Initial;
-  overflow?: 'visible' | 'hidden' | Inherited | Initial;
+  zIndex?: number | "auto" | Inherited | Initial;
+  wordBreak?: "break-word" | "normal" | Inherited | Initial;
+  overflowWrap?: "anywhere" | "break-word" | "normal" | Inherited | Initial;
+  overflow?: "visible" | "hidden" | Inherited | Initial;
 }
 
 const EMPTY_ARRAY: readonly number[] = Object.freeze([]);
@@ -198,12 +234,16 @@ export class DeclaredStyle {
 
   /** `styles` must be sorted */
   isComposedOf(styles: DeclaredStyle[]) {
-    return this.composition.length === styles.length
-      && this.composition.every((id, i) => id === styles[i].id);
+    return (
+      this.composition.length === styles.length &&
+      this.composition.every((id, i) => id === styles[i].id)
+    );
   }
 }
 
-export function createDeclaredStyle(properties: DeclaredStyleProperties): DeclaredStyle {
+export function createDeclaredStyle(
+  properties: DeclaredStyleProperties
+): DeclaredStyle {
   return new DeclaredStyle(properties);
 }
 
@@ -212,13 +252,13 @@ export const EMPTY_STYLE = createDeclaredStyle({});
 /** `styles` must be sorted */
 function createCascadedStyle(styles: DeclaredStyle[]) {
   if (styles.length > 0) {
-    const composition = styles.map(s => s.id);
+    const composition = styles.map((s) => s.id);
     let properties;
 
     if (styles.length === 2) {
-      properties = {...styles[0].properties, ...styles[1].properties};
+      properties = { ...styles[0].properties, ...styles[1].properties };
     } else {
-      properties = Object.assign({}, ...styles.map(s => s.properties));
+      properties = Object.assign({}, ...styles.map((s) => s.properties));
     }
 
     return new DeclaredStyle(properties, composition);
@@ -237,7 +277,7 @@ interface ComputedStyle {
   fontStyle: FontStyle;
   fontStretch: FontStretch;
   fontFamily: string[];
-  lineHeight: 'normal' | number | {value: number, unit: null};
+  lineHeight: "normal" | number | { value: number; unit: null };
   verticalAlign: VerticalAlign;
   backgroundColor: Color;
   backgroundClip: BackgroundClip;
@@ -256,44 +296,65 @@ interface ComputedStyle {
   borderRightColor: Color;
   borderBottomColor: Color;
   borderLeftColor: Color;
+  borderTopLeftRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderTopRightRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderBottomRightRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderBottomLeftRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
   paddingTop: number | Percentage;
   paddingRight: number | Percentage;
   paddingBottom: number | Percentage;
   paddingLeft: number | Percentage;
-  marginTop: number | Percentage | 'auto';
-  marginRight: number | Percentage | 'auto';
-  marginBottom: number | Percentage | 'auto';
-  marginLeft: number | Percentage | 'auto';
+  marginTop: number | Percentage | "auto";
+  marginRight: number | Percentage | "auto";
+  marginBottom: number | Percentage | "auto";
+  marginLeft: number | Percentage | "auto";
   tabSize: number | Number;
   position: Position;
-  width: number | Percentage | 'auto';
-  height: number | Percentage | 'auto';
-  top: number | Percentage | 'auto';
-  right: number | Percentage | 'auto';
-  bottom: number | Percentage | 'auto';
-  left: number | Percentage | 'auto';
+  width: number | Percentage | "auto";
+  height: number | Percentage | "auto";
+  top: number | Percentage | "auto";
+  right: number | Percentage | "auto";
+  bottom: number | Percentage | "auto";
+  left: number | Percentage | "auto";
   boxSizing: BoxSizing;
   textAlign: TextAlign;
   float: Float;
   clear: Clear;
-  zIndex: number | 'auto';
-  wordBreak: 'break-word' | 'normal';
-  overflowWrap: 'anywhere' | 'break-word' | 'normal';
-  overflow: 'visible' | 'hidden';
+  zIndex: number | "auto";
+  wordBreak: "break-word" | "normal";
+  overflowWrap: "anywhere" | "break-word" | "normal";
+  overflow: "visible" | "hidden";
 }
 
-function resolvePercent(box: Box, cssVal: number | {value: number, unit: '%'}) {
-  if (typeof cssVal === 'object') {
-    if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
-    const inlineSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].inlineSize];
-    if (inlineSize === undefined) throw new Error('Assertion failed');
-    return cssVal.value / 100 * inlineSize;
+function resolvePercent(
+  box: Box,
+  cssVal: number | { value: number; unit: "%" }
+) {
+  if (typeof cssVal === "object") {
+    if (box.containingBlock.width === undefined)
+      throw new Error("Assertion failed");
+    const inlineSize =
+      box.containingBlock[LogicalMaps[box.writingModeAsParticipant].inlineSize];
+    if (inlineSize === undefined) throw new Error("Assertion failed");
+    return (cssVal.value / 100) * inlineSize;
   }
   return cssVal;
 }
 
-function percentGtZero(cssVal: number | {value: number, unit: '%'}) {
-  return typeof cssVal === 'object' ? cssVal.value > 0 : cssVal > 0;
+function percentGtZero(cssVal: number | { value: number; unit: "%" }) {
+  return typeof cssVal === "object" ? cssVal.value > 0 : cssVal > 0;
 }
 
 export class Style {
@@ -315,7 +376,7 @@ export class Style {
   fontStyle: FontStyle;
   fontStretch: FontStretch;
   fontFamily: string[];
-  lineHeight: 'normal' | number;
+  lineHeight: "normal" | number;
   verticalAlign: VerticalAlign;
   backgroundColor: Color;
   backgroundClip: BackgroundClip;
@@ -334,38 +395,54 @@ export class Style {
   borderRightColor: Color;
   borderBottomColor: Color;
   borderLeftColor: Color;
+  borderTopLeftRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderTopRightRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderBottomRightRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderBottomLeftRadius:
+    | number
+    | Percentage
+    | { horizontal: number | Percentage; vertical: number | Percentage };
   paddingTop: number | Percentage;
   paddingRight: number | Percentage;
   paddingBottom: number | Percentage;
   paddingLeft: number | Percentage;
-  marginTop: number | Percentage | 'auto';
-  marginRight: number | Percentage | 'auto';
-  marginBottom: number | Percentage | 'auto';
-  marginLeft: number | Percentage | 'auto';
+  marginTop: number | Percentage | "auto";
+  marginRight: number | Percentage | "auto";
+  marginBottom: number | Percentage | "auto";
+  marginLeft: number | Percentage | "auto";
   tabSize: number | Number;
   position: Position;
-  width: number | Percentage | 'auto';
-  height: number | Percentage | 'auto';
-  top: number | Percentage | 'auto';
-  right: number | Percentage | 'auto';
-  bottom: number | Percentage | 'auto';
-  left: number | Percentage | 'auto';
+  width: number | Percentage | "auto";
+  height: number | Percentage | "auto";
+  top: number | Percentage | "auto";
+  right: number | Percentage | "auto";
+  bottom: number | Percentage | "auto";
+  left: number | Percentage | "auto";
   boxSizing: BoxSizing;
   textAlign: TextAlign;
   float: Float;
   clear: Clear;
-  zIndex: number | 'auto';
-  wordBreak: 'break-word' | 'normal';
-  overflowWrap: 'anywhere' | 'break-word' | 'normal';
-  overflow: 'visible' | 'hidden';
+  zIndex: number | "auto";
+  wordBreak: "break-word" | "normal";
+  overflowWrap: "anywhere" | "break-word" | "normal";
+  overflow: "visible" | "hidden";
 
   // This section reduces to used values as much as possible
   // Be careful accessing off of "this" since these are called in the ctor
 
   private usedLineHeight(style: ComputedStyle) {
-    if (typeof style.lineHeight === 'object') {
+    if (typeof style.lineHeight === "object") {
       return style.lineHeight.value * this.fontSize;
-    } else if (typeof style.lineHeight === 'number') {
+    } else if (typeof style.lineHeight === "number") {
       return this.usedLength(style.lineHeight);
     } else {
       return style.lineHeight;
@@ -382,10 +459,14 @@ export class Style {
   }
 
   private usedMaybeLength<T>(length: T) {
-    return typeof length === 'number' ? this.usedLength(length) : length;
+    return typeof length === "number" ? this.usedLength(length) : length;
   }
 
-  constructor(style: ComputedStyle, parent?: Style, cascadedStyle?: DeclaredStyle) {
+  constructor(
+    style: ComputedStyle,
+    parent?: Style,
+    cascadedStyle?: DeclaredStyle
+  ) {
     this.id = ++id;
     this.computed = style;
     this.blockified = false;
@@ -444,29 +525,33 @@ export class Style {
     this.wordBreak = style.wordBreak;
     this.overflowWrap = style.overflowWrap;
     this.overflow = style.overflow;
+    this.borderTopLeftRadius = style.borderTopLeftRadius;
+    this.borderTopRightRadius = style.borderTopRightRadius;
+    this.borderBottomRightRadius = style.borderBottomRightRadius;
+    this.borderBottomLeftRadius = style.borderBottomLeftRadius;
   }
 
   blockify() {
-    if (!this.blockified && this.display.outer === 'inline') {
-      this.display = {outer: 'block', inner: this.display.inner};
+    if (!this.blockified && this.display.outer === "inline") {
+      this.display = { outer: "block", inner: this.display.inner };
       this.blockified = true;
     }
   }
 
   getTextAlign() {
-    if (this.textAlign === 'start') {
-      if (this.direction === 'ltr') {
-        return 'left';
+    if (this.textAlign === "start") {
+      if (this.direction === "ltr") {
+        return "left";
       } else {
-        return 'right';
+        return "right";
       }
     }
 
-    if (this.textAlign === 'end') {
-      if (this.direction === 'ltr') {
-        return 'right';
+    if (this.textAlign === "end") {
+      if (this.direction === "ltr") {
+        return "right";
       } else {
-        return 'left';
+        return "left";
       }
     }
 
@@ -474,129 +559,157 @@ export class Style {
   }
 
   isOutOfFlow() {
-    return this.float !== 'none'; // TODO: or this.position === 'absolute'
+    return this.float !== "none"; // TODO: or this.position === 'absolute'
   }
 
   isWsCollapsible() {
     const whiteSpace = this.whiteSpace;
-    return whiteSpace === 'normal'
-      || whiteSpace === 'nowrap'
-      || whiteSpace === 'pre-line';
+    return (
+      whiteSpace === "normal" ||
+      whiteSpace === "nowrap" ||
+      whiteSpace === "pre-line"
+    );
   }
 
   hasPaddingArea() {
-    return percentGtZero(this.paddingTop)
-      || percentGtZero(this.paddingRight)
-      || percentGtZero(this.paddingBottom)
-      || percentGtZero(this.paddingLeft);
+    return (
+      percentGtZero(this.paddingTop) ||
+      percentGtZero(this.paddingRight) ||
+      percentGtZero(this.paddingBottom) ||
+      percentGtZero(this.paddingLeft)
+    );
   }
 
   hasBorderArea() {
-    return this.borderTopWidth > 0 && this.borderTopStyle !== 'none'
-      || this.borderRightWidth > 0 && this.borderRightStyle !== 'none'
-      || this.borderBottomWidth > 0 && this.borderBottomStyle !== 'none'
-      || this.borderLeftWidth > 0 && this.borderLeftStyle !== 'none';
+    return (
+      (this.borderTopWidth > 0 && this.borderTopStyle !== "none") ||
+      (this.borderRightWidth > 0 && this.borderRightStyle !== "none") ||
+      (this.borderBottomWidth > 0 && this.borderBottomStyle !== "none") ||
+      (this.borderLeftWidth > 0 && this.borderLeftStyle !== "none")
+    );
   }
 
   hasPaint() {
-    return this.backgroundColor.a > 0
-      || this.borderTopWidth > 0
-        && this.borderTopColor.a > 0
-        && this.borderTopStyle !== 'none'
-      || this.borderRightWidth > 0
-        && this.borderRightColor.a > 0
-        && this.borderRightStyle !== 'none'
-      || this.borderBottomWidth > 0
-        && this.borderBottomColor.a > 0
-        && this.borderBottomStyle !== 'none'
-      || this.borderLeftWidth > 0
-        && this.borderLeftColor.a > 0
-        && this.borderLeftStyle !== 'none';
+    return (
+      this.backgroundColor.a > 0 ||
+      (this.borderTopWidth > 0 &&
+        this.borderTopColor.a > 0 &&
+        this.borderTopStyle !== "none") ||
+      (this.borderRightWidth > 0 &&
+        this.borderRightColor.a > 0 &&
+        this.borderRightStyle !== "none") ||
+      (this.borderBottomWidth > 0 &&
+        this.borderBottomColor.a > 0 &&
+        this.borderBottomStyle !== "none") ||
+      (this.borderLeftWidth > 0 &&
+        this.borderLeftColor.a > 0 &&
+        this.borderLeftStyle !== "none")
+    );
   }
 
   getMarginBlockStart(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockStart];
-    if (cssVal === 'auto') return cssVal;
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].marginBlockStart];
+    if (cssVal === "auto") return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginBlockEnd(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockEnd];
-    if (cssVal === 'auto') return cssVal;
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].marginBlockEnd];
+    if (cssVal === "auto") return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginLineLeft(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineLeft];
-    if (cssVal === 'auto') return cssVal;
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].marginLineLeft];
+    if (cssVal === "auto") return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginLineRight(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineRight];
-    if (cssVal === 'auto') return cssVal;
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].marginLineRight];
+    if (cssVal === "auto") return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getPaddingBlockStart(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockStart];
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].paddingBlockStart];
     return resolvePercent(box, cssVal);
   }
 
   getPaddingBlockEnd(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockEnd];
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].paddingBlockEnd];
     return resolvePercent(box, cssVal);
   }
 
   getPaddingLineLeft(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineLeft];
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].paddingLineLeft];
     return resolvePercent(box, cssVal);
   }
 
   getPaddingLineRight(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineRight];
+    const cssVal =
+      this[LogicalMaps[box.writingModeAsParticipant].paddingLineRight];
     return resolvePercent(box, cssVal);
   }
 
   getBorderBlockStartWidth(box: Box) {
-    let cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartStyle];
-    if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartWidth];
+    let cssStyleVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartStyle];
+    if (cssStyleVal === "none") return 0;
+    const cssWidthVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBorderBlockEndWidth(box: Box) {
-    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndStyle];
-    if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndWidth];
+    const cssStyleVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndStyle];
+    if (cssStyleVal === "none") return 0;
+    const cssWidthVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBorderLineLeftWidth(box: Box) {
-    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftStyle];
-    if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftWidth]
+    const cssStyleVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftStyle];
+    if (cssStyleVal === "none") return 0;
+    const cssWidthVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBorderLineRightWidth(box: Box) {
-    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightStyle];
-    if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightWidth];
+    const cssStyleVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderLineRightStyle];
+    if (cssStyleVal === "none") return 0;
+    const cssWidthVal =
+      this[LogicalMaps[box.writingModeAsParticipant].borderLineRightWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBlockSize(box: Box) {
     let cssVal = this[LogicalMaps[box.writingModeAsParticipant].blockSize];
-    if (typeof cssVal === 'object') {
-      const parentBlockSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].blockSize];
-      if (parentBlockSize === undefined) return 'auto' as const; // §CSS2 10.5
-      cssVal = cssVal.value / 100 * parentBlockSize;
+    if (typeof cssVal === "object") {
+      const parentBlockSize =
+        box.containingBlock[
+          LogicalMaps[box.writingModeAsParticipant].blockSize
+        ];
+      if (parentBlockSize === undefined) return "auto" as const; // §CSS2 10.5
+      cssVal = (cssVal.value / 100) * parentBlockSize;
     }
-    if (this.boxSizing !== 'content-box' && cssVal !== 'auto') {
+    if (this.boxSizing !== "content-box" && cssVal !== "auto") {
       cssVal -= this.getPaddingBlockStart(box) + this.getPaddingBlockEnd(box);
-      if (this.boxSizing === 'border-box') {
-        cssVal -= this.getBorderBlockStartWidth(box) + this.getBorderBlockEndWidth(box);
+      if (this.boxSizing === "border-box") {
+        cssVal -=
+          this.getBorderBlockStartWidth(box) + this.getBorderBlockEndWidth(box);
       }
       cssVal = Math.max(0, cssVal);
     }
@@ -605,15 +718,16 @@ export class Style {
 
   getInlineSize(box: Box) {
     let cssVal = this[LogicalMaps[box.writingModeAsParticipant].inlineSize];
-    if (cssVal === 'auto') {
-      cssVal = 'auto';
+    if (cssVal === "auto") {
+      cssVal = "auto";
     } else {
       cssVal = resolvePercent(box, cssVal);
     }
-    if (this.boxSizing !== 'content-box' && cssVal !== 'auto') {
+    if (this.boxSizing !== "content-box" && cssVal !== "auto") {
       cssVal -= this.getPaddingLineLeft(box) + this.getPaddingLineRight(box);
-      if (this.boxSizing === 'border-box') {
-        cssVal -= this.getBorderLineLeftWidth(box) + this.getBorderLineRightWidth(box);
+      if (this.boxSizing === "border-box") {
+        cssVal -=
+          this.getBorderLineLeftWidth(box) + this.getBorderLineRightWidth(box);
       }
       cssVal = Math.max(0, cssVal);
     }
@@ -623,37 +737,94 @@ export class Style {
   hasLineLeftGap(box: Box) {
     const writingMode = box.writingModeAsParticipant;
     const marginLineLeft = this[LogicalMaps[writingMode].marginLineLeft];
-    if (marginLineLeft === 'auto') return false;
-    if (typeof marginLineLeft === 'object' && marginLineLeft.value !== 0) return true;
-    if (typeof marginLineLeft !== 'object' && marginLineLeft !== 0) return true;
+    if (marginLineLeft === "auto") return false;
+    if (typeof marginLineLeft === "object" && marginLineLeft.value !== 0)
+      return true;
+    if (typeof marginLineLeft !== "object" && marginLineLeft !== 0) return true;
     const paddingLineLeft = this[LogicalMaps[writingMode].paddingLineLeft];
-    if (typeof paddingLineLeft === 'object' && paddingLineLeft.value > 0) return true;
-    if (typeof paddingLineLeft !== 'object' && paddingLineLeft > 0) return true;
-    if (this[LogicalMaps[writingMode].borderLineLeftStyle] === 'none') return false;
+    if (typeof paddingLineLeft === "object" && paddingLineLeft.value > 0)
+      return true;
+    if (typeof paddingLineLeft !== "object" && paddingLineLeft > 0) return true;
+    if (this[LogicalMaps[writingMode].borderLineLeftStyle] === "none")
+      return false;
     if (this[LogicalMaps[writingMode].borderLineLeftWidth] > 0) return true;
   }
 
   hasLineRightGap(box: Box) {
     const writingMode = box.writingModeAsParticipant;
     const marginLineRight = this[LogicalMaps[writingMode].marginLineRight];
-    if (marginLineRight === 'auto') return false;
-    if (typeof marginLineRight === 'object' && marginLineRight.value !== 0) return true;
-    if (typeof marginLineRight !== 'object' && marginLineRight !== 0) return true;
+    if (marginLineRight === "auto") return false;
+    if (typeof marginLineRight === "object" && marginLineRight.value !== 0)
+      return true;
+    if (typeof marginLineRight !== "object" && marginLineRight !== 0)
+      return true;
     const paddingLineRight = this[LogicalMaps[writingMode].paddingLineRight];
-    if (typeof paddingLineRight === 'object' && paddingLineRight.value > 0) return true;
-    if (typeof paddingLineRight !== 'object' && paddingLineRight > 0) return true;
-    if (this[LogicalMaps[writingMode].borderLineRightStyle] === 'none') return false;
+    if (typeof paddingLineRight === "object" && paddingLineRight.value > 0)
+      return true;
+    if (typeof paddingLineRight !== "object" && paddingLineRight > 0)
+      return true;
+    if (this[LogicalMaps[writingMode].borderLineRightStyle] === "none")
+      return false;
     if (this[LogicalMaps[writingMode].borderLineRightWidth] > 0) return true;
+  }
+
+  getBorderTopLeftRadius(box: Box) {
+    const radius = this.borderTopLeftRadius;
+    if (typeof radius === "object" && "horizontal" in radius) {
+      return {
+        horizontal: resolvePercent(box, radius.horizontal),
+        vertical: resolvePercent(box, radius.vertical),
+      };
+    }
+    const resolved = resolvePercent(box, radius);
+    return { horizontal: resolved, vertical: resolved };
+  }
+
+  getBorderTopRightRadius(box: Box) {
+    const radius = this.borderTopRightRadius;
+    if (typeof radius === "object" && "horizontal" in radius) {
+      return {
+        horizontal: resolvePercent(box, radius.horizontal),
+        vertical: resolvePercent(box, radius.vertical),
+      };
+    }
+    const resolved = resolvePercent(box, radius);
+    return { horizontal: resolved, vertical: resolved };
+  }
+
+  getBorderBottomRightRadius(box: Box) {
+    const radius = this.borderBottomRightRadius;
+    if (typeof radius === "object" && "horizontal" in radius) {
+      return {
+        horizontal: resolvePercent(box, radius.horizontal),
+        vertical: resolvePercent(box, radius.vertical),
+      };
+    }
+    const resolved = resolvePercent(box, radius);
+    return { horizontal: resolved, vertical: resolved };
+  }
+
+  getBorderBottomLeftRadius(box: Box) {
+    const radius = this.borderBottomLeftRadius;
+    if (typeof radius === "object" && "horizontal" in radius) {
+      return {
+        horizontal: resolvePercent(box, radius.horizontal),
+        vertical: resolvePercent(box, radius.vertical),
+      };
+    }
+    const resolved = resolvePercent(box, radius);
+    return { horizontal: resolved, vertical: resolved };
   }
 
   fontsEqual(style: Style, size = true) {
     if (
-      size && this.fontSize !== style.fontSize ||
+      (size && this.fontSize !== style.fontSize) ||
       this.fontVariant !== style.fontVariant ||
       this.fontWeight !== style.fontWeight ||
       this.fontStyle !== style.fontStyle ||
       this.fontFamily.length !== style.fontFamily.length
-    ) return false;
+    )
+      return false;
 
     for (let i = 0, l = style.fontFamily.length; i < l; i++) {
       if (style.fontFamily[i] !== this.fontFamily[i]) return false;
@@ -669,33 +840,33 @@ export class Style {
 // "computed value"s as described in CSS Cascading and Inheritance Level 4 § 4.4
 const initialPlainStyle: ComputedStyle = Object.freeze({
   zoom: 1,
-  whiteSpace: 'normal',
-  color: {r: 0, g: 0, b: 0, a: 1},
+  whiteSpace: "normal",
+  color: { r: 0, g: 0, b: 0, a: 1 },
   fontSize: 16,
   fontWeight: 400,
-  fontVariant: 'normal',
-  fontStyle: 'normal',
-  fontFamily: ['Helvetica'],
-  fontStretch: 'normal',
-  lineHeight: 'normal',
-  verticalAlign: 'baseline',
-  backgroundColor: {r: 0, g: 0, b: 0, a: 0},
-  backgroundClip: 'border-box',
-  display: {outer: 'inline' as const, inner: 'flow' as const},
-  direction: 'ltr',
-  writingMode: 'horizontal-tb',
+  fontVariant: "normal",
+  fontStyle: "normal",
+  fontFamily: ["Helvetica"],
+  fontStretch: "normal",
+  lineHeight: "normal",
+  verticalAlign: "baseline",
+  backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+  backgroundClip: "border-box",
+  display: { outer: "inline" as const, inner: "flow" as const },
+  direction: "ltr",
+  writingMode: "horizontal-tb",
   borderTopWidth: 0,
   borderRightWidth: 0,
   borderBottomWidth: 0,
   borderLeftWidth: 0,
-  borderTopStyle: 'none',
-  borderRightStyle: 'none',
-  borderBottomStyle: 'none',
-  borderLeftStyle: 'none',
-  borderTopColor: {r: 0, g: 0, b: 0, a: 0},
-  borderRightColor: {r: 0, g: 0, b: 0, a: 0},
-  borderBottomColor: {r: 0, g: 0, b: 0, a: 0},
-  borderLeftColor: {r: 0, g: 0, b: 0, a: 0},
+  borderTopStyle: "none",
+  borderRightStyle: "none",
+  borderBottomStyle: "none",
+  borderLeftStyle: "none",
+  borderTopColor: { r: 0, g: 0, b: 0, a: 0 },
+  borderRightColor: { r: 0, g: 0, b: 0, a: 0 },
+  borderBottomColor: { r: 0, g: 0, b: 0, a: 0 },
+  borderLeftColor: { r: 0, g: 0, b: 0, a: 0 },
   paddingTop: 0,
   paddingRight: 0,
   paddingBottom: 0,
@@ -704,22 +875,26 @@ const initialPlainStyle: ComputedStyle = Object.freeze({
   marginRight: 0,
   marginBottom: 0,
   marginLeft: 0,
-  tabSize: {value: 8, unit: null},
-  position: 'static',
-  width: 'auto',
-  height: 'auto',
-  top: 'auto',
-  right: 'auto',
-  bottom: 'auto',
-  left: 'auto',
-  boxSizing: 'content-box',
-  textAlign: 'start',
-  float: 'none',
-  clear: 'none',
-  zIndex: 'auto',
-  wordBreak: 'normal',
-  overflowWrap: 'normal',
-  overflow: 'visible'
+  tabSize: { value: 8, unit: null },
+  position: "static",
+  width: "auto",
+  height: "auto",
+  top: "auto",
+  right: "auto",
+  bottom: "auto",
+  left: "auto",
+  boxSizing: "content-box",
+  textAlign: "start",
+  float: "none",
+  clear: "none",
+  zIndex: "auto",
+  wordBreak: "normal",
+  overflowWrap: "normal",
+  overflow: "visible",
+  borderTopLeftRadius: 0,
+  borderTopRightRadius: 0,
+  borderBottomRightRadius: 0,
+  borderBottomLeftRadius: 0,
 });
 
 let originStyle = new Style(initialPlainStyle);
@@ -739,10 +914,12 @@ export function getOriginStyle() {
  * called when devicePixelRatio actually changes.
  */
 export function setOriginStyle(style: Partial<ComputedStyle>) {
-  originStyle = new Style({...initialPlainStyle, ...style});
+  originStyle = new Style({ ...initialPlainStyle, ...style });
 }
 
-type InheritedStyleDefinitions = {[K in keyof DeclaredStyleProperties]: boolean};
+type InheritedStyleDefinitions = {
+  [K in keyof DeclaredStyleProperties]: boolean;
+};
 
 // Each CSS property defines whether or not it's inherited
 const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
@@ -797,102 +974,106 @@ const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
   zIndex: false,
   wordBreak: true,
   overflowWrap: true,
-  overflow: false
+  overflow: false,
+  borderTopLeftRadius: false,
+  borderTopRightRadius: false,
+  borderBottomRightRadius: false,
+  borderBottomLeftRadius: false,
 });
 
-type UaDeclaredStyles = {[tagName: string]: DeclaredStyle};
+type UaDeclaredStyles = { [tagName: string]: DeclaredStyle };
 
 export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
   div: createDeclaredStyle({
-    display: {outer: 'block', inner: 'flow'}
+    display: { outer: "block", inner: "flow" },
   }),
   span: createDeclaredStyle({
-    display: {outer: 'inline', inner: 'flow'}
+    display: { outer: "inline", inner: "flow" },
   }),
   p: createDeclaredStyle({
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 1, unit: 'em'},
-    marginBottom: {value: 1, unit: 'em'}
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 1, unit: "em" },
+    marginBottom: { value: 1, unit: "em" },
   }),
   strong: createDeclaredStyle({
-    fontWeight: 700
+    fontWeight: 700,
   }),
   b: createDeclaredStyle({
-    fontWeight: 700
+    fontWeight: 700,
   }),
   em: createDeclaredStyle({
-    fontStyle: 'italic'
+    fontStyle: "italic",
   }),
   i: createDeclaredStyle({
-    fontStyle: 'italic'
+    fontStyle: "italic",
   }),
   sup: createDeclaredStyle({
-    fontSize: {value: 1/1.2, unit: 'em'},
-    verticalAlign: 'super'
+    fontSize: { value: 1 / 1.2, unit: "em" },
+    verticalAlign: "super",
   }),
   sub: createDeclaredStyle({
-    fontSize: {value: 1/1.2, unit: 'em'},
-    verticalAlign: 'sub'
+    fontSize: { value: 1 / 1.2, unit: "em" },
+    verticalAlign: "sub",
   }),
   img: createDeclaredStyle({
-    display: {outer: 'inline', inner: 'flow'}
+    display: { outer: "inline", inner: "flow" },
   }),
   h1: createDeclaredStyle({
-    fontSize: {value: 2, unit: 'em'},
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 0.67, unit: 'em'},
-    marginBottom: {value: 0.67, unit: 'em'}
+    fontSize: { value: 2, unit: "em" },
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 0.67, unit: "em" },
+    marginBottom: { value: 0.67, unit: "em" },
   }),
   h2: createDeclaredStyle({
-    fontSize: {value: 1.5, unit: 'em'},
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 0.83, unit: 'em'},
-    marginBottom: {value: 0.83, unit: 'em'},
-    fontWeight: 700
+    fontSize: { value: 1.5, unit: "em" },
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 0.83, unit: "em" },
+    marginBottom: { value: 0.83, unit: "em" },
+    fontWeight: 700,
   }),
   h3: createDeclaredStyle({
-    fontSize: {value: 1.17, unit: 'em'},
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 1, unit: 'em'},
-    marginBottom: {value: 1, unit: 'em'},
-    fontWeight: 700
+    fontSize: { value: 1.17, unit: "em" },
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 1, unit: "em" },
+    marginBottom: { value: 1, unit: "em" },
+    fontWeight: 700,
   }),
   h4: createDeclaredStyle({
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 1.33, unit: 'em'},
-    marginBottom: {value: 1.33, unit: 'em'},
-    fontWeight: 700
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 1.33, unit: "em" },
+    marginBottom: { value: 1.33, unit: "em" },
+    fontWeight: 700,
   }),
   h5: createDeclaredStyle({
-    fontSize: {value: 0.83, unit: 'em'},
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 1.67, unit: 'em'},
-    marginBottom: {value: 1.67, unit: 'em'},
-    fontWeight: 700
+    fontSize: { value: 0.83, unit: "em" },
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 1.67, unit: "em" },
+    marginBottom: { value: 1.67, unit: "em" },
+    fontWeight: 700,
   }),
   h6: createDeclaredStyle({
-    fontSize: {value: 0.67, unit: 'em'},
-    display: {outer: 'block', inner: 'flow'},
-    marginTop: {value: 2.33, unit: 'em'},
-    marginBottom: {value: 2.33, unit: 'em'},
-    fontWeight: 700
-  })
+    fontSize: { value: 0.67, unit: "em" },
+    display: { outer: "block", inner: "flow" },
+    marginTop: { value: 2.33, unit: "em" },
+    marginBottom: { value: 2.33, unit: "em" },
+    fontWeight: 700,
+  }),
 });
 
 // https://github.com/nodejs/node/blob/238104c531219db05e3421521c305404ce0c0cce/deps/v8/src/utils/utils.h#L213
 // Thomas Wang, Integer Hash Functions.
 // http://www.concentric.net/~Ttwang/tech/inthash.htm`
 function hash(hash: number) {
-  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
+  hash = ~hash + (hash << 15); // hash = (hash << 15) - hash - 1;
   hash = hash ^ (hash >> 12);
   hash = hash + (hash << 2);
   hash = hash ^ (hash >> 4);
-  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
+  hash = hash * 2057; // hash = (hash + (hash << 3)) + (hash << 11);
   hash = hash ^ (hash >> 16);
   return hash & 0x3fffffff;
 }
 
-const cascadeCache = new Map<number, DeclaredStyle>;
+const cascadeCache = new Map<number, DeclaredStyle>();
 
 export function cascadeStyles(styles: DeclaredStyle[]): DeclaredStyle {
   if (styles.length === 0) return EMPTY_STYLE;
@@ -932,9 +1113,15 @@ function defaultProperty(
   p: keyof DeclaredStyleProperties
 ) {
   const properties = style.properties;
-  if (properties[p] === inherited || !(p in properties) && inheritedStyle[p]) {
+  if (
+    properties[p] === inherited ||
+    (!(p in properties) && inheritedStyle[p])
+  ) {
     return parentStyle.computed[p];
-  } else if (properties[p] === initial || !(p in properties) && !inheritedStyle[p]) {
+  } else if (
+    properties[p] === initial ||
+    (!(p in properties) && !inheritedStyle[p])
+  ) {
     return initialPlainStyle[p];
   } else {
     return properties[p];
@@ -945,8 +1132,22 @@ function resolveEm(
   value: DeclaredStyleProperties[keyof DeclaredStyleProperties],
   fontSize: number
 ) {
-  if (typeof value === 'object' && 'unit' in value && value.unit === 'em') {
-    return fontSize * value.value;
+  if (typeof value === "object" && "unit" in value) {
+    if (value.unit === "em") {
+      return fontSize * value.value;
+    } else if (value.unit === "pt") {
+      return (value.value * 4) / 3;
+    } else if (value.unit === "pc") {
+      return (value.value * 6) / 5;
+    } else if (value.unit === "px") {
+      return value.value;
+    } else if (value.unit === "cm") {
+      return (value.value * 96) / 2.54;
+    } else if (value.unit === "mm") {
+      return (value.value * 96) / 25.4;
+    } else if (value.unit === "in") {
+      return value.value * 96;
+    }
   } else {
     return value;
   }
@@ -958,11 +1159,17 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
   const working = {} as DeclaredStyleProperties;
 
   // Compute fontSize first since em values depend on it
-  const specifiedFontSize = defaultProperty(parentStyle, cascadedStyle, 'fontSize');
-  let fontSize = resolveEm(specifiedFontSize, parentFontSize) as number | Percentage;
+  const specifiedFontSize = defaultProperty(
+    parentStyle,
+    cascadedStyle,
+    "fontSize"
+  );
+  let fontSize = resolveEm(specifiedFontSize, parentFontSize) as
+    | number
+    | Percentage;
 
-  if (typeof fontSize === 'object') {
-    fontSize = fontSize.value / 100 * parentFontSize;
+  if (typeof fontSize === "object") {
+    fontSize = (fontSize.value / 100) * parentFontSize;
   }
 
   // Default and inherit
@@ -977,8 +1184,11 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
   working.fontSize = fontSize;
 
   // https://www.w3.org/TR/css-fonts-4/#relative-weights
-  if (properties.fontWeight === 'bolder' || properties.fontWeight === 'lighter') {
-    const bolder = properties.fontWeight === 'bolder';
+  if (
+    properties.fontWeight === "bolder" ||
+    properties.fontWeight === "lighter"
+  ) {
+    const bolder = properties.fontWeight === "bolder";
     const pWeight = parentStyle.computed.fontWeight;
     if (pWeight < 100) {
       working.fontWeight = bolder ? 400 : parentStyle.computed.fontWeight;
@@ -995,14 +1205,17 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
     }
   }
 
-  if (typeof properties.lineHeight === 'object' && properties.lineHeight.unit === '%') {
-    working.lineHeight = properties.lineHeight.value / 100 * fontSize;
+  if (
+    typeof properties.lineHeight === "object" &&
+    properties.lineHeight.unit === "%"
+  ) {
+    working.lineHeight = (properties.lineHeight.value / 100) * fontSize;
   }
 
   // At this point we've reduced all value types to their computed counterparts
   const computed = working as ComputedStyle;
 
-  if (typeof properties.zoom === 'object') {
+  if (typeof properties.zoom === "object") {
     computed.zoom = properties.zoom.value / 100;
   }
 
@@ -1012,19 +1225,23 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 
   // Blockify floats (TODO: abspos too) (CSS Display §2.7). This drives what
   // type of box is created (-> not an inline), but otherwise has no effect.
-  if (computed.float !== 'none') style.blockify();
+  if (computed.float !== "none") style.blockify();
 
   return style;
 }
 
-const computedCache = new Map<number, Style>;
+const computedCache = new Map<number, Style>();
 
 export function createStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
   const key = hash(parentStyle.id) ^ hash(cascadedStyle.id);
   let style = computedCache.get(key) ?? null;
   let prev = null;
   while (style) {
-    if (style.parentId === parentStyle.id && style.cascadeId === cascadedStyle.id) return style;
+    if (
+      style.parentId === parentStyle.id &&
+      style.cascadeId === cascadedStyle.id
+    )
+      return style;
     prev = style;
     style = style.nextInCache;
   }
@@ -1044,9 +1261,9 @@ export function createStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 // required styles that always come last in the cascade
 const rootDeclaredStyle = createDeclaredStyle({
   display: {
-    outer: 'block',
-    inner: 'flow-root'
-  }
+    outer: "block",
+    inner: "flow-root",
+  },
 });
 
 rootDeclaredStyle.id = 0x7fffffff; // max SMI

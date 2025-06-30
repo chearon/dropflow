@@ -531,6 +531,13 @@ export class Style {
     this.borderBottomLeftRadius = style.borderBottomLeftRadius;
   }
 
+  blockify() {
+    if (!this.blockified && this.display.outer === "inline") {
+      this.display = { outer: "block", inner: this.display.inner };
+      this.blockified = true;
+    }
+  }
+
   getTextAlign() {
     if (this.textAlign === "start") {
       if (this.direction === "ltr") {
@@ -553,13 +560,6 @@ export class Style {
 
   isOutOfFlow() {
     return this.float !== "none"; // TODO: or this.position === 'absolute'
-  }
-
-  blockify() {
-    this.blockified = true;
-    if (this.display.outer !== "none") {
-      this.display = { outer: "block", inner: this.display.inner };
-    }
   }
 
   isWsCollapsible() {

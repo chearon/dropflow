@@ -672,39 +672,39 @@ border_color_dec
   }
 
 border_top_left_radius_dec
-  = 'border-top-left-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+  = 'border-top-left-radius'i S* ':' S* h:length_side S* v:length_side {
     return {borderTopLeftRadius: {horizontal: h, vertical: v}};
   }
-  / 'border-top-left-radius'i S* ':' S* r:(LENGTH / default) {
+  / 'border-top-left-radius'i S* ':' S* r:(length_side / default) {
     return {borderTopLeftRadius: r};
   }
 
 border_top_right_radius_dec
-  = 'border-top-right-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+  = 'border-top-right-radius'i S* ':' S* h:length_side S* v:length_side {
     return {borderTopRightRadius: {horizontal: h, vertical: v}};
   }
-  / 'border-top-right-radius'i S* ':' S* r:(LENGTH / default) {
+  / 'border-top-right-radius'i S* ':' S* r:(length_side / default) {
     return {borderTopRightRadius: r};
   }
 
 border_bottom_right_radius_dec
-  = 'border-bottom-right-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+  = 'border-bottom-right-radius'i S* ':' S* h:length_side S* v:length_side {
     return {borderBottomRightRadius: {horizontal: h, vertical: v}};
   }
-  / 'border-bottom-right-radius'i S* ':' S* r:(LENGTH / default) {
+  / 'border-bottom-right-radius'i S* ':' S* r:(length_side / default) {
     return {borderBottomRightRadius: r};
   }
 
 border_bottom_left_radius_dec
-  = 'border-bottom-left-radius'i S* ':' S* h:LENGTH S* v:LENGTH {
+  = 'border-bottom-left-radius'i S* ':' S* h:length_side S* v:length_side {
     return {borderBottomLeftRadius: {horizontal: h, vertical: v}};
   }
-  / 'border-bottom-left-radius'i S* ':' S* r:(LENGTH / default) {
+  / 'border-bottom-left-radius'i S* ':' S* r:(length_side / default) {
     return {borderBottomLeftRadius: r};
   }
 
 border_radius_dec
-  = 'border-radius'i S* ':' S* tl:LENGTH S* tr:LENGTH S* br:LENGTH S* bl:LENGTH {
+  = 'border-radius'i S* ':' S* tl:length_side S* tr:length_side S* br:length_side S* bl:length_side {
     return {
       borderTopLeftRadius: tl,
       borderTopRightRadius: tr,
@@ -712,7 +712,7 @@ border_radius_dec
       borderBottomLeftRadius: bl
     };
   }
-  / 'border-radius'i S* ':' S* t:LENGTH S* h:LENGTH S* b:LENGTH {
+  / 'border-radius'i S* ':' S* t:length_side S* h:length_side S* b:length_side {
     return {
       borderTopLeftRadius: t,
       borderTopRightRadius: h,
@@ -720,7 +720,7 @@ border_radius_dec
       borderBottomLeftRadius: h
     };
   }
-  / 'border-radius'i S* ':' S* v:LENGTH S* h:LENGTH {
+  / 'border-radius'i S* ':' S* v:length_side S* h:length_side {
     return {
       borderTopLeftRadius: v,
       borderTopRightRadius: h,
@@ -728,7 +728,7 @@ border_radius_dec
       borderBottomLeftRadius: h
     };
   }
-  / 'border-radius'i S* ':' S* r:(LENGTH / default) {
+  / 'border-radius'i S* ':' S* r:(length_side / default) {
     return {
       borderTopLeftRadius: r,
       borderTopRightRadius: r,

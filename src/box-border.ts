@@ -1,11 +1,9 @@
-import { Color } from "./style.js";
+import { Color, BorderStyle, BorderRadius } from "./style.js";
 
 // Border rendering constants
 
 export const BORDER_DASHED_ARRAY = [4, 4];
 export const BORDER_DOTTED_ARRAY = [0, 2];
-
-export type BorderStyle = "solid" | "dashed" | "dotted" | "double" | "hidden" | "groove" | "ridge" | "inset" | "outset" | "none";
 
 export interface BorderInfo {
   width: number;
@@ -13,7 +11,7 @@ export interface BorderInfo {
   color: Color;
 }
 
-export interface BorderRadius {
+export type ComputedBorderRadius = {
   horizontal: number;
   vertical: number;
 }
@@ -23,10 +21,10 @@ export interface BoxBorder {
   top: BorderInfo;
   right: BorderInfo;
   bottom: BorderInfo;
-  topLeft: BorderRadius;
-  topRight: BorderRadius;
-  bottomRight: BorderRadius;
-  bottomLeft: BorderRadius;
+  topLeft: ComputedBorderRadius;
+  topRight: ComputedBorderRadius;
+  bottomRight: ComputedBorderRadius;
+  bottomLeft: ComputedBorderRadius;
 }
 
 export interface BoxBorderSegment {
@@ -99,6 +97,38 @@ function bordersMatch(border1: BorderInfo, border2: BorderInfo): boolean {
     border1.color.a === border2.color.a
   );
 }
+// Check if a border has a radius
+export function hasBorderRadius(border: BoxBorder): boolean {
+  // for each corner, there's a radius if the value is a number or a percentage
+  // that's greater than 0, or if it's an object and either horizontal or vertical is greater than 0
+  // Percentages have a value and unit property; horizontal and vertical can be numbers or a Lenght or Percentage
+  // each of which has a value property
+  // NOTE: at the moment this only gets called with a ComputedBorderRadius, but leaving the code for
+  // BorderRadius for now in case we need to support this directly...
+  function hasRadius(radius: BorderRadius): boolean {
+    if ( typeof radius === "number"  && radius > 0 ) {
+      return true;
+    } else if ( typeof radius === "object" && "value" in radius && "unit" in radius && radius.value > 0 ) {
+      return true;
+    } else if ( typeof radius === "object" && "horizontal" in radius && "vertical" in radius )
+      {
+        if ( typeof radius.horizontal === "number" && radius.horizontal > 0 ) {
+          return true;
+        } else if ( typeof radius.horizontal === "object" && "value" in radius.horizontal && radius.horizontal.value > 0 ) {
+          return true;
+        }
+        if ( typeof radius.vertical === "number" && radius.vertical > 0 ) {
+          return true;
+        } else if ( typeof radius.vertical === "object" && "value" in radius.vertical && radius.vertical.value > 0 ) {
+          return true;
+        }
+      }
+    return false;
+  }
+
+  return hasRadius(border.topLeft) || hasRadius(border.topRight) || hasRadius(border.bottomRight) || hasRadius(border.bottomLeft);
+}
+
 // Detect contiguous border segments for optimization
 export function getBorderSegments(borders: {
   left: BorderInfo;

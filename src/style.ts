@@ -1,5 +1,6 @@
 import { HTMLElement, TextNode } from "./dom.ts";
 import { Box } from "./layout-box.ts";
+import type { ComputedBorderRadius } from "./box-border.ts";
 
 export const inherited = Symbol("inherited");
 
@@ -127,7 +128,7 @@ type OuterDisplay = "inline" | "block" | "none";
 
 type InnerDisplay = "flow" | "flow-root" | "none";
 
-type BorderStyle =
+export type BorderStyle =
   | "none"
   | "hidden"
   | "dotted"
@@ -147,7 +148,7 @@ type Float = "left" | "right" | "none";
 
 type Clear = "left" | "right" | "both" | "none";
 
-type BorderRadius =
+export type BorderRadius =
   | Length
   | Percentage
   | { horizontal: Length | Percentage; vertical: Length | Percentage };
@@ -296,22 +297,10 @@ interface ComputedStyle {
   borderRightColor: Color;
   borderBottomColor: Color;
   borderLeftColor: Color;
-  borderTopLeftRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
-  borderTopRightRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
-  borderBottomRightRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
-  borderBottomLeftRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderTopLeftRadius: BorderRadius;
+  borderTopRightRadius: BorderRadius;
+  borderBottomRightRadius: BorderRadius;
+  borderBottomLeftRadius: BorderRadius;
   paddingTop: number | Percentage;
   paddingRight: number | Percentage;
   paddingBottom: number | Percentage;
@@ -395,22 +384,10 @@ export class Style {
   borderRightColor: Color;
   borderBottomColor: Color;
   borderLeftColor: Color;
-  borderTopLeftRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
-  borderTopRightRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
-  borderBottomRightRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
-  borderBottomLeftRadius:
-    | number
-    | Percentage
-    | { horizontal: number | Percentage; vertical: number | Percentage };
+  borderTopLeftRadius: BorderRadius;
+  borderTopRightRadius: BorderRadius;
+  borderBottomRightRadius: BorderRadius;
+  borderBottomLeftRadius: BorderRadius;
   paddingTop: number | Percentage;
   paddingRight: number | Percentage;
   paddingBottom: number | Percentage;
@@ -768,52 +745,56 @@ export class Style {
     if (this[LogicalMaps[writingMode].borderLineRightWidth] > 0) return true;
   }
 
+  getRadius(radius: BorderRadius, box: Box): ComputedBorderRadius {
+    if ( typeof radius === "number" && radius > 0 ) {
+      return { horizontal: radius, vertical: radius };
+    } else if ( typeof radius === "object" && "value" in radius && "unit" in radius && radius.unit === "%" ) {
+      return { horizontal: resolvePercent(box, radius.value), vertical: resolvePercent(box, radius.value) };
+    } else if ( typeof radius === "object" && "value" in radius && "unit" in radius  ) {
+      // em and fixed length units
+      // TODO: check if this is correct -- can we count on it being a number here?
+      return { horizontal: resolveEm(radius.value, this.fontSize) as number, vertical: resolveEm(radius.value, this.fontSize) as number };
+    } else if ( typeof radius === "object" && "horizontal" in radius && "vertical" in radius )
+      {
+        let h = 0;
+        let v = 0;
+        if ( typeof radius.horizontal === "number") {
+          h = radius.horizontal;
+        } else if ( typeof radius.horizontal === "object" && "value" in radius.horizontal ) {
+          if ( radius.horizontal.unit === "%" ) {
+            h = resolvePercent(box, radius.horizontal.value);
+          } else {
+            h = resolveEm(radius.horizontal.value, this.fontSize) as number;
+          }
+        }
+        if ( typeof radius.vertical === "number" ) {
+          v = radius.vertical;
+        } else if ( typeof radius.vertical === "object" && "value" in radius.vertical ) {
+          if ( radius.vertical.unit === "%" ) {
+            v = resolvePercent(box, radius.vertical.value);
+          } else {
+            v = resolveEm(radius.vertical.value, this.fontSize) as number;
+          }
+        }
+        return { horizontal: h, vertical: v };
+      }
+    return { horizontal: 0, vertical: 0 };
+  }
+
   getBorderTopLeftRadius(box: Box) {
-    const radius = this.borderTopLeftRadius;
-    if (typeof radius === "object" && "horizontal" in radius) {
-      return {
-        horizontal: resolvePercent(box, radius.horizontal),
-        vertical: resolvePercent(box, radius.vertical),
-      };
-    }
-    const resolved = resolvePercent(box, radius);
-    return { horizontal: resolved, vertical: resolved };
+    return this.getRadius(this.borderTopLeftRadius, box);
   }
 
   getBorderTopRightRadius(box: Box) {
-    const radius = this.borderTopRightRadius;
-    if (typeof radius === "object" && "horizontal" in radius) {
-      return {
-        horizontal: resolvePercent(box, radius.horizontal),
-        vertical: resolvePercent(box, radius.vertical),
-      };
-    }
-    const resolved = resolvePercent(box, radius);
-    return { horizontal: resolved, vertical: resolved };
+    return this.getRadius(this.borderTopRightRadius, box);
   }
 
   getBorderBottomRightRadius(box: Box) {
-    const radius = this.borderBottomRightRadius;
-    if (typeof radius === "object" && "horizontal" in radius) {
-      return {
-        horizontal: resolvePercent(box, radius.horizontal),
-        vertical: resolvePercent(box, radius.vertical),
-      };
-    }
-    const resolved = resolvePercent(box, radius);
-    return { horizontal: resolved, vertical: resolved };
+    return this.getRadius(this.borderBottomRightRadius, box);
   }
 
   getBorderBottomLeftRadius(box: Box) {
-    const radius = this.borderBottomLeftRadius;
-    if (typeof radius === "object" && "horizontal" in radius) {
-      return {
-        horizontal: resolvePercent(box, radius.horizontal),
-        vertical: resolvePercent(box, radius.vertical),
-      };
-    }
-    const resolved = resolvePercent(box, radius);
-    return { horizontal: resolved, vertical: resolved };
+    return this.getRadius(this.borderBottomLeftRadius, box);
   }
 
   fontsEqual(style: Style, size = true) {

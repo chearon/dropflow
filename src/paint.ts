@@ -14,7 +14,7 @@ import type { InlineLevel, BlockLevel } from "./layout-flow.ts";
 import type { BackgroundBox } from "./layout-text.ts";
 import type { Color } from "./style.ts";
 import type { LoadedFontFace } from "./text-font.ts";
-import { getBorderSegments, isBorderVisible, getStrokePropertiesFromBorder, generateBorderPath, } from "./box-border.ts";
+import { getBorderSegments, isBorderVisible, getStrokePropertiesFromBorder, generateBorderPath, hasBorderRadius } from "./box-border.ts";
 import type { BoxBorderSegment,  BoxBorder,  BorderInfo } from "./box-border.ts";
 
 export interface PaintBackend {
@@ -202,8 +202,6 @@ function paintFormattingBoxBackground(
     bottomLeft: box.style.getBorderBottomLeftRadius(box),
   };
 
-  const hasRadius = borders.topLeft.horizontal > 0 || borders.topLeft.vertical > 0 || borders.topRight.horizontal > 0 || borders.topRight.vertical > 0 || borders.bottomRight.horizontal > 0 || borders.bottomRight.vertical > 0 || borders.bottomLeft.horizontal > 0 || borders.bottomLeft.vertical > 0;
-
   if (!isRoot) {
     const paddingArea = box.getPaddingArea();
     const contentArea = box.getContentArea();
@@ -219,7 +217,7 @@ function paintFormattingBoxBackground(
       b.fillColor = backgroundColor;
       // if a border radius is set we'll need to draw the background with a path;
       // otherwise we can just draw a rect
-      if (hasRadius) {
+      if (hasBorderRadius(borders)) {
         // for background we pretend there's a solid border on all sides; we just care about
         // capturing radius and the theoretical border area; we set the width of each border to 0
         // so that the fill is not inset

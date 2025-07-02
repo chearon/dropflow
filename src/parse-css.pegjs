@@ -768,7 +768,21 @@ border_dec
     if (s) setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
     return ret;
   }
-  / 'border'i t:border_s? S* ':' S* c:color S* w:LENGTH S* {
+  / 'border'i t:border_s? S* ':' S* c:color S* s:border_style S* w:LENGTH? {
+    const ret = {};
+    setTopRightBottomLeftOr(t, ret, 'border', 'Color', c, c, c, c);
+    setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
+    if (w) setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
+    return ret;
+  }
+  / 'border'i t:border_s? S* ':' S* s:border_style S* c:color S* w:LENGTH? {
+    const ret = {};
+    setTopRightBottomLeftOr(t, ret, 'border', 'Color', c, c, c, c);
+    setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
+    if (w) setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
+    return ret;
+  }
+  / 'border'i t:border_s? S* ':' S* w:LENGTH S* {
     return setTopRightBottomLeftOr(t, {}, 'border', 'Width', w, w, w, w);
   }
   / 'border'i t:border_s? S* ':' S* c:color S* {

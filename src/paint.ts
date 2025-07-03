@@ -1,26 +1,56 @@
-import {BlockContainer, ReplacedBox, Inline, InlineLevel, BlockLevel, IfcInline} from './layout-flow.js';
-import {Image} from './layout-image.js';
-import {G_CL, G_AX, G_SZ} from './text-harfbuzz.js';
-import {ShapedItem, Paragraph, BackgroundBox} from './layout-text.js';
-import {Color} from './style.js';
-import {Box, FormattingBox} from './layout-box.js';
-import {binarySearchOf} from './util.js';
+import {
+  BlockContainer,
+  ReplacedBox,
+  Inline,
+  InlineLevel,
+  BlockLevel,
+  IfcInline,
+} from "./layout-flow.js";
+import { Image } from "./layout-image.js";
+import { G_CL, G_AX, G_SZ } from "./text-harfbuzz.js";
+import { ShapedItem, Paragraph, BackgroundBox } from "./layout-text.js";
+import { Color } from "./style.js";
+import { Box, FormattingBox } from "./layout-box.js";
+import { binarySearchOf } from "./util.js";
 
-import type {LoadedFontFace} from './text-font.js';
+import type { LoadedFontFace } from "./text-font.js";
+import { getBorderSegments, isBorderVisible, getStrokePropertiesFromBorder, generateBorderPath, BoxBorderSegment, BoxBorder, BorderInfo, hasBorderRadius } from "./box-border.js";
 
 export interface PaintBackend {
   fillColor: Color;
   strokeColor: Color;
   lineWidth: number;
-  direction: 'ltr' | 'rtl';
+  direction: "ltr" | "rtl";
   font: LoadedFontFace | undefined;
   fontSize: number;
-  edge(x: number, y: number, length: number, side: 'top' | 'right' | 'bottom' | 'left'): void;
-  text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number, isColorBoundary?: boolean): void;
+  strokeDasharray?: string;
+  strokeLinecap?: "butt" | "round" | "square";
+  strokeLinejoin?: "miter" | "round" | "bevel";
+  edge(
+    x: number,
+    y: number,
+    length: number,
+    side: "top" | "right" | "bottom" | "left"
+  ): void;
+  text(
+    x: number,
+    y: number,
+    item: ShapedItem,
+    textStart: number,
+    textEnd: number,
+    isColorBoundary?: boolean
+  ): void;
   rect(x: number, y: number, w: number, h: number): void;
+  path(pathData: string): void;
   pushClip(x: number, y: number, w: number, h: number): void;
   popClip(): void;
-  image(x: number, y: number, width: number, height: number, image: Image): void;
+  image(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    image: Image
+  ): void;
 }
 
 function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
@@ -28,7 +58,8 @@ function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
   let glyphStart = 0;
   let glyphEnd = glyphs.length - G_SZ;
 
-  while (glyphStart < glyphs.length && glyphs[glyphStart + G_AX] === 0) glyphStart += G_SZ;
+  while (glyphStart < glyphs.length && glyphs[glyphStart + G_AX] === 0)
+    glyphStart += G_SZ;
   while (glyphEnd >= 0 && glyphs[glyphEnd + G_AX] === 0) glyphEnd -= G_SZ;
 
   if (glyphStart in glyphs && glyphEnd in glyphs) {
@@ -50,9 +81,9 @@ function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
       }
     }
 
-    return {textStart, textEnd};
+    return { textStart, textEnd };
   } else {
-    return {textStart: 0, textEnd: 0};
+    return { textStart: 0, textEnd: 0 };
   }
 }
 
@@ -62,13 +93,19 @@ function drawText(
   b: PaintBackend
 ) {
   const style = item.attrs.style;
-  const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item);
+  const { textStart, textEnd } = getTextOffsetsForUncollapsedGlyphs(item);
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  const end = item.attrs.level & 1 ? item.colorsStart(colors) - 1 : item.colorsEnd(colors);
-  let i = item.attrs.level & 1 ? item.colorsEnd(colors) - 1 : item.colorsStart(colors);
+  const end =
+    item.attrs.level & 1
+      ? item.colorsStart(colors) - 1
+      : item.colorsEnd(colors);
+  let i =
+    item.attrs.level & 1
+      ? item.colorsEnd(colors) - 1
+      : item.colorsStart(colors);
   let glyphIndex = 0;
   let tx = item.x;
 
@@ -81,17 +118,24 @@ function drawText(
 
     if (start < end) {
       // TODO: should really have isStartColorBoundary, isEndColorBoundary
-      const isColorBoundary = start !== textStart && start === colorStart
-        || end !== textEnd && end === colorEnd;
+      const isColorBoundary =
+        (start !== textStart && start === colorStart) ||
+        (end !== textEnd && end === colorEnd);
       let ax = 0;
 
       if (item.attrs.level & 1) {
-        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] >= start) {
+        while (
+          glyphIndex < item.glyphs.length &&
+          item.glyphs[glyphIndex + G_CL] >= start
+        ) {
           ax += item.glyphs[glyphIndex + G_AX];
           glyphIndex += G_SZ;
         }
       } else {
-        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] < end) {
+        while (
+          glyphIndex < item.glyphs.length &&
+          item.glyphs[glyphIndex + G_CL] < end
+        ) {
           ax += item.glyphs[glyphIndex + G_AX];
           glyphIndex += G_SZ;
         }
@@ -100,10 +144,10 @@ function drawText(
       b.fillColor = color;
       b.fontSize = style.fontSize;
       b.font = item.face;
-      b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
+      b.direction = item.attrs.level & 1 ? "rtl" : "ltr";
       b.text(tx, item.y, item, start, end, isColorBoundary);
 
-      tx += ax / item.face.hbface.upem * style.fontSize;
+      tx += (ax / item.face.hbface.upem) * style.fontSize;
     }
 
     if (item.attrs.level & 1) {
@@ -117,55 +161,134 @@ function drawText(
 /**
  * Paints the background and borders
  */
-function paintFormattingBoxBackground(box: FormattingBox, b: PaintBackend, isRoot = false) {
+function paintFormattingBoxBackground(
+  box: FormattingBox,
+  b: PaintBackend,
+  isRoot = false
+) {
   const style = box.style;
   const borderArea = box.getBorderArea();
+
+  // Advanced border rendering with path-based system
+  const borders: BoxBorder = {
+    left: {
+      width: style.borderLeftWidth,
+      style: style.borderLeftStyle,
+      color: style.borderLeftColor,
+    },
+    top: {
+      width: style.borderTopWidth,
+      style: style.borderTopStyle,
+      color: style.borderTopColor,
+    },
+    right: {
+      width: style.borderRightWidth,
+      style: style.borderRightStyle,
+      color: style.borderRightColor,
+    },
+    bottom: {
+      width: style.borderBottomWidth,
+      style: style.borderBottomStyle,
+      color: style.borderBottomColor,
+    },
+    topLeft: style.getBorderTopLeftRadius(box),
+    topRight: style.getBorderTopRightRadius(box),
+    bottomRight: style.getBorderBottomRightRadius(box),
+    bottomLeft: style.getBorderBottomLeftRadius(box),
+  };
 
   if (!isRoot) {
     const paddingArea = box.getPaddingArea();
     const contentArea = box.getContentArea();
-    const {backgroundColor, backgroundClip} = style;
-    const area = backgroundClip === 'border-box' ? borderArea :
-      backgroundClip === 'padding-box' ? paddingArea :
-      contentArea;
+    const { backgroundColor, backgroundClip } = style;
+    const area =
+      backgroundClip === "border-box"
+        ? borderArea
+        : backgroundClip === "padding-box"
+        ? paddingArea
+        : contentArea;
 
     if (backgroundColor.a > 0) {
       b.fillColor = backgroundColor;
-      b.rect(area.x, area.y, area.width, area.height);
+      // if a border radius is set we'll need to draw the background with a path;
+      // otherwise we can just draw a rect
+      if (hasBorderRadius(borders)) {
+        // for background we pretend there's a solid border on all sides; we just care about
+        // capturing radius and the theoretical border area; we set the width of each border to 0
+        // so that the fill is not inset
+        const emptyBorder: BorderInfo = {
+          width: 0,
+          style: "solid",
+          color: { r: 0, g: 0, b: 0, a: 0 },
+        };
+        const backgroundSegment: BoxBorderSegment = {
+          firstSide: "top",
+          left: true,
+          top: true,
+          right: true,
+          bottom: true,
+        };
+
+        b.fillColor = { r: backgroundColor.r, g: backgroundColor.g, b: backgroundColor.b, a: backgroundColor.a };
+        b.lineWidth = 0;
+        b.strokeColor = { r: 0, g: 0, b: 0, a: 0 };
+        b.path(generateBorderPath(area.x, area.y, area.width, area.height, { ...borders, left: emptyBorder, top: emptyBorder, right: emptyBorder, bottom: emptyBorder }, backgroundSegment, "solid"));
+      } else {
+        b.rect(area.x, area.y, area.width, area.height);
+      }
     }
   }
 
-  const work = [
-    ['top', style.borderTopWidth, style.borderTopColor],
-    ['right', style.borderRightWidth, style.borderRightColor],
-    ['bottom', style.borderBottomWidth, style.borderBottomColor],
-    ['left', style.borderLeftWidth, style.borderLeftColor],
-  ] as const;
+  // determine which border segments need to be drawn, and which is first
+  const segments = getBorderSegments(borders);
 
-  for (const [side, lineWidth, color] of work) {
-    if (lineWidth === 0 || color.a === 0) continue;
-    const length = side === 'top' || side === 'bottom' ? borderArea.width : borderArea.height;
-    let x = side === 'right' ? borderArea.x + borderArea.width - lineWidth: borderArea.x;
-    let y = side === 'bottom' ? borderArea.y + borderArea.height - lineWidth : borderArea.y;
-    b.strokeColor = color;
-    b.lineWidth = lineWidth;
-    x += side === 'left' || side === 'right' ? lineWidth/2 : 0;
-    y += side === 'top' || side === 'bottom' ? lineWidth/2 : 0;
-    b.edge(x, y, length, side);
+  for (const segment of segments) {
+    const localBorder = borders[segment.firstSide];
+    if (!isBorderVisible(localBorder)) continue;
+
+    const strokeProps = getStrokePropertiesFromBorder(localBorder);
+
+    // Apply stroke properties to backend
+    b.strokeColor = strokeProps.strokeColor;
+    b.lineWidth = strokeProps.strokeWidth;
+    b.strokeDasharray = strokeProps.strokeDasharray;
+    b.strokeLinecap = strokeProps.strokeLinecap;
+
+    const path = generateBorderPath(
+      borderArea.x,
+      borderArea.y,
+      borderArea.width,
+      borderArea.height,
+      borders,
+      segment,
+      localBorder.style
+    );
+    b.path(path);
+
+    // Reset stroke properties to defaults
+    b.strokeDasharray = undefined;
+    b.strokeLinecap = "butt";
   }
 }
 
-function paintBackgroundDescendents(root: FormattingBox | Inline, b: PaintBackend) {
-  const stack: (FormattingBox | Inline | {sentinel: true})[] = [root];
+function paintBackgroundDescendents(
+  root: FormattingBox | Inline,
+  b: PaintBackend
+) {
+  const stack: (FormattingBox | Inline | { sentinel: true })[] = [root];
   const parents: Box[] = [];
 
   while (stack.length) {
     const box = stack.pop()!;
 
-    if ('sentinel' in box) {
+    if ("sentinel" in box) {
       const box = parents.pop()!;
 
-      if (box.isFormattingBox() && box.style.overflow === 'hidden' && box !== root) {
+      if (
+        box.isFormattingBox() &&
+        box.style.overflow === "hidden" &&
+        box !== root
+      ) {
         b.popClip();
       }
     } else {
@@ -174,11 +297,15 @@ function paintBackgroundDescendents(root: FormattingBox | Inline, b: PaintBacken
       }
 
       if (box.isBlockContainer() && box.hasBackgroundInLayerRoot()) {
-        stack.push({sentinel: true});
+        stack.push({ sentinel: true });
         parents.push(box);
 
-        if (box.isFormattingBox() && box.style.overflow === 'hidden' && box !== root) {
-          const {x, y, width, height} = box.getPaddingArea();
+        if (
+          box.isFormattingBox() &&
+          box.style.overflow === "hidden" &&
+          box !== root
+        ) {
+          const { x, y, width, height } = box.getPaddingArea();
           b.pushClip(x, y, width, height);
         }
 
@@ -201,7 +328,7 @@ function snap(ox: number, oy: number, ow: number, oh: number) {
   const y = Math.round(oy);
   const width = Math.round(ox + ow) - x;
   const height = Math.round(oy + oh) - y;
-  return {x, y, width, height};
+  return { x, y, width, height };
 }
 
 function paintInlineBackground(
@@ -214,18 +341,35 @@ function paintInlineBackground(
   const direction = ifc.style.direction;
   const bgc = inline.style.backgroundColor;
   const clip = inline.style.backgroundClip;
-  const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
-  const {a: ta} = borderTopColor;
-  const {a: ra} = borderRightColor;
-  const {a: ba} = borderBottomColor;
-  const {a: la} = borderLeftColor;
-  const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = background;
+  const {
+    borderTopColor,
+    borderRightColor,
+    borderBottomColor,
+    borderLeftColor,
+  } = inline.style;
+  const { a: ta } = borderTopColor;
+  const { a: ra } = borderRightColor;
+  const { a: ba } = borderBottomColor;
+  const { a: la } = borderLeftColor;
+  const {
+    start,
+    end,
+    blockOffset,
+    ascender,
+    descender,
+    naturalStart,
+    naturalEnd,
+  } = background;
   const paddingTop = inline.style.getPaddingBlockStart(ifc);
   const paddingRight = inline.style.getPaddingLineRight(ifc);
   const paddingBottom = inline.style.getPaddingBlockEnd(ifc);
   const paddingLeft = inline.style.getPaddingLineLeft(ifc);
-  const paintLeft = naturalStart && direction === 'ltr' || naturalEnd && direction === 'rtl';
-  const paintRight = naturalEnd && direction === 'ltr' || naturalStart && direction === 'rtl';
+  const paintLeft =
+    (naturalStart && direction === "ltr") ||
+    (naturalEnd && direction === "rtl");
+  const paintRight =
+    (naturalEnd && direction === "ltr") ||
+    (naturalStart && direction === "rtl");
   const borderTopWidth = inline.style.getBorderBlockStartWidth(ifc);
   let borderRightWidth = inline.style.getBorderLineRightWidth(ifc);
   const borderBottomWidth = inline.style.getBorderBlockEndWidth(ifc);
@@ -238,18 +382,18 @@ function paintInlineBackground(
     let extraTop = 0;
     let extraBottom = 0;
 
-    if (clip !== 'content-box') {
+    if (clip !== "content-box") {
       extraTop += inline.style.getPaddingBlockStart(ifc);
       extraBottom += inline.style.getPaddingBlockEnd(ifc);
     }
 
-    if (clip === 'border-box') {
+    if (clip === "border-box") {
       extraTop += borderTopWidth;
       extraBottom += borderBottomWidth;
     }
 
     b.fillColor = bgc;
-    const {x, y, width, height} = snap(
+    const { x, y, width, height } = snap(
       Math.min(start, end),
       blockOffset - ascender - extraTop,
       Math.abs(start - end),
@@ -262,16 +406,16 @@ function paintInlineBackground(
     let extraLeft = 0;
     let extraRight = 0;
 
-    if (paintLeft && clip === 'content-box') extraLeft += paddingLeft
-    if (paintLeft && clip !== 'border-box') extraLeft += borderLeftWidth;
-    if (paintRight && clip === 'content-box') extraRight += paddingRight;
-    if (paintRight && clip !== 'border-box') extraRight += borderRightWidth;
+    if (paintLeft && clip === "content-box") extraLeft += paddingLeft;
+    if (paintLeft && clip !== "border-box") extraLeft += borderLeftWidth;
+    if (paintRight && clip === "content-box") extraRight += paddingRight;
+    if (paintRight && clip !== "border-box") extraRight += borderRightWidth;
 
     const work = [
-      ['top', borderTopWidth, borderTopColor],
-      ['right', borderRightWidth, borderRightColor],
-      ['bottom', borderBottomWidth, borderBottomColor],
-      ['left', borderLeftWidth, borderLeftColor]
+      ["top", borderTopWidth, borderTopColor],
+      ["right", borderRightWidth, borderRightColor],
+      ["bottom", borderBottomWidth, borderBottomColor],
+      ["left", borderLeftWidth, borderLeftColor],
     ] as const;
 
     // TODO there's a bug here: try
@@ -283,14 +427,22 @@ function paintInlineBackground(
         Math.min(start, end) - extraLeft,
         blockOffset - ascender - paddingTop - borderTopWidth,
         Math.abs(start - end) + extraLeft + extraRight,
-        borderTopWidth + paddingTop + ascender + descender + paddingBottom + borderBottomWidth
+        borderTopWidth +
+          paddingTop +
+          ascender +
+          descender +
+          paddingBottom +
+          borderBottomWidth
       );
 
-      const length = side === 'left' || side === 'right' ? rect.height : rect.width;
-      let x = side === 'right' ? rect.x + rect.width : rect.x;
-      let y = side === 'bottom' ? rect.y + rect.height : rect.y;
-      x += side === 'left' ? lineWidth/2 : side === 'right' ? -lineWidth/2 : 0;
-      y += side === 'top' ? lineWidth/2 : side === 'bottom' ? -lineWidth/2 : 0;
+      const length =
+        side === "left" || side === "right" ? rect.height : rect.width;
+      let x = side === "right" ? rect.x + rect.width : rect.x;
+      let y = side === "bottom" ? rect.y + rect.height : rect.y;
+      x +=
+        side === "left" ? lineWidth / 2 : side === "right" ? -lineWidth / 2 : 0;
+      y +=
+        side === "top" ? lineWidth / 2 : side === "bottom" ? -lineWidth / 2 : 0;
       b.lineWidth = lineWidth;
       b.strokeColor = color;
       b.edge(x, y, length, side);
@@ -300,8 +452,8 @@ function paintInlineBackground(
 
 function paintReplacedBox(box: ReplacedBox, b: PaintBackend) {
   const image = box.getImage();
-  if (image?.status === 'loaded') {
-    const {x, y, width, height} = box.getContentArea();
+  if (image?.status === "loaded") {
+    const { x, y, width, height } = box.getContentArea();
     b.image(x, y, width, height, image);
   }
 }
@@ -317,7 +469,8 @@ function paintInlines(root: BlockLayerRoot, ifc: IfcInline, b: PaintBackend) {
     let hasPositionedParent = false;
 
     if (lineboxItem) lineboxItem = lineboxItem.next;
-    if (!lineboxItem) { // starting a new linebox
+    if (!lineboxItem) {
+      // starting a new linebox
       lineboxItem = lineboxes[++lineboxIndex].head;
       painted.clear();
     }
@@ -358,12 +511,12 @@ function paintInlines(root: BlockLayerRoot, ifc: IfcInline, b: PaintBackend) {
 }
 
 function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
-  const stack: (IfcInline | BlockLevel | {sentinel: true})[] = [root.box];
+  const stack: (IfcInline | BlockLevel | { sentinel: true })[] = [root.box];
 
   while (stack.length) {
     const box = stack.pop()!;
 
-    if ('sentinel' in box) {
+    if ("sentinel" in box) {
       b.popClip();
     } else if (box.isReplacedBox()) {
       // Belongs to this LayerRoot
@@ -377,10 +530,10 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
         // Has something we should paint underneath it
         (box.hasForegroundInLayerRoot() || root.isInInlineBlockPath(box))
       ) {
-        if (box !== root.box && box.style.overflow === 'hidden') {
-          const {x, y, width, height} = box.getPaddingArea();
+        if (box !== root.box && box.style.overflow === "hidden") {
+          const { x, y, width, height } = box.getPaddingArea();
           b.pushClip(x, y, width, height);
-          stack.push({sentinel: true});
+          stack.push({ sentinel: true });
         }
 
         for (let i = box.children.length - 1; i >= 0; i--) {
@@ -400,7 +553,11 @@ function paintInline(
   const treeItems = paragraph.treeItems;
   const stack = root.box.children.slice().reverse();
   const ranges: [number, number][] = [];
-  let itemIndex = binarySearchOf(paragraph.treeItems, root.box.start, item => item.offset);
+  let itemIndex = binarySearchOf(
+    paragraph.treeItems,
+    root.box.start,
+    (item) => item.offset
+  );
 
   function paintRanges() {
     while (ranges.length) {
@@ -479,26 +636,32 @@ class LayerRoot {
 
   get zIndex() {
     const zIndex = this.box.style.zIndex;
-    return zIndex === 'auto' ? 0 : zIndex;
+    return zIndex === "auto" ? 0 : zIndex;
   }
 
   finalize(preorderScores: Map<Box, number>) {
     this.negativeRoots.sort((a, b) => a.zIndex - b.zIndex);
-    this.floats.sort((a, b) => preorderScores.get(a.box)! - preorderScores.get(b.box)!);
-    this.positionedRoots.sort((a, b) => preorderScores.get(a.box)! - preorderScores.get(b.box)!);
+    this.floats.sort(
+      (a, b) => preorderScores.get(a.box)! - preorderScores.get(b.box)!
+    );
+    this.positionedRoots.sort(
+      (a, b) => preorderScores.get(a.box)! - preorderScores.get(b.box)!
+    );
     this.positiveRoots.sort((a, b) => a.zIndex - b.zIndex);
   }
 
   isEmpty() {
-    return !this.box.hasBackground()
-      && !this.box.hasForeground()
-      && !this.box.hasBackgroundInLayerRoot()
-      && !this.box.hasForegroundInLayerRoot()
-      && this.negativeRoots.length === 0
-      && this.floats.length === 0
-      && this.positionedRoots.length === 0
-      && this.positiveRoots.length === 0
-      && this.inlineBlocks.size === 0;
+    return (
+      !this.box.hasBackground() &&
+      !this.box.hasForeground() &&
+      !this.box.hasBackgroundInLayerRoot() &&
+      !this.box.hasForegroundInLayerRoot() &&
+      this.negativeRoots.length === 0 &&
+      this.floats.length === 0 &&
+      this.positionedRoots.length === 0 &&
+      this.positiveRoots.length === 0 &&
+      this.inlineBlocks.size === 0
+    );
   }
 
   /**
@@ -561,7 +724,9 @@ function createLayerRoot(box: BlockContainer) {
   const layerRoot = new BlockLayerRoot(box, []);
   const preorderIndices = new Map<Box, number>();
   const parentRoots: LayerRoot[] = [layerRoot];
-  const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
+  const stack: (InlineLevel | { sentinel: true })[] = box.children
+    .slice()
+    .reverse();
   const parents: Box[] = [];
   let preorderIndex = 0;
 
@@ -569,7 +734,7 @@ function createLayerRoot(box: BlockContainer) {
     const box = stack.pop()!;
     let layerRoot;
 
-    if ('sentinel' in box) {
+    if ("sentinel" in box) {
       const layerRoot = parentRoots.at(-1)!;
       const box = parents.pop()!;
 
@@ -618,7 +783,9 @@ function createLayerRoot(box: BlockContainer) {
           parentRoot = parentRoots[--parentRootIndex];
         }
 
-        const parentIndex = parents.findLastIndex(box => parentRoot.box === box);
+        const parentIndex = parents.findLastIndex(
+          (box) => parentRoot.box === box
+        );
         const paintRootParents = parents.slice(parentIndex + 1);
         let nearestParagraph;
 
@@ -633,13 +800,19 @@ function createLayerRoot(box: BlockContainer) {
         }
 
         if (box.isInline()) {
-          layerRoot = new InlineLayerRoot(box, paintRootParents, nearestParagraph!);
+          layerRoot = new InlineLayerRoot(
+            box,
+            paintRootParents,
+            nearestParagraph!
+          );
         } else {
           layerRoot = new BlockLayerRoot(box, paintRootParents);
         }
       } else if (!box.isInline()) {
-        if (box.isFloat() || box.isBlockContainer() && box.isInlineLevel()) {
-          const parentIndex = parents.findLastIndex(box => parentRoot.box === box);
+        if (box.isFloat() || (box.isBlockContainer() && box.isInlineLevel())) {
+          const parentIndex = parents.findLastIndex(
+            (box) => parentRoot.box === box
+          );
           const paintRootParents = parents.slice(parentIndex + 1);
           layerRoot = new BlockLayerRoot(box, paintRootParents);
           if (box.isBlockContainer() && box.isInlineLevel()) {
@@ -654,7 +827,7 @@ function createLayerRoot(box: BlockContainer) {
         box.hasBackground() ||
         box.hasForeground()
       ) {
-        stack.push({sentinel: true});
+        stack.push({ sentinel: true });
         parents.push(box);
         if (layerRoot) parentRoots.push(layerRoot);
         if (box.isBlockContainer() || box.isInline()) {
@@ -701,10 +874,11 @@ function paintBlockLayerRoot(
   b: PaintBackend,
   isRoot = false
 ) {
-  if (root.box.hasBackground() && !isRoot) paintFormattingBoxBackground(root.box, b);
+  if (root.box.hasBackground() && !isRoot)
+    paintFormattingBoxBackground(root.box, b);
 
-  if (!isRoot && root.box.style.overflow === 'hidden') {
-    const {x, y, width, height} = root.box.getPaddingArea();
+  if (!isRoot && root.box.style.overflow === "hidden") {
+    const { x, y, width, height } = root.box.getPaddingArea();
     b.pushClip(x, y, width, height);
   }
 
@@ -716,7 +890,11 @@ function paintBlockLayerRoot(
 
   for (const r of root.floats) paintLayerRoot(r, b);
 
-  if (root.box.hasForeground() || root.box.hasForegroundInLayerRoot() || root.inlineBlocks.size) {
+  if (
+    root.box.hasForeground() ||
+    root.box.hasForegroundInLayerRoot() ||
+    root.inlineBlocks.size
+  ) {
     paintBlockForeground(root, b);
   }
 
@@ -724,13 +902,13 @@ function paintBlockLayerRoot(
 
   for (const r of root.positiveRoots) paintLayerRoot(r, b);
 
-  if (!isRoot && root.box.style.overflow === 'hidden') b.popClip();
+  if (!isRoot && root.box.style.overflow === "hidden") b.popClip();
 }
 
 function paintLayerRoot(paintRoot: LayerRoot, b: PaintBackend) {
   for (const parent of paintRoot.parents) {
-    if (parent.isBlockContainer() && parent.style.overflow === 'hidden') {
-      const {x, y, width, height} = parent.getPaddingArea();
+    if (parent.isBlockContainer() && parent.style.overflow === "hidden") {
+      const { x, y, width, height } = parent.getPaddingArea();
       b.pushClip(x, y, width, height);
     }
   }
@@ -742,7 +920,7 @@ function paintLayerRoot(paintRoot: LayerRoot, b: PaintBackend) {
   }
 
   for (const parent of paintRoot.parents) {
-    if (parent.isBlockContainer() && parent.style.overflow === 'hidden') {
+    if (parent.isBlockContainer() && parent.style.overflow === "hidden") {
       b.popClip();
     }
   }
@@ -763,13 +941,15 @@ export default function paint(block: BlockContainer, b: PaintBackend) {
       b.rect(area.x, area.y, area.width, area.height);
     }
 
-    if (block.style.overflow === 'hidden') {
-      const {x, y, width, height} = block.containingBlock;
+    if (block.style.overflow === "hidden") {
+      const { x, y, width, height } = block.containingBlock;
       b.pushClip(x, y, width, height);
     }
 
     paintBlockLayerRoot(layerRoot, b, true);
 
-    if (block.style.overflow === 'hidden') b.popClip();
+    if (block.style.overflow === "hidden") b.popClip();
   }
 }
+
+

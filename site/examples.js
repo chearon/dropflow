@@ -103,18 +103,19 @@ export const examples = [
     name: "Typography",
     html: `<html style="margin: 2em; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
   <h1 style="color: #4CAF50; text-align: center; font-size: 2.5em; margin-bottom: 0.5em;">
-    Typography Showcase
+    Typography Tests
   </h1>
-  
+
+ 
   <div style="margin: 1em 0;">
+    <div style="float: right; width: 240px; max-width: 600px; margin: 0px auto; padding: 8px; border: 1px solid #666; background-color: #f9f9f9; color: #333; border-radius: 1em; text-align: justify;">
+        <div><strong>archicenter</strong> (är-ki-sen'tər), <em>n</em>. [Gr. ἀρχή-, first, + κέντρον, center.] An archetype; an organism or an organ which may be regarded as the primitive or ancestral or central or unspecialized type from which allied organisms or homologous organs are descended. Also <em>archecenter</em>. <span style="font-variant-numeric: oldstyle-nums;"><em>Encyc. Brit.</em>, <span style="font-variant-caps: all-small-caps">XXVIII.</span> 343.</span></div>
+    </div>
     <h2 style="color: #2196F3; margin-top: 0;">Font Weights & Styles</h2>
-    <p style="font-weight: 300;">Light weight text (300)</p>
-    <p style="font-weight: 400;">Regular weight text (400)</p>
-    <p style="font-weight: 600;">Semi-bold weight text (600)</p>
-    <p style="font-weight: 700;">Bold weight text (700)</p>
-    <p style="font-style: italic;">Italic text style</p>
-    <p style="text-decoration: underline;">❌ Underlined text</p>
-    <p style="text-decoration: line-through;">❌ Strikethrough text</p>
+    <p><span style="font-weight: 100;">Thin (100)</span>, <span style="font-weight: 200;">Extra Light (200)</span>, <span style="font-weight: 300;">Light (300)</span>, <span style="font-weight: 400;">Regular (400)</span>, <span style="font-weight: 500;">Medium (500)</span>, <span style="font-weight: 600;">Semi-Bold (600)</span>, <span style="font-weight: 700;">Bold (700)</span>, <span style="font-weight: 800;">Extra Bold (800)</span>, <span style="font-weight: 900;">Black (900)</span></p>
+    <p><span style="font-style: italic;">Italic text</span>, <span style="font-style: oblique;">Oblique text</span>, <span style="font-variant-caps: small-caps;">Small Caps</span>, <span style="font-variant-caps: all-small-caps;">All Small Caps</span></p>
+    <p><span style="text-decoration: underline;">Underlined text</span>, <span style="text-decoration: overline;">Overlined text</span>, <span style="text-decoration: line-through;">Strikethrough text</span>, and <span style="text-decoration: underline overline;">Underlined and Overlined text</span></p>
+    <p><span style="text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px;">Dotted underlined text with offset</span>, <span style="text-decoration: underline; text-decoration-style: dashed;">Dashed underlined text</span>, <span style="text-decoration: underline; text-decoration-style: solid;">Solid underlined</span>, <span style="text-decoration: underline; text-decoration-style: double; text-underline-offset: 2px;">Double underlined text with offset</span>, <span style="text-decoration: underline; text-decoration-style: wavy; text-underline-offset: 8px; text-decoration-color: red;">Wavy Underlined text with big offset</span></p>
   </div>
 
   <div style="margin: 1em 0;">
@@ -149,18 +150,25 @@ export const examples = [
 
   </div>
 
-  <div style="background-color: #2d2d2d; padding: 1.5em; border-radius: 8px; margin: 1em 0;">
+  <div>
+    <h2 style="color: #2196F3;">Semantic Elements</h2>
+    <p>The <abbr title="Application Programming Interface">API</abbr> integrates seamlessly with our system.</p>
+    <p>Execute the <code>runProcess()</code> function to start the task.</p>
+    <p>This feature was <ins>recently added</ins> to enhance performance.</p>
+    <p>The old method was <del>deprecated</del> due to security issues.</p>
+    <p>Check the <samp>output.log</samp> file for debug information.</p>
+    <p>Key updates are marked with <kbd>Ctrl + S</kbd> for quick saves.</p>
+    <p>The <var>userCount</var> variable tracks active users.</p>
+  </div>
+
     <h2 style="color: #9C27B0;">Text Sizes & Spacing</h2>
     <p style="font-size: 0.8em;">Small text (0.8em)</p>
     <p style="font-size: 1em;">Normal text (1em)</p>
     <p style="font-size: 1.2em;">Large text (1.2em)</p>
     <p style="font-size: 1.5em;">Extra large text (1.5em)</p>
-    <p style="line-height: 2;">Text with increased line height for better readability</p>
     <p style="letter-spacing: 0.1em;">Text with letter spacing</p>
     <p style="word-spacing: 0.3em;">Text with word spacing</p>
-  </div>
 
-  <div style="background-color: #2d2d2d; padding: 1.5em; border-radius: 8px; margin: 1em 0;">
     <h2 style="color: #F44336;">Special Characters & Symbols</h2>
     <p>Mathematical symbols: α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω</p>
     <p>Currency symbols: $ € £ ¥ ₹ ₿</p>

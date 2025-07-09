@@ -1,15 +1,12 @@
 import {binarySearchTuple, basename, loggableText, Logger} from './util.js';
-import {Box, FormattingBox, RenderItem, RenderItemLogOptions} from './layout-box.js';
-import {Style, Color, TextAlign, WhiteSpace} from './style.js';
+import {Box, FormattingBox, RenderItem} from './layout-box.js';
+import {Style} from './style.js';
 import {
   BlockContainer,
   ReplacedBox,
-  BlockLevel,
   IfcInline,
   IfcVacancy,
   Inline,
-  InlineLevel,
-  LayoutContext,
   createInlineIterator,
   createPreorderInlineIterator,
   layoutFloatBox
@@ -23,6 +20,9 @@ import {createItemizeState, itemizeNext} from './text-itemize.js';
 
 import type {LoadedFontFace} from './text-font.js';
 import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.js';
+import type {RenderItemLogOptions} from './layout-box.js';
+import type {Color, TextAlign, WhiteSpace} from './style.js';
+import type {BlockLevel, InlineLevel, LayoutContext} from './layout-flow.js';
 
 const lineFeedCharacter = 0x000a;
 const formFeedCharacter = 0x000c;

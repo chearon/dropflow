@@ -3,7 +3,6 @@ import {HTMLElement, TextNode} from './dom.js';
 import {createStyle, Style, EMPTY_STYLE} from './style.js';
 import {
   EmptyInlineMetrics,
-  InlineMetrics,
   Linebox,
   Paragraph,
   Run,
@@ -13,7 +12,10 @@ import {
   getFontMetrics
 } from './layout-text.js';
 import {getImage} from './layout-image.js';
-import {Box, FormattingBox, RenderItem, PrelayoutContext} from './layout-box.js';
+import {Box, FormattingBox, RenderItem} from './layout-box.js';
+
+import type {InlineMetrics} from './layout-text.js';
+import type {PrelayoutContext} from './layout-box.js';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {

@@ -18,6 +18,7 @@
     "strict": true,
     "noUnusedLocals": true,
     "stripInternal": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
   }
 }

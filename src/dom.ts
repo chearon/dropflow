@@ -1,7 +1,9 @@
 import {Box} from './layout-box.js';
 import {loggableText} from './util.js';
 import {Style, DeclaredStyle, getOriginStyle, EMPTY_STYLE} from './style.js';
-import {query, queryAll, Adapter} from './style-query.js';
+import {query, queryAll} from './style-query.js';
+
+import type {Adapter} from './style-query.js';
 
 export class TextNode {
   public id: string;

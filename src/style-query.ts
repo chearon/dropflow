@@ -54,6 +54,9 @@
 
 import {
   parse,
+} from './style-selector.js';
+
+import type {
   Selector,
   AttributeAction,
   AttributeSelector,

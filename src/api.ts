@@ -5,11 +5,14 @@ import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadW
 import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
 import HtmlPaintBackend from './paint-html.js';
 import SvgPaintBackend from './paint-svg.js';
-import CanvasPaintBackend, {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
+import CanvasPaintBackend from './paint-canvas.js';
+
 import paint from './paint.js';
 import {BoxArea, prelayout, postlayout} from './layout-box.js';
 import {onLoadWalkerElementForImage} from './layout-image.js';
 import {id, uuid} from './util.js';
+
+import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
 
 import type {Style} from './style.js';
 import type {Image} from './layout-image.js';

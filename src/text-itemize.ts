@@ -1,11 +1,14 @@
 import wasm from './wasm.js';
 import {onWasmMemoryResized} from './wasm-env.js';
 import {codeToName} from '../gen/script-names.js';
-import {IfcInline, InlineLevel, Inline} from './layout-flow.js';
+import {IfcInline, Inline} from './layout-flow.js';
+
 import {Style} from './style.js';
 import * as hb from './text-harfbuzz.js';
 import * as EmojiTrie from './trie-emoji.js';
 import * as ScriptTrie from './trie-script.js';
+
+import type {InlineLevel} from './layout-flow.js';
 
 const {
   // SheenBidi

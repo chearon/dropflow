@@ -2,7 +2,6 @@ import * as flow from 'dropflow';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
-import {clearWordCache} from '../src/layout-text.js';
 
 const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
 flow.fonts.add(flow.createFaceFromTablesSync(p('Roboto/Roboto-Regular.ttf')));
@@ -37,7 +36,7 @@ bench('generate and layout one random word', () => {
     flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
   );
   const blockContainer = flow.generate(html);
-  clearWordCache();
+  flow.clearWordCache();
   flow.layout(blockContainer, 100, 20);
 });
 

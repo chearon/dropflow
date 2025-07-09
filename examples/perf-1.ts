@@ -4,7 +4,6 @@ import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
-import {clearWordCache} from '../src/layout-text.js';
 
 registerFontAsset('Arimo/Arimo-Bold.ttf');
 registerFontAsset('Arimo/Arimo-Regular.ttf');
@@ -57,7 +56,7 @@ fs.writeFileSync(new URL('perf-1.png', import.meta.url), canvas.toBuffer());
 
 bench('10 paragraphs generate, layout, and paint', () => {
   const blockContainer = flow.generate(rootElement);
-  clearWordCache();
+  flow.clearWordCache();
   flow.layout(blockContainer, canvas.width, canvas.height);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   flow.paintToCanvas(blockContainer, ctx);

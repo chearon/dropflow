@@ -324,3 +324,5 @@ export function createObjectURL(buffer: ArrayBufferLike): string {
 export function revokeObjectURL(url: string): void {
   objectStore.delete(url);
 }
+
+export {clearWordCache} from './layout-text.js';

@@ -3,7 +3,6 @@ import parse from 'dropflow/parse.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
-import {clearWordCache} from '../src/layout-text.js';
 
 const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
 flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Bold.ttf')));
@@ -1920,7 +1919,7 @@ fs.writeFileSync(new URL('perf-2.png', import.meta.url), canvas.toBuffer());
 
 bench('10 paragraphs generate, layout, and paint', () => {
   const blockContainer = flow.generate(rootElement);
-  clearWordCache();
+  flow.clearWordCache();
   flow.layout(blockContainer, 800, 28696);
   ctx.clearRect(0, 0, 800 , 28696 );
   flow.paintToCanvas(blockContainer, ctx);

@@ -1,7 +1,7 @@
 // Note if you're running this in the dropflow repo, you'll have to npm install
 // skia-canvas and un-exclude this file from tsconfig.json. skia-canvas refers
 // to ambient types: https://github.com/samizdatco/skia-canvas/pull/220
-import * as flow from '../src/api.js';
+import * as flow from 'dropflow';
 import fs from 'fs';
 import {fileURLToPath} from 'url';
 import {Canvas, FontLibrary, loadImage} from 'skia-canvas';

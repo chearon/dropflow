@@ -1,14 +1,14 @@
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
-import {registerFontAsset} from '../assets/register.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
 import {bench, run} from 'mitata';
 
-registerFontAsset('Arimo/Arimo-Bold.ttf');
-registerFontAsset('Arimo/Arimo-Regular.ttf');
-registerFontAsset('Arimo/Arimo-Italic.ttf');
-registerFontAsset('Cousine/Cousine-Regular.ttf');
+const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Bold.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Regular.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Italic.ttf')));
+flow.fonts.add(flow.createFaceFromTablesSync(p('Cousine/Cousine-Regular.ttf')));
 
 const rootElement = parse(`
   <div style="zoom: 2; padding: 1em; background-color: #fff; font-family: Arimo;">

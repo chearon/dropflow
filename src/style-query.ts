@@ -57,7 +57,6 @@ import {
   Selector,
   AttributeAction,
   AttributeSelector,
-  SelectorType,
   PseudoSelector,
   Traversal
 } from './style-selector.js';
@@ -482,10 +481,10 @@ function prepareContext<Node, ElementNode extends Node>(
 type InternalSelector = Selector | { type: '_flexibleDescendant' };
 
 const procedure = new Map<InternalSelector['type'], number>([
-  [SelectorType.Universal, 50],
-  [SelectorType.Tag, 30],
-  [SelectorType.Attribute, 1],
-  [SelectorType.Pseudo, 0],
+  ['universal', 50],
+  ['tag', 30],
+  ['attribute', 1],
+  ['pseudo', 0],
 ]);
 
 function isTraversal(token: InternalSelector): token is Traversal {
@@ -493,12 +492,12 @@ function isTraversal(token: InternalSelector): token is Traversal {
 }
 
 const attributes = new Map<AttributeAction, number>([
-  [AttributeAction.Exists, 10],
-  [AttributeAction.Equals, 8],
-  [AttributeAction.Not, 7],
-  [AttributeAction.Start, 6],
-  [AttributeAction.End, 6],
-  [AttributeAction.Any, 5],
+  ['exists', 10],
+  ['equals', 8],
+  ['not', 7],
+  ['start', 6],
+  ['end', 6],
+  ['any', 5],
 ]);
 
 /**
@@ -528,10 +527,10 @@ function sortByProcedure(arr: InternalSelector[]): void {
 function getProcedure(token: InternalSelector): number {
   let proc = procedure.get(token.type) ?? -1;
 
-  if (token.type === SelectorType.Attribute) {
+  if (token.type === 'attribute') {
     proc = attributes.get(token.action) ?? 4;
 
-    if (token.action === AttributeAction.Equals && token.name === 'id') {
+    if (token.action === 'equals' && token.name === 'id') {
       // Prefer ID selectors (eg. #ID)
       proc = 9;
     }
@@ -543,7 +542,7 @@ function getProcedure(token: InternalSelector): number {
        */
       proc >>= 1;
     }
-  } else if (token.type === SelectorType.Pseudo) {
+  } else if (token.type === 'pseudo') {
     if (!token.data) {
       proc = 3;
     } else if (token.name === 'has' || token.name === 'contains') {
@@ -565,12 +564,12 @@ function getProcedure(token: InternalSelector): number {
   return proc;
 }
 
-const DESCENDANT_TOKEN: Selector = { type: SelectorType.Descendant };
+const DESCENDANT_TOKEN: Selector = { type: 'descendant' };
 const FLEXIBLE_DESCENDANT_TOKEN: InternalSelector = {
   type: '_flexibleDescendant',
 };
 const SCOPE_TOKEN: Selector = {
-  type: SelectorType.Pseudo,
+  type: 'pseudo',
   name: 'scope',
   data: null,
 };
@@ -580,7 +579,7 @@ const PLACEHOLDER_ELEMENT = {};
 
 function includesScopePseudo(t: InternalSelector): boolean {
   return (
-    t.type === SelectorType.Pseudo &&
+    t.type === 'pseudo' &&
     (t.name === 'scope' ||
       (Array.isArray(t.data) &&
         t.data.some((data) => data.some(includesScopePseudo))))
@@ -606,7 +605,7 @@ function absolutize<Node, ElementNode extends Node>(
     if (
       t.length > 0 &&
       isTraversal(t[0]) &&
-      t[0].type !== SelectorType.Descendant
+      t[0].type !== 'descendant'
     ) {
       // Don't continue in else branch
     } else if (hasContext && !t.some(includesScopePseudo)) {
@@ -1426,15 +1425,15 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
   const { adapter, equals } = options;
 
   switch (selector.type) {
-    case SelectorType.PseudoElement: {
+    case 'pseudo-element': {
       throw new Error('Pseudo-elements are not supported by css-select');
     }
-    case SelectorType.ColumnCombinator: {
+    case 'column-combinator': {
       throw new Error(
         'Column combinators are not yet supported by css-select'
       );
     }
-    case SelectorType.Attribute: {
+    case 'attribute': {
       if (selector.namespace != null) {
         throw new Error(
           'Namespaced attributes are not yet supported by css-select'
@@ -1446,7 +1445,7 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
       }
       return attributeRules[selector.action](next, selector, options);
     }
-    case SelectorType.Pseudo: {
+    case 'pseudo': {
       return compilePseudoSelector(
         next,
         selector,
@@ -1456,7 +1455,7 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
       );
     }
     // Tags
-    case SelectorType.Tag: {
+    case 'tag': {
       if (selector.namespace != null) {
         throw new Error(
           'Namespaced tag names are not yet supported by css-select'
@@ -1475,7 +1474,7 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
     }
 
     // Traversal
-    case SelectorType.Descendant: {
+    case 'descendant': {
       if (
         options.cacheResults === false ||
         typeof WeakSet === 'undefined'
@@ -1522,20 +1521,20 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
         return false;
       };
     }
-    case SelectorType.Parent: {
+    case 'parent': {
       return function parent(elem: ElementNode): boolean {
         return adapter
           .getChildren(elem)
           .some((elem) => adapter.isTag(elem) && next(elem));
       };
     }
-    case SelectorType.Child: {
+    case 'child': {
       return function child(elem: ElementNode): boolean {
         const parent = adapter.getParent(elem);
         return parent != null && adapter.isTag(parent) && next(parent);
       };
     }
-    case SelectorType.Sibling: {
+    case 'sibling': {
       return function sibling(elem: ElementNode): boolean {
         const siblings = adapter.getSiblings(elem);
 
@@ -1550,7 +1549,7 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
         return false;
       };
     }
-    case SelectorType.Adjacent: {
+    case 'adjacent': {
       if (adapter.prevElementSibling) {
         return function adjacent(elem: ElementNode): boolean {
           const previous = adapter.prevElementSibling!(elem);
@@ -1573,7 +1572,7 @@ function compileGeneralSelector<Node, ElementNode extends Node>(
         return !!lastElement && next(lastElement);
       };
     }
-    case SelectorType.Universal: {
+    case 'universal': {
       if (selector.namespace != null && selector.namespace !== '*') {
         throw new Error(
           'Namespaced universal selectors are not yet supported by css-select'
@@ -1637,18 +1636,18 @@ function compileToken<Node, ElementNode extends Node>(
         const [first, second] = rules;
 
         if (
-          first.type !== SelectorType.Pseudo ||
+          first.type !== 'pseudo' ||
           first.name !== 'scope'
         ) {
           // Ignore
         } else if (
           isArrayContext &&
-          second.type === SelectorType.Descendant
+          second.type === 'descendant'
         ) {
           rules[1] = FLEXIBLE_DESCENDANT_TOKEN;
         } else if (
-          second.type === SelectorType.Adjacent ||
-          second.type === SelectorType.Sibling
+          second.type === 'adjacent' ||
+          second.type === 'sibling'
         ) {
           shouldTestNextSiblings = true;
         }

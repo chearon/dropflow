@@ -70,79 +70,83 @@ function replaceCodePoint(codePoint: number) {
   return decodeMap.get(codePoint) ?? codePoint;
 }
 
-const enum CharCodes {
-  Tab = 0x9, // "\t"
-  NewLine = 0xa, // "\n"
-  FormFeed = 0xc, // "\f"
-  CarriageReturn = 0xd, // "\r"
-  Space = 0x20, // " "
-  ExclamationMark = 0x21, // "!"
-  Num = 0x23, // "#"
-  Amp = 0x26, // "&"
-  SingleQuote = 0x27, // "'"
-  DoubleQuote = 0x22, // '"'
-  Dash = 0x2d, // "-"
-  Slash = 0x2f, // "/"
-  Zero = 0x30, // "0"
-  Nine = 0x39, // "9"
-  Semi = 0x3b, // ";"
-  Lt = 0x3c, // "<"
-  Eq = 0x3d, // "="
-  Gt = 0x3e, // ">"
-  Questionmark = 0x3f, // "?"
-  UpperA = 0x41, // "A"
-  LowerA = 0x61, // "a"
-  UpperF = 0x46, // "F"
-  LowerF = 0x66, // "f"
-  UpperZ = 0x5a, // "Z"
-  LowerZ = 0x7a, // "z"
-  LowerX = 0x78, // "x"
-  OpeningSquareBracket = 0x5b, // "["
-}
+const CharCodes = {
+  Tab: 0x9, // "\t"
+  NewLine: 0xa, // "\n"
+  FormFeed: 0xc, // "\f"
+  CarriageReturn: 0xd, // "\r"
+  Space: 0x20, // " "
+  ExclamationMark: 0x21, // "!"
+  Num: 0x23, // "#"
+  Amp: 0x26, // "&"
+  SingleQuote: 0x27, // "'"
+  DoubleQuote: 0x22, // '"'
+  Dash: 0x2d, // "-"
+  Slash: 0x2f, // "/"
+  Zero: 0x30, // "0"
+  Nine: 0x39, // "9"
+  Semi: 0x3b, // ";"
+  Lt: 0x3c, // "<"
+  Eq: 0x3d, // "="
+  Gt: 0x3e, // ">"
+  Questionmark: 0x3f, // "?"
+  UpperA: 0x41, // "A"
+  LowerA: 0x61, // "a"
+  UpperF: 0x46, // "F"
+  LowerF: 0x66, // "f"
+  UpperZ: 0x5a, // "Z"
+  LowerZ: 0x7a, // "z"
+  LowerX: 0x78, // "x"
+  OpeningSquareBracket: 0x5b, // "["
+} as const;
+
+type CharCodes = (typeof CharCodes)[keyof typeof CharCodes];
 
 /** All the states the tokenizer can be in. */
-const enum State {
-  Text = 1,
-  BeforeTagName, // After <
-  InTagName,
-  InSelfClosingTag,
-  BeforeClosingTagName,
-  InClosingTagName,
-  AfterClosingTagName,
+const State = {
+  Text: 1,
+  BeforeTagName: 2, // After <
+  InTagName: 3,
+  InSelfClosingTag: 4,
+  BeforeClosingTagName: 5,
+  InClosingTagName: 6,
+  AfterClosingTagName: 7,
 
   // Attributes
-  BeforeAttributeName,
-  InAttributeName,
-  AfterAttributeName,
-  BeforeAttributeValue,
-  InAttributeValueDq, // "
-  InAttributeValueSq, // '
-  InAttributeValueNq,
+  BeforeAttributeName: 8,
+  InAttributeName: 9,
+  AfterAttributeName: 10,
+  BeforeAttributeValue: 11,
+  InAttributeValueDq: 12, // "
+  InAttributeValueSq: 13, // '
+  InAttributeValueNq: 14,
 
   // Declarations
-  BeforeDeclaration, // !
-  InDeclaration,
+  BeforeDeclaration: 15, // !
+  InDeclaration: 16,
 
   // Processing instructions
-  InProcessingInstruction, // ?
+  InProcessingInstruction: 17, // ?
 
   // Comments & CDATA
-  BeforeComment,
-  CDATASequence,
-  InSpecialComment,
-  InCommentLike,
+  BeforeComment: 18,
+  CDATASequence: 19,
+  InSpecialComment: 20,
+  InCommentLike: 21,
 
   // Special tags
-  BeforeSpecialS, // Decide if we deal with `<script` or `<style`
-  SpecialStartSequence,
-  InSpecialTag,
+  BeforeSpecialS: 22, // Decide if we deal with `<script` or `<style`
+  SpecialStartSequence: 23,
+  InSpecialTag: 24,
 
-  BeforeEntity, // &
-  BeforeNumericEntity, // #
-  InNamedEntity,
-  InNumericEntity,
-  InHexEntity, // X
-}
+  BeforeEntity: 25, // &
+  BeforeNumericEntity: 26, // #
+  InNamedEntity: 27,
+  InNumericEntity: 28,
+  InHexEntity: 29, // X
+} as const;
+
+type State = typeof State[keyof typeof State];
 
 export function isWhitespace(c: number): boolean {
   return (
@@ -176,12 +180,14 @@ function isHexDigit(c: number): boolean {
   );
 }
 
-enum QuoteType {
-  NoValue = 0,
-  Unquoted = 1,
-  Single = 2,
-  Double = 3,
-}
+const QuoteType = {
+  NoValue: 0,
+  Unquoted: 1,
+  Single: 2,
+  Double: 3,
+} as const;
+
+type QuoteType = typeof QuoteType[keyof typeof QuoteType];
 
 interface Callbacks {
   onattribdata(start: number, endIndex: number): void;
@@ -218,7 +224,7 @@ const Sequences = {
 
 class Tokenizer {
   /** The current state the tokenizer is in. */
-  private state = State.Text;
+  private state: State = State.Text;
   /** The read buffer. */
   private buffer = '';
   /** The beginning of the section that is currently being read. */
@@ -226,15 +232,18 @@ class Tokenizer {
   /** The index within the buffer that we are currently looking at. */
   private index = 0;
   /** Some behavior, eg. when decoding entities, is done while we are in another state. This keeps track of the other state type. */
-  private baseState = State.Text;
+  private baseState: State = State.Text;
   /** For special parsing behavior inside of script and style tags. */
   private isSpecial = false;
   /** Indicates whether the tokenizer has been paused. */
   public running = true;
   /** The offset of the current buffer. */
   private offset = 0;
+  private readonly cbs: Callbacks;
 
-  constructor(private readonly cbs: Callbacks) {}
+  constructor(cbs: Callbacks) {
+    this.cbs = cbs;
+  }
 
   public reset(): void {
     this.state = State.Text;

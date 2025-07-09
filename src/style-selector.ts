@@ -32,24 +32,23 @@ export type Selector =
   | UniversalSelector
   | Traversal;
 
-export enum SelectorType {
-  Attribute = 'attribute',
-  Pseudo = 'pseudo',
-  PseudoElement = 'pseudo-element',
-  Tag = 'tag',
-  Universal = 'universal',
+export type SelectorType =
+  | 'attribute'
+  | 'pseudo'
+  | 'pseudo-element'
+  | 'tag'
+  | 'universal'
 
   // Traversals
-  Adjacent = 'adjacent',
-  Child = 'child',
-  Descendant = 'descendant',
-  Parent = 'parent',
-  Sibling = 'sibling',
-  ColumnCombinator = 'column-combinator'
-}
+  | 'adjacent'
+  | 'child'
+  | 'descendant'
+  | 'parent'
+  | 'sibling'
+  | 'column-combinator';
 
 export interface AttributeSelector {
-  type: SelectorType.Attribute;
+  type: 'attribute';
   name: string;
   action: AttributeAction;
   value: string;
@@ -60,25 +59,25 @@ export interface AttributeSelector {
 type DataType = Selector[][] | null | string;
 
 export interface PseudoSelector {
-  type: SelectorType.Pseudo;
+  type: 'pseudo';
   name: string;
   data: DataType;
 }
 
 interface PseudoElement {
-  type: SelectorType.PseudoElement;
+  type: 'pseudo-element';
   name: string;
   data: string | null;
 }
 
 interface TagSelector {
-  type: SelectorType.Tag;
+  type: 'tag';
   name: string;
   namespace: string | null;
 }
 
 interface UniversalSelector {
-  type: SelectorType.Universal;
+  type: 'universal';
   namespace: string | null;
 }
 
@@ -86,71 +85,72 @@ export interface Traversal {
   type: TraversalType;
 }
 
-export enum AttributeAction {
-  Any = 'any',
-  Element = 'element',
-  End = 'end',
-  Equals = 'equals',
-  Exists = 'exists',
-  Hyphen = 'hyphen',
-  Not = 'not',
-  Start = 'start'
-}
+export type AttributeAction =
+  | 'any'
+  | 'element'
+  | 'end'
+  | 'equals'
+  | 'exists'
+  | 'hyphen'
+  | 'not'
+  | 'start';
 
 type TraversalType =
-  | SelectorType.Adjacent
-  | SelectorType.Child
-  | SelectorType.Descendant
-  | SelectorType.Parent
-  | SelectorType.Sibling
-  | SelectorType.ColumnCombinator;
+  | 'adjacent'
+  | 'child'
+  | 'descendant'
+  | 'parent'
+  | 'sibling'
+  | 'column-combinator';
 
 const reName = /^[^\\#]?(?:\\(?:[\da-f]{1,6}\s?|.)|[\w\-\u00b0-\uFFFF])+/;
 const reEscape = /\\([\da-f]{1,6}\s?|(\s)|.)/gi;
 
-const enum CharCode {
-  LeftParenthesis = 40,
-  RightParenthesis = 41,
-  LeftSquareBracket = 91,
-  RightSquareBracket = 93,
-  Comma = 44,
-  Period = 46,
-  Colon = 58,
-  SingleQuote = 39,
-  DoubleQuote = 34,
-  Plus = 43,
-  Tilde = 126,
-  QuestionMark = 63,
-  ExclamationMark = 33,
-  Slash = 47,
-  Star = 42,
-  Equal = 61,
-  Dollar = 36,
-  Pipe = 124,
-  Circumflex = 94,
-  Asterisk = 42,
-  GreaterThan = 62,
-  LessThan = 60,
-  Hash = 35,
-  LowerI = 105,
-  LowerS = 115,
-  BackSlash = 92,
+const CharCode = {
+  LeftParenthesis: 40,
+  RightParenthesis: 41,
+  LeftSquareBracket: 91,
+  RightSquareBracket: 93,
+  Comma: 44,
+  Period: 46,
+  Colon: 58,
+  SingleQuote: 39,
+  DoubleQuote: 34,
+  Plus: 43,
+  Tilde: 126,
+  QuestionMark: 63,
+  ExclamationMark: 33,
+  Slash: 47,
+  Star: 42,
+  Equal: 61,
+  Dollar: 36,
+  Pipe: 124,
+  Circumflex: 94,
+  Asterisk: 42,
+  GreaterThan: 62,
+  LessThan: 60,
+  Hash: 35,
+  LowerI: 105,
+  LowerS: 115,
+  BackSlash: 92,
 
   // Whitespace
-  Space = 32,
-  Tab = 9,
-  NewLine = 10,
-  FormFeed = 12,
-  CarriageReturn = 13
-}
+  Space: 32,
+  Tab: 9,
+  NewLine: 10,
+  FormFeed: 12,
+  CarriageReturn: 13
+} as const;
+
+type CharCode = (typeof CharCode)[keyof typeof CharCode];
 
 const actionTypes = new Map<number, AttributeAction>([
-  [CharCode.Tilde, AttributeAction.Element],
-  [CharCode.Circumflex, AttributeAction.Start],
-  [CharCode.Dollar, AttributeAction.End],
-  [CharCode.Asterisk, AttributeAction.Any],
-  [CharCode.ExclamationMark, AttributeAction.Not],
-  [CharCode.Pipe, AttributeAction.Hyphen]
+  [CharCode.Tilde, 'element'],
+  [CharCode.Circumflex, 'start'],
+  [CharCode.Dollar, 'end'],
+  [CharCode.Asterisk, 'any'],
+  [CharCode.ExclamationMark, 'not'],
+  [CharCode.Pipe, 'hyphen']
 ]);
 
 // Pseudos, whose data property is parsed as well.
@@ -186,12 +186,12 @@ const pseudosToPseudoElements = new Set([
  */
 function isTraversal(selector: Selector): selector is Traversal {
   switch (selector.type) {
-    case SelectorType.Adjacent:
-      case SelectorType.Child:
-      case SelectorType.Descendant:
-      case SelectorType.Parent:
-      case SelectorType.Sibling:
-      case SelectorType.ColumnCombinator:
+    case 'adjacent':
+      case 'child':
+      case 'descendant':
+      case 'parent':
+      case 'sibling':
+      case 'column-combinator':
       return true;
     default:
       return false;
@@ -332,7 +332,7 @@ function parseSelector(
   function addTraversal(type: TraversalType) {
     if (
       tokens.length > 0 &&
-      tokens[tokens.length - 1].type === SelectorType.Descendant
+      tokens[tokens.length - 1].type === 'descendant'
     ) {
       tokens[tokens.length - 1].type = type;
       return;
@@ -345,7 +345,7 @@ function parseSelector(
 
   function addSpecialAttribute(name: string, action: AttributeAction) {
     tokens.push({
-      type: SelectorType.Attribute,
+      type: 'attribute',
       name,
       action,
       value: getName(1),
@@ -364,7 +364,7 @@ function parseSelector(
   function finalizeSubselector() {
     if (
       tokens.length &&
-      tokens[tokens.length - 1].type === SelectorType.Descendant
+      tokens[tokens.length - 1].type === 'descendant'
     ) {
       tokens.pop();
     }
@@ -394,10 +394,10 @@ function parseSelector(
       case CharCode.CarriageReturn: {
         if (
           tokens.length === 0 ||
-          tokens[0].type !== SelectorType.Descendant
+          tokens[0].type !== 'descendant'
         ) {
           ensureNotTraversal();
-          tokens.push({type: SelectorType.Descendant});
+          tokens.push({type: 'descendant'});
         }
 
         stripWhitespace(1);
@@ -405,37 +405,37 @@ function parseSelector(
       }
                                         // Traversals
       case CharCode.GreaterThan: {
-        addTraversal(SelectorType.Child);
+        addTraversal('child');
         stripWhitespace(1);
         break;
       }
 
       case CharCode.LessThan: {
-        addTraversal(SelectorType.Parent);
+        addTraversal('parent');
         stripWhitespace(1);
         break;
       }
 
       case CharCode.Tilde: {
-        addTraversal(SelectorType.Sibling);
+        addTraversal('sibling');
         stripWhitespace(1);
         break;
       }
 
       case CharCode.Plus: {
-        addTraversal(SelectorType.Adjacent);
+        addTraversal('adjacent');
         stripWhitespace(1);
         break;
       }
 
       // Special attribute selectors: .class, #id
       case CharCode.Period: {
-        addSpecialAttribute('class', AttributeAction.Element);
+        addSpecialAttribute('class', 'element');
         break;
       }
 
       case CharCode.Hash: {
-        addSpecialAttribute('id', AttributeAction.Equals);
+        addSpecialAttribute('id', 'equals');
         break;
       }
 
@@ -470,7 +470,7 @@ function parseSelector(
 
         // Determine comparison operation
 
-        let action: AttributeAction = AttributeAction.Exists;
+        let action: AttributeAction = 'exists';
         const possibleAction = actionTypes.get(
           selector.charCodeAt(selectorIndex)
         );
@@ -488,7 +488,7 @@ function parseSelector(
         } else if (
           selector.charCodeAt(selectorIndex) === CharCode.Equal
         ) {
-          action = AttributeAction.Equals;
+          action = 'equals';
           stripWhitespace(1);
         }
 
@@ -559,7 +559,7 @@ function parseSelector(
         selectorIndex += 1;
 
         const attributeSelector: AttributeSelector = {
-          type: SelectorType.Attribute,
+          type: 'attribute',
           name,
           action,
           value,
@@ -574,7 +574,7 @@ function parseSelector(
       case CharCode.Colon: {
         if (selector.charCodeAt(selectorIndex + 1) === CharCode.Colon) {
           tokens.push({
-            type: SelectorType.PseudoElement,
+            type: 'pseudo-element',
             name: getName(2).toLowerCase(),
             data:
               selector.charCodeAt(selectorIndex) ===
@@ -589,7 +589,7 @@ function parseSelector(
 
         if (pseudosToPseudoElements.has(name)) {
           tokens.push({
-            type: SelectorType.PseudoElement,
+            type: 'pseudo-element',
             name,
             data: null,
           });
@@ -642,7 +642,7 @@ function parseSelector(
           }
         }
 
-        tokens.push({type: SelectorType.Pseudo, name, data});
+        tokens.push({type: 'pseudo', name, data});
         break;
       }
 
@@ -683,7 +683,7 @@ function parseSelector(
           if (
             selector.charCodeAt(selectorIndex + 1) === CharCode.Pipe
           ) {
-            addTraversal(SelectorType.ColumnCombinator);
+            addTraversal('column-combinator');
             stripWhitespace(2);
             break;
           }
@@ -711,8 +711,8 @@ function parseSelector(
 
         tokens.push(
           name === '*'
-            ? {type: SelectorType.Universal, namespace}
-            : {type: SelectorType.Tag, name, namespace}
+            ? {type: 'universal', namespace}
+            : {type: 'tag', name, namespace}
         );
       }
     }

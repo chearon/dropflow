@@ -29,15 +29,12 @@
   ],
   "exports": {
     ".": {
-      "buildtime": "./src/api.js",
       "default": "./dist/src/api.js"
     },
     "./parse.js": {
-      "buildtime": "./src/api-parse.js",
       "default": "./dist/src/api-parse.js"
     },
     "./register-noto-fonts.js": {
-      "buildtime": "./src/api-register-noto-fonts.js",
       "default": "./dist/src/api-register-noto-fonts.js"
     },
     "./environment.js": "./dist/src/environment.js",

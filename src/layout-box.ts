@@ -1,8 +1,8 @@
-import {id, Logger} from './util.js';
+import {id, Logger} from './util.ts';
 
-import type {Style} from './style.js';
-import type {Run} from './layout-text.js';
-import type {InlineLevel, Break, Inline, IfcInline, BlockContainer, ReplacedBox} from './layout-flow.js';
+import type {Style} from './style.ts';
+import type {Run} from './layout-text.ts';
+import type {InlineLevel, Break, Inline, IfcInline, BlockContainer, ReplacedBox} from './layout-flow.ts';
 
 export interface LogicalArea {
   blockStart: number | undefined;

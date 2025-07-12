@@ -1,9 +1,9 @@
-import {ShapedItem} from './layout-text.js';
+import {ShapedItem} from './layout-text.ts';
 
-import type {Color} from './style.js';
-import type {PaintBackend} from './paint.js';
-import type {LoadedFontFace} from './text-font.js';
-import type {Image} from './layout-image.js';
+import type {Color} from './style.ts';
+import type {PaintBackend} from './paint.ts';
+import type {LoadedFontFace} from './text-font.ts';
+import type {Image} from './layout-image.ts';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');

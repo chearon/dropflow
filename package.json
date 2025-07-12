@@ -9,8 +9,6 @@
     "canvas": "^3.1.0",
     "chai": "^4.2.0",
     "codemirror": "^6.0.1",
-    "concurrently": "^7.6.0",
-    "copyfiles": "^2.4.1",
     "mitata": "^1.0.21",
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
@@ -29,28 +27,42 @@
   ],
   "exports": {
     ".": {
+      "typescript": "./src/api.ts",
       "default": "./dist/src/api.js"
     },
     "./parse.js": {
+      "typescript": "./src/api-parse.ts",
       "default": "./dist/src/api-parse.js"
     },
     "./register-noto-fonts.js": {
+      "typescript": "./src/api-register-noto-fonts.ts",
       "default": "./dist/src/api-register-noto-fonts.js"
     },
-    "./environment.js": "./dist/src/environment.js",
+    "./environment.js": {
+      "typescript": "./src/environment.ts",
+      "default": "./dist/src/environment.js"
+    },
     "./dropflow.wasm": "./dist/dropflow.wasm"
   },
   "imports": {
     "#register-default-environment": {
-      "browser": "./dist/src/environment-browser.js",
-      "default": "./dist/src/environment-node.js"
-    }
+      "browser": {
+        "typescript": "./src/environment-browser.ts",
+        "default": "./dist/src/environment-browser.js"
+      },
+      "default": {
+        "typescript": "./src/environment-node.ts",
+        "default": "./dist/src/environment-node.js"
+      }
+    },
+    "#assets/*": "./assets/*"
   },
   "scripts": {
-    "test": "mocha dist/test/ci.js",
-    "buildcssparser": "peggy --format es src/parse-css.pegjs",
-    "prebuild": "copyfiles gen.js src/\\*.js assets/\\*\\* test/\\*\\* -e assets/register\\* dist",
-    "build": "concurrently tsc npm:buildcssparser"
+    "test": "node tools/run-ts mocha test/ci.js",
+    "test:watch": "node tools/run-ts mocha test/ci.js -- --watch --parallel",
+    "test:dist": "mocha dist/test/ci.js",
+    "tsc": "tsc",
+    "buildcssparser": "peggy --format es src/parse-css.pegjs"
   },
   "keywords": [
     "css2",

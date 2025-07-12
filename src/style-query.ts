@@ -54,7 +54,7 @@
 
 import {
   parse,
-} from './style-selector.js';
+} from './style-selector.ts';
 
 import type {
   Selector,
@@ -62,7 +62,7 @@ import type {
   AttributeSelector,
   PseudoSelector,
   Traversal
-} from './style-selector.js';
+} from './style-selector.ts';
 
 function trueFunc() {
   return true;

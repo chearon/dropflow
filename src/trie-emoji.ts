@@ -1,5 +1,5 @@
-import wasm from './wasm.js';
-import UnicodeTrie from './text-unicode-trie.js';
+import wasm from './wasm.ts';
+import UnicodeTrie from './text-unicode-trie.ts';
 
 export const Emoji                 = 1 << 0
 export const Emoji_Presentation    = 1 << 1;

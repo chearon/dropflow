@@ -1,8 +1,6 @@
-//@ts-check
-
-import {createStyle, createDeclaredStyle, getOriginStyle, inherited, initial} from '../src/style.js';
-import {BlockContainer} from '../src/layout-flow.js';
-import {BoxArea} from '../src/layout-box.js';
+import {createStyle, createDeclaredStyle, getOriginStyle, inherited, initial} from '../src/style.ts';
+import {BlockContainer} from '../src/layout-flow.ts';
+import {BoxArea} from '../src/layout-box.ts';
 import {expect} from 'chai';
 
 describe('CSS Style', function () {

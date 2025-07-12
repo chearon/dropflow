@@ -1,14 +1,14 @@
-import {BlockContainer, ReplacedBox, Inline, IfcInline} from './layout-flow.js';
-import {Image} from './layout-image.js';
-import {G_CL, G_AX, G_SZ} from './text-harfbuzz.js';
-import {ShapedItem, Paragraph} from './layout-text.js';
-import {Box, FormattingBox} from './layout-box.js';
-import {binarySearchOf} from './util.js';
+import {BlockContainer, ReplacedBox, Inline, IfcInline} from './layout-flow.ts';
+import {Image} from './layout-image.ts';
+import {G_CL, G_AX, G_SZ} from './text-harfbuzz.ts';
+import {ShapedItem, Paragraph} from './layout-text.ts';
+import {Box, FormattingBox} from './layout-box.ts';
+import {binarySearchOf} from './util.ts';
 
-import type {InlineLevel, BlockLevel} from './layout-flow.js';
-import type {BackgroundBox} from './layout-text.js';
-import type {Color} from './style.js';
-import type {LoadedFontFace} from './text-font.js';
+import type {InlineLevel, BlockLevel} from './layout-flow.ts';
+import type {BackgroundBox} from './layout-text.ts';
+import type {Color} from './style.ts';
+import type {LoadedFontFace} from './text-font.ts';
 
 export interface PaintBackend {
   fillColor: Color;

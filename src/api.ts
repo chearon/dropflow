@@ -1,29 +1,29 @@
 import '#register-default-environment';
-import {HTMLElement, TextNode} from './dom.js';
-import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.js';
-import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.js';
-import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.js';
-import HtmlPaintBackend from './paint-html.js';
-import SvgPaintBackend from './paint-svg.js';
-import CanvasPaintBackend from './paint-canvas.js';
+import {HTMLElement, TextNode} from './dom.ts';
+import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.ts';
+import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.ts';
+import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.ts';
+import HtmlPaintBackend from './paint-html.ts';
+import SvgPaintBackend from './paint-svg.ts';
+import CanvasPaintBackend from './paint-canvas.ts';
 
-import paint from './paint.js';
-import {BoxArea, prelayout, postlayout} from './layout-box.js';
-import {onLoadWalkerElementForImage} from './layout-image.js';
-import {id, uuid} from './util.js';
+import paint from './paint.ts';
+import {BoxArea, prelayout, postlayout} from './layout-box.ts';
+import {onLoadWalkerElementForImage} from './layout-image.ts';
+import {id, uuid} from './util.ts';
 
-import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.js';
+import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
-import type {Style} from './style.js';
-import type {Image} from './layout-image.js';
+import type {Style} from './style.ts';
+import type {Image} from './layout-image.ts';
 
-export {environment} from './environment.js';
+export {environment} from './environment.ts';
 
 export type {BlockContainer, DeclaredStyle};
 
 export type {HTMLElement};
 
-export {createDeclaredStyle as style, setOriginStyle} from './style.js';
+export {createDeclaredStyle as style, setOriginStyle} from './style.ts';
 
 export {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync};
 
@@ -87,7 +87,7 @@ export function paintToSvgElements(root: BlockContainer): string {
   return backend.main;
 }
 
-export {eachRegisteredFont} from './text-font.js';
+export {eachRegisteredFont} from './text-font.ts';
 
 export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): void {
   const backend = new CanvasPaintBackend(ctx);
@@ -328,4 +328,4 @@ export function revokeObjectURL(url: string): void {
   objectStore.delete(url);
 }
 
-export {clearWordCache} from './layout-text.js';
+export {clearWordCache} from './layout-text.ts';

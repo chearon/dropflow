@@ -1,6 +1,6 @@
-import {binarySearchTuple, basename, loggableText, Logger} from './util.js';
-import {Box, FormattingBox, RenderItem} from './layout-box.js';
-import {Style} from './style.js';
+import {binarySearchTuple, basename, loggableText, Logger} from './util.ts';
+import {Box, FormattingBox, RenderItem} from './layout-box.ts';
+import {Style} from './style.ts';
 import {
   BlockContainer,
   ReplacedBox,
@@ -10,19 +10,19 @@ import {
   createInlineIterator,
   createPreorderInlineIterator,
   layoutFloatBox
-} from './layout-flow.js';
-import LineBreak, {HardBreaker} from './text-line-break.js';
-import {nextGraphemeBreak, previousGraphemeBreak} from './text-grapheme-break.js';
-import * as hb from './text-harfbuzz.js';
-import {getLangCascade} from './text-font.js';
-import {nameToTag} from '../gen/script-names.js';
-import {createItemizeState, itemizeNext} from './text-itemize.js';
+} from './layout-flow.ts';
+import LineBreak, {HardBreaker} from './text-line-break.ts';
+import {nextGraphemeBreak, previousGraphemeBreak} from './text-grapheme-break.ts';
+import * as hb from './text-harfbuzz.ts';
+import {getLangCascade} from './text-font.ts';
+import {nameToTag} from '../gen/script-names.ts';
+import {createItemizeState, itemizeNext} from './text-itemize.ts';
 
-import type {LoadedFontFace} from './text-font.js';
-import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.js';
-import type {RenderItemLogOptions} from './layout-box.js';
-import type {Color, TextAlign, WhiteSpace} from './style.js';
-import type {BlockLevel, InlineLevel, LayoutContext} from './layout-flow.js';
+import type {LoadedFontFace} from './text-font.ts';
+import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.ts';
+import type {RenderItemLogOptions} from './layout-box.ts';
+import type {Color, TextAlign, WhiteSpace} from './style.ts';
+import type {BlockLevel, InlineLevel, LayoutContext} from './layout-flow.ts';
 
 const lineFeedCharacter = 0x000a;
 const formFeedCharacter = 0x000c;

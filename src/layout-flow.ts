@@ -1,6 +1,6 @@
-import {binarySearch, Logger} from './util.js';
-import {HTMLElement, TextNode} from './dom.js';
-import {createStyle, Style, EMPTY_STYLE} from './style.js';
+import {binarySearch, Logger} from './util.ts';
+import {HTMLElement, TextNode} from './dom.ts';
+import {createStyle, Style, EMPTY_STYLE} from './style.ts';
 import {
   EmptyInlineMetrics,
   Linebox,
@@ -10,12 +10,12 @@ import {
   createEmptyParagraph,
   createParagraph,
   getFontMetrics
-} from './layout-text.js';
-import {getImage} from './layout-image.js';
-import {Box, FormattingBox, RenderItem} from './layout-box.js';
+} from './layout-text.ts';
+import {getImage} from './layout-image.ts';
+import {Box, FormattingBox, RenderItem} from './layout-box.ts';
 
-import type {InlineMetrics} from './layout-text.js';
-import type {PrelayoutContext} from './layout-box.js';
+import type {InlineMetrics} from './layout-text.ts';
+import type {PrelayoutContext} from './layout-box.ts';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {

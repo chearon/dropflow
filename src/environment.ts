@@ -1,5 +1,5 @@
-import type {LoadedFontFace} from "./text-font.js";
-import type {Image} from "./layout-image.js";
+import type {LoadedFontFace} from "./text-font.ts";
+import type {Image} from "./layout-image.ts";
 
 // !!! NOTE !!! if you change anything below, change the readme too
 export interface Environment {

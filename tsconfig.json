@@ -1,5 +1,5 @@
 {
-  "include": ["*.ts", "src/**/*", "*.d.ts", "examples/*.ts", "assets/register.ts"],
+  "include": ["*.ts", "src/**/*", "test/**/*", "*.d.ts", "examples/*.ts", "assets/register.ts"],
   "exclude": [
     "node_modules",
     // https://github.com/Brooooooklyn/canvas/issues/659
@@ -19,6 +19,7 @@
     "noUnusedLocals": true,
     "stripInternal": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": true
   }
 }

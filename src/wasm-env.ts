@@ -1,4 +1,4 @@
-import type {CanvasContext} from './text-harfbuzz.js';
+import type {CanvasContext} from './text-harfbuzz.ts';
 
 const resizeCallbacks: (() => void)[] = [];
 

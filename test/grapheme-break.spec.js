@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import fs from 'fs';
 import punycode from 'punycode';
-import {nextGraphemeBreak, previousGraphemeBreak} from '../src/text-grapheme-break.js';
+import {nextGraphemeBreak, previousGraphemeBreak} from '../src/text-grapheme-break.ts';
 
 function splitNext(str) {
   const ret = [];

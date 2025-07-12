@@ -1,5 +1,5 @@
-import wasm from './wasm.js';
-import {onWasmMemoryResized} from './wasm-env.js';
+import wasm from './wasm.ts';
+import {onWasmMemoryResized} from './wasm-env.ts';
 
 let heapu32 = new Uint32Array(wasm.instance.exports.memory.buffer);
 

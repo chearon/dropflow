@@ -3,7 +3,7 @@
 // https://peggyjs.org/
 
 
-  import {initial, inherited} from './style.js';
+  import {initial, inherited} from './style.ts';
 
   function extractList(list, index) {
     return list.map(function(element) { return element[index]; });

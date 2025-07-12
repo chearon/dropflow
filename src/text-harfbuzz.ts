@@ -1,5 +1,5 @@
-import wasm from './wasm.js';
-import {setCtx, onWasmMemoryResized} from './wasm-env.js';
+import wasm from './wasm.ts';
+import {setCtx, onWasmMemoryResized} from './wasm-env.ts';
 
 export interface CanvasContext {
   moveTo(x: number, y: number): void;

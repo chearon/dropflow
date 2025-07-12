@@ -19,7 +19,7 @@ import {
   SG,
   SP,
   XX
-} from './trie-line-break.js';
+} from './trie-line-break.ts';
 
 class Break {
   public position: number;

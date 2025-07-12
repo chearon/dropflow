@@ -1,5 +1,5 @@
 // generated from gen.js
-import {fonts, FontFace} from '../src/text-font.js';
+import {fonts, FontFace} from '../src/text-font.ts';
 let called = false;
 export default function registerNotoFonts() {
 if (called) return;

@@ -1,13 +1,11 @@
-//@ts-check
-
 import {expect} from 'chai';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
-import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {Logger} from '../src/util.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.ts';
+import {Logger} from '../src/util.ts';
 
 const log = new Logger();
-const adaUrl = new URL('../assets/images/ada.png', import.meta.url);
+const adaUrl = new URL(import.meta.resolve('#assets/images/ada.png'));
 
 describe('Flow', function () {
   before(function () {
@@ -25,7 +23,7 @@ describe('Flow', function () {
         if (typeof args[0] === 'string') {
           return this.rootElement.query(args[0])?.boxes[0];
         } else {
-          /** @type import('../src/layout-box').Box */
+          /** @type import('../src/layout-box.ts').Box */
           let ret = this.blockContainer;
           while (args.length) ret = ret.children[args.shift()];
           return ret;
@@ -173,7 +171,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get(0).children;
       expect(this.get(0).getContentArea().height).to.equal(100);
       expect(this.get(0).children).to.have.lengthOf(1);
@@ -182,7 +180,7 @@ describe('Flow', function () {
 
     it('generates nothing for <br> with display: none', function () {
       this.layout('abc <br style="display: none"> def');
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get().children;
       expect(ifc.children.every(b => b.isRun())).to.be.true;
     });
@@ -698,7 +696,7 @@ describe('Flow', function () {
         <div style="width: 100px;"><div style="width: 25px; height: 25px; float: right;"></div></div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [box] = ifc.children;
       expect(box.getBorderArea().x).to.equal(75);
@@ -715,13 +713,13 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t1 = this.get('#t1');
       expect(t1.getBorderArea().height).to.equal(26);
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t2 = this.get('#t2');
       expect(t2.getContentArea().height).to.equal(0);
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t3').children;
       expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
       expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(51);
@@ -737,7 +735,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const bfc = this.get('div');
       expect(bfc.getContentArea().height).to.equal(70);
     });
@@ -752,7 +750,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const bfc = this.get('div');
       expect(bfc.getContentArea().height).to.equal(70);
       const [, cb] = bfc.children;
@@ -769,7 +767,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const f = this.get('#f');
       expect(f.getContentArea().y).to.equal(0);
     });
@@ -782,10 +780,10 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t1').children;
       expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(30);
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t2 = this.get('#t2');
       expect(t2.getContentArea().x).to.equal(10);
       expect(t2.getContentArea().y).to.equal(10);
@@ -799,9 +797,9 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t1 = this.get('#t1');
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t2 = this.get('#t2');
       expect(t1.getBorderArea().x).to.equal(0);
       expect(t1.getBorderArea().y).to.equal(0);
@@ -817,7 +815,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(3);
     });
@@ -830,7 +828,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(300);
     });
@@ -856,7 +854,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t1').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
       expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
@@ -870,7 +868,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t1').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
       expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
@@ -884,7 +882,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t1').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(2);
       expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
@@ -898,7 +896,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t1').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
       expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
@@ -912,7 +910,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t1').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
       expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(0);
@@ -941,7 +939,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
@@ -955,7 +953,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       expect(this.get('#t').getContentArea().y).to.equal(0);
     });
 
@@ -964,7 +962,7 @@ describe('Flow', function () {
         <div style="font: 16px/20px Arimo; display: flow-root; width: 300px; white-space: pre;"> <div id="t" style="width: 300px; height: 300px; float: left;"></div>xyz</div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
@@ -975,7 +973,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
     });
 
@@ -987,7 +985,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const block = this.get('#t');
       const [ifc] = block.children;
       expect(block.getContentArea().height).to.equal(25);
@@ -1002,7 +1000,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes.length).to.equal(1);
       expect(ifc.paragraph.lineboxes[0].inlineOffset).to.equal(0);
@@ -1031,7 +1029,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.children[1].getBorderArea().x).to.equal(0);
       expect(ifc.children[2].getBorderArea().x).to.equal(0);
@@ -1049,7 +1047,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t = this.get('#t');
       expect(t.getContentArea().height).to.equal(20);
     });
@@ -1062,7 +1060,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t = this.get('#t');
       expect(t.getContentArea().height).to.equal(40);
     });
@@ -1074,7 +1072,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t = this.get('#t');
       expect(t.getContentArea().x).to.equal(200);
     });
@@ -1086,7 +1084,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
     });
@@ -1101,7 +1099,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes).to.have.lengthOf(2);
       expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
@@ -1117,7 +1115,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes).to.have.lengthOf(2);
       expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(40);
@@ -1130,7 +1128,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       expect(ifc.paragraph.lineboxes[0].head.value.x).to.be.approximately(6.674, 0.001);
     });
@@ -1183,7 +1181,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, left, right] = ifc.children;
       expect(left.getBorderArea().x).to.equal(0);
@@ -1199,7 +1197,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, left1, left2] = ifc.children;
       expect(left1.getBorderArea().x).to.equal(0);
@@ -1215,7 +1213,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, left1, left2] = ifc.children;
       expect(left1.getBorderArea().x).to.equal(0);
@@ -1232,7 +1230,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('#t').children;
       const [float] = ifc.children;
       expect(float.getBorderArea().y).to.equal(20);
@@ -1247,11 +1245,11 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline */
+      /** @type import('../src/layout-flow.ts').IfcInline */
       const float1 = this.get('#f1');
-      /** @type import('../src/layout-flow').IfcInline */
+      /** @type import('../src/layout-flow.ts').IfcInline */
       const float2 = this.get('#f2');
-      /** @type import('../src/layout-flow').IfcInline */
+      /** @type import('../src/layout-flow.ts').IfcInline */
       const float3 = this.get('#f3');
 
       expect(float1.getBorderArea().x).to.equal(0);
@@ -1271,7 +1269,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, float1,, float2] = ifc.children;
       expect(float1.getBorderArea().x).to.equal(0);
@@ -1289,7 +1287,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, float] = ifc.children;
       const [lb1, lb2, lb3, lb4] = ifc.paragraph.lineboxes;
@@ -1307,7 +1305,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, float] = ifc.children;
       expect(float.getBorderArea().y).to.equal(0);
@@ -1322,7 +1320,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [, float1, float2] = ifc.children;
       expect(float1.getBorderArea().x).to.equal(0);
@@ -1346,7 +1344,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       const [,,, float2,, float3,, float4] = ifc.children;
       expect(float2.getBorderArea().x).to.equal(0);
@@ -1376,7 +1374,7 @@ describe('Flow', function () {
             <div id="t" style="float: left;">hey kid ima computer</div>
           </div>
         `);
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const block = this.get('#t');
         expect(block.getContentArea().width).to.equal(152);
       });
@@ -1387,7 +1385,7 @@ describe('Flow', function () {
             <div id="t" style="float: left;">hey kid ima computer</div>
           </div>
         `);
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const block = this.get('#t');
         expect(block.getContentArea().width).to.equal(67);
       });
@@ -1398,7 +1396,7 @@ describe('Flow', function () {
             <div id="t" style="float: left;">hey kid ima computer</div>
           </div>
         `);
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const block = this.get('#t');
         expect(block.getContentArea().width).to.equal(100);
       });
@@ -1411,9 +1409,9 @@ describe('Flow', function () {
             </div>
           </div>
         `);
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t1 = this.get('#t1');
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t2 = this.get('#t2');
         expect(t1.getContentArea().width).to.equal(152);
         expect(t2.getContentArea().width).to.equal(152);
@@ -1427,9 +1425,9 @@ describe('Flow', function () {
             </div>
           </div>
         `);
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t1 = this.get('#t1');
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t2 = this.get('#t2');
         expect(t1.getContentArea().width).to.equal(67);
         expect(t2.getContentArea().width).to.equal(67);
@@ -1443,9 +1441,9 @@ describe('Flow', function () {
             </div>
           </div>
         `);
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t1 = this.get('#t1');
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t2 = this.get('#t2');
         expect(t1.getContentArea().width).to.equal(100);
         expect(t2.getContentArea().width).to.equal(100);
@@ -1461,7 +1459,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(85);
       });
@@ -1477,7 +1475,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(85);
       });
@@ -1491,7 +1489,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().height).to.equal(40);
       });
@@ -1505,7 +1503,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().height).to.equal(20);
       });
@@ -1522,7 +1520,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(500);
       });
@@ -1539,7 +1537,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(500);
       });
@@ -1553,7 +1551,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(100);
       });
@@ -1569,7 +1567,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(185);
       });
@@ -1581,7 +1579,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(32);
       });
@@ -1595,7 +1593,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(102);
       });
@@ -1610,7 +1608,7 @@ describe('Flow', function () {
           </div>
         `);
 
-        /** @type import('../src/layout-flow').BlockContainer */
+        /** @type import('../src/layout-flow.ts').BlockContainer */
         const t = this.get('#t');
         expect(t.getContentArea().width).to.equal(50);
       });
@@ -1667,7 +1665,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(87.03125);
@@ -1701,7 +1699,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
 
       expect(ifc.paragraph.backgroundBoxes.get(this.get('#t1'))[0].start).to.equal(88.03125);
@@ -1732,7 +1730,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const float = this.get('#t');
       expect(float.getBorderArea().x).to.equal(10);
       expect(float.getBorderArea().y).to.equal(10);
@@ -1753,7 +1751,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const float = this.get('#t');
       expect(float.getBorderArea().x).to.equal(0);
       expect(float.getBorderArea().y).to.equal(0);
@@ -1771,7 +1769,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const block = this.get('#t');
       expect(block.getBorderArea().x).to.equal(151);
       expect(block.getBorderArea().y).to.equal(10);
@@ -1791,7 +1789,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const block = this.get('#t');
       expect(block.getBorderArea().x).to.equal(141);
       expect(block.getBorderArea().y).to.equal(0);
@@ -1806,7 +1804,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const block = this.get('#t');
       expect(block.getContentArea().width).to.equal(46);
       expect(block.getContentArea().height).to.equal(46);
@@ -1820,10 +1818,10 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t1 = this.get('#t1');
       expect(t1.getContentArea().height).to.equal(20);
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t2 = this.get('#t2');
       expect(t2.getContentArea().height).to.equal(40);
     });
@@ -1833,7 +1831,7 @@ describe('Flow', function () {
         <div style="position: relative; left: 10px; top: 10px; zoom: 250%;"></div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t = this.get('div');
       expect(t.getContentArea().x).to.equal(25);
       expect(t.getContentArea().y).to.equal(25);
@@ -1844,7 +1842,7 @@ describe('Flow', function () {
         <div style="position: relative; right: 10px; bottom: 10px; zoom: 250%;"></div>
       `);
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t = this.get('div');
       expect(t.getContentArea().x).to.equal(-25);
       expect(t.getContentArea().y).to.equal(-25);
@@ -1858,7 +1856,7 @@ describe('Flow', function () {
     it('treats 0 as 100%', function () {
       this.layout('<div style="zoom: 0; margin-left: 1px;"></div>');
 
-      /** @type import('../src/layout-flow').BlockContainer */
+      /** @type import('../src/layout-flow.ts').BlockContainer */
       const t = this.get('div');
       expect(t.getBorderArea().x).to.equal(1);
     });
@@ -1903,7 +1901,7 @@ describe('Flow', function () {
           oo
         </div>
       `);
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       expect(ifc.paragraph.items[4].x).to.equal(122.236328125);
       expect(ifc.paragraph.items[4].y).to.equal(25);
@@ -1911,7 +1909,7 @@ describe('Flow', function () {
 
     it('correctly positions text after unsized images without content', function () {
       this.layout('<div style="font-size: 10px;">no<img>oo');
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get('div').children;
       expect(ifc.paragraph.items[1].x).to.equal(11.123046875);
     });
@@ -1922,7 +1920,7 @@ describe('Flow', function () {
         <span style="line-height: 122px;">dog!</span>
         <br>underdog!
       `);
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get().children;
       expect(ifc.paragraph.items[0].x).to.equal(120);
       expect(ifc.paragraph.items[0].y).to.equal(66.546875);
@@ -1931,7 +1929,7 @@ describe('Flow', function () {
 
     it('displays images inline', function () {
       this.layout(`<img src="${adaUrl}" style="width: 100px; height: 100px; margin: 10px;">dog`);
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get().children;
       expect(ifc.paragraph.items[0].x).to.equal(120);
       expect(ifc.paragraph.items[0].y).to.equal(120);
@@ -1944,7 +1942,7 @@ describe('Flow', function () {
           style="width: 100px; height: 100px; margin: 10px; display: inline-block;"
         >dog
       `);
-      /** @type import('../src/layout-flow').IfcInline[] */
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
       const [ifc] = this.get().children;
       expect(ifc.paragraph.items[0].x).to.equal(120);
       expect(ifc.paragraph.items[0].y).to.equal(120);
@@ -1957,7 +1955,7 @@ describe('Flow', function () {
           style="width: 100px; height: 100px; padding: 5px; border: 2px solid #123;"
         >
       `);
-      /** @type import('../src/layout-flow').ReplacedBox */
+      /** @type import('../src/layout-flow.ts').ReplacedBox */
       const img = this.get('img');
       expect(img.getPaddingArea().width).to.equal(110);
       expect(img.getPaddingArea().height).to.equal(110);

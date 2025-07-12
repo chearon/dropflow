@@ -1,14 +1,13 @@
-// @ts-check
 import {expect} from 'chai';
-import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {HTMLElement} from '../src/dom.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.ts';
+import {HTMLElement} from '../src/dom.ts';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import {mock} from './util.js';
-import {clearImageCache, Image} from '../src/layout-image.js';
+import {clearImageCache, Image} from '../src/layout-image.ts';
 import fs from 'node:fs';
 
-const url = path => new URL(`../assets/${path}`, import.meta.url);
+const url = filename => new URL(import.meta.resolve(`#assets/${filename}`));
 
 describe('Hyperscript API', function () {
   describe('h()', function () {
@@ -239,7 +238,7 @@ describe('Load API', function () {
   });
 
   it('loads all fonts even if some of them fail', async function () {
-    const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+    const f1 = new flow.FontFace('f1', new URL('file:///NotAFolder/Not-A-Font.ttf'));
     const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
     const doc = parse(`
       <html style="font-family: f1;">
@@ -283,7 +282,7 @@ describe('Load API', function () {
     clearImageCache();
     const el = parse(`
       <img src="relative/path/to.png">
-      <img id="t" src="${new URL('../assets/images/ada.png', import.meta.url)}">
+      <img id="t" src="${import.meta.resolve('#assets/images/ada.png')}">
     `);
     const images = flow.loadSync(el);
     expect(images[0].status).to.equal('error');
@@ -292,18 +291,18 @@ describe('Load API', function () {
   });
 
   it('loads mixed fonts and images, failure and success', function () {
-    const f1 = new flow.FontFace('f1', url('NotAFolder/Not-A-Font.ttf'));
+    const f1 = new flow.FontFace('f1', new URL('file:///NotAFolder/Not-A-Font.ttf'));
     const f2 = new flow.FontFace('f2', url('Roboto/Roboto-Italic.ttf'));
     flow.fonts.add(f1);
     flow.fonts.add(f2);
     const doc = parse(`
       <html style="font-family: f1;">
         I'm in
-        <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
+        <img src="${import.meta.resolve('#assets/images/frogmage.gif')}">
         <img src="im/in.png">
         <span style="font-family: f2;">the sky!</span>
         <img src="im/in.png">
-        <img src="${new URL('../assets/images/frogmage.gif', import.meta.url)}">
+        <img src="${import.meta.resolve('#assets/images/frogmage.gif')}">
       </html>
     `);
 
@@ -332,7 +331,7 @@ describe('Load API', function () {
 
 describe('createObjectURL', function () {
   it('creates and loads an object URL for an image', function () {
-    const buffer = fs.readFileSync(new URL('../assets/images/frogmage.gif', import.meta.url));
+    const buffer = fs.readFileSync(new URL(import.meta.resolve('#assets/images/frogmage.gif')));
     const url = flow.createObjectURL(buffer.buffer);
     const style = flow.style({display: {outer: 'block', inner: 'flow'}});
     const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
@@ -345,7 +344,7 @@ describe('createObjectURL', function () {
   });
 
   it('revokes object URLs', function () {
-    const buffer = fs.readFileSync(new URL('../assets/images/frogmage.gif', import.meta.url));
+    const buffer = fs.readFileSync(new URL(import.meta.resolve('#assets/images/frogmage.gif')));
     const url = flow.createObjectURL(buffer.buffer);
 
     // If we revoked after loadSync, then tried loadSync again, it'd use the

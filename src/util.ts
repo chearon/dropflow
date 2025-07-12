@@ -1,5 +1,5 @@
-import {G_ID, G_CL, G_SZ} from './text-harfbuzz.js';
-import type {Style} from './style.js';
+import {G_ID, G_CL, G_SZ} from './text-harfbuzz.ts';
+import type {Style} from './style.ts';
 
 /**
  * Binary search that returns the position `x` should be in

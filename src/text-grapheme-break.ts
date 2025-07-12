@@ -1,6 +1,6 @@
-import * as GraphemeBreakTrie from './trie-grapheme-break.js';
-import * as EmojiTrie from './trie-emoji.js';
-import * as DerivedCorePropertiesTrie from './trie-derived-core-properties.js';
+import * as GraphemeBreakTrie from './trie-grapheme-break.ts';
+import * as EmojiTrie from './trie-emoji.ts';
+import * as DerivedCorePropertiesTrie from './trie-derived-core-properties.ts';
 
 // Gets a code point from a UTF-16 string
 // handling surrogate pairs appropriately

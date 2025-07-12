@@ -1,5 +1,5 @@
-import env from './wasm-env.js';
-import {environment} from './environment.js';
+import env from './wasm-env.ts';
+import {environment} from './environment.ts';
 
 const buffer = await environment.wasmLocator();
 

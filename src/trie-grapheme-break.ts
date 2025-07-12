@@ -1,6 +1,6 @@
 // All code based on foliojs/grapheme-breaker at time of writing
-import UnicodeTrie from './text-unicode-trie.js';
-import wasm from './wasm.js';
+import UnicodeTrie from './text-unicode-trie.ts';
+import wasm from './wasm.ts';
 
 // I don't know why the pointer value is stored directly in the .value here.
 // It must be an emscripten weirdness, so watch out in the future

@@ -1,20 +1,19 @@
-//@ts-check
 import {expect} from 'chai';
 import fs from 'node:fs';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import registerNotoFonts from 'dropflow/register-noto-fonts.js';
-import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import {getLangCascade, fonts, FontFace, createFaceFromTablesSync} from '../src/text-font.js';
-import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.ts';
+import {getLangCascade, fonts, FontFace, createFaceFromTablesSync} from '../src/text-font.ts';
+import {getOriginStyle, createStyle, createDeclaredStyle} from '../src/style.ts';
 import {mock} from './util.js';
 
-/** @param {import("../src/style.js").DeclaredStyleProperties} style */
+/** @param {import("../src/style.ts").DeclaredStyleProperties} style */
 function style(style) {
   return createStyle(getOriginStyle(), createDeclaredStyle(style));
 }
 
-const url = path => new URL(`../assets/${path}`, import.meta.url);
+const url = path => new URL(import.meta.resolve(`#assets/${path}`));
 
 const arrayBuffer = () => fs.readFileSync(url('Cairo/Cairo-Bold.ttf'));
 

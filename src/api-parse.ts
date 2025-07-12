@@ -1,9 +1,9 @@
-export * from './api.js';
-import {Parser, isWhitespace} from './parse-html.js';
-import {TextNode, HTMLElement} from './dom.js';
+export * from './api.ts';
+import {Parser, isWhitespace} from './parse-html.ts';
+import {TextNode, HTMLElement} from './dom.ts';
 import {parse as StyleParser} from './parse-css.js';
-import {EMPTY_STYLE, computeElementStyle, createDeclaredStyle} from './style.js';
-import {id} from './util.js';
+import {EMPTY_STYLE, computeElementStyle, createDeclaredStyle} from './style.ts';
+import {id} from './util.ts';
 
 export default function parse(str: string): HTMLElement {
   const parents: HTMLElement[] = [];

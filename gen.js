@@ -527,7 +527,7 @@ async function generateNotoFonts() {
   });
 
   let ts = '// generated from gen.js\n';
-  ts += 'import {fonts, FontFace} from \'../src/text-font.js\';\n';
+  ts += 'import {fonts, FontFace} from \'../src/text-font.ts\';\n';
   ts += 'let called = false;\n';
   ts += 'export default function registerNotoFonts() {\n';
   ts += 'if (called) return;\n';

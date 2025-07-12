@@ -1,5 +1,5 @@
-import wasm from './wasm.js';
-import UnicodeTrie from './text-unicode-trie.js';
+import wasm from './wasm.ts';
+import UnicodeTrie from './text-unicode-trie.ts';
 
 export const InCB_Consonant = 1;
 export const InCB_Extend = 2;

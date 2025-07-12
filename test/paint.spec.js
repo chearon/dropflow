@@ -1,14 +1,13 @@
-//@ts-check
 import {expect} from 'chai';
 import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
-import {registerFontAsset, unregisterFontAsset} from '../assets/register.js';
-import paint from '../src/paint.js';
+import {registerFontAsset, unregisterFontAsset} from '../assets/register.ts';
+import paint from '../src/paint.ts';
 import PaintSpy from './paint-spy.js';
-import {Logger} from '../src/util.js';
+import {Logger} from '../src/util.ts';
 
 const log = new Logger();
-const adaUrl = new URL('../assets/images/ada.png', import.meta.url).href;
+const adaUrl = import.meta.resolve('#assets/images/ada.png');
 
 function setupLayoutTests() {
   this.layout = function (html) {

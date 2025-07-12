@@ -1,8 +1,8 @@
-import {environment} from './environment.js';
-import {HTMLElement} from './dom.js';
-import {objectStore} from './api.js';
+import {environment} from './environment.ts';
+import {HTMLElement} from './dom.ts';
+import {objectStore} from './api.ts';
 
-import type {LoadWalkerContext} from './api.js';
+import type {LoadWalkerContext} from './api.ts';
 
 // JPEG markers always start with 0xFF
 const JPEG_SOI = 0xffd8;  // Start of Image

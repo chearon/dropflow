@@ -1,5 +1,5 @@
-import UnicodeTrie from './text-unicode-trie.js';
-import wasm from './wasm.js';
+import UnicodeTrie from './text-unicode-trie.ts';
+import wasm from './wasm.ts';
 
 // The following break classes are handled by the pair table
 // (do not delete them, they are checked during trie building)

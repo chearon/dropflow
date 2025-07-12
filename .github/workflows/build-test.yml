@@ -11,8 +11,8 @@ jobs:
       with:
         node-version: 23
     - run: npm install --frozen-lockfile
-    - run: npm run build
-    - run: npm run test
+    - run: npm run tsc
+    - run: npm run test:dist
   bun:
     runs-on: ubuntu-latest
     steps:
@@ -22,5 +22,5 @@ jobs:
       with:
         bun-version: 1.2.19
     - run: npm install --frozen-lockfile
-    - run: npm run build
-    - run: bun run --bun test
+    - run: npm run tsc
+    - run: bun run --bun test:dist

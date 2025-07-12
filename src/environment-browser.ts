@@ -1,4 +1,4 @@
-import {environment, defaultEnvironment} from './environment.js';
+import {environment, defaultEnvironment} from './environment.ts';
 
 // TypeScript does not support different possibilities of runtime environments,
 // so the types loaded are for node. To add the browser environment too would

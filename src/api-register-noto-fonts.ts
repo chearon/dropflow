@@ -1,1 +1,1 @@
-export {default} from '../gen/register-noto-fonts.js';
+export {default} from '../gen/register-noto-fonts.ts';

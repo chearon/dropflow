@@ -1,15 +1,15 @@
-import * as hb from './text-harfbuzz.js';
-import langCoverage from '../gen/lang-script-coverage.js';
-import wasm from './wasm.js';
-import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.js';
-import {environment} from './environment.js';
-import {nameToCode, tagToCode} from '../gen/script-names.js';
-import {Deferred} from './util.js';
+import * as hb from './text-harfbuzz.ts';
+import langCoverage from '../gen/lang-script-coverage.ts';
+import wasm from './wasm.ts';
+import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.ts';
+import {environment} from './environment.ts';
+import {nameToCode, tagToCode} from '../gen/script-names.ts';
+import {Deferred} from './util.ts';
 
-import type {HbFace, HbFont} from './text-harfbuzz.js';
-import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.js';
-import type {LoadWalkerContext} from './api.js';
-import type {HTMLElement, TextNode} from './dom.js';
+import type {HbFace, HbFont} from './text-harfbuzz.ts';
+import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.ts';
+import type {LoadWalkerContext} from './api.ts';
+import type {HTMLElement, TextNode} from './dom.ts';
 
 // See FcStrContainsIgnoreCase in fcstr.c
 function strContainsIgnoreCase(s1: string, s2: string) {

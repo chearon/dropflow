@@ -22,8 +22,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-import {determineBranch, BinTrieFlags} from './string-trie.js';
-import entityTrie from '../gen/entity-trie.js';
+import {determineBranch, BinTrieFlags} from './string-trie.ts';
+import entityTrie from '../gen/entity-trie.ts';
 
 const decodeMap = new Map([
   [0, 65533],

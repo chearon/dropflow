@@ -3,14 +3,14 @@ import {
   nextCluster,
   nextGrapheme,
   prevGrapheme
-} from './layout-text.js';
-import {G_ID, G_CL, G_AX, G_AY, G_DX, G_DY, G_FL, G_SZ} from './text-harfbuzz.js';
+} from './layout-text.ts';
+import {G_ID, G_CL, G_AX, G_AY, G_DX, G_DY, G_FL, G_SZ} from './text-harfbuzz.ts';
 
-import type {Color} from './style.js';
-import type {PaintBackend} from './paint.js';
-import type {ShapedItem} from './layout-text.js';
-import type {LoadedFontFace} from './text-font.js';
-import type {Image} from './layout-image.js';
+import type {Color} from './style.ts';
+import type {PaintBackend} from './paint.ts';
+import type {ShapedItem} from './layout-text.ts';
+import type {LoadedFontFace} from './text-font.ts';
+import type {Image} from './layout-image.ts';
 
 // This is used in the public API to ensure the external context has the right
 // API (there are four known to dropflow: node-canvas, @napi-rs/canvas,

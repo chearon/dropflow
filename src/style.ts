@@ -1,5 +1,5 @@
-import {HTMLElement, TextNode} from './dom.js';
-import {Box} from './layout-box.js';
+import {HTMLElement, TextNode} from './dom.ts';
+import {Box} from './layout-box.ts';
 
 export const inherited = Symbol('inherited');
 

@@ -50,8 +50,7 @@
     "test": "mocha dist/test/ci.js",
     "buildcssparser": "peggy --format es src/parse-css.pegjs",
     "prebuild": "copyfiles gen.js src/\\*.js assets/\\*\\* test/\\*\\* -e assets/register\\* dist",
-    "build": "concurrently tsc npm:buildcssparser",
-    "postbuild": "copyfiles src/parse-css.js dist"
+    "build": "concurrently tsc npm:buildcssparser"
   },
   "keywords": [
     "css2",

@@ -10,6 +10,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "dist",
+    "allowJs": true,
     "declaration": true,
     "lib": ["esnext"],
     "target": "esnext",

@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Bun v1
-        uses: oven-sh/setup-bun@v1
+      - name: Node.js v23
+        uses: actions/setup-node@v3
         with:
-          bun-version: 1.2
+          node-version: 23
       - run: npm install --frozen-lockfile
       - run: npm run tsc
-      - run: bun build site/index.html --outdir=dist/site
-      - run: cp -r assets dist/site
+      - run: npm exec vite -- -c site/vite.config.js build --minify false --base dropflow/
+      - run: cp assets/logo-afe.png dist/site/assets
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:

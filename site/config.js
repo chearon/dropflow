@@ -1,5 +1,5 @@
 import {environment} from 'dropflow/environment.js';
-import wasmUrl from 'dropflow/dropflow.wasm';
+import wasmUrl from 'dropflow/dropflow.wasm?url';
 
 environment.wasmLocator = function () {
   return fetch(wasmUrl).then(res => {

@@ -13,7 +13,8 @@
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
     "punycode": "^2.1.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6"
   },
   "name": "dropflow",
   "version": "0.5.1",
@@ -62,6 +63,7 @@
     "test:watch": "node tools/run-ts mocha test/ci.js -- --watch --parallel",
     "test:dist": "mocha dist/test/ci.js",
     "tsc": "tsc",
+    "playground": "vite -c site/vite.config.js",
     "buildcssparser": "peggy --format es src/parse-css.pegjs"
   },
   "keywords": [

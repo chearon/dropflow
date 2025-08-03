@@ -19,8 +19,8 @@ jobs:
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: 1.2
-      - run: bun install --frozen-lockfile
-      - run: bun run build
+      - run: npm install --frozen-lockfile
+      - run: npm run tsc
       - run: bun build site/index.html --outdir=dist/site
       - run: cp -r assets dist/site
       - name: Upload site

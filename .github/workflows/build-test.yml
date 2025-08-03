@@ -10,7 +10,7 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 23
-    - run: bun install --frozen-lockfile
+    - run: npm install --frozen-lockfile
     - run: npm run build
     - run: npm run test
   bun:
@@ -21,6 +21,6 @@ jobs:
       uses: oven-sh/setup-bun@v1
       with:
         bun-version: 1.2.19
-    - run: bun install --frozen-lockfile
-    - run: bun run build
+    - run: npm install --frozen-lockfile
+    - run: npm run build
     - run: bun run --bun test

@@ -17,7 +17,7 @@
     "vite": "^7.0.6"
   },
   "name": "dropflow",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "A small CSS2 document renderer built from specifications",
   "type": "module",
   "files": [

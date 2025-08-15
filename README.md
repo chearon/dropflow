@@ -582,7 +582,7 @@ If you want to use `@napi-rs/canvas` or `skia-canvas`, you'll need just a few li
 
 ### Hooks
 
-There are 4 hooks you can override, documented below. They have default implementations based on whether dropflow was built for the browser or node ("browser" export condition or "default") but may not be sufficient for your use case.
+There are 6 hooks you can override, documented below. They have default implementations based on whether dropflow was built for the browser or node ("browser" export condition or "default") but may not be sufficient for your use case.
 
 ```ts
 const environment: Environment;

@@ -10,6 +10,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Added
 ### Fixed
+* Fixed `text-align: start` and `text-align: end`
 
 0.6.0
 ==================

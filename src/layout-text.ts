@@ -2220,7 +2220,7 @@ export class Paragraph {
 
     const finishLine = (line: Linebox) => {
       for (let n = line.head; n; n = n.next) this.treeItems.push(n.value);
-      line.postprocess(width, height, vacancy, this.ifc.style.textAlign);
+      line.postprocess(width, height, vacancy, this.ifc.style.getTextAlign());
       const blockSize = line.height();
       width.reset();
       height.reset();

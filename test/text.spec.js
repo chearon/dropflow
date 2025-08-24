@@ -1142,6 +1142,24 @@ describe('Lines', function () {
     expect(ifc.paragraph.lineboxes.length).to.equal(2);
   });
 
+  it('follows text-align: end', function () {
+    this.layout(`
+      <div id="t1" style="text-align: end; direction: rtl; font: 10px Ahem; width: 100px;">
+        burrito
+      </div>
+      <div id="t2" style="text-align: end; font: 10px Ahem; width: 100px;">
+        burrito
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').IfcInline[] */
+    const [ifc1] = this.get('#t1').children;
+    expect(ifc1.paragraph.items[0].x).to.equal(0);
+    /** @type import('../src/layout-flow.ts').IfcInline[] */
+    const [ifc2] = this.get('#t2').children;
+    expect(ifc2.paragraph.items[0].x).to.equal(30);
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.layout(`

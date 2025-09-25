@@ -2,8 +2,9 @@
   "devDependencies": {
     "@codemirror/lang-html": "^6.4.8",
     "@codemirror/state": "^6.4.1",
-    "@ddietr/codemirror-themes": "^1.4.2",
+    "@ddietr/codemirror-themes": "^1.5.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
+    "@types/codemirror": "^5.60.15",
     "@types/mocha": "^8.0.3",
     "@types/node": "^20.17.10",
     "canvas": "^3.1.0",

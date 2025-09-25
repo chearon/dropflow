@@ -136,6 +136,11 @@ declaration
   / border_bottom_color_dec
   / border_left_color_dec
   / border_color_dec
+  / border_top_left_radius_dec
+  / border_top_right_radius_dec
+  / border_bottom_right_radius_dec
+  / border_bottom_left_radius_dec
+  / border_radius_dec
   / border_dec
   / width_dec
   / height_dec
@@ -666,6 +671,90 @@ border_color_dec
     return setTopRightBottomLeft({}, 'border', 'Color', s, s, s, s);
   }
 
+border_top_left_radius_dec
+  = 'border-top-left-radius'i S* ':' S* h:length_side S* v:length_side {
+    return {borderTopLeftRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-top-left-radius'i S* ':' S* r:(length_side / default) {
+    return {borderTopLeftRadius: r};
+  }
+
+border_top_right_radius_dec
+  = 'border-top-right-radius'i S* ':' S* h:length_side S* v:length_side {
+    return {borderTopRightRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-top-right-radius'i S* ':' S* r:(length_side / default) {
+    return {borderTopRightRadius: r};
+  }
+
+border_bottom_right_radius_dec
+  = 'border-bottom-right-radius'i S* ':' S* h:length_side S* v:length_side {
+    return {borderBottomRightRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-bottom-right-radius'i S* ':' S* r:(length_side / default) {
+    return {borderBottomRightRadius: r};
+  }
+
+border_bottom_left_radius_dec
+  = 'border-bottom-left-radius'i S* ':' S* h:length_side S* v:length_side {
+    return {borderBottomLeftRadius: {horizontal: h, vertical: v}};
+  }
+  / 'border-bottom-left-radius'i S* ':' S* r:(length_side / default) {
+    return {borderBottomLeftRadius: r};
+  }
+
+border_radius_dec
+  = 'border-radius'i S* ':' S* horiz:radius_list S* vert:slash_radius? {
+    // If "vert" is undefined then no "/" was present – vertical radii reuse horizontal ones
+    const hasSlash = vert !== null && vert !== undefined;
+
+    const hVals = horiz;
+    const vVals = hasSlash ? vert : horiz;
+
+    function expand(list) {
+      switch (list.length) {
+        case 1: return [list[0], list[0], list[0], list[0]];
+        case 2: return [list[0], list[1], list[0], list[1]];
+        case 3: return [list[0], list[1], list[2], list[1]];
+        default: /* 4 or more – use first four */ return [list[0], list[1], list[2], list[3]];
+      }
+    }
+
+    const h = expand(hVals);
+    const v = expand(vVals);
+
+    function make(idx) {
+      return hasSlash ? { horizontal: h[idx], vertical: v[idx] } : h[idx];
+    }
+
+    return {
+      borderTopLeftRadius:     make(0),
+      borderTopRightRadius:    make(1),
+      borderBottomRightRadius: make(2),
+      borderBottomLeftRadius:  make(3)
+    };
+  }
+  / 'border-radius'i S* ':' S* d:default {
+    // Global keywords expand to all four corners
+    return {
+      borderTopLeftRadius: d,
+      borderTopRightRadius: d,
+      borderBottomRightRadius: d,
+      borderBottomLeftRadius: d
+    };
+  }
+
+// Helper rules --------------------------------------------------------------
+
+radius_value = length_side / default
+
+radius_list = first:radius_value rest:(S+ radius_value)* {
+  const values = [first].concat(rest ? rest.map(r => r[1]) : []);
+  return values.slice(0, 4); // ignore extras beyond 4 if present
+}
+
+slash_radius = '/' S* r:radius_list { return r; }
+
 border_s = '-top' / '-right' / '-bottom' / '-left'
 
 border_dec
@@ -690,7 +779,7 @@ border_dec
     if (s) setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);
     return ret;
   }
-  / 'border'i t:border_s? S* ':' S* c:color S* w:LENGTH S* s:border_style? {
+    / 'border'i t:border_s? S* ':' S* c:color S* w:LENGTH S* s:border_style? {
     const ret = {};
     setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
     setTopRightBottomLeftOr(t, ret, 'border', 'Color', c, c, c, c);
@@ -704,7 +793,7 @@ border_dec
     if (w) setTopRightBottomLeftOr(t, ret, 'border', 'Width', w, w, w, w);
     return ret;
   }
-  / 'border'i t:border_s? S* ':' S* s:border_style S* c:color S* w:LENGTH? {
+    / 'border'i t:border_s? S* ':' S* s:border_style S* c:color S* w:LENGTH? {
     const ret = {};
     setTopRightBottomLeftOr(t, ret, 'border', 'Color', c, c, c, c);
     setTopRightBottomLeftOr(t, ret, 'border', 'Style', s, s, s, s);

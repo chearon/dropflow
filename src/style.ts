@@ -749,7 +749,12 @@ export class Style {
     if ( typeof radius === "number" && radius > 0 ) {
       return { horizontal: radius, vertical: radius };
     } else if ( typeof radius === "object" && "value" in radius && "unit" in radius && radius.unit === "%" ) {
-      return { horizontal: resolvePercent(box, radius.value), vertical: resolvePercent(box, radius.value) };
+      // Percentages for border-radius: horizontal relative to box width, vertical relative to box height
+      const area = box.getBorderArea();
+      return {
+        horizontal: (radius.value / 100) * area.width,
+        vertical: (radius.value / 100) * area.height,
+      };
     } else if ( typeof radius === "object" && "value" in radius && "unit" in radius  ) {
       // em and fixed length units
       // TODO: check if this is correct -- can we count on it being a number here?
@@ -762,7 +767,8 @@ export class Style {
           h = radius.horizontal;
         } else if ( typeof radius.horizontal === "object" && "value" in radius.horizontal ) {
           if ( radius.horizontal.unit === "%" ) {
-            h = resolvePercent(box, radius.horizontal.value);
+            const area = box.getBorderArea();
+            h = (radius.horizontal.value / 100) * area.width;
           } else {
             h = resolveEm(radius.horizontal.value, this.fontSize) as number;
           }
@@ -771,7 +777,8 @@ export class Style {
           v = radius.vertical;
         } else if ( typeof radius.vertical === "object" && "value" in radius.vertical ) {
           if ( radius.vertical.unit === "%" ) {
-            v = resolvePercent(box, radius.vertical.value);
+            const area = box.getBorderArea();
+            v = (radius.vertical.value / 100) * area.height;
           } else {
             v = resolveEm(radius.vertical.value, this.fontSize) as number;
           }
@@ -1129,9 +1136,9 @@ function resolveEm(
     } else if (value.unit === "in") {
       return value.value * 96;
     }
-  } else {
-    return value;
-  }
+  } 
+  // handles unit === "%" as well as number
+  return value;
 }
 
 function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {

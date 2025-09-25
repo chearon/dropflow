@@ -1,4 +1,4 @@
-import { Color, BorderStyle, BorderRadius } from "./style.js";
+import type { Color, BorderStyle, BorderRadius } from "./style.js";
 
 // Border rendering constants
 

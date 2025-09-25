@@ -758,7 +758,7 @@ export class Style {
     } else if ( typeof radius === "object" && "value" in radius && "unit" in radius  ) {
       // em and fixed length units
       // TODO: check if this is correct -- can we count on it being a number here?
-      return { horizontal: resolveEm(radius.value, this.fontSize) as number, vertical: resolveEm(radius.value, this.fontSize) as number };
+      return { horizontal: resolveEm(radius, this.fontSize) as number, vertical: resolveEm(radius, this.fontSize) as number };
     } else if ( typeof radius === "object" && "horizontal" in radius && "vertical" in radius )
       {
         let h = 0;
@@ -770,7 +770,7 @@ export class Style {
             const area = box.getBorderArea();
             h = (radius.horizontal.value / 100) * area.width;
           } else {
-            h = resolveEm(radius.horizontal.value, this.fontSize) as number;
+            h = resolveEm(radius.horizontal, this.fontSize) as number;
           }
         }
         if ( typeof radius.vertical === "number" ) {
@@ -780,7 +780,7 @@ export class Style {
             const area = box.getBorderArea();
             v = (radius.vertical.value / 100) * area.height;
           } else {
-            v = resolveEm(radius.vertical.value, this.fontSize) as number;
+            v = resolveEm(radius.vertical, this.fontSize) as number;
           }
         }
         return { horizontal: h, vertical: v };

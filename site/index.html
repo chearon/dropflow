@@ -5,9 +5,9 @@
     <script type="module" src="./index.js"></script>
   </head>
   <body style="margin: 0; height: 100%;">
-    <div style="display: flex; white-space: nowrap; height: 100%;">
+    <div id="twinview" style="display: flex; white-space: nowrap; height: 100%;">
       <div style="width: 50%; min-width: 0;" id="editor"></div>
-      <div style="width: 50%; min-width: 0; overflow: hidden; display: flex; flex-flow: column nowrap;">
+      <div style="flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; flex-flow: column nowrap;">
         <div id="wrap" style="flex: auto;">
           <canvas style="position: absolute;"></canvas>
         </div>

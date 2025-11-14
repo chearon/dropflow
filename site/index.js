@@ -9,7 +9,9 @@ import {html} from '@codemirror/lang-html';
 import {solarizedDark} from '@ddietr/codemirror-themes/solarized-dark.js'
 
 const [canvas] = document.getElementsByTagName('canvas');
+const twinview = document.getElementById('twinview');
 const wrap = document.getElementById('wrap');
+const editor = document.querySelector('#editor');
 const canvasLabel = document.getElementById('canvas-label');
 
 flow.setOriginStyle({zoom: window.devicePixelRatio});
@@ -144,10 +146,7 @@ const state = EditorState.create({
   extensions: [basicSetup, html(), watch, solarizedDark]
 });
 
-const view = new EditorView({
-  state,
-  parent: document.querySelector('#editor')
-});
+const view = new EditorView({state, parent: editor});
 
 let documentElement;
 let blockContainer;
@@ -177,7 +176,82 @@ window.addEventListener('resize', function () {
   }
 });
 
-observer.observe(document.body);
+observer.observe(wrap);
+
+let divider = +localStorage['divider'] || 50;
+let animationTimer = localStorage['divider'] == null ? setTimeout(animate, 2e3) : null;
+let isDragging = false;
+
+function animate() {
+  editor.animate([
+    {width: '50%', easing: 'cubic-bezier(0.82,-0.67,0.07,0.92)'},
+    {width: '55%', easing: 'cubic-bezier(0.61,0.17,0.07,0.86)'},
+    {width: '50%'}
+  ], {duration: 2000});
+  animationTimer = null;
+}
+
+function getEffectiveDivider() {
+  return Math.min(90, Math.max(10, divider));
+}
+
+function renderWidth() {
+  editor.style.width = getEffectiveDivider() + '%';
+}
+
+function getState(e) {
+  const rect = twinview.getBoundingClientRect();
+  const total = rect.width;
+  const divider = total * getEffectiveDivider() / 100;
+  const mouse = e.clientX - rect.x;
+  return {mouse, divider, total};
+}
+
+function isInHandle(state) {
+  return Math.abs(state.divider - state.mouse) < 10;
+}
+
+renderWidth();
+
+twinview.addEventListener('pointermove', e => {
+  const state = getState(e);
+  const inHandle = isInHandle(state);
+  if (inHandle) {
+    isDragging ||= e.buttons === 1 && Boolean(e.movementX || e.movementY)
+    if (animationTimer != null) {
+      clearTimeout(animationTimer);
+      animationTimer = null;
+    }
+  }
+  if (isDragging) {
+    divider = 100 * state.mouse / state.total;
+    renderWidth();
+  } else {
+    twinview.style.cursor = inHandle ? "ew-resize" : "";
+  }
+});
+
+twinview.addEventListener('pointerdown', e => {
+  if (isInHandle(getState(e)) && e.buttons === 1) {
+    e.preventDefault();
+    twinview.setPointerCapture(e.pointerId);
+  }
+});
+
+twinview.addEventListener('dblclick', e => {
+  if (isInHandle(getState(e))) {
+    divider = 50;
+    delete localStorage['divider'];
+    renderWidth();
+  }
+});
+
+twinview.addEventListener('pointerup', e => {
+  if (isDragging) {
+    isDragging = false;
+    localStorage['divider'] = divider;
+  }
+});
 
 window.flow = flow;
 

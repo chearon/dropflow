@@ -1367,6 +1367,18 @@ describe('Flow', function () {
       expect(this.get('#t').getBorderArea().y).to.equal(0);
     });
 
+    it('floats two rights correctly', function () {
+      this.layout(`
+        <div style="width: 100px;">
+          <div id="t1" style="float: right; width: 10px; background-color: #321">t1</div>
+          <div id="t2" style="float: right; width: 10px; background-color: #123">t2</div>
+        </div>
+      `);
+
+      expect(this.get('#t1').getBorderArea().x).to.equal(90);
+      expect(this.get('#t2').getBorderArea().x).to.equal(80);
+    });
+
     describe('Intrinsics', function () {
       it('lays out text under max-content constraint', function () {
         this.layout(`

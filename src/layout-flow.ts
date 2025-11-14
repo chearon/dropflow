@@ -492,25 +492,25 @@ class FloatSide {
       endTrack = startTrack;
     }
 
-    const cbOffset = box.style.float === 'left' ? vacancy.leftOffset : vacancy.rightOffset;
-    const cbLineSide = box.style.float === 'left' ? cbLineLeft : cbLineRight;
+    const vcOffset = box.style.float === 'left' ? vacancy.leftOffset : vacancy.rightOffset;
+    const cbOffset = box.style.float === 'left' ? cbLineLeft : cbLineRight;
     const marginOffset = box.style.float === 'left' ? margins.lineLeft : margins.lineRight;
     const marginEnd = box.style.float === 'left' ? margins.lineRight : margins.lineLeft;
 
     if (box.style.float === 'left') {
-      box.setInlinePosition(cbOffset - cbLineSide + marginOffset);
+      box.setInlinePosition(vcOffset - cbOffset + marginOffset);
     } else {
       const inlineSize = box.containingBlock.inlineSize;
       const size = borderArea.inlineSize;
-      box.setInlinePosition(cbOffset - cbLineSide + inlineSize - marginOffset - size);
+      box.setInlinePosition(inlineSize - size - vcOffset + cbOffset - marginOffset);
     }
 
     for (let track = startTrack; track < endTrack; track += 1) {
       if (this.floatCounts[track] === 0) {
-        this.inlineOffsets[track] = cbOffset;
+        this.inlineOffsets[track] = vcOffset;
         this.inlineSizes[track] = marginOffset + borderArea.width + marginEnd;
       } else {
-        this.inlineSizes[track] = cbOffset - this.inlineOffsets[track] + marginOffset + borderArea.width + marginEnd;
+        this.inlineSizes[track] = vcOffset - this.inlineOffsets[track] + marginOffset + borderArea.width + marginEnd;
       }
       this.floatCounts[track] += 1;
     }

@@ -10,7 +10,18 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Added
 ### Fixed
+
+0.6.1
+==================
+
+Bugfix release plus a small feature for the site
+
+### Fixed
 * Fixed `text-align: start` and `text-align: end`
+* Right float adjacent to and after another right float wasn't positioned correctly
+
+### Added
+* Resizeable panes for the website so you can see text reflowing
 
 0.6.0
 ==================

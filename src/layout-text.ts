@@ -1836,6 +1836,20 @@ export class Paragraph {
     return colors;
   }
 
+  postShapeLoadHyphens() {
+    let itemIndex = 0;
+    for (let textOffset = 0; textOffset < this.string.length; textOffset++) {
+      if (this.string[textOffset] === '\u00ad' /* softHyphenCharacter */) {
+        while ( // Forward to the item that owns the textOffset
+          itemIndex + 1 < this.items.length &&
+          this.items[itemIndex + 1].offset <= textOffset
+        ) itemIndex++;
+
+        loadHyphen(this.items[itemIndex]);
+      }
+    }
+  }
+
   shape() {
     const items:ShapedItem[] = [];
     const log = this.ifc.loggingEnabled() ? new Logger() : null;
@@ -1973,15 +1987,7 @@ export class Paragraph {
 
     this.items = items.sort((a, b) => a.offset - b.offset);
 
-    if (this.ifc.hasSoftHyphen()) {
-      let j = 0;
-      for (let i = 0; i < this.string.length; i++) {
-        if (this.string[i] === '\u00ad' /* softHyphenCharacter */) {
-          while (j + 1 < items.length && items[j + 1].offset <= i) j++;
-          loadHyphen(items[j]);
-        }
-      }
-    }
+    if (this.ifc.hasSoftHyphen()) this.postShapeLoadHyphens();
   }
 
   createMarkIterator(mode: 'min-content' | 'max-content' | 'normal') {

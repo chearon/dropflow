@@ -1723,23 +1723,6 @@ export class Paragraph {
     return this.string.length;
   }
 
-  nlIterator() {
-    const s = this.string;
-    const l = s.length;
-    let i = 1;
-    let ended = false;
-
-    return {
-      next():{done: true} | {done: false, value: {i: number}} {
-        if (ended) return {done: true};
-        while (i < l && s[i - 1] !== '\n') i++;
-        const emit = i;
-        if (i++ === l) ended = true;
-        return {value: {i: emit}, done: false};
-      }
-    };
-  }
-
   shapePartWithWordCache(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
     const end = offset + length;
     const words: {wordGlyphs: Int32Array, wordStart: number}[] = [];

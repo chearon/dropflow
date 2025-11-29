@@ -1504,9 +1504,9 @@ export class Linebox extends LineItemLinkedList {
     this.width = w;
     if (height.contextRoots.size) this.contextRoots = new Map(height.contextRoots);
     this.blockOffset = vacancy.blockOffset;
+    this.reorder();
     this.trimStart();
     this.trimEnd();
-    this.reorder();
     this.ascender = ascender;
     this.descender = descender;
     this.inlineOffset = dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;

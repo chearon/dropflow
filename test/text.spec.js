@@ -1206,6 +1206,19 @@ describe('Lines', function () {
       expect(inline.paragraph.lineboxes[0].head.value.glyphs[0 * G_SZ + G_AX]).to.equal(0);
     });
 
+    it('collapses whitespace after bidi reordering', function () {
+      this.layout(`
+        <div style="width: 100px; font: 16px Cairo, Arimo; direction: rtl;">
+          هبني home حيث يسرح الجاموس
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow.ts').IfcInline[] */
+      const [ifc] = this.get('div').children;
+      const arabic = ifc.paragraph.lineboxes[0].tail.value; // هبني
+      expect(arabic.glyphs.at(-G_SZ + G_AX)).to.equal(0);
+    });
+
     it('starts a new linebox after \\n when newlines are preserved', function () {
       this.layout(`
         <div style="width: 300px; font: 16px/20px Arimo; white-space: pre-line;">

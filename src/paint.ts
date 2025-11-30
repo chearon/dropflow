@@ -75,19 +75,21 @@ function drawText(
 ) {
   const style = item.attrs.style;
   const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item);
+  const state = item.createMeasureState();
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  const end = item.attrs.level & 1 ? item.colorsStart(colors) - 1 : item.colorsEnd(colors);
-  let i = item.attrs.level & 1 ? item.colorsEnd(colors) - 1 : item.colorsStart(colors);
-  let glyphIndex = 0;
+  const colorEnd = item.colorsEnd(colors);
+  let colorIndex = item.colorsStart(colors);
   let tx = item.x;
 
-  while (i !== end) {
-    const [color, offset] = colors[i];
+  if (item.attrs.level & 1) tx += item.measure().advance;
+
+  while (colorIndex !== colorEnd) {
+    const [color, offset] = colors[colorIndex];
     const colorStart = offset;
-    const colorEnd = i + 1 < colors.length ? colors[i + 1][1] : textEnd;
+    const colorEnd = colorIndex + 1 < colors.length ? colors[colorIndex + 1][1] : textEnd;
     const start = Math.max(colorStart, textStart);
     const end = Math.min(colorEnd, textEnd);
 
@@ -95,19 +97,9 @@ function drawText(
       // TODO: should really have isStartColorBoundary, isEndColorBoundary
       const isColorBoundary = start !== textStart && start === colorStart
         || end !== textEnd && end === colorEnd;
-      let ax = 0;
+      const ax = item.measure(end, 1, state).advance;
 
-      if (item.attrs.level & 1) {
-        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] >= start) {
-          ax += item.glyphs[glyphIndex + G_AX];
-          glyphIndex += G_SZ;
-        }
-      } else {
-        while (glyphIndex < item.glyphs.length && item.glyphs[glyphIndex + G_CL] < end) {
-          ax += item.glyphs[glyphIndex + G_AX];
-          glyphIndex += G_SZ;
-        }
-      }
+      if (item.attrs.level & 1) tx -= ax;
 
       b.fillColor = color;
       b.fontSize = style.fontSize;
@@ -115,14 +107,10 @@ function drawText(
       b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
       b.text(tx, item.y, item, start, end, isColorBoundary);
 
-      tx += ax / item.face.hbface.upem * style.fontSize;
+      if (!(item.attrs.level & 1)) tx += ax;
     }
 
-    if (item.attrs.level & 1) {
-      i -= 1;
-    } else {
-      i += 1;
-    }
+    colorIndex += 1;
   }
 }
 

@@ -684,6 +684,19 @@ describe('Painting', function () {
     unregisterFontAsset('NotoSansArabic/NotoSansArabic-Regular.ttf');
   });
 
+  it('paints colors in logical order', function () {
+    this.layout(`
+      <div style="font-size: 10px;">
+        و<span style="color: #321;">التوابل</span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 70, y: 8, text: 'و', fillColor: '#000'},
+      {t: 'text', x: 0, y: 8, text: 'التوابل', fillColor: '#321'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

@@ -99,6 +99,7 @@ export default class SvgPaintBackend implements PaintBackend {
       font: this.font?.toFontString(this.fontSize) ?? '',
       whiteSpace: 'pre',
       direction: this.direction,
+      textAlign: 'left',
       unicodeBidi: 'bidi-override'
     });
     const rect = this.clips.at(-1);

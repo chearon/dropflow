@@ -158,9 +158,6 @@ function parseGenerate() {
   window.documentElement = documentElement;
 }
 
-parseGenerate();
-loadLayoutPaint();
-
 const observer = new ResizeObserver(function () {
   loadLayoutPaint();
 });
@@ -211,8 +208,6 @@ function isInHandle(state) {
   return Math.abs(state.divider - state.mouse) < 10;
 }
 
-renderWidth();
-
 twinview.addEventListener('pointermove', e => {
   const state = getState(e);
   const inHandle = isInHandle(state);
@@ -257,3 +252,8 @@ window.flow = flow;
 
 view.dom.style.height = '100%';
 view.scrollDOM.style.overflow = 'auto';
+
+// init
+parseGenerate();
+renderWidth();
+loadLayoutPaint();

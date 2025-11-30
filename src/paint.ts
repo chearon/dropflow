@@ -1,7 +1,7 @@
 import {BlockContainer, ReplacedBox, Inline, IfcInline} from './layout-flow.ts';
 import {Image} from './layout-image.ts';
 import {G_CL, G_AX, G_SZ} from './text-harfbuzz.ts';
-import {ShapedItem, Paragraph} from './layout-text.ts';
+import {ShapedItem, Paragraph, isSpaceOrTabOrNewline} from './layout-text.ts';
 import {Box, FormattingBox} from './layout-box.ts';
 import {binarySearchOf} from './util.ts';
 
@@ -26,12 +26,22 @@ export interface PaintBackend {
 }
 
 function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
+  const s = item.paragraph.string;
   const glyphs = item.glyphs;
   let glyphStart = 0;
   let glyphEnd = glyphs.length - G_SZ;
 
-  while (glyphStart < glyphs.length && glyphs[glyphStart + G_AX] === 0) glyphStart += G_SZ;
-  while (glyphEnd >= 0 && glyphs[glyphEnd + G_AX] === 0) glyphEnd -= G_SZ;
+  while (
+    glyphStart < glyphs.length &&
+    glyphs[glyphStart + G_AX] === 0 &&
+    isSpaceOrTabOrNewline(s[glyphs[glyphStart + G_CL]])
+  ) glyphStart += G_SZ;
+
+  while (
+    glyphEnd >= 0 &&
+    glyphs[glyphEnd + G_AX] === 0 &&
+    isSpaceOrTabOrNewline(s[glyphs[glyphEnd + G_CL]])
+  ) glyphEnd -= G_SZ;
 
   if (glyphStart in glyphs && glyphEnd in glyphs) {
     let textStart, textEnd;

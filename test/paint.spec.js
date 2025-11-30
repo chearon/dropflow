@@ -675,6 +675,15 @@ describe('Painting', function () {
     ]);
   });
 
+  it('doesn\'t break clusters when trimming whitespace', function () {
+    registerFontAsset('NotoSansArabic/NotoSansArabic-Regular.ttf');
+    this.layout('<div style="font: 10px Noto Sans Arabic;">والمهارة</div>');
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13.74, text: 'والمهارة', fillColor: '#000'}
+    ]);
+    unregisterFontAsset('NotoSansArabic/NotoSansArabic-Regular.ttf');
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

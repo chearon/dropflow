@@ -43,7 +43,7 @@ function isWsPreserved(whiteSpace: WhiteSpace) {
   return whiteSpace === 'pre' || whiteSpace === 'pre-wrap';
 }
 
-function isSpaceOrTabOrNewline(c: string) {
+export function isSpaceOrTabOrNewline(c: string) {
   return c === ' ' || c === '\t' || c === '\n';
 }
 

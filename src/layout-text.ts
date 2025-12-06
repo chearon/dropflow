@@ -1401,10 +1401,6 @@ export class Linebox extends LineItemLinkedList {
     return this.head != null;
   }
 
-  end() {
-    return this.endOffset;
-  }
-
   height() {
     return this.ascender + this.descender;
   }

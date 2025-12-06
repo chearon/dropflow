@@ -479,10 +479,10 @@ describe('Lines', function () {
     this.layout('<div style="width: 0;">eat lots of peaches</div>');
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes).to.have.lengthOf(4);
-    expect(inline.paragraph.lineboxes[0].end()).to.equal(4);
-    expect(inline.paragraph.lineboxes[1].end()).to.equal(9);
-    expect(inline.paragraph.lineboxes[2].end()).to.equal(12);
-    expect(inline.paragraph.lineboxes[3].end()).to.equal(19);
+    expect(inline.paragraph.lineboxes[0].endOffset).to.equal(4);
+    expect(inline.paragraph.lineboxes[1].endOffset).to.equal(9);
+    expect(inline.paragraph.lineboxes[2].endOffset).to.equal(12);
+    expect(inline.paragraph.lineboxes[3].endOffset).to.equal(19);
   });
 
   it('breaks between shaping boundaries', function () {
@@ -494,7 +494,7 @@ describe('Lines', function () {
     /** @type import('../src/layout-flow.ts').IfcInline[] */
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
-    expect(inline.paragraph.lineboxes[0].end()).to.equal(13);
+    expect(inline.paragraph.lineboxes[0].endOffset).to.equal(13);
     expect(inline.paragraph.items).to.have.lengthOf(3);
   });
 
@@ -507,7 +507,7 @@ describe('Lines', function () {
     /** @type import('../src/layout-flow.ts').IfcInline[] */
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
-    expect(inline.paragraph.lineboxes[0].end()).to.equal(13);
+    expect(inline.paragraph.lineboxes[0].endOffset).to.equal(13);
     expect(inline.paragraph.items).to.have.lengthOf(2);
   });
 
@@ -531,8 +531,8 @@ describe('Lines', function () {
     const [inline] = this.get('div').children;
     expect(inline.paragraph.items).to.have.lengthOf(2);
     expect(inline.paragraph.lineboxes).to.have.lengthOf(2);
-    expect(inline.paragraph.lineboxes[0].end()).to.equal(9);
-    expect(inline.paragraph.lineboxes[1].end()).to.equal(13);
+    expect(inline.paragraph.lineboxes[0].endOffset).to.equal(9);
+    expect(inline.paragraph.lineboxes[1].endOffset).to.equal(13);
   });
 
   it('measures break width correctly', function () {
@@ -666,8 +666,8 @@ describe('Lines', function () {
     /** @type import('../src/layout-flow.ts').IfcInline[] */
     const [inline] = this.get('div').children;
     expect(inline.paragraph.lineboxes).to.have.lengthOf(3);
-    expect(inline.paragraph.lineboxes[0].end()).to.equal(6);
-    expect(inline.paragraph.lineboxes[1].end()).to.equal(11);
+    expect(inline.paragraph.lineboxes[0].endOffset).to.equal(6);
+    expect(inline.paragraph.lineboxes[1].endOffset).to.equal(11);
   });
 
   it('ignores empty spans when assigning padding to words', function () {

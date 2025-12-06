@@ -816,6 +816,18 @@ describe('Lines', function () {
     expect(ifc.paragraph.items[0].end()).to.equal(11);
   });
 
+  it('paints an inline with a hard break immediately after', function () {
+    this.layout(`
+      <span style="background-color: green; padding: 0 10px;"><br>f</span>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 10, height: 18, fillColor: '#008000'},
+      {t: 'rect', x: 0, y: 19, width: 14, height: 18, fillColor: '#008000'},
+      {t: 'text', x: 0, y: 33.14453125, text: 'f', fillColor: '#000'}
+    ]);
+  });
+
   it('sets the height of an ifc box correctly', function () {
     this.layout(`
       <div style="width: 500px; font: 16px Ramabhadra">

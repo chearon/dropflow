@@ -2265,7 +2265,7 @@ export class Paragraph {
         candidates.height.stampBlock(mark.box, parent);
       }
 
-      if (mark.inlinePre && mark.inlinePost || mark.box?.isInlineLevel()) {
+      if (mark.inlinePre && (mark.inlinePost || mark.isBreakForced) || mark.box?.isInlineLevel()) {
         const [left, right] = [item, this.items[mark.itemIndex + 1]];
         let level: number = 0;
         // Treat the empty span as an Other Neutral (ON) according to UAX29. I

@@ -1653,7 +1653,6 @@ export class Paragraph {
   treeItems: (ShapedItem | ShapedShim)[];
   lineboxes: Linebox[];
   backgroundBoxes: Map<Inline, BackgroundBox[]>;
-  height: number;
 
   constructor(ifc: IfcInline, buffer: AllocatedUint16Array) {
     this.ifc = ifc;
@@ -1663,7 +1662,15 @@ export class Paragraph {
     this.treeItems = [];
     this.lineboxes = [];
     this.backgroundBoxes = new Map();
-    this.height = 0;
+  }
+
+  getHeight() {
+    if (this.lineboxes.length) {
+      const line = this.lineboxes.at(-1)!;
+      return line.blockOffset + line.height();
+    } else {
+      return 0;
+    }
   }
 
   destroy() {
@@ -2454,7 +2461,6 @@ export class Paragraph {
     }
 
     this.lineboxes = lines;
-    this.height = blockOffset - bfc.cbBlockStart;
   }
 
   positionItems(ctx: LayoutContext) {

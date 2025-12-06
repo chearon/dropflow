@@ -880,7 +880,7 @@ describe('Lines', function () {
 
     /** @type import('../src/layout-flow.ts').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.paragraph.height).to.equal(16);
+    expect(ifc.paragraph.getHeight()).to.equal(16);
   });
 
   it('takes inline struts into account', function () {
@@ -893,7 +893,7 @@ describe('Lines', function () {
 
     /** @type import('../src/layout-flow.ts').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.paragraph.height).to.be.approximately(29.984, 0.001);
+    expect(ifc.paragraph.getHeight()).to.be.approximately(29.984, 0.001);
   });
 
   it('takes inline struts into account even if they have no content', function () {
@@ -905,7 +905,7 @@ describe('Lines', function () {
 
     /** @type import('../src/layout-flow.ts').IfcInline[] */
     const [ifc] = this.get('div').children;
-    expect(ifc.paragraph.height).to.be.approximately(29.984, 0.001);
+    expect(ifc.paragraph.getHeight()).to.be.approximately(29.984, 0.001);
   });
 
   it('sets box to linebox height when it\'s a bfc and ifc', function () {
@@ -1247,7 +1247,7 @@ describe('Lines', function () {
       expect(ifc.paragraph.lineboxes[0].startOffset).to.equal(0);
       expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(1);
       expect(ifc.paragraph.lineboxes[5].startOffset).to.equal(84);
-      expect(ifc.paragraph.height).to.equal(120);
+      expect(ifc.paragraph.getHeight()).to.equal(120);
     });
 
     it('can make empty lineboxes when newlines are preserved', function () {

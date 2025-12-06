@@ -123,7 +123,7 @@ describe('Hyperscript API', function () {
     expect(ifc.paragraph.lineboxes[2].blockOffset).to.equal(40);
     expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(43);
     expect(ifc.paragraph.lineboxes[3].blockOffset).to.equal(60);
-    expect(ifc.paragraph.height).to.equal(80);
+    expect(ifc.paragraph.getHeight()).to.equal(80);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 

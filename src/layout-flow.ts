@@ -895,7 +895,7 @@ export class BlockContainer extends FormattingBox {
     const [ifc] = this.children;
     const blockSize = this.style.getBlockSize(this);
     ifc.doTextLayout(ctx);
-    if (blockSize === 'auto') this.setBlockSize(ifc.paragraph.height);
+    if (blockSize === 'auto') this.setBlockSize(ifc.paragraph.getHeight());
   }
 
   hasBackground() {

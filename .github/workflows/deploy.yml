@@ -22,7 +22,7 @@ jobs:
       - run: npm install --frozen-lockfile
       - run: npm run tsc
       - run: npm exec vite -- -c site/vite.config.js build --minify false --base dropflow/
-      - run: cp assets/logo-afe.png dist/site/assets
+      - run: cp -r assets dist/site
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:

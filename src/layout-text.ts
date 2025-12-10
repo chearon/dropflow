@@ -139,7 +139,7 @@ export class Run extends RenderItem {
         parent.bitfield |= Box.BITS.hasNewlines;
       }
 
-      if (!parent.hasText() && !isSpaceOrTabOrNewline(paragraph[i])) {
+      if (!isSpaceOrTabOrNewline(paragraph[i])) {
         parent.bitfield |= Run.TEXT_BITS;
       }
     }

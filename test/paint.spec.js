@@ -697,6 +697,23 @@ describe('Painting', function () {
     ]);
   });
 
+  it('paint the text in a positioned inline after another positioned inline', function () {
+    this.layout(`
+      Get a
+      <span style="position: relative;">
+        <span style="background-color: #fca; position: relative;">wool</span>
+        blanket
+      </span>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 12.8, text: 'Get a ', fillColor: '#000'},
+      {t: 'text', x: 160, y: 12.8, text: ' blanket', fillColor: '#000'},
+      {t: 'rect', x: 96, y: 0, width: 64, height: 16, fillColor: '#fca'},
+      {t: 'text', x: 96, y: 12.8, text: 'wool', fillColor: '#000'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

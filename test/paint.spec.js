@@ -85,9 +85,10 @@ describe('Painting', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 8, text: 'upper ', fillColor: '#000'},
       {t: 'rect', x: 60, y: 0, width: 31, height: 10, fillColor: '#0f0'},
       {t: 'edge', x: 90.5, y: 0, length: 10, side: 'right', strokeColor: '#f00', lineWidth: 1},
-      {t: 'text', x: 0, y: 8, text: 'upper cup', fillColor: '#000'},
+      {t: 'text', x: 60, y: 8, text: 'cup', fillColor: '#000'}
     ]);
   });
 
@@ -157,7 +158,8 @@ describe('Painting', function () {
 
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'rect', x: 0, y: 0, width: 40, height: 10, fillColor: '#f00'},
-      {t: 'text', x: 0, y: 8, text: 'flow ', fillColor: '#000'},
+      {t: 'text', x: 0, y: 8, text: 'flow', fillColor: '#000'},
+      {t: 'text', x: 40, y: 8, text: ' ', fillColor: '#000'},
       {t: 'text', x: 90, y: 8, text: '!', fillColor: '#000'},
       {t: 'rect', x: 50, y: 0, width: 40, height: 10, fillColor: '#0f0'},
       {t: 'text', x: 50, y: 8, text: 'drop', fillColor: '#000'},
@@ -575,7 +577,8 @@ describe('Painting', function () {
 
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'rect', x: 0, y: 0, width: 50, height: 10, fillColor: '#8f0'},
-      {t: 'text', x: 0, y: 8, text: 'startstop', fillColor: '#000'}
+      {t: 'text', x: 0, y: 8, text: 'start', fillColor: '#000'},
+      {t: 'text', x: 50, y: 8, text: 'stop', fillColor: '#000'}
     ]);
   });
 
@@ -711,6 +714,43 @@ describe('Painting', function () {
       {t: 'text', x: 160, y: 12.8, text: ' blanket', fillColor: '#000'},
       {t: 'rect', x: 96, y: 0, width: 64, height: 16, fillColor: '#fca'},
       {t: 'text', x: 96, y: 12.8, text: 'wool', fillColor: '#000'}
+    ]);
+  });
+
+  it('paints backgrounds below positioned inlines', function () {
+    this.layout(`
+      Get a
+      <span style="position: relative;">
+        pendleton <span style="background-color: #fca;">blanket</span>
+      </span>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 12.8, text: 'Get a ', fillColor: '#000'},
+      {t: 'text', x: 96, y: 12.8, text: 'pendleton ', fillColor: '#000'},
+      {t: 'rect', x: 256, y: 0, width: 112, height: 16, fillColor: '#fca'},
+      {t: 'text', x: 256, y: 12.8, text: 'blanket', fillColor: '#000'}
+    ]);
+  });
+
+  it('paints inline content in relative order', function () {
+    this.layout(
+      '<span style="position: relative;">' +
+        '<span style="background-color: #f00;">' +
+          '<br>' +
+          '<div style="display: inline-block; background-color: #0f0;">:)</div>' +
+          '<span style="border-right: 10px solid #00f;"></span>' +
+          'oof!' +
+        '</span>' +
+      '</span>'
+    );
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 16, width: 106, height: 16, fillColor: '#f00'},
+      {t: 'rect', x: 0, y: 16, width: 32, height: 16, fillColor: '#0f0'},
+      {t: 'text', x: 0, y: 28.8, text: ':)', fillColor: '#000'},
+      {t: 'edge', x: 37, y: 16, length: 16, side: 'right', strokeColor: '#00f', lineWidth: 10},
+      {t: 'text', x: 42, y: 28.8, text: 'oof!', fillColor: '#000'}
     ]);
   });
 

@@ -1518,7 +1518,7 @@ export class Linebox extends LineItemLinkedList {
 }
 
 export interface BackgroundBox {
-  linebox: Linebox;
+  inline: Inline;
   start: number;
   end: number;
   blockOffset: number;
@@ -1537,7 +1537,7 @@ class ContiguousBoxBuilder {
     this.closed = new Map();
   }
 
-  open(inline: Inline, linebox: Linebox, naturalStart: boolean, start: number, blockOffset: number) {
+  open(inline: Inline, naturalStart: boolean, start: number, blockOffset: number) {
     const box = this.opened.get(inline);
 
     if (box) {
@@ -1547,7 +1547,7 @@ class ContiguousBoxBuilder {
       const naturalEnd = false;
       const {ascender, descender} = inline.metrics;
       const box: BackgroundBox = {
-        start, end, linebox, blockOffset, ascender, descender, naturalStart, naturalEnd
+        start, end, inline, blockOffset, ascender, descender, naturalStart, naturalEnd
       };
       this.opened.set(inline, box);
       // Make sure closed is in open order
@@ -1650,7 +1650,6 @@ export class Paragraph {
   string: string;
   buffer: AllocatedUint16Array;
   items: ShapedItem[];
-  treeItems: (ShapedItem | ShapedShim)[];
   lineboxes: Linebox[];
   backgroundBoxes: Map<Inline, BackgroundBox[]>;
 
@@ -1659,7 +1658,6 @@ export class Paragraph {
     this.string = ifc.text;
     this.buffer = buffer;
     this.items = [];
-    this.treeItems = [];
     this.lineboxes = [];
     this.backgroundBoxes = new Map();
   }
@@ -2208,10 +2206,8 @@ export class Paragraph {
     let floatsInWord = [];
     let blockOffset = bfc.cbBlockStart;
     let lineHasWord = false;
-    this.treeItems = [];
 
     const finishLine = (line: Linebox) => {
-      for (let n = line.head; n; n = n.next) this.treeItems.push(n.value);
       line.postprocess(width, height, vacancy, this.ifc.style.getTextAlign());
       const blockSize = line.height();
       width.reset();
@@ -2410,6 +2406,9 @@ export class Paragraph {
     }
 
     if (line) {
+      // If the IFC consists of only whitespace and inline-blocks or replaced
+      // elements, the whitespace is added here
+      line.addCandidates(candidates, this.string.length);
       // There could have been floats after the paragraph's final line break
       bfc.getLocalVacancyForLine(bfc, blockOffset, line.height(), vacancy);
       finishLine(line);
@@ -2584,7 +2583,7 @@ export class Paragraph {
           }
 
           if (isFirstOccurance) inlineSideAdvance(inline, 'start');
-          boxBuilder?.open(inline, linebox, isFirstOccurance, bgcursor, y - baselineShift);
+          boxBuilder?.open(inline, isFirstOccurance, bgcursor, y - baselineShift);
 
           if (isFirstOccurance) {
             counts.set(inline, 1);

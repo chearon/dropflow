@@ -1576,7 +1576,7 @@ export function createInlineIterator(inline: IfcInline) {
   return {next};
 }
 
-export function createPreorderInlineIterator(inline: IfcInline) {
+export function createPreorderInlineIterator(inline: Inline) {
   const stack: InlineLevel[] = inline.children.slice().reverse();
 
   function next(): {done: true} | {done: false, value: Inline | Run} {

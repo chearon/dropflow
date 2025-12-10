@@ -71,10 +71,11 @@ function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
 function drawText(
   item: ShapedItem,
   colors: [Color, number][],
+  textStart: number,
+  textEnd: number,
   b: PaintBackend
 ) {
   const style = item.attrs.style;
-  const {textStart, textEnd} = getTextOffsetsForUncollapsedGlyphs(item);
   const state = item.createMeasureState();
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
@@ -83,8 +84,16 @@ function drawText(
   const colorEnd = item.colorsEnd(colors);
   let colorIndex = item.colorsStart(colors);
   let tx = item.x;
+  const collapsed = getTextOffsetsForUncollapsedGlyphs(item);
+  textStart = Math.max(textStart, collapsed.textStart);
+  textEnd = Math.min(textEnd, collapsed.textEnd);
 
-  if (item.attrs.level & 1) tx += item.measure().advance;
+  if (item.attrs.level & 1) {
+    tx += item.measure().advance;
+    tx -= item.measure(textStart, 1, state).advance;
+  } else {
+    tx += item.measure(textStart, 1, state).advance;
+  }
 
   while (colorIndex !== colorEnd) {
     const [color, offset] = colors[colorIndex];
@@ -95,8 +104,8 @@ function drawText(
 
     if (start < end) {
       // TODO: should really have isStartColorBoundary, isEndColorBoundary
-      const isColorBoundary = start !== textStart && start === colorStart
-        || end !== textEnd && end === colorEnd;
+      const isColorBoundary = start !== item.offset && start === colorStart
+        || end !== item.end() && end === colorEnd;
       const ax = item.measure(end, 1, state).advance;
 
       if (item.attrs.level & 1) tx -= ax;
@@ -206,12 +215,12 @@ function snap(ox: number, oy: number, ow: number, oh: number) {
 
 function paintInlineBackground(
   background: BackgroundBox,
-  inline: Inline,
   paragraph: Paragraph,
   b: PaintBackend
 ) {
   const ifc = paragraph.ifc;
   const direction = ifc.style.direction;
+  const inline = background.inline;
   const bgc = inline.style.backgroundColor;
   const clip = inline.style.backgroundClip;
   const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
@@ -306,54 +315,95 @@ function paintReplacedBox(box: ReplacedBox, b: PaintBackend) {
   }
 }
 
-function paintInlines(root: BlockLayerRoot, ifc: IfcInline, b: PaintBackend) {
-  const colors = ifc.paragraph.getColors();
-  const lineboxes = ifc.paragraph.lineboxes;
-  const painted = new Set<Inline>();
-  let lineboxIndex = -1;
-  let lineboxItem = null;
+function paintInline(
+  inlineRoot: Inline,
+  layerRoot: LayerRoot,
+  paragraph: Paragraph,
+  b: PaintBackend
+) {
+  const colors = paragraph.getColors();
+  const items = paragraph.items;
+  const backgrounds: BackgroundBox[] = [];
+  let backgroundIndex = 0;
+  const stack: InlineLevel[] = [inlineRoot];
+  let lastMark = inlineRoot.start;
+  let inlineMark = inlineRoot.start;
+  let mark = inlineRoot.start;
+  let itemIndex = 0; // common case, adjusted below if necessary
+  let itemEnd = items.length; // common case, adjusted below
 
-  for (const item of ifc.paragraph.treeItems) {
-    let hasPositionedParent = false;
+  if (items.length > 0 && inlineRoot.start !== items[0].offset) {
+    itemIndex = binarySearchOf(items, inlineRoot.start, item => item.end());
+    if (items[itemIndex].end() === inlineRoot.start) itemIndex += 1;
+  }
+  if (items.length > 0 && inlineRoot.end !== items[itemEnd - 1].end()) {
+    itemEnd = binarySearchOf(items, inlineRoot.end, item => item.end()) + 1;
+  }
 
-    if (lineboxItem) lineboxItem = lineboxItem.next;
-    if (!lineboxItem) { // starting a new linebox
-      lineboxItem = lineboxes[++lineboxIndex].head;
-      painted.clear();
+  main: while (
+    itemIndex < itemEnd ||
+    stack.length ||
+    backgroundIndex < backgrounds.length
+  ) {
+    // paint lastMark..mark
+    if (itemIndex < itemEnd) {
+      if (lastMark < mark) drawText(items[itemIndex], colors, lastMark, mark, b);
+      if (mark === items[itemIndex].end()) itemIndex++;
     }
 
-    for (const inline of item.inlines) {
-      if (inline.isLayerRoot()) {
-        hasPositionedParent = true;
-        break;
-      } else if (!painted.has(inline)) {
-        const backgrounds = ifc.paragraph.backgroundBoxes.get(inline);
-        if (backgrounds) {
-          for (const background of backgrounds) {
-            if (background.linebox === lineboxes[lineboxIndex]) {
-              paintInlineBackground(background, inline, ifc.paragraph, b);
+    // Fragmented backgrounds from an inline already seen
+    while (
+      backgroundIndex < backgrounds.length &&
+      backgrounds[backgroundIndex].inline.start === mark
+    ) {
+      paintInlineBackground(backgrounds[backgroundIndex++], paragraph, b);
+    }
+
+    // Inlines, inline-block, images
+    while (stack.length && mark === inlineMark) {
+      const box = stack.pop()!;
+      if (box.isInline()) {
+        if (!box.isLayerRoot() || box === inlineRoot) {
+          const inlineBackgrounds = paragraph.backgroundBoxes.get(box);
+          if (inlineBackgrounds) {
+            for (const background of inlineBackgrounds) {
+              backgrounds.push(background);
             }
           }
+          for (let i = box.children.length - 1; i >= 0; i--) {
+            stack.push(box.children[i]);
+          }
+        } else {
+          while (
+            itemIndex < itemEnd && 
+            items[itemIndex].end() <= box.end
+          ) itemIndex++;
         }
-        painted.add(inline);
+      } else if (box.isFormattingBox()) {
+        if (backgroundIndex < backgrounds.length) {
+          stack.push(box);
+          continue main; // inline backgrounds must be painted first!
+        }
+        if (!box.isLayerRoot()) {
+          if (box.isReplacedBox()) {
+            paintFormattingBoxBackground(box, b);
+            paintReplacedBox(box, b);
+          } else {
+            paintBlockLayerRoot(layerRoot.inlineBlocks.get(box)!, b);
+          }
+        }
+      } else if (box.isRun()) {
+        inlineMark = box.end;
       }
     }
 
-    if (!hasPositionedParent) {
-      if (item instanceof ShapedItem) {
-        drawText(item, colors, b);
-      } else if (item.box) {
-        if (item.box.isReplacedBox()) {
-          if (!item.box.isLayerRoot()) {
-            paintFormattingBoxBackground(item.box, b);
-            paintReplacedBox(item.box, b);
-          }
-        } else {
-          const blockLayerRoot = root.inlineBlocks.get(item.box)!;
-          paintBlockLayerRoot(blockLayerRoot, b);
-        }
-      }
-    }
+    lastMark = mark;
+    mark = Math.min(
+      backgroundIndex < backgrounds.length ? backgrounds[backgroundIndex].inline.start : Infinity,
+      itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
+      inlineMark,
+      inlineRoot.end
+    );
   }
 }
 
@@ -369,7 +419,7 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
       // Belongs to this LayerRoot
       if (box === root.box || !box.isLayerRoot()) paintReplacedBox(box, b);
     } else if (box.isInline()) {
-      paintInlines(root, box, b);
+      paintInline(box, root, box.paragraph, b);
     } else {
       if (
         // Belongs to this LayerRoot
@@ -389,68 +439,6 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
       }
     }
   }
-}
-
-function paintInline(
-  root: InlineLayerRoot,
-  paragraph: Paragraph,
-  b: PaintBackend
-) {
-  const colors = paragraph.getColors();
-  const treeItems = paragraph.treeItems;
-  const stack = root.box.children.slice().reverse();
-  const ranges: [number, number][] = [];
-  let itemIndex = binarySearchOf(paragraph.treeItems, root.box.start, item => item.offset);
-
-  function paintRanges() {
-    while (ranges.length) {
-      const [start, end] = ranges.shift()!;
-      while (treeItems[itemIndex]?.offset < start) itemIndex++;
-      while (treeItems[itemIndex]?.end() <= end) {
-        const item = treeItems[itemIndex];
-        let hasPositionedParent = false;
-        for (let i = item.inlines.length - 1; i >= 0; i--) {
-          if (item.inlines[i] === root.box) break;
-          if (item.inlines[i].isLayerRoot()) {
-            hasPositionedParent = true;
-            break;
-          }
-        }
-        if (!hasPositionedParent && item instanceof ShapedItem) {
-          drawText(item, colors, b);
-        }
-        itemIndex++;
-      }
-    }
-  }
-
-  while (stack.length) {
-    const box = stack.pop()!;
-
-    if (box.isRun()) {
-      const range = ranges.at(-1);
-      if (range?.[1] === box.start) {
-        range[1] = box.end;
-      } else {
-        ranges.push([box.start, box.end]);
-      }
-    } else if (box.isBox() && !box.isPositioned()) {
-      if (box.isInline()) {
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
-        }
-      } else if (box.isReplacedBox()) {
-        paintFormattingBoxBackground(box, b);
-        paintReplacedBox(box, b);
-      } else {
-        const layerRoot = root.inlineBlocks.get(box)!;
-        paintRanges();
-        paintBlockLayerRoot(layerRoot, b);
-      }
-    }
-  }
-
-  paintRanges();
 }
 
 class LayerRoot {
@@ -680,15 +668,8 @@ function paintInlineLayerRoot(root: InlineLayerRoot, b: PaintBackend) {
 
   for (const r of root.floats) paintLayerRoot(r, b);
 
-  const backgrounds = root.paragraph.backgroundBoxes.get(root.box);
-  if (backgrounds) {
-    for (const background of backgrounds) {
-      paintInlineBackground(background, root.box, root.paragraph, b);
-    }
-  }
-
   if (root.box.hasForeground() || root.box.hasForegroundInLayerRoot()) {
-    paintInline(root, root.paragraph, b);
+    paintInline(root.box, root, root.paragraph, b);
   }
 
   for (const r of root.positionedRoots) paintLayerRoot(r, b);

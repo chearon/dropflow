@@ -519,56 +519,52 @@ class HTMLElement {
 
 ### `boxes`
 
-`HTMLElement`s can have more than one render box, but will normally have just one. The two main types of boxes are `BlockContainer`s (roughly `<div>`) and `Inline`s (roughly `<span>`s).
+`HTMLElement`s can have more than one render box, but will normally have just one. The most common types of boxes are `BlockContainer`s (roughly `<div>`) and `Inline`s (roughly `<span>`s).
 
 The only time you'll see more than one `Box` for an element is if the element has mixed inline and block content. In that case, the inline content gets wrapped with anonymous `BlockContainers`.
 
-A `BlockContainer` is generated for absolutely positioned elements, floated elements, inline-blocks, and block-level elements. For those elements, you can use its `contentArea`, `borderArea`, and `paddingArea`.
+A `BlockContainer` is generated for absolutely positioned elements, floated elements, inline-blocks, and block-level elements. A `ReplacedBox` is generated for images. These are both considered `FormattingBox`es, which is one of the two most primitive types of boxes in flow layout, the other being `Inline`.
 
-Most of the time you can assume it's a `BlockContainer`:
+Typically when you use `query`, you'll be getting a `BlockContainer`:
 
 ```ts
 const dom = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
 const root = flow.generate(dom);
 flow.layout(root, 200, 200);
 const [box] = dom.query('#d')!.boxes as flow.BlockContainer[];
-box.contentArea.width; // 100
-box.contentArea.height; // 100
+box.getContentArea().width; // 100
+box.getContentArea().height; // 100
 ```
 
-The supported interfaces of the classes follow:
+But you can always check using the methods below. The supported interfaces are:
 
 ```ts
 class HTMLElement {
   boxes: Box[];
 }
-```
 
-```ts
 class Box {
   isInline(): this is Inline;
   isBlockContainer(): this is BlockContainer;
+  isFormattingBox(): this is FormattingBox;
+  getBorderArea(): BoxArea;
+  getPaddingArea(): BoxArea;
+  getContentArea(): BoxArea;
 }
-```
 
-```ts
-class BlockContainer extends Box {
-  public borderArea: BoxArea;
-  public paddingArea: BoxArea;
-  public contentArea: BoxArea;
-}
-```
-
-```ts
 class Inline extends Box;
-```
 
-```ts
+abstract class FormattingBox extends Box;
+
+class BlockContainer extends FormattingBox;
+
+class ReplacedBox extends FormattingBox;
+
 class BoxArea {
-  public x: number;
-  public y: number;
-  public width: number;
-  public height: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 ```
 

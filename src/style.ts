@@ -74,7 +74,7 @@ const LogicalMaps = Object.freeze({
 
 export type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
 
-type Length = number | {value: number, unit: 'cm' | 'mm' | 'Q' | 'in' | 'pc' | 'pt' | 'px' | 'em'};
+type Length = number | {value: number, unit: 'cm' | 'mm' | 'Q' | 'in' | 'pc' | 'pt' | 'em'};
 
 type Percentage = {value: number, unit: '%'};
 
@@ -945,24 +945,22 @@ function resolveUnit(
   value: DeclaredStyleProperties[keyof DeclaredStyleProperties],
   fontSize: number
 ) {
-  if (typeof value === 'object' && 'unit' in value ) {
-    // see https://www.w3.org/TR/css-values-3/#absolute-lengths
-    if (value.unit === 'em')
-      return fontSize * value.value;
-    else if (value.unit === 'cm')
-      return (value.value / 2.54) * 96;
-    else if (value.unit === 'mm')
-      return (value.value / 25.4) * 96;
-    else if (value.unit === 'Q')
-      return (value.value / 40 / 25.4) * 96;
-    else if (value.unit === 'in')
-      return value.value * 96;
-    else if (value.unit === 'pc')
-      return (value.value / 6) * 96;
-    else if (value.unit === 'pt')
-      return (value.value / 72) * 96;
-    else // assume it's px
+  if (typeof value === 'object' && 'unit' in value) {
+    const unitToPx: Record<string, (val: number, fontSize?: number) => number> = {
+      'em': (val, fontSize) => fontSize! * val,
+      'cm': (val) => (val / 2.54) * 96,
+      'mm': (val) => (val / 25.4) * 96,
+      'Q': (val) => (val / 40 / 25.4) * 96,
+      'in': (val) => val * 96,
+      'pc': (val) => (val / 6) * 96,
+      'pt': (val) => (val / 72) * 96,
+      // Add more units as needed
+    };
+    if (value.unit !== null) {
+      return unitToPx[value.unit]?.(value.value, fontSize) ?? value.value;
+    } else {
       return value.value;
+    }
   } else {
     return value;
   }

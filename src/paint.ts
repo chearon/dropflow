@@ -6,7 +6,7 @@ import {Box, FormattingBox} from './layout-box.ts';
 import {binarySearchOf} from './util.ts';
 
 import type {InlineLevel, BlockLevel} from './layout-flow.ts';
-import type {BackgroundBox} from './layout-text.ts';
+import type {InlineFragment} from './layout-text.ts';
 import type {Color} from './style.ts';
 import type {LoadedFontFace} from './text-font.ts';
 
@@ -214,13 +214,13 @@ function snap(ox: number, oy: number, ow: number, oh: number) {
 }
 
 function paintInlineBackground(
-  background: BackgroundBox,
+  fragment: InlineFragment,
   paragraph: Paragraph,
   b: PaintBackend
 ) {
   const ifc = paragraph.ifc;
   const direction = ifc.style.direction;
-  const inline = background.inline;
+  const inline = fragment.inline;
   const bgc = inline.style.backgroundColor;
   const clip = inline.style.backgroundClip;
   const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
@@ -228,7 +228,7 @@ function paintInlineBackground(
   const {a: ra} = borderRightColor;
   const {a: ba} = borderBottomColor;
   const {a: la} = borderLeftColor;
-  const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = background;
+  const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = fragment;
   const paddingTop = inline.style.getPaddingBlockStart(ifc);
   const paddingRight = inline.style.getPaddingLineRight(ifc);
   const paddingBottom = inline.style.getPaddingBlockEnd(ifc);
@@ -350,9 +350,9 @@ function paintInline(
       const box = stack.pop()!;
       if (box.isInline()) {
         if (!box.isLayerRoot() || box === inlineRoot) {
-          const inlineBackgrounds = paragraph.backgroundBoxes.get(box);
-          if (inlineBackgrounds) {
-            for (const background of inlineBackgrounds) {
+          const fragments = paragraph.fragments.get(box);
+          if (fragments) {
+            for (const background of fragments) {
               paintInlineBackground(background, paragraph, b);
             }
           }

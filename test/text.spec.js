@@ -2086,9 +2086,9 @@ describe('Inline Blocks', function () {
     const [ifc] = this.get('#t1').children;
     /** @type import('../src/layout-flow.ts').Inline */
     const span = this.get('#t2');
-    const box = ifc.paragraph.backgroundBoxes.get(span);
-    expect(box[0].start).to.equal(8.96);
-    expect(box[0].end).to.equal(90.44800000000001);
+    const fragment = ifc.paragraph.fragments.get(span);
+    expect(fragment[0].start).to.equal(8.96);
+    expect(fragment[0].end).to.equal(90.44800000000001);
   });
 
   it('occupies the right amount of space for floats', function () {

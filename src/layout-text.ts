@@ -1517,7 +1517,7 @@ export class Linebox extends LineItemLinkedList {
   }
 }
 
-export interface BackgroundBox {
+export interface InlineFragment {
   inline: Inline;
   start: number;
   end: number;
@@ -1529,8 +1529,8 @@ export interface BackgroundBox {
 }
 
 class ContiguousBoxBuilder {
-  opened: Map<Inline, BackgroundBox>;
-  closed: Map<Inline, BackgroundBox[]>;
+  opened: Map<Inline, InlineFragment>;
+  closed: Map<Inline, InlineFragment[]>;
 
   constructor() {
     this.opened = new Map();
@@ -1538,32 +1538,32 @@ class ContiguousBoxBuilder {
   }
 
   open(inline: Inline, naturalStart: boolean, start: number, blockOffset: number) {
-    const box = this.opened.get(inline);
+    const fragment = this.opened.get(inline);
 
-    if (box) {
-      box.end = start;
+    if (fragment) {
+      fragment.end = start;
     } else {
       const end = start;
       const naturalEnd = false;
       const {ascender, descender} = inline.metrics;
-      const box: BackgroundBox = {
+      const fragment: InlineFragment = {
         start, end, inline, blockOffset, ascender, descender, naturalStart, naturalEnd
       };
-      this.opened.set(inline, box);
+      this.opened.set(inline, fragment);
       // Make sure closed is in open order
       if (!this.closed.has(inline)) this.closed.set(inline, []);
     }
   }
 
   close(inline: Inline, naturalEnd: boolean, end: number) {
-    const box = this.opened.get(inline);
+    const fragment = this.opened.get(inline);
 
-    if (box) {
+    if (fragment) {
       const list = this.closed.get(inline);
-      box.end = end;
-      box.naturalEnd = naturalEnd;
+      fragment.end = end;
+      fragment.naturalEnd = naturalEnd;
       this.opened.delete(inline);
-      list ? list.push(box) : this.closed.set(inline, [box]);
+      list ? list.push(fragment) : this.closed.set(inline, [fragment]);
     }
   }
 
@@ -1651,7 +1651,7 @@ export class Paragraph {
   buffer: AllocatedUint16Array;
   items: ShapedItem[];
   lineboxes: Linebox[];
-  backgroundBoxes: Map<Inline, BackgroundBox[]>;
+  fragments: Map<Inline, InlineFragment[]>;
 
   constructor(ifc: IfcInline, buffer: AllocatedUint16Array) {
     this.ifc = ifc;
@@ -1659,7 +1659,7 @@ export class Paragraph {
     this.buffer = buffer;
     this.items = [];
     this.lineboxes = [];
-    this.backgroundBoxes = new Map();
+    this.fragments = new Map();
   }
 
   getHeight() {
@@ -2653,11 +2653,11 @@ export class Paragraph {
 
       if (boxBuilder) {
         for (const [inline, list] of boxBuilder.closed) {
-          const thisList = this.backgroundBoxes.get(inline);
+          const thisList = this.fragments.get(inline);
           if (thisList) {
-            for (const backgroundBox of list) thisList.push(backgroundBox);
+            for (const fragment of list) thisList.push(fragment);
           } else {
-            this.backgroundBoxes.set(inline, list);
+            this.fragments.set(inline, list);
           }
         }
       }

@@ -1345,13 +1345,13 @@ export class IfcInline extends Inline {
       }
     }
 
-    for (const [inline, backgrounds] of this.paragraph.backgroundBoxes) {
+    for (const [inline, fragments] of this.paragraph.fragments) {
       const {dx, dy} = inlineShifts.get(inline)!;
 
-      for (const background of backgrounds) {
-        background.blockOffset += this.containingBlock.y + dy;
-        background.start += this.containingBlock.x + dx;
-        background.end += this.containingBlock.x + dx;
+      for (const fragment of fragments) {
+        fragment.blockOffset += this.containingBlock.y + dy;
+        fragment.start += this.containingBlock.x + dx;
+        fragment.end += this.containingBlock.x + dx;
       }
     }
   }

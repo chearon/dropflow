@@ -323,8 +323,6 @@ function paintInline(
 ) {
   const colors = paragraph.getColors();
   const items = paragraph.items;
-  const backgrounds: BackgroundBox[] = [];
-  let backgroundIndex = 0;
   const stack: InlineLevel[] = [inlineRoot];
   let lastMark = inlineRoot.start;
   let inlineMark = inlineRoot.start;
@@ -340,23 +338,11 @@ function paintInline(
     itemEnd = binarySearchOf(items, inlineRoot.end, item => item.end()) + 1;
   }
 
-  main: while (
-    itemIndex < itemEnd ||
-    stack.length ||
-    backgroundIndex < backgrounds.length
-  ) {
+  while (itemIndex < itemEnd || stack.length) {
     // paint lastMark..mark
     if (itemIndex < itemEnd) {
       if (lastMark < mark) drawText(items[itemIndex], colors, lastMark, mark, b);
       if (mark === items[itemIndex].end()) itemIndex++;
-    }
-
-    // Fragmented backgrounds from an inline already seen
-    while (
-      backgroundIndex < backgrounds.length &&
-      backgrounds[backgroundIndex].inline.start === mark
-    ) {
-      paintInlineBackground(backgrounds[backgroundIndex++], paragraph, b);
     }
 
     // Inlines, inline-block, images
@@ -367,7 +353,7 @@ function paintInline(
           const inlineBackgrounds = paragraph.backgroundBoxes.get(box);
           if (inlineBackgrounds) {
             for (const background of inlineBackgrounds) {
-              backgrounds.push(background);
+              paintInlineBackground(background, paragraph, b);
             }
           }
           for (let i = box.children.length - 1; i >= 0; i--) {
@@ -380,10 +366,6 @@ function paintInline(
           ) itemIndex++;
         }
       } else if (box.isFormattingBox()) {
-        if (backgroundIndex < backgrounds.length) {
-          stack.push(box);
-          continue main; // inline backgrounds must be painted first!
-        }
         if (!box.isLayerRoot()) {
           if (box.isReplacedBox()) {
             paintFormattingBoxBackground(box, b);
@@ -399,7 +381,6 @@ function paintInline(
 
     lastMark = mark;
     mark = Math.min(
-      backgroundIndex < backgrounds.length ? backgrounds[backgroundIndex].inline.start : Infinity,
       itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
       inlineMark,
       inlineRoot.end

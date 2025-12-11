@@ -4,9 +4,10 @@
     <title>Dropflow Playground</title>
     <script type="module" src="./index.js"></script>
   </head>
-  <body style="margin: 0; height: 100%;">
-    <div id="twinview" style="display: flex; white-space: nowrap; height: 100%;">
-      <div style="width: 50%; min-width: 0;" id="editor"></div>
+  <body style="margin: 0; height: 100%; display: flex; flex-direction: column;">
+    <div id="example-bar" style="background: #222; color: #afe; padding: 8px 0; text-align: left; z-index: 2;"></div>
+    <div id="twinview" style="display: flex; white-space: nowrap; flex: 1 1 0; min-height: 0;">
+      <div style="width: 50%; min-width: 0; height: 100%;" id="editor"></div>
       <div style="flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; flex-flow: column nowrap;">
         <div id="wrap" style="flex: auto;">
           <canvas style="position: absolute;"></canvas>

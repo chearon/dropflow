@@ -80,9 +80,9 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
   const glyphs = item.glyphs;
   let startGlyphStart = findGlyph(item, totalTextStart);
   let endGlyphEnd = findGlyph(item, totalTextEnd); // TODO findGlyphFromEnd?
-  let textStart = nextGrapheme(item.paragraph.string, totalTextStart);
+  let textStart = nextGrapheme(item.ifc.text, totalTextStart);
   let startGlyphEnd = findGlyph(item, textStart);
-  let textEnd = Math.max(textStart, prevGrapheme(item.paragraph.string, totalTextEnd));
+  let textEnd = Math.max(textStart, prevGrapheme(item.ifc.text, totalTextEnd));
   let endGlyphStart = findGlyph(item, textEnd);
 
   if (item.attrs.level & 1) {
@@ -150,7 +150,7 @@ export default class CanvasPaintBackend implements PaintBackend {
   }
 
   fastText(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.paragraph.sliceRenderText(item, textStart, textEnd);
+    const text = item.ifc.sliceRenderText(item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     this.ctx.save();
     this.ctx.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';

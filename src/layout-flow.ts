@@ -4,18 +4,22 @@ import {createStyle, Style, EMPTY_STYLE} from './style.ts';
 import {
   EmptyInlineMetrics,
   Linebox,
-  Paragraph,
   Run,
   collapseWhitespace,
-  createEmptyParagraph,
-  createParagraph,
-  getFontMetrics
+  getFontMetrics,
+  createIfcBuffer,
+  getIfcContribution,
+  createIfcShapedItems,
+  createIfcLineboxes,
+  positionIfcItems,
+  sliceIfcRenderText
 } from './layout-text.ts';
 import {getImage} from './layout-image.ts';
 import {Box, FormattingBox, RenderItem} from './layout-box.ts';
 
-import type {InlineMetrics} from './layout-text.ts';
+import type {InlineMetrics, ShapedItem, InlineFragment} from './layout-text.ts';
 import type {PrelayoutContext} from './layout-box.ts';
+import type {AllocatedUint16Array} from './text-harfbuzz.ts';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -830,7 +834,7 @@ export class BlockContainerOfInlines extends BlockContainerBase {
   doTextLayout(ctx: LayoutContext) {
     const blockSize = this.style.getBlockSize(this);
     this.ifc.doTextLayout(ctx);
-    if (blockSize === 'auto') this.setBlockSize(this.ifc.paragraph.getHeight());
+    if (blockSize === 'auto') this.setBlockSize(this.ifc.getLineboxHeight());
   }
 }
 
@@ -1032,7 +1036,7 @@ export function layoutContribution(
         }
       } else {
         if (box.ifc.shouldLayoutContent()) {
-          isize = box.ifc.paragraph.contribution(mode);
+          isize = getIfcContribution(box.ifc, mode);
         }
       }
     }
@@ -1233,17 +1237,28 @@ export class Inline extends Box {
   }
 }
 
+const EmptyBuffer = {
+  array: new Uint16Array(),
+  destroy: () => {}
+};
+
 export class IfcInline extends Inline {
-  public children: InlineLevel[];
-  public text: string;
-  public paragraph: Paragraph;
+  children: InlineLevel[];
+  text: string;
+  buffer: AllocatedUint16Array;
+  items: ShapedItem[];
+  lineboxes: Linebox[];
+  fragments: Map<Inline, InlineFragment[]>;
 
   constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
     super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
 
     this.children = children;
     this.text = text;
-    this.paragraph = createEmptyParagraph(this);
+    this.buffer = EmptyBuffer;
+    this.items = [];
+    this.lineboxes = [];
+    this.fragments = new Map();
   }
 
   isIfcInline(): this is IfcInline {
@@ -1254,12 +1269,26 @@ export class IfcInline extends Inline {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
+  sliceRenderText(item: ShapedItem, start: number, end: number) {
+    return sliceIfcRenderText(this, item, start, end);
+  }
+
+  getLineboxHeight() {
+    if (this.lineboxes.length) {
+      const line = this.lineboxes.at(-1)!;
+      return line.blockOffset + line.height();
+    } else {
+      return 0;
+    }
+  }
+
   prelayoutPostorder(ctx: PrelayoutContext) {
     if (this.shouldLayoutContent()) {
       if (this.hasCollapsibleWs()) collapseWhitespace(this);
-      this.paragraph.destroy();
-      this.paragraph = createParagraph(this);
-      this.paragraph.shape();
+      this.buffer.destroy();
+      this.buffer = createIfcBuffer(this.text);
+      this.items = createIfcShapedItems(this);
+      this.fragments.clear();
     }
   }
 
@@ -1276,10 +1305,10 @@ export class IfcInline extends Inline {
 
       if ('sentinel' in box) {
         while (
-          itemIndex < this.paragraph.items.length &&
-          this.paragraph.items[itemIndex].offset < box.sentinel.end
+          itemIndex < this.items.length &&
+          this.items[itemIndex].offset < box.sentinel.end
         ) {
-          const item = this.paragraph.items[itemIndex];
+          const item = this.items[itemIndex];
           item.x += containingBlock.x;
           item.y += containingBlock.y;
           if (item.end() > box.sentinel.start) {
@@ -1313,7 +1342,7 @@ export class IfcInline extends Inline {
       }
     }
 
-    for (const [inline, fragments] of this.paragraph.fragments) {
+    for (const [inline, fragments] of this.fragments) {
       const {dx, dy} = inlineShifts.get(inline)!;
 
       for (const fragment of fragments) {
@@ -1325,7 +1354,8 @@ export class IfcInline extends Inline {
   }
 
   postlayoutPreorder() {
-    this.paragraph.destroy();
+    this.buffer.destroy();
+    this.buffer = EmptyBuffer;
     if (this.shouldLayoutContent()) {
       this.positionItemsPostlayout();
     }
@@ -1341,8 +1371,8 @@ export class IfcInline extends Inline {
 
   doTextLayout(ctx: LayoutContext) {
     if (this.shouldLayoutContent()) {
-      this.paragraph.createLineboxes(ctx);
-      this.paragraph.positionItems(ctx);
+      this.lineboxes = createIfcLineboxes(this, ctx);
+      positionIfcItems(this);
     }
   }
 }

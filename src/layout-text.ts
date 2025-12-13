@@ -257,7 +257,7 @@ export interface ShapingAttrs {
   style: Style;
 }
 
-const hyphenCache = new Map<string, Int32Array>();
+const hyphenCache = new Map<string, {glyphs: Int32Array; codepoint: string}>();
 
 export function getFontMetrics(inline: Inline) {
   const strutCascade = getLangCascade(inline.style, 'en');
@@ -277,18 +277,18 @@ function loadHyphen(item: ShapedItem) {
   const key = createHyphenCacheKey(item);
 
   if (!hyphenCache.has(key)) {
-    hyphenCache.set(key, new Int32Array(0));
+    hyphenCache.set(key, {codepoint: '', glyphs: new Int32Array(0)});
 
-    for (const hyphen of HyphenCodepointsToTry) {
+    for (const codepoint of HyphenCodepointsToTry) {
       const buf = hb.createBuffer();
       buf.setClusterLevel(1);
-      buf.addText(hyphen);
+      buf.addText(codepoint);
       buf.guessSegmentProperties();
       hb.shape(item.face.hbfont, buf);
       const glyphs = buf.extractGlyphs();
       buf.destroy();
       if (glyphs[G_ID]) {
-        hyphenCache.set(key, glyphs);
+        hyphenCache.set(key, {codepoint, glyphs});
         break;
       }
     }
@@ -1700,7 +1700,24 @@ export class Paragraph {
     this.buffer = EmptyBuffer;
   }
 
-  slice(start: number, end: number) {
+  sliceRenderText(item: ShapedItem, start: number, end: number) {
+    if (this.ifc.hasSoftHyphen()) {
+      const mark = item.end() - 1;
+      const hyphen = getHyphen(item);
+      if (
+        mark >= start &&
+        mark < end &&
+        this.string[mark] === '\u00ad' && // softHyphenCharacter
+        hyphen
+      ) {
+        const first = this.string.slice(start, mark);
+        const second = this.string.slice(mark + 1, end);
+        const glyphIndex = item.attrs.level & 1 ? 0 : item.glyphs.length - G_SZ;
+        if (hyphen.glyphs[G_ID] === item.glyphs[glyphIndex + G_ID]) {
+          return first + hyphen.codepoint + second;
+        }
+      }
+    }
     return this.string.slice(start, end);
   }
 
@@ -1715,7 +1732,7 @@ export class Paragraph {
 
     this.items.splice(itemIndex + 1, 0, right);
     if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
-      const hyphen = getHyphen(left);
+      const hyphen = getHyphen(left)?.glyphs;
       if (hyphen?.length) {
         const glyphs = new Int32Array(left.glyphs.length + hyphen.length);
         if (left.attrs.level & 1) {
@@ -1733,10 +1750,6 @@ export class Paragraph {
         }
         left.glyphs = glyphs;
       }
-      // TODO 1: this sucks, but it's probably still better than using a Uint16Array
-      // and having to convert back to strings for the browser canvas backend
-      // TODO 2: the hyphen character could also be HYPHEN MINUS
-      this.string = this.string.slice(0, offset - 1) + /* U+2010 */ '‐' + this.string.slice(offset);
     }
   }
 
@@ -2303,7 +2316,7 @@ export class Paragraph {
         bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
         if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
-          const glyphs = getHyphen(item);
+          const glyphs = getHyphen(item)?.glyphs;
           const {face: {hbface: {upem}}, attrs: {style: {fontSize}}} = item;
           if (glyphs?.length) {
             let w = 0;

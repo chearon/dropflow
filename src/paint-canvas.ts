@@ -150,7 +150,7 @@ export default class CanvasPaintBackend implements PaintBackend {
   }
 
   fastText(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.paragraph.slice(textStart, textEnd);
+    const text = item.paragraph.sliceRenderText(item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     this.ctx.save();
     this.ctx.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';

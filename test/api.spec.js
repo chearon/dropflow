@@ -114,7 +114,7 @@ describe('Hyperscript API', function () {
     const box = flow.generate(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     flow.layout(box, 100);
-    const ifc = box.children[0].children[1].children[0];
+    const ifc = box.children[0].children[1].ifc;
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
     expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
     expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(20);
@@ -144,7 +144,7 @@ describe('Hyperscript API', function () {
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     flow.layout(box, 100);
     flow.layout(box, 100);
-    const ifc = box.children[0].children[1].children[0];
+    const ifc = box.children[0].children[1].ifc;
     expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });

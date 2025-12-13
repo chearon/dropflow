@@ -1011,26 +1011,21 @@ function getLastBaseline(block: FormattingBox) {
 
     if (block.isReplacedBox()) {
       return undefined;
-    } else if (block.isBlockContainer()) {
-      if (block.isBlockContainerOfInlines()) {
-        const [ifc] = block.children;
-        const linebox = ifc.paragraph.lineboxes.at(-1);
-        if (linebox) return offset + linebox.blockOffset + linebox.ascender;
-      }
+    } else if (block.isBlockContainerOfInlines()) {
+      const linebox = block.ifc.paragraph.lineboxes.at(-1);
+      if (linebox) return offset + linebox.blockOffset + linebox.ascender;
+    } else if (block.isBlockContainerOfBlocks()) {
+      const parentOffset = offset;
 
-      if (block.isBlockContainerOfBlocks()) {
-        const parentOffset = offset;
+      for (const child of block.children) {
+        if (child.isBlockContainer()) {
+          const containingBlock = child.getContainingBlock();
+          const offset = parentOffset
+            + child.getBorderArea().blockStart
+            + child.style.getBorderBlockStartWidth(containingBlock);
+          + child.style.getPaddingBlockStart(containingBlock);
 
-        for (const child of block.children) {
-          if (child.isBlockContainer()) {
-            const containingBlock = child.getContainingBlock();
-            const offset = parentOffset
-              + child.getBorderArea().blockStart
-              + child.style.getBorderBlockStartWidth(containingBlock);
-              + child.style.getPaddingBlockStart(containingBlock);
-
-            stack.push({block: child, offset});
-          }
+          stack.push({block: child, offset});
         }
       }
     }

@@ -266,7 +266,7 @@ describe('Itemization', function () {
             <span><span><span>chump</span></span</span>
           </span>
         </div>
-      `).children[0].children[0];
+      `).children[0].ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -280,7 +280,7 @@ describe('Itemization', function () {
       const ifc = layout(`
         <span style="font-size: 1px;">hello</span>
         <span style="font-size: 2px;">world</span>
-      `).children[0];
+      `).ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -306,7 +306,7 @@ describe('Itemization', function () {
         <span style="position: relative;">sanitizers:</span>
         bromine
         <span style="position: relative;">chlorine</span>
-      `).children[0];
+      `).ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -332,7 +332,7 @@ describe('Itemization', function () {
         cat
         <div style="display: inline-block;">dog</div>
         rat
-      `).children[0];
+      `).ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -350,7 +350,7 @@ describe('Itemization', function () {
         <span style="vertical-align: sub;">
           <span style="vertical-align: sub;">sub</span>
         </span>
-      `).children[0];
+      `).ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -368,7 +368,7 @@ describe('Itemization', function () {
 
     it('stops with the right style with nested inlines', function () {
       /** @type {import('../src/layout-flow.ts').IfcInline} */
-      const ifc = layout('<span style="font-family: Abc;">Abc</span>').children[0];
+      const ifc = layout('<span style="font-family: Abc;">Abc</span>').ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -381,7 +381,7 @@ describe('Itemization', function () {
       /** @type {import('../src/layout-flow.ts').IfcInline} */
       const ifc = layout(`
         <span>abc</span><span style="padding-left: 3px;">def</span>
-      `).children[0];
+      `).ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -397,7 +397,7 @@ describe('Itemization', function () {
       /** @type {import('../src/layout-flow.ts').IfcInline} */
       const ifc = layout(`
         <span style="margin-right: -1px;">a</span> b
-      `).children[0];
+      `).ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);
@@ -411,7 +411,7 @@ describe('Itemization', function () {
 
     it('stops after <img>', function () {
       /** @type {import('../src/layout-flow.ts').IfcInline} */
-      const ifc = layout('a<img>b').children[0];
+      const ifc = layout('a<img>b').ifc;
       const state = createStyleIteratorState(ifc);
 
       styleIteratorNext(state);

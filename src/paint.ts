@@ -175,11 +175,7 @@ function paintBackgroundDescendents(root: FormattingBox, b: PaintBackend) {
         paintFormattingBoxBackground(box, b);
       }
 
-      if (
-        box.isBlockContainer() &&
-        box.isBlockContainerOfBlocks() &&
-        box.hasBackgroundInLayerRoot()
-      ) {
+      if (box.isBlockContainerOfBlocks() && box.hasBackgroundInLayerRoot()) {
         stack.push({sentinel: true});
         parents.push(box);
 
@@ -429,8 +425,12 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
           stack.push({sentinel: true});
         }
 
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
+        if (box.isBlockContainerOfBlocks()) {
+          for (let i = box.children.length - 1; i >= 0; i--) {
+            stack.push(box.children[i]);
+          }
+        } else if (box.isBlockContainerOfInlines()) {
+          stack.push(box.ifc);
         }
       }
     }
@@ -643,7 +643,9 @@ function createLayerRoot(rootBox: BlockContainer) {
         stack.push({sentinel: true});
         parents.push(box);
         if (layerRoot) parentRoots.push(layerRoot);
-        if (box.isBlockContainer() || box.isInline()) {
+        if (box.isBlockContainerOfInlines()) {
+          stack.push(box.ifc);
+        } else if (box.isInline() || box.isBlockContainerOfBlocks()) {
           for (let i = box.children.length - 1; i >= 0; i--) {
             stack.push(box.children[i]);
           }

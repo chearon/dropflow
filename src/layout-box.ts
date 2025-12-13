@@ -2,7 +2,16 @@ import {id, Logger} from './util.ts';
 
 import type {Style} from './style.ts';
 import type {Run} from './layout-text.ts';
-import type {InlineLevel, Break, Inline, IfcInline, BlockContainer, ReplacedBox} from './layout-flow.ts';
+import type {
+  InlineLevel,
+  Break,
+  Inline,
+  IfcInline,
+  BlockContainer,
+  BlockContainerOfInlines,
+  BlockContainerOfBlocks,
+  ReplacedBox
+} from './layout-flow.ts';
 
 export interface LogicalArea {
   blockStart: number | undefined;
@@ -31,6 +40,14 @@ export abstract class RenderItem {
   }
 
   isBlockContainer(): this is BlockContainer {
+    return false;
+  }
+
+  isBlockContainerOfInlines(): this is BlockContainerOfInlines {
+    return false;
+  }
+
+  isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
     return false;
   }
 
@@ -94,11 +111,16 @@ export abstract class RenderItem {
 
     log.text('\n');
 
-    if (this.isBlockContainer() || this.isInline()) {
+    if (
+      this.isBlockContainerOfInlines() ||
+      this.isBlockContainerOfBlocks() ||
+      this.isInline()
+    ) {
+      const children = this.isBlockContainerOfInlines() ? [this.ifc] : this.children;
       log.pushIndent();
 
-      for (let i = 0; i < this.children.length; i++) {
-        this.children[i].log(options, log);
+      for (let i = 0; i < children.length; i++) {
+        children[i].log(options, log);
       }
 
       log.popIndent();
@@ -782,10 +804,12 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
         if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
       }
 
-      if (box.isBlockContainer() || box.isInline()) {
+      if (box.isBlockContainerOfBlocks() || box.isInline()) {
         for (let i = box.children.length - 1; i >= 0; i--) {
           stack.push(box.children[i]);
         }
+      } else if (box.isBlockContainerOfInlines()) {
+        stack.push(box.ifc);
       }
     } else if (box.isRun()) {
       box.propagate(parents.at(-1)!, ifcs.at(-1)!.paragraph.string);
@@ -809,14 +833,18 @@ export function postlayout(root: BlockContainer) {
       box.postlayoutPreorder();
       stack.push({sentinel: true});
       parents.push(box);
-      for (let i = box.children.length - 1; i >= 0; i--) {
-        const child = box.children[i];
-        if (child.isBlockContainer() || child.isInline()) {
-          stack.push(child);
-        } else {
-          child.postlayoutPreorder()
-          child.postlayoutPostorder();
+      if (box.isBlockContainerOfBlocks() || box.isInline()) {
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          const child = box.children[i];
+          if (child.isBlockContainer() || child.isInline()) {
+            stack.push(child);
+          } else {
+            child.postlayoutPreorder()
+            child.postlayoutPostorder();
+          }
         }
+      } else if (box.isBlockContainerOfInlines()) {
+        stack.push(box.ifc);
       }
     }
   }

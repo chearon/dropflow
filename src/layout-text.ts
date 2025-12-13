@@ -1013,8 +1013,7 @@ function getLastBaseline(block: FormattingBox) {
       return undefined;
     } else if (block.isBlockContainer()) {
       if (block.isBlockContainerOfInlines()) {
-        const [ifc] = block.children;
-        const linebox = ifc.paragraph.lineboxes.at(-1);
+        const linebox = block.ifc.paragraph.lineboxes.at(-1);
         if (linebox) return offset + linebox.blockOffset + linebox.ascender;
       }
 

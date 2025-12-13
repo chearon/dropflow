@@ -43,7 +43,7 @@ export default class PaintSpy {
 
   text(x, y, item, textStart, textEnd) {
     const fillColor = this.fillColor;
-    const text = item.paragraph.slice(textStart, textEnd);
+    const text = item.paragraph.sliceRenderText(item, textStart, textEnd);
     this.calls.push({t: 'text', x, y, text, fillColor});
   }
 

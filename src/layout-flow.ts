@@ -292,7 +292,7 @@ export class BlockFormattingContext {
         const level = sizeStack.length - 1;
         const sBlockSize = box.style.getBlockSize(box);
 
-        if (sBlockSize === 'auto' && box.isBlockContainerOfBlockContainers() && !box.isBfcRoot()) {
+        if (sBlockSize === 'auto' && box.isBlockContainerOfBlocks() && !box.isBfcRoot()) {
           box.setBlockSize(childSize);
         }
 
@@ -729,7 +729,7 @@ export interface BlockContainerOfInlines extends BlockContainer {
 
 export type BlockLevel = BlockContainer | ReplacedBox;
 
-export interface BlockContainerOfBlockContainers extends BlockContainer {
+export interface BlockContainerOfBlocks extends BlockContainer {
   children: BlockLevel[];
 }
 
@@ -764,7 +764,7 @@ export class BlockContainer extends FormattingBox {
 
     if (isize === 'auto') {
       isize = 0;
-      if (this.isBlockContainerOfBlockContainers()) {
+      if (this.isBlockContainerOfBlocks()) {
         for (const child of this.children) {
           isize = Math.max(isize, child.contribution(mode));
         }
@@ -827,7 +827,7 @@ export class BlockContainer extends FormattingBox {
         if (linebox) return offset + linebox.blockOffset + linebox.ascender;
       }
 
-      if (block.isBlockContainerOfBlockContainers()) {
+      if (block.isBlockContainerOfBlocks()) {
         const parentOffset = offset;
 
         for (const child of block.children) {
@@ -877,7 +877,7 @@ export class BlockContainer extends FormattingBox {
     }
   }
 
-  isBlockContainerOfBlockContainers(): this is BlockContainerOfBlockContainers {
+  isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
     return !this.isBlockContainerOfInlines();
   }
 
@@ -1010,7 +1010,7 @@ function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
     } else {
       box.doTextLayout(cctx);
     }
-  } else if (box.isBlockContainerOfBlockContainers()) {
+  } else if (box.isBlockContainerOfBlocks()) {
     for (const child of box.children) layoutBlockLevelBox(child, cctx);
   } else {
     throw new Error(`Unknown box type: ${box.id}`);

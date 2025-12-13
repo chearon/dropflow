@@ -223,7 +223,7 @@ export function staticLayoutContribution(box: BlockContainer): number {
       intrinsicSize = Math.max(intrinsicSize, line.width);
     }
     // TODO: floats
-  } else if (box.isBlockContainerOfBlockContainers()) {
+  } else if (box.isBlockContainerOfBlocks()) {
     for (const child of box.children) {
       if (child.isBlockContainer()) {
         intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));

@@ -110,7 +110,7 @@ describe('Flow', function () {
       expect(this.get(0, 2).isInlineLevel()).to.be.false;
       // <div><span> 2out<div> 2deep</div></span></div>
       expect(this.get(0, 3).isBlockContainer()).be.true
-      expect(this.get(0, 3).isBlockContainerOfBlockContainers()).be.true
+      expect(this.get(0, 3).isBlockContainerOfBlocks()).be.true
       expect(this.get(0, 3).children).to.have.lengthOf(3);
       // <anon div><span> 2out</span></anon div>
       expect(this.get(0, 3, 0).isBlockContainer()).be.true

@@ -115,15 +115,15 @@ describe('Hyperscript API', function () {
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     flow.layout(box, 100);
     const ifc = box.children[0].children[1].ifc;
-    expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
-    expect(ifc.paragraph.lineboxes[0].blockOffset).to.equal(0);
-    expect(ifc.paragraph.lineboxes[1].startOffset).to.equal(20);
-    expect(ifc.paragraph.lineboxes[1].blockOffset).to.equal(20);
-    expect(ifc.paragraph.lineboxes[2].startOffset).to.equal(40);
-    expect(ifc.paragraph.lineboxes[2].blockOffset).to.equal(40);
-    expect(ifc.paragraph.lineboxes[3].startOffset).to.equal(43);
-    expect(ifc.paragraph.lineboxes[3].blockOffset).to.equal(60);
-    expect(ifc.paragraph.getHeight()).to.equal(80);
+    expect(ifc.lineboxes).to.have.lengthOf(4);
+    expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+    expect(ifc.lineboxes[1].startOffset).to.equal(20);
+    expect(ifc.lineboxes[1].blockOffset).to.equal(20);
+    expect(ifc.lineboxes[2].startOffset).to.equal(40);
+    expect(ifc.lineboxes[2].blockOffset).to.equal(40);
+    expect(ifc.lineboxes[3].startOffset).to.equal(43);
+    expect(ifc.lineboxes[3].blockOffset).to.equal(60);
+    expect(ifc.getLineboxHeight()).to.equal(80);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
@@ -145,7 +145,7 @@ describe('Hyperscript API', function () {
     flow.layout(box, 100);
     flow.layout(box, 100);
     const ifc = box.children[0].children[1].ifc;
-    expect(ifc.paragraph.lineboxes).to.have.lengthOf(4);
+    expect(ifc.lineboxes).to.have.lengthOf(4);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 });

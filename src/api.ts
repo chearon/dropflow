@@ -218,8 +218,7 @@ export function staticLayoutContribution(box: BlockContainer): number {
   }
 
   if (box.isBlockContainerOfInlines()) {
-    const [ifc] = box.children;
-    for (const line of ifc.paragraph.lineboxes) {
+    for (const line of box.ifc.paragraph.lineboxes) {
       intrinsicSize = Math.max(intrinsicSize, line.width);
     }
     // TODO: floats

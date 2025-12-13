@@ -723,29 +723,12 @@ export class FloatContext {
   }
 }
 
-export interface BlockContainerOfInlines extends BlockContainer {
-  children: IfcInline[];
-}
-
-export type BlockLevel = BlockContainer | ReplacedBox;
-
-export interface BlockContainerOfBlocks extends BlockContainer {
-  children: BlockLevel[];
-}
-
-export class BlockContainer extends FormattingBox {
-  public children: IfcInline[] | BlockLevel[];
-
+export abstract class BlockContainer extends FormattingBox {
   static ATTRS = {
     ...FormattingBox.ATTRS,
     isInline: Box.BITS.isInline,
     isBfcRoot: Box.BITS.isBfcRoot
   };
-
-  constructor(style: Style, children: IfcInline[] | BlockLevel[], attrs: number) {
-    super(style, attrs);
-    this.children = children;
-  }
 
   contribution(mode: 'min-content' | 'max-content'): number {
     const marginLineLeft = this.style.getMarginLineLeft(this);
@@ -769,9 +752,8 @@ export class BlockContainer extends FormattingBox {
           isize = Math.max(isize, child.contribution(mode));
         }
       } else if (this.isBlockContainerOfInlines()) {
-        const [ifc] = this.children;
-        if (ifc.shouldLayoutContent()) {
-          isize = ifc.paragraph.contribution(mode);
+        if (this.ifc.shouldLayoutContent()) {
+          isize = this.ifc.paragraph.contribution(mode);
         }
       }
     }
@@ -822,8 +804,7 @@ export class BlockContainer extends FormattingBox {
       const {block, offset} = stack.pop()!;
 
       if (block.isBlockContainerOfInlines()) {
-        const [ifc] = block.children;
-        const linebox = ifc.paragraph.lineboxes.at(-1);
+        const linebox = block.ifc.paragraph.lineboxes.at(-1);
         if (linebox) return offset + linebox.blockOffset + linebox.ascender;
       }
 
@@ -860,25 +841,19 @@ export class BlockContainer extends FormattingBox {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
-  isBlockContainerOfInlines(): this is BlockContainerOfInlines {
-    return Boolean(this.children.length && this.children[0].isIfcInline());
-  }
-
   canCollapseThrough(): boolean {
     const blockSize = this.style.getBlockSize(this);
 
     if (blockSize !== 'auto' && blockSize !== 0) return false;
 
     if (this.isBlockContainerOfInlines()) {
-      const [ifc] = this.children;
-      return !ifc.hasText();
-    } else {
+      return !this.ifc.hasText();
+    } else if (this.isBlockContainerOfBlocks()) {
       return this.children.length === 0;
+    } else {
+      // TODO: this is a terrible situation, but where else does the method go?
+      throw new Error('Unreachable');
     }
-  }
-
-  isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
-    return !this.isBlockContainerOfInlines();
   }
 
   propagate(parent: Box) {
@@ -890,20 +865,46 @@ export class BlockContainer extends FormattingBox {
     }
   }
 
-  doTextLayout(ctx: LayoutContext) {
-    if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
-    const [ifc] = this.children;
-    const blockSize = this.style.getBlockSize(this);
-    ifc.doTextLayout(ctx);
-    if (blockSize === 'auto') this.setBlockSize(ifc.paragraph.getHeight());
-  }
-
   hasBackground() {
     return this.style.hasPaint();
   }
 
   hasForeground() {
     return false;
+  }
+}
+
+export class BlockContainerOfInlines extends BlockContainer {
+  ifc: IfcInline;
+
+  constructor(style: Style, ifc: IfcInline, attrs: number) {
+    super(style, attrs);
+    this.ifc = ifc;
+  }
+
+  isBlockContainerOfInlines(): this is BlockContainerOfInlines {
+    return true;
+  }
+
+  doTextLayout(ctx: LayoutContext) {
+    const blockSize = this.style.getBlockSize(this);
+    this.ifc.doTextLayout(ctx);
+    if (blockSize === 'auto') this.setBlockSize(this.ifc.paragraph.getHeight());
+  }
+}
+
+export type BlockLevel = BlockContainer | ReplacedBox;
+
+export class BlockContainerOfBlocks extends BlockContainer {
+  children: BlockLevel[];
+
+  constructor(style: Style, children: BlockLevel[], attrs: number) {
+    super(style, attrs);
+    this.children = children;
+  }
+
+  isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
+    return true;
   }
 }
 
@@ -977,7 +978,7 @@ function doBlockBoxModelForBlockBox(box: BlockContainer) {
   const blockSize = box.style.getBlockSize(box);
 
   if (blockSize === 'auto') {
-    if (box.children.length === 0) {
+    if (box.canCollapseThrough()) {
       box.setBlockSize(0); // Case 4
     } else {
       // Cases 1-4 should be handled by doBoxPositioning, where margin
@@ -1682,7 +1683,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
   let attrs = Box.ATTRS.isAnonymous;
   if ('x-dropflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
   const ifc = new IfcInline(anonStyle, text.value, inlines, attrs);
-  return new BlockContainer(anonStyle, [ifc], attrs);
+  return new BlockContainerOfInlines(anonStyle, ifc, attrs);
 }
 
 function generateFormattingBox(el: HTMLElement): BlockLevel {
@@ -1777,22 +1778,22 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
     attrs |= BlockContainer.ATTRS.isInline;
   }
 
-  let children: BlockLevel[] | IfcInline[];
+  let box;
 
   if (inlines.length) {
     if (blocks.length) {
       blocks.push(wrapInBlockContainer(el, inlines, text));
-      children = blocks;
+      box = new BlockContainerOfBlocks(el.style, blocks, attrs);
     } else {
       const anonComputedStyle = createStyle(el.style, EMPTY_STYLE);
       const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
-      children = [new IfcInline(anonComputedStyle, text.value, inlines, ifcAttrs)];
+      const ifc = new IfcInline(anonComputedStyle, text.value, inlines, ifcAttrs);
+      box = new BlockContainerOfInlines(el.style, ifc, attrs);
     }
   } else {
-    children = blocks;
+    box = new BlockContainerOfBlocks(el.style, blocks, attrs);
   }
 
-  const box = new BlockContainer(el.style, children, attrs);
   el.boxes.push(box);
   return box;
 }

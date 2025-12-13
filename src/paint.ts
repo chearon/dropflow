@@ -191,9 +191,13 @@ function paintBackgroundDescendents(root: FormattingBox | Inline, b: PaintBacken
           b.pushClip(x, y, width, height);
         }
 
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          const child = box.children[i];
-          if (child.isBox() && !child.isLayerRoot()) stack.push(child);
+        if (box.isBlockContainerOfBlocks()) {
+          for (let i = box.children.length - 1; i >= 0; i--) {
+            const child = box.children[i];
+            if (child.isBox() && !child.isLayerRoot()) stack.push(child);
+          }
+        } else if (box.isBlockContainerOfInlines()) {
+          stack.push(box.ifc);
         }
       }
     }
@@ -414,8 +418,12 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
           stack.push({sentinel: true});
         }
 
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
+        if (box.isBlockContainerOfBlocks()) {
+          for (let i = box.children.length - 1; i >= 0; i--) {
+            stack.push(box.children[i]);
+          }
+        } else if (box.isBlockContainerOfInlines()) {
+          stack.push(box.ifc);
         }
       }
     }
@@ -530,9 +538,15 @@ function createLayerRoot(box: BlockContainer) {
   const layerRoot = new BlockLayerRoot(box, []);
   const preorderIndices = new Map<Box, number>();
   const parentRoots: LayerRoot[] = [layerRoot];
-  const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
+  const stack: (InlineLevel | {sentinel: true})[] = [];
   const parents: Box[] = [];
   let preorderIndex = 0;
+
+  if (box.isBlockContainerOfInlines()) {
+    stack.push(box.ifc);
+  } else if (box.isBlockContainerOfBlocks()) {
+    for (let i = box.children.length - 1; i >=0; i--) stack.push(box.children[i]);
+  } // else unreachable
 
   while (stack.length) {
     const box = stack.pop()!;
@@ -626,7 +640,9 @@ function createLayerRoot(box: BlockContainer) {
         stack.push({sentinel: true});
         parents.push(box);
         if (layerRoot) parentRoots.push(layerRoot);
-        if (box.isBlockContainer() || box.isInline()) {
+        if (box.isBlockContainerOfInlines()) {
+          stack.push(box.ifc);
+        } else if (box.isInline() || box.isBlockContainerOfBlocks()) {
           for (let i = box.children.length - 1; i >= 0; i--) {
             stack.push(box.children[i]);
           }

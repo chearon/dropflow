@@ -92,7 +92,7 @@ export default class SvgPaintBackend implements PaintBackend {
   }
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.paragraph.string.slice(textStart, textEnd).trim();
+    const text = item.ifc.sliceRenderText(item, textStart, textEnd).trim();
     const {r, g, b, a} = this.fillColor;
     const color = `rgba(${r}, ${g}, ${b}, ${a})`;
     const style = this.style({

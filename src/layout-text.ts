@@ -18,7 +18,7 @@ import {nameToTag} from '../gen/script-names.ts';
 import {createItemizeState, itemizeNext} from './text-itemize.ts';
 
 import type {LoadedFontFace} from './text-font.ts';
-import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.ts';
+import type {HbFace, HbFont} from './text-harfbuzz.ts';
 import type {RenderItemLogOptions} from './layout-box.ts';
 import type {TextAlign, WhiteSpace} from './style.ts';
 import type {BlockLevel, InlineLevel, BlockContainer, LayoutContext} from './layout-flow.ts';
@@ -543,7 +543,7 @@ export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
 });
 
 export class ShapedItem implements IfcRenderItem {
-  paragraph: Paragraph;
+  ifc: IfcInline;
   face: LoadedFontFace;
   glyphs: Int32Array;
   offset: number;
@@ -554,14 +554,14 @@ export class ShapedItem implements IfcRenderItem {
   y: number;
 
   constructor(
-    paragraph: Paragraph,
+    ifc: IfcInline,
     face: LoadedFontFace,
     glyphs: Int32Array,
     offset: number,
     length: number,
     attrs: ShapingAttrs
   ) {
-    this.paragraph = paragraph;
+    this.ifc = ifc;
     this.face = face;
     this.glyphs = glyphs;
     this.offset = offset;
@@ -574,7 +574,7 @@ export class ShapedItem implements IfcRenderItem {
 
   clone() {
     return new ShapedItem(
-      this.paragraph,
+      this.ifc,
       this.face,
       this.glyphs.slice(),
       this.offset,
@@ -588,10 +588,10 @@ export class ShapedItem implements IfcRenderItem {
     const {leftGlyphs, rightGlyphs} = shiftGlyphs(this.glyphs, this.offset + offset, dir);
     const needsReshape = Boolean(rightGlyphs[G_FL] & 1)
       || rightGlyphs[G_CL] !== this.offset + offset // cluster break
-      || this.paragraph.isInsideGraphemeBoundary(this.offset + offset);
+      || isInsideGraphemeBoundary(this.ifc.text, this.offset + offset);
     const inlines = this.inlines;
     const right = new ShapedItem(
-      this.paragraph,
+      this.ifc,
       this.face,
       rightGlyphs,
       this.offset + offset,
@@ -620,7 +620,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i + G_FL] & 2) && !(this.glyphs[i + G_SZ + G_FL] & 2)) {
           const offset = this.attrs.level & 1 ? this.offset : this.glyphs[i + G_SZ + G_CL];
           const length = this.attrs.level & 1 ? this.glyphs[i + G_CL] - offset : this.end() - offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.face, this.attrs);
+          const newGlyphs = shapePart(this.ifc, offset, length, this.face, this.attrs);
           if (!(newGlyphs[G_FL] & 2)) {
             const glyphs = new Int32Array(i + G_SZ + newGlyphs.length);
             glyphs.set(this.glyphs.subarray(0, i + G_SZ), 0);
@@ -636,7 +636,7 @@ export class ShapedItem implements IfcRenderItem {
         if (!(this.glyphs[i - G_SZ + G_FL] & 2) && !(this.glyphs[i + G_FL] & 2)) {
           const offset = this.attrs.level & 1 ? this.glyphs[i + G_CL] : this.offset;
           const length = this.attrs.level & 1 ? this.end() - offset : this.glyphs[i + G_CL] - this.offset;
-          const newGlyphs = this.paragraph.shapePart(offset, length, this.face, this.attrs);
+          const newGlyphs = shapePart(this.ifc, offset, length, this.face, this.attrs);
           if (!(newGlyphs.at(-G_SZ + G_FL)! & 2)) {
             const glyphs = new Int32Array(this.glyphs.length - i + newGlyphs.length);
             glyphs.set(newGlyphs, 0);
@@ -648,7 +648,7 @@ export class ShapedItem implements IfcRenderItem {
       }
     }
 
-    this.glyphs = this.paragraph.shapePart(this.offset, this.length, this.face, this.attrs);
+    this.glyphs = shapePart(this.ifc, this.offset, this.length, this.face, this.attrs);
   }
 
   createMeasureState(direction: 1 | -1 = 1) {
@@ -695,14 +695,14 @@ export class ShapedItem implements IfcRenderItem {
 
       state.glyphIndex = glyphIndex;
       state.clusterAdvance = w;
-      state.isInk = isink(this.paragraph.string[cl]);
+      state.isInk = isink(this.ifc.text[cl]);
     } else {
       state.done = true;
     }
   }
 
   measureInsideCluster(state: MeasureState, ci: number) {
-    const s = this.paragraph.string.slice(state.clusterStart, state.clusterEnd);
+    const s = this.ifc.text.slice(state.clusterStart, state.clusterEnd);
     const restrictedCi = Math.max(state.clusterStart, Math.min(ci, state.clusterEnd));
     const numCharacters = Math.abs(restrictedCi - state.characterIndex);
     let w = 0;
@@ -759,7 +759,7 @@ export class ShapedItem implements IfcRenderItem {
     if (at === 'start') {
       let index = 0;
       do {
-        if (!isink(this.paragraph.string[this.glyphs[index + G_CL]])) {
+        if (!isink(this.ifc.text[this.glyphs[index + G_CL]])) {
           this.glyphs[index + G_AX] = 0;
         } else {
           return true;
@@ -768,7 +768,7 @@ export class ShapedItem implements IfcRenderItem {
     } else {
       let index = this.glyphs.length - G_SZ;
       do {
-        if (!isink(this.paragraph.string[this.glyphs[index + G_CL]])) {
+        if (!isink(this.ifc.text[this.glyphs[index + G_CL]])) {
           this.glyphs[index + G_AX] = 0;
         } else {
           return true;
@@ -787,7 +787,7 @@ export class ShapedItem implements IfcRenderItem {
 
   // only use this in debugging or tests
   text() {
-    return this.paragraph.string.slice(this.offset, this.offset + this.length);
+    return this.ifc.text.slice(this.offset, this.offset + this.length);
   }
 }
 
@@ -1011,7 +1011,7 @@ function getLastBaseline(block: BlockLevel) {
     if (block.isReplacedBox()) {
       return undefined;
     } else if (block.isBlockContainerOfInlines()) {
-      const linebox = block.ifc.paragraph.lineboxes.at(-1);
+      const linebox = block.ifc.lineboxes.at(-1);
       if (linebox) return offset + linebox.blockOffset + linebox.ascender;
     } else {
       const parentOffset = offset;
@@ -1373,7 +1373,7 @@ class LineHeightTracker {
 
 export class Linebox extends LineItemLinkedList {
   startOffset: number;
-  paragraph: Paragraph;
+  ifc: IfcInline;
   ascender: number;
   descender: number;
   endOffset: number;
@@ -1382,10 +1382,10 @@ export class Linebox extends LineItemLinkedList {
   width: number;
   contextRoots: Map<Inline, AlignmentContext>;
 
-  constructor(start: number, paragraph: Paragraph) {
+  constructor(start: number, ifc: IfcInline) {
     super();
     this.startOffset = this.endOffset = start;
-    this.paragraph = paragraph;
+    this.ifc = ifc;
     this.ascender = 0;
     this.descender = 0;
     this.blockOffset = 0;
@@ -1506,7 +1506,7 @@ export class Linebox extends LineItemLinkedList {
   }
 
   postprocess(width: LineWidthTracker, height: LineHeightTracker, vacancy: IfcVacancy, textAlign: TextAlign) {
-    const dir = this.paragraph.ifc.style.direction;
+    const dir = this.ifc.style.direction;
     const w = width.trimmed();
     const {ascender, descender} = height.align();
 
@@ -1613,7 +1613,7 @@ function isink(c: string) {
   return c !== undefined && c !== ' ' && c !== '\t';
 }
 
-function createIfcBuffer(text: string) {
+export function createIfcBuffer(text: string) {
   const allocation = hb.allocateUint16Array(text.length);
   const a = allocation.array;
 
@@ -1665,1019 +1665,1001 @@ function wordCacheGet(font: HbFont, string: string) {
   return wordCache.get(font)?.get(string);
 }
 
-export class Paragraph {
-  ifc: IfcInline;
-  string: string;
-  buffer: AllocatedUint16Array;
-  items: ShapedItem[];
-  lineboxes: Linebox[];
-  fragments: Map<Inline, InlineFragment[]>;
-
-  constructor(ifc: IfcInline, buffer: AllocatedUint16Array) {
-    this.ifc = ifc;
-    this.string = ifc.text;
-    this.buffer = buffer;
-    this.items = [];
-    this.lineboxes = [];
-    this.fragments = new Map();
-  }
-
-  getHeight() {
-    if (this.lineboxes.length) {
-      const line = this.lineboxes.at(-1)!;
-      return line.blockOffset + line.height();
-    } else {
-      return 0;
-    }
-  }
-
-  destroy() {
-    this.buffer.destroy();
-    this.buffer = EmptyBuffer;
-  }
-
-  sliceRenderText(item: ShapedItem, start: number, end: number) {
-    if (this.ifc.hasSoftHyphen()) {
-      const mark = item.end() - 1;
-      const hyphen = getHyphen(item);
-      if (
-        mark >= start &&
-        mark < end &&
-        this.string[mark] === '\u00ad' && // softHyphenCharacter
-        hyphen
-      ) {
-        const first = this.string.slice(start, mark);
-        const second = this.string.slice(mark + 1, end);
-        const glyphIndex = item.attrs.level & 1 ? 0 : item.glyphs.length - G_SZ;
-        if (hyphen.glyphs[G_ID] === item.glyphs[glyphIndex + G_ID]) {
-          return first + hyphen.codepoint + second;
-        }
-      }
-    }
-    return this.string.slice(start, end);
-  }
-
-  split(itemIndex: number, offset: number) {
-    const left = this.items[itemIndex];
-    const {needsReshape, right} = left.split(offset - left.offset);
-
-    if (needsReshape) {
-      left.reshape(true);
-      right.reshape(false);
-    }
-
-    this.items.splice(itemIndex + 1, 0, right);
-    if (this.string[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
-      const hyphen = getHyphen(left)?.glyphs;
-      if (hyphen?.length) {
-        const glyphs = new Int32Array(left.glyphs.length + hyphen.length);
-        if (left.attrs.level & 1) {
-          glyphs.set(hyphen, 0);
-          glyphs.set(left.glyphs, hyphen.length);
-          for (let i = G_CL; i < hyphen.length; i += G_SZ) {
-            glyphs[i] = offset - 1;
-          }
-        } else {
-          glyphs.set(left.glyphs, 0);
-          glyphs.set(hyphen, left.glyphs.length);
-          for (let i = left.glyphs.length + G_CL; i < glyphs.length; i += G_SZ) {
-            glyphs[i] = offset - 1;
-          }
-        }
-        left.glyphs = glyphs;
+export function sliceIfcRenderText(
+  ifc: IfcInline,
+  item: ShapedItem,
+  start: number,
+  end: number
+) {
+  if (ifc.hasSoftHyphen()) {
+    const mark = item.end() - 1;
+    const hyphen = getHyphen(item);
+    if (
+      mark >= start &&
+      mark < end &&
+      ifc.text[mark] === '\u00ad' && // softHyphenCharacter
+      hyphen
+    ) {
+      const first = ifc.text.slice(start, mark);
+      const second = ifc.text.slice(mark + 1, end);
+      const glyphIndex = item.attrs.level & 1 ? 0 : item.glyphs.length - G_SZ;
+      if (hyphen.glyphs[G_ID] === item.glyphs[glyphIndex + G_ID]) {
+        return first + hyphen.codepoint + second;
       }
     }
   }
+  return ifc.text.slice(start, end);
+}
 
-  isInsideGraphemeBoundary(offset: number) {
-    return nextGraphemeBreak(this.string, previousGraphemeBreak(this.string, offset)) !== offset;
-  }
+function isInsideGraphemeBoundary(text: string, offset: number) {
+  return nextGraphemeBreak(text, previousGraphemeBreak(text, offset)) !== offset;
+}
 
-  length() {
-    return this.string.length;
-  }
+function shapePartWithWordCache(
+  ifc: IfcInline,
+  offset: number,
+  length: number,
+  font: HbFont,
+  attrs: ShapingAttrs
+) {
+  const end = offset + length;
+  const words: {wordGlyphs: Int32Array, wordStart: number}[] = [];
+  let size = 0;
+  let wordLen = 0;
+  let wordStart = offset;
 
-  shapePartWithWordCache(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
-    const end = offset + length;
-    const words: {wordGlyphs: Int32Array, wordStart: number}[] = [];
-    let size = 0;
-    let wordLen = 0;
-    let wordStart = offset;
+  hbBuffer.setScript(nameToTag.get(attrs.script)!);
+  hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
+  hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
 
-    hbBuffer.setScript(nameToTag.get(attrs.script)!);
-    hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
-    hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
+  // Important note: this implementation includes the leading space as a part
+  // of the word. That means kerning that happens after a space is obeyed, but
+  // not before. I think it would be better to not have kerning around spaces
+  // at all (ie: shape sequences of spaces and non-spaces separately) and that
+  // may be what Firefox is doing, but doing that efficently is harder.
+  for (let i = offset; i < end; i++) {
+    const leftInSpaceSegment = ifc.text[i] === ' ';
+    const rightInSpaceSegment = ifc.text[i + 1] === ' ';
 
-    // Important note: this implementation includes the leading space as a part
-    // of the word. That means kerning that happens after a space is obeyed, but
-    // not before. I think it would be better to not have kerning around spaces
-    // at all (ie: shape sequences of spaces and non-spaces separately) and that
-    // may be what Firefox is doing, but doing that efficently is harder.
-    for (let i = offset; i < end; i++) {
-      const leftInSpaceSegment = this.string[i] === ' ';
-      const rightInSpaceSegment = this.string[i + 1] === ' ';
+    wordLen += 1;
 
-      wordLen += 1;
+    if (leftInSpaceSegment !== rightInSpaceSegment || i === end - 1) {
+      const word = ifc.text.slice(wordStart, wordStart + wordLen);
+      let wordGlyphs = wordCacheGet(font, word);
 
-      if (leftInSpaceSegment !== rightInSpaceSegment || i === end - 1) {
-        const word = this.string.slice(wordStart, wordStart + wordLen);
-        let wordGlyphs = wordCacheGet(font, word);
-
-        if (!wordGlyphs) {
-          if (wordCacheSize > 10_000) clearWordCache();
-          hbBuffer.setLength(0);
-          hbBuffer.addUtf16(
-            this.buffer.array.byteOffset + wordStart * 2,
-            wordLen,
-            0,
-            wordLen
-          );
-          hb.shape(font, hbBuffer);
-          wordGlyphs = hbBuffer.extractGlyphs();
-          wordCacheAdd(font, word, wordGlyphs);
-        }
-
-        words.push({wordStart, wordGlyphs});
-        size += wordGlyphs.length;
-
-        wordStart = i + 1;
-        wordLen = 0;
+      if (!wordGlyphs) {
+        if (wordCacheSize > 10_000) clearWordCache();
+        hbBuffer.setLength(0);
+        hbBuffer.addUtf16(
+          ifc.buffer.array.byteOffset + wordStart * 2,
+          wordLen,
+          0,
+          wordLen
+        );
+        hb.shape(font, hbBuffer);
+        wordGlyphs = hbBuffer.extractGlyphs();
+        wordCacheAdd(font, word, wordGlyphs);
       }
-    }
 
-    const glyphs = new Int32Array(size);
+      words.push({wordStart, wordGlyphs});
+      size += wordGlyphs.length;
 
-    let i = attrs.level & 1 ? glyphs.length : 0;
-    for (const {wordStart, wordGlyphs} of words) {
-      if (attrs.level & 1) i -= wordGlyphs.length;
-      glyphs.set(wordGlyphs, i);
-      for (let j = 1; j < wordGlyphs.length; j += 7) {
-        glyphs[i + j] = wordStart + wordGlyphs[j];
-      }
-      if (!(attrs.level & 1)) i += wordGlyphs.length;
-    }
-
-    return glyphs;
-  }
-
-  shapePartWithoutWordCache(offset: number, length: number, font: HbFont, attrs: ShapingAttrs) {
-    hbBuffer.setLength(0);
-    hbBuffer.addUtf16(this.buffer.array.byteOffset, this.buffer.array.length, offset, length);
-    hbBuffer.setScript(nameToTag.get(attrs.script)!);
-    hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
-    hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
-    hb.shape(font, hbBuffer);
-    return hbBuffer.extractGlyphs();
-  }
-
-  shapePart(offset: number, length: number, face: LoadedFontFace, attrs: ShapingAttrs) {
-    if (face.spaceMayParticipateInShaping(attrs.script)) {
-      return this.shapePartWithoutWordCache(offset, length, face.hbfont, attrs);
-    } else {
-      return this.shapePartWithWordCache(offset, length, face.hbfont, attrs);
+      wordStart = i + 1;
+      wordLen = 0;
     }
   }
 
-  postShapeLoadHyphens() {
-    let itemIndex = 0;
-    for (let textOffset = 0; textOffset < this.string.length; textOffset++) {
-      if (this.string[textOffset] === '\u00ad' /* softHyphenCharacter */) {
-        while ( // Forward to the item that owns the textOffset
-          itemIndex + 1 < this.items.length &&
-          this.items[itemIndex + 1].offset <= textOffset
-        ) itemIndex++;
+  const glyphs = new Int32Array(size);
 
-        loadHyphen(this.items[itemIndex]);
-      }
+  let i = attrs.level & 1 ? glyphs.length : 0;
+  for (const {wordStart, wordGlyphs} of words) {
+    if (attrs.level & 1) i -= wordGlyphs.length;
+    glyphs.set(wordGlyphs, i);
+    for (let j = 1; j < wordGlyphs.length; j += 7) {
+      glyphs[i + j] = wordStart + wordGlyphs[j];
     }
+    if (!(attrs.level & 1)) i += wordGlyphs.length;
   }
 
-  shape() {
-    const items:ShapedItem[] = [];
-    const log = this.ifc.loggingEnabled() ? new Logger() : null;
-    const t = log ? (s: string) => log.text(s) : null;
-    const g = log ? (glyphs: Int32Array) => log.glyphs(glyphs) : null;
-    const itemizeState = createItemizeState(this.ifc);
+  return glyphs;
+}
 
-    t?.(`Preprocess ${this.ifc.id}\n`);
-    t?.('='.repeat(`Preprocess ${this.ifc.id}`.length) + '\n');
-    t?.(`Full text: "${this.string}"\n`);
+function shapePartWithoutWordCache(
+  ifc: IfcInline,
+  offset: number,
+  length: number,
+  font: HbFont,
+  attrs: ShapingAttrs
+) {
+  hbBuffer.setLength(0);
+  hbBuffer.addUtf16(ifc.buffer.array.byteOffset, ifc.buffer.array.length, offset, length);
+  hbBuffer.setScript(nameToTag.get(attrs.script)!);
+  hbBuffer.setLanguage(langForScript(attrs.script)); // TODO: [lang]
+  hbBuffer.setDirection(attrs.level & 1 ? 'rtl' : 'ltr');
+  hb.shape(font, hbBuffer);
+  return hbBuffer.extractGlyphs();
+}
+
+function postShapeLoadHyphens(ifc: IfcInline, items: ShapedItem[]) {
+  let itemIndex = 0;
+  for (let textOffset = 0; textOffset < ifc.text.length; textOffset++) {
+    if (ifc.text[textOffset] === '\u00ad' /* softHyphenCharacter */) {
+      while ( // Forward to the item that owns the textOffset
+        itemIndex + 1 < items.length &&
+        items[itemIndex + 1].offset <= textOffset
+      ) itemIndex++;
+
+      loadHyphen(items[itemIndex]);
+    }
+  }
+}
+
+function shapePart(
+  ifc: IfcInline,
+  offset: number,
+  length: number,
+  face: LoadedFontFace,
+  attrs: ShapingAttrs
+) {
+  if (face.spaceMayParticipateInShaping(attrs.script)) {
+    return shapePartWithoutWordCache(ifc, offset, length, face.hbfont, attrs);
+  } else {
+    return shapePartWithWordCache(ifc, offset, length, face.hbfont, attrs);
+  }
+}
+
+export function createIfcShapedItems(ifc: IfcInline) {
+  const items: ShapedItem[] = [];
+  const log = ifc.loggingEnabled() ? new Logger() : null;
+  const t = log ? (s: string) => log.text(s) : null;
+  const g = log ? (glyphs: Int32Array) => log.glyphs(glyphs) : null;
+  const itemizeState = createItemizeState(ifc);
+
+  t?.(`Preprocess ${ifc.id}\n`);
+  t?.('='.repeat(`Preprocess ${ifc.id}`.length) + '\n');
+  t?.(`Full text: "${ifc.text}"\n`);
+
+  log?.pushIndent();
+
+  while (!itemizeState.done) {
+    const itemStart = itemizeState.offset;
+    itemizeNext(itemizeState);
+    const attrs = itemizeState.attrs;
+    const cascade = getLangCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
+    const itemEnd = itemizeState.offset;
+    let shapeWork = [{offset: itemStart, length: itemEnd - itemStart}];
+
+    t?.(`Item ${itemStart}..${itemEnd}:\n`);
+    t?.(`emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
+    t?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
+    t?.(`cascade=${cascade.map(m => basename(m.url)).join(', ')}\n`);
 
     log?.pushIndent();
 
-    while (!itemizeState.done) {
-      const itemStart = itemizeState.offset;
-      itemizeNext(itemizeState);
-      const attrs = itemizeState.attrs;
-      const cascade = getLangCascade(attrs.style, langForScript(attrs.script)); // TODO [lang] support
-      const itemEnd = itemizeState.offset;
-      let shapeWork = [{offset: itemStart, length: itemEnd - itemStart}];
+    for (let i = 0; shapeWork.length && i < cascade.length; ++i) {
+      const nextShapeWork: {offset: number, length: number}[] = [];
+      const face = cascade[i];
+      const isLastMatch = i === cascade.length - 1;
 
-      t?.(`Item ${itemStart}..${itemEnd}:\n`);
-      t?.(`emoji=${attrs.isEmoji} level=${attrs.level} script=${attrs.script} `);
-      t?.(`size=${attrs.style.fontSize} variant=${attrs.style.fontVariant}\n`);
-      t?.(`cascade=${cascade.map(m => basename(m.url)).join(', ')}\n`);
+      while (shapeWork.length) {
+        const {offset, length} = shapeWork.pop()!;
+        const end = offset + length;
+        const shapedPart = shapePart(ifc, offset, length, face, attrs);
+        const hbClusterState = createGlyphIteratorState(shapedPart, attrs.level, offset, end);
+        let needsReshape = false;
+        let segmentTextStart = offset;
+        let segmentTextEnd = offset;
+        let segmentGlyphStart = hbClusterState.glyphIndex;
+        let segmentGlyphEnd = hbClusterState.glyphIndex;
 
-      log?.pushIndent();
+        t?.(`Shaping "${ifc.text.slice(offset, end)}" with font ${face.url}\n`);
+        t?.('Shaper returned: ');
+        g?.(shapedPart);
+        t?.('\n');
+        log?.pushIndent('  ==> ');
 
-      for (let i = 0; shapeWork.length && i < cascade.length; ++i) {
-        const nextShapeWork: {offset: number, length: number}[] = [];
-        const face = cascade[i];
-        const isLastMatch = i === cascade.length - 1;
+        while (!hbClusterState.done) {
+          nextGlyph(hbClusterState);
 
-        while (shapeWork.length) {
-          const {offset, length} = shapeWork.pop()!;
-          const end = offset + length;
-          const shapedPart = this.shapePart(offset, length, face, attrs);
-          const hbClusterState = createGlyphIteratorState(shapedPart, attrs.level, offset, end);
-          let needsReshape = false;
-          let segmentTextStart = offset;
-          let segmentTextEnd = offset;
-          let segmentGlyphStart = hbClusterState.glyphIndex;
-          let segmentGlyphEnd = hbClusterState.glyphIndex;
+          if (needsReshape !== hbClusterState.needsReshape || hbClusterState.done) {
+            // flush the segment
 
-          t?.(`Shaping "${this.string.slice(offset, end)}" with font ${face.url}\n`);
-          t?.('Shaper returned: ');
-          g?.(shapedPart);
-          t?.('\n');
-          log?.pushIndent('  ==> ');
+            // if we're starting a well-shaped segment (ending a needs-reshape
+            // segment), we have to bump up the boundary to a grapheme boundary
+            if (!hbClusterState.done && needsReshape) {
+              segmentTextEnd = nextGrapheme(ifc.text, segmentTextEnd);
 
-          while (!hbClusterState.done) {
-            nextGlyph(hbClusterState);
-
-            if (needsReshape !== hbClusterState.needsReshape || hbClusterState.done) {
-              // flush the segment
-
-              // if we're starting a well-shaped segment (ending a needs-reshape
-              // segment), we have to bump up the boundary to a grapheme boundary
-              if (!hbClusterState.done && needsReshape) {
-                segmentTextEnd = nextGrapheme(this.string, segmentTextEnd);
-
-                while (!hbClusterState.done && hbClusterState.clusterStart < segmentTextEnd) {
-                  segmentGlyphEnd = hbClusterState.glyphIndex;
-                  nextGlyph(hbClusterState);
-                }
+              while (!hbClusterState.done && hbClusterState.clusterStart < segmentTextEnd) {
+                segmentGlyphEnd = hbClusterState.glyphIndex;
+                nextGlyph(hbClusterState);
               }
-
-              // if we're starting a needs-reshape segment (ending a well-shaped
-              // segment) we have to rewind the boundary to a grapheme boundary
-              if (!hbClusterState.done && !needsReshape) {
-                segmentTextEnd = prevGrapheme(this.string, segmentTextEnd);
-
-                if (attrs.level & 1) {
-                  while (
-                    segmentGlyphEnd + G_SZ <= segmentGlyphStart &&
-                    shapedPart[segmentGlyphEnd + G_SZ + G_CL] >= segmentTextEnd
-                  ) segmentGlyphEnd += G_SZ;
-                } else {
-                  while (
-                    segmentGlyphEnd - G_SZ >= segmentGlyphStart &&
-                    shapedPart[segmentGlyphEnd - G_SZ + G_CL] >= segmentTextEnd
-                  ) segmentGlyphEnd -= G_SZ;
-                }
-              }
-
-              const offset = segmentTextStart;
-              const length = segmentTextEnd - segmentTextStart;
-              const glyphStart = attrs.level & 1 ? segmentGlyphEnd + G_SZ : segmentGlyphStart;
-              const glyphEnd = attrs.level & 1 ? segmentGlyphStart + G_SZ : segmentGlyphEnd;
-
-              if (needsReshape) {
-                if (isLastMatch) {
-                  const glyphs = shapedPart.subarray(glyphStart, glyphEnd);
-                  items.push(new ShapedItem(this, face, glyphs, offset, length, {...attrs}));
-                  t?.('Cascade finished with tofu: ');
-                  g?.(glyphs);
-                  t?.('\n');
-                } else {
-                  t?.(`Must reshape "${this.string.slice(offset, offset + length)}"\n`);
-                  nextShapeWork.push({offset, length});
-                }
-              } else if (glyphStart < glyphEnd) {
-                const glyphs = glyphStart === 0 && glyphEnd === shapedPart.length
-                  ? shapedPart
-                  : shapedPart.subarray(glyphStart, glyphEnd);
-
-                items.push(new ShapedItem(this, face, glyphs, offset, length, {...attrs}));
-                t?.('Glyphs OK: ');
-                g?.(glyphs);
-                t?.('\n');
-              }
-
-              // start a new segment
-              segmentTextStart = segmentTextEnd;
-              segmentGlyphStart = segmentGlyphEnd;
-              needsReshape = hbClusterState.needsReshape;
             }
 
-            // extend the segment
-            segmentTextEnd = hbClusterState.clusterEnd;
-            segmentGlyphEnd = hbClusterState.glyphIndex;
+            // if we're starting a needs-reshape segment (ending a well-shaped
+            // segment) we have to rewind the boundary to a grapheme boundary
+            if (!hbClusterState.done && !needsReshape) {
+              segmentTextEnd = prevGrapheme(ifc.text, segmentTextEnd);
+
+              if (attrs.level & 1) {
+                while (
+                  segmentGlyphEnd + G_SZ <= segmentGlyphStart &&
+                  shapedPart[segmentGlyphEnd + G_SZ + G_CL] >= segmentTextEnd
+                ) segmentGlyphEnd += G_SZ;
+              } else {
+                while (
+                  segmentGlyphEnd - G_SZ >= segmentGlyphStart &&
+                  shapedPart[segmentGlyphEnd - G_SZ + G_CL] >= segmentTextEnd
+                ) segmentGlyphEnd -= G_SZ;
+              }
+            }
+
+            const offset = segmentTextStart;
+            const length = segmentTextEnd - segmentTextStart;
+            const glyphStart = attrs.level & 1 ? segmentGlyphEnd + G_SZ : segmentGlyphStart;
+            const glyphEnd = attrs.level & 1 ? segmentGlyphStart + G_SZ : segmentGlyphEnd;
+
+            if (needsReshape) {
+              if (isLastMatch) {
+                const glyphs = shapedPart.subarray(glyphStart, glyphEnd);
+                items.push(new ShapedItem(ifc, face, glyphs, offset, length, {...attrs}));
+                t?.('Cascade finished with tofu: ');
+                g?.(glyphs);
+                t?.('\n');
+              } else {
+                t?.(`Must reshape "${ifc.text.slice(offset, offset + length)}"\n`);
+                nextShapeWork.push({offset, length});
+              }
+            } else if (glyphStart < glyphEnd) {
+              const glyphs = glyphStart === 0 && glyphEnd === shapedPart.length
+                ? shapedPart
+                : shapedPart.subarray(glyphStart, glyphEnd);
+
+              items.push(new ShapedItem(ifc, face, glyphs, offset, length, {...attrs}));
+              t?.('Glyphs OK: ');
+              g?.(glyphs);
+              t?.('\n');
+            }
+
+            // start a new segment
+            segmentTextStart = segmentTextEnd;
+            segmentGlyphStart = segmentGlyphEnd;
+            needsReshape = hbClusterState.needsReshape;
           }
 
-          log?.popIndent();
+          // extend the segment
+          segmentTextEnd = hbClusterState.clusterEnd;
+          segmentGlyphEnd = hbClusterState.glyphIndex;
         }
 
-        shapeWork = nextShapeWork;
+        log?.popIndent();
       }
 
-      log?.popIndent();
+      shapeWork = nextShapeWork;
     }
 
     log?.popIndent();
-    log?.flush();
-
-    this.items = items.sort((a, b) => a.offset - b.offset);
-
-    if (this.ifc.hasSoftHyphen()) this.postShapeLoadHyphens();
   }
 
-  createMarkIterator(mode: 'min-content' | 'max-content' | 'normal') {
-    // Inline iterator
-    const inlineIterator = createInlineIterator(this.ifc);
-    let inline = inlineIterator.next();
-    let inlineMark = 0;
-    // Break iterator
-    const breakIterator = this.ifc.hasSoftWrap()
-      ? new LineBreak(this.string, !this.ifc.hasSoftWrap())
-      : new HardBreaker(this.string);
-    let linebreak: {position: number, required: boolean} | null = {position: -1, required: false};
-    let breakMark = 0;
-    // Item iterator
-    let itemIndex = -1;
-    let itemMeasureState: MeasureState | undefined;
-    let itemMark = 0;
-    // Grapheme iterator
-    let graphemeBreakMark = 0;
-    // Other
-    const end = this.length();
+  log?.popIndent();
+  log?.flush();
 
-    const next = (): {done: true} | {done: false, value: IfcMark} => {
-      const mark: IfcMark = {
-        position: Math.min(inlineMark, itemMark, breakMark, graphemeBreakMark),
-        isBreak: false,
-        isGraphemeBreak: false,
-        isBreakForced: false,
-        isItemStart: false,
-        inlinePre: null,
-        inlinePost: null,
-        box: null,
-        advance: 0,
-        trailingWs: 0,
-        itemIndex,
-        split
-      };
+  items.sort((a, b) => a.offset - b.offset);
 
-      if (inline.done && !linebreak && itemIndex >= this.items.length) {
-        return {done: true};
-      }
+  if (ifc.hasSoftHyphen()) postShapeLoadHyphens(ifc, items);
 
-      if (itemIndex < this.items.length && itemIndex > -1) {
-        const item = this.items[itemIndex];
-        const {advance, trailingWs} = item.measure(mark.position, 1, itemMeasureState);
-        mark.advance = advance;
-        mark.trailingWs = trailingWs;
-      }
+  return items;
+}
 
-      // Consume the inline break spot if we're not on a break
-      if (!inline.done && inline.value.state === 'breakspot' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
-        inline = inlineIterator.next();
-      }
+function createMarkIterator(
+  ifc: IfcInline,
+  mode: 'min-content' | 'max-content' | 'normal'
+) {
+  // Inline iterator
+  const inlineIterator = createInlineIterator(ifc);
+  let inline = inlineIterator.next();
+  let inlineMark = 0;
+  // Break iterator
+  const breakIterator = ifc.hasSoftWrap()
+    ? new LineBreak(ifc.text, !ifc.hasSoftWrap())
+    : new HardBreaker(ifc.text);
+  let linebreak: {position: number, required: boolean} | null = {position: -1, required: false};
+  let breakMark = 0;
+  // Item iterator
+  let itemIndex = -1;
+  let itemMeasureState: MeasureState | undefined;
+  let itemMark = 0;
+  // Grapheme iterator
+  let graphemeBreakMark = 0;
+  // Other
+  const end = ifc.text.length;
 
-      // Consume floats
-      if (!inline.done && inline.value.state === 'box' && inline.value.item.isFloat() && inlineMark === mark.position) {
-        mark.box = inline.value.item;
-        inline = inlineIterator.next();
-        return {done: false, value: mark};
-      }
-
-      if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position) {
-        mark.isBreak = true;
-        inline = inlineIterator.next();
-        return {done: false, value: mark};
-      }
-
-      // Consume pre[-text|-break|-block], post["], or pre-post["] before a breakspot
-      if (!inline.done && inline.value.state !== 'breakspot' && inlineMark === mark.position) {
-        if (inline.value.state === 'pre' || inline.value.state === 'post') {
-          if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
-          if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
-          inline = inlineIterator.next();
-        }
-
-        // Consume post if we consumed pre above
-        if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
-          mark.inlinePost = inline.value.item;
-          inline = inlineIterator.next();
-        }
-
-        // Consume text, hard break, or inline-block
-        if (!inline.done) {
-          if (inline.value.state === 'text') {
-            inlineMark += inline.value.item.length;
-            if (!inline.value.item.wrapsOverflowAnywhere(mode)) {
-              graphemeBreakMark = inlineMark;
-            }
-            inline = inlineIterator.next();
-          } else if (inline.value.state === 'break') {
-            mark.isBreak = true;
-            mark.isBreakForced = true;
-            inline = inlineIterator.next();
-          } else if (inline.value.state === 'box' && inline.value.item.isInlineLevel()) {
-            mark.box = inline.value.item;
-            inline = inlineIterator.next();
-          }
-        }
-      }
-
-      if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
-
-      if (itemIndex < this.items.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
-        itemIndex += 1;
-
-        if (itemIndex < this.items.length) {
-          const item = this.items[itemIndex];
-          itemMark += item.length;
-          itemMeasureState = item.createMeasureState();
-          mark.isItemStart = true;
-          mark.itemIndex += 1;
-        }
-      }
-
-      if (linebreak && breakMark === mark.position) {
-        const bk = breakIterator.nextBreak();
-        if (linebreak.position > -1) {
-          mark.isBreakForced = linebreak.required;
-          mark.isBreak = true;
-        }
-        if (bk && this.ifc.hasText()) {
-          breakMark = bk.position;
-          if (linebreak) {
-            linebreak.position = bk.position;
-            linebreak.required = bk.required;
-          } else {
-            linebreak = {...bk};
-          }
-        } else {
-          linebreak = null;
-          breakMark = end;
-        }
-      }
-
-      if (graphemeBreakMark === mark.position) {
-        if (this.ifc.hasText()) {
-          mark.isGraphemeBreak = true;
-          graphemeBreakMark = nextGraphemeBreak(this.string, graphemeBreakMark);
-        } else {
-          graphemeBreakMark = end;
-        }
-      }
-
-      if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakspot') {
-        inline = inlineIterator.next();
-      }
-
-      return {done: false, value: mark};
+  const next = (): {done: true} | {done: false, value: IfcMark} => {
+    const mark: IfcMark = {
+      position: Math.min(inlineMark, itemMark, breakMark, graphemeBreakMark),
+      isBreak: false,
+      isGraphemeBreak: false,
+      isBreakForced: false,
+      isItemStart: false,
+      inlinePre: null,
+      inlinePost: null,
+      box: null,
+      advance: 0,
+      trailingWs: 0,
+      itemIndex,
+      split
     };
 
-    const paragraph = this;
+    if (inline.done && !linebreak && itemIndex >= ifc.items.length) {
+      return {done: true};
+    }
 
-    function split(this: IfcMark, mark: IfcMark) {
-      itemIndex += 1;
-      this.itemIndex += 1;
-      mark.itemIndex += 1;
+    if (itemIndex < ifc.items.length && itemIndex > -1) {
+      const item = ifc.items[itemIndex];
+      const {advance, trailingWs} = item.measure(mark.position, 1, itemMeasureState);
+      mark.advance = advance;
+      mark.trailingWs = trailingWs;
+    }
 
-      const item = paragraph.items[this.itemIndex];
+    // Consume the inline break spot if we're not on a break
+    if (!inline.done && inline.value.state === 'breakspot' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
+      inline = inlineIterator.next();
+    }
 
-      if (itemIndex === this.itemIndex) {
-        itemMeasureState = item.createMeasureState();
-        item.measure(mark.position, 1, itemMeasureState);
+    // Consume floats
+    if (!inline.done && inline.value.state === 'box' && inline.value.item.isFloat() && inlineMark === mark.position) {
+      mark.box = inline.value.item;
+      inline = inlineIterator.next();
+      return {done: false, value: mark};
+    }
+
+    if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position) {
+      mark.isBreak = true;
+      inline = inlineIterator.next();
+      return {done: false, value: mark};
+    }
+
+    // Consume pre[-text|-break|-block], post["], or pre-post["] before a breakspot
+    if (!inline.done && inline.value.state !== 'breakspot' && inlineMark === mark.position) {
+      if (inline.value.state === 'pre' || inline.value.state === 'post') {
+        if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
+        if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
+        inline = inlineIterator.next();
+      }
+
+      // Consume post if we consumed pre above
+      if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
+        mark.inlinePost = inline.value.item;
+        inline = inlineIterator.next();
+      }
+
+      // Consume text, hard break, or inline-block
+      if (!inline.done) {
+        if (inline.value.state === 'text') {
+          inlineMark += inline.value.item.length;
+          if (!inline.value.item.wrapsOverflowAnywhere(mode)) {
+            graphemeBreakMark = inlineMark;
+          }
+          inline = inlineIterator.next();
+        } else if (inline.value.state === 'break') {
+          mark.isBreak = true;
+          mark.isBreakForced = true;
+          inline = inlineIterator.next();
+        } else if (inline.value.state === 'box' && inline.value.item.isInlineLevel()) {
+          mark.box = inline.value.item;
+          inline = inlineIterator.next();
+        }
       }
     }
 
-    return {[Symbol.iterator]: () => ({next})};
+    if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
+
+    if (itemIndex < ifc.items.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
+      itemIndex += 1;
+
+      if (itemIndex < ifc.items.length) {
+        const item = ifc.items[itemIndex];
+        itemMark += item.length;
+        itemMeasureState = item.createMeasureState();
+        mark.isItemStart = true;
+        mark.itemIndex += 1;
+      }
+    }
+
+    if (linebreak && breakMark === mark.position) {
+      const bk = breakIterator.nextBreak();
+      if (linebreak.position > -1) {
+        mark.isBreakForced = linebreak.required;
+        mark.isBreak = true;
+      }
+      if (bk && ifc.hasText()) {
+        breakMark = bk.position;
+        if (linebreak) {
+          linebreak.position = bk.position;
+          linebreak.required = bk.required;
+        } else {
+          linebreak = {...bk};
+        }
+      } else {
+        linebreak = null;
+        breakMark = end;
+      }
+    }
+
+    if (graphemeBreakMark === mark.position) {
+      if (ifc.hasText()) {
+        mark.isGraphemeBreak = true;
+        graphemeBreakMark = nextGraphemeBreak(ifc.text, graphemeBreakMark);
+      } else {
+        graphemeBreakMark = end;
+      }
+    }
+
+    if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakspot') {
+      inline = inlineIterator.next();
+    }
+
+    return {done: false, value: mark};
+  };
+
+  function split(this: IfcMark, mark: IfcMark) {
+    itemIndex += 1;
+    this.itemIndex += 1;
+    mark.itemIndex += 1;
+
+    const item = ifc.items[this.itemIndex];
+
+    if (itemIndex === this.itemIndex) {
+      itemMeasureState = item.createMeasureState();
+      item.measure(mark.position, 1, itemMeasureState);
+    }
   }
 
-  contribution(mode: 'min-content' | 'max-content') {
-    const width = new LineWidthTracker();
-    let contribution = 0;
+  return {[Symbol.iterator]: () => ({next})};
+}
 
-    for (const mark of this.createMarkIterator(mode)) {
-      const inkAdvance = mark.advance - mark.trailingWs;
-      const isBreak = mark.isBreak || mark.isGraphemeBreak;
+export function getIfcContribution(
+  ifc: IfcInline,
+  mode: 'min-content' | 'max-content'
+) {
+  const width = new LineWidthTracker();
+  let contribution = 0;
 
-      if (inkAdvance) width.addInk(inkAdvance);
-      if (mark.trailingWs) width.addWs(mark.trailingWs, true /* TODO */);
-      if (mark.inlinePre) width.addInk(mark.inlinePre.getInlineSideSize('pre'));
-      if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize('post'));
+  for (const mark of createMarkIterator(ifc, mode)) {
+    const inkAdvance = mark.advance - mark.trailingWs;
+    const isBreak = mark.isBreak || mark.isGraphemeBreak;
 
-      if (mark.box) {
-        width.addInk(layoutContribution(mark.box, mode));
-        // floats don't have breaks before/after them
-        if (mode === 'min-content') {
-          contribution = Math.max(contribution, width.trimmed());
-          width.reset();
-        }
-      }
+    if (inkAdvance) width.addInk(inkAdvance);
+    if (mark.trailingWs) width.addWs(mark.trailingWs, true /* TODO */);
+    if (mark.inlinePre) width.addInk(mark.inlinePre.getInlineSideSize('pre'));
+    if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
-      if (isBreak && (mode === 'min-content' || mark.isBreakForced)) {
+    if (mark.box) {
+      width.addInk(layoutContribution(mark.box, mode));
+      // floats don't have breaks before/after them
+      if (mode === 'min-content') {
         contribution = Math.max(contribution, width.trimmed());
         width.reset();
       }
     }
 
-    if (mode === 'max-content') contribution = Math.max(contribution, width.trimmed());
-
-    return contribution;
-  }
-
-  createLineboxes(ctx: LayoutContext) {
-    const bfc = ctx.bfc!;
-    /** Holds shaped items, width and height trackers for the current word */
-    const candidates = new LineCandidates(this.ifc);
-    /** Tracks the width of the line being worked on */
-    const width = new LineWidthTracker();
-    /** Tracks the height, ascenders and descenders of the line being worked on */
-    const height = new LineHeightTracker(this.ifc);
-    const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
-    const parents: Inline[] = [];
-    let line: Linebox | null = null;
-    let lastBreakMark: IfcMark | undefined;
-    const lines = [];
-    let floatsInWord = [];
-    let blockOffset = bfc.cbBlockStart;
-    let lineHasWord = false;
-
-    const finishLine = (line: Linebox) => {
-      line.postprocess(width, height, vacancy, this.ifc.style.getTextAlign());
-      const blockSize = line.height();
+    if (isBreak && (mode === 'min-content' || mark.isBreakForced)) {
+      contribution = Math.max(contribution, width.trimmed());
       width.reset();
-      height.reset();
-      bfc.fctx?.postLine(line, true);
-      blockOffset += blockSize;
-      bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-      lineHasWord = false;
-    };
-
-    for (const mark of this.createMarkIterator('normal')) {
-      const parent = parents[parents.length - 1] || this.ifc;
-      const item = this.items[mark.itemIndex];
-
-      if (mark.inlinePre) {
-        candidates.height.pushInline(mark.inlinePre);
-        if (item && item.offset <= mark.inlinePre.textStart && item.end() > mark.inlinePre.textStart) {
-          candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.face));
-        }
-        parents.push(mark.inlinePre);
-      }
-
-      const wsCollapsible = parent.style.isWsCollapsible();
-      const nowrap = isNowrap(parent.style.whiteSpace);
-      const inkAdvance = mark.advance - mark.trailingWs;
-
-      if (inkAdvance) candidates.width.addInk(inkAdvance);
-      if (mark.trailingWs) candidates.width.addWs(mark.trailingWs, !!wsCollapsible);
-
-      const wouldHaveContent = width.hasContent() || candidates.width.hasContent();
-
-      if (mark.box?.isFloat()) {
-        if (
-          // No text content yet on the hypothetical line
-          !wouldHaveContent ||
-          // No text between the last break and the float
-          lastBreakMark && lastBreakMark.position === mark.position
-        ) {
-          const lineWidth = line ? width.forFloat() : 0;
-          const lineIsEmpty = line ? !candidates.head && !line.head : true;
-          const fctx = bfc.ensureFloatContext(blockOffset);
-          layoutFloatBox(mark.box, ctx);
-          fctx.placeFloat(lineWidth, lineIsEmpty, mark.box);
-        } else {
-          // Have to place after the word
-          floatsInWord.push(mark.box);
-        }
-      }
-
-      if (mark.inlinePre) candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
-      if (mark.inlinePost) candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
-
-      if (mark.box?.isInlineLevel()) {
-        layoutFloatBox(mark.box, ctx);
-        const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero();
-        const borderArea = mark.box.getBorderArea();
-        candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
-        candidates.height.stampBlock(mark.box, parent);
-      }
-
-      if (mark.inlinePre && (mark.inlinePost || mark.isBreakForced) || mark.box?.isInlineLevel()) {
-        const [left, right] = [item, this.items[mark.itemIndex + 1]];
-        let level: number = 0;
-        // Treat the empty span as an Other Neutral (ON) according to UAX29. I
-        // think that's what browsers are doing.
-        if (left && !right /* beyond last item */) level = left.attrs.level;
-        if (!left && right /* before first item */) level = right.attrs.level;
-        // An ON should take on the embedding level if the left and right levels
-        // are diferent, but there is no embedding level for the empty span since
-        // it isn't a character. Taking the min should fit most scenarios.
-        if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
-        // If there are no left or right, there is no text, so level=0 is OK
-        const style = mark.inlinePre?.style || (mark.box as Box).style;
-        const attrs = {level, isEmoji: false, script: 'Latn', style};
-        const shiv = new ShapedShim(mark.position, parents.slice(), attrs, mark.box || undefined);
-        candidates.push(shiv);
-        for (const p of parents) p.nshaped += 1;
-      }
-
-      // Either a Unicode soft wrap, before/after an inline-block, or cluster
-      // boundary enabled by overflow-wrap
-      const isBreak = mark.isBreak || mark.isGraphemeBreak;
-
-      if (
-        // Is an opportunity for soft wrapping
-        isBreak && (
-          // There is content on the hypothetical line and CSS allows wrapping
-          wouldHaveContent && !nowrap ||
-          // A <br> or preserved \n always creates a new line
-          mark.isBreakForced ||
-          // The end of the paragraph always ensures there's a line
-          mark.position === this.length()
-        )
-      ) {
-        if (!line) {
-          lines.push(line = new Linebox(0, this));
-          bfc.fctx?.preTextContent();
-        }
-
-        const blockSize = height.totalWith(candidates.height);
-        bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-
-        if (this.string[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
-          const glyphs = getHyphen(item)?.glyphs;
-          const {face: {hbface: {upem}}, attrs: {style: {fontSize}}} = item;
-          if (glyphs?.length) {
-            let w = 0;
-            for (let i = 0; i < glyphs.length; i += G_SZ) w += glyphs[i + G_AX];
-            candidates.width.addHyphen(w / upem * fontSize);
-          }
-        }
-
-        // Conditions to finish the current line and start a new one
-        // This is for soft wraps. Hard wraps are followed again later.
-        if (
-          // The line has non-whitespace text or inline-blocks
-          line.hasContent() &&
-          // The word being added isn't just whitespace
-          candidates.width.hasContent() &&
-          // The line would overflow if we added the word
-          !vacancy.fits(width.forWord() + candidates.width.asWord())
-        ) {
-          const lastLine = line;
-          if (!lastBreakMark) throw new Error('Assertion failed');
-          lines.push(line = new Linebox(lastBreakMark.position, this));
-          const lastBreakMarkItem = this.items[lastBreakMark.itemIndex];
-
-          if (lastBreakMarkItem?.hasCharacterInside(lastBreakMark.position)) {
-            this.split(lastBreakMark.itemIndex, lastBreakMark.position);
-            lastBreakMark.split(mark);
-            candidates.unshift(this.items[lastBreakMark.itemIndex]);
-            // Stamp the brand new line with its metrics, since the only other
-            // place this happens is mark.itemStart
-            candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
-          }
-
-          finishLine(lastLine);
-        }
-
-        if (!line.hasContent() /* line was just added */) {
-          if (candidates.width.forFloat() > vacancy.inlineSize && bfc.fctx) {
-            const newVacancy = bfc.fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
-            blockOffset = newVacancy.blockOffset;
-            bfc.fctx?.dropShelf(blockOffset);
-          }
-        }
-
-        // Add at each normal wrapping opportunity. Inside overflow-wrap
-        // segments, we add each character while the line doesn't have a word.
-        if (mark.isBreak || !lineHasWord) {
-          if (mark.isBreak) lineHasWord = true;
-          line.addCandidates(candidates, mark.position);
-          width.concat(candidates.width);
-          height.concat(candidates.height);
-
-          candidates.clearContents();
-          lastBreakMark = mark;
-
-          for (const float of floatsInWord) {
-            const fctx = bfc.ensureFloatContext(blockOffset);
-            layoutFloatBox(float, ctx);
-            fctx.placeFloat(width.forFloat(), false, float);
-          }
-          if (floatsInWord.length) floatsInWord = [];
-
-          if (mark.isBreakForced) {
-            finishLine(line);
-            lines.push(line = new Linebox(mark.position, this));
-          }
-        }
-      }
-
-      if (mark.isItemStart) {
-        item.inlines = parents.slice();
-        for (const p of parents) p.nshaped += 1;
-        candidates.push(item);
-        candidates.height.stampMetrics(getMetrics(parent.style, item.face));
-      }
-
-      // Handle a span that starts inside a shaped item
-      if (mark.inlinePre && item && mark.position < item.end()) {
-        item.inlines.push(mark.inlinePre);
-        mark.inlinePre.nshaped += 1;
-      }
-
-      if (mark.inlinePost) {
-        parents.pop();
-        candidates.height.popInline();
-      }
     }
-
-    for (const float of floatsInWord) {
-      const fctx = bfc.ensureFloatContext(blockOffset);
-      layoutFloatBox(float, ctx);
-      fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);
-    }
-
-    if (line) {
-      // If the IFC consists of only whitespace and inline-blocks or replaced
-      // elements, the whitespace is added here
-      line.addCandidates(candidates, this.string.length);
-      // There could have been floats after the paragraph's final line break
-      bfc.getLocalVacancyForLine(bfc, blockOffset, line.height(), vacancy);
-      finishLine(line);
-    } else if (candidates.width.hasContent()) {
-      // We never hit a break opportunity because there is no non-whitespace
-      // text and no inline-blocks, but there is some content on spans (border,
-      // padding, or margin). Add everything.
-      lines.push(line = new Linebox(0, this));
-      line.addCandidates(candidates, this.string.length);
-      finishLine(line);
-    } else {
-      bfc.fctx?.consumeMisfits();
-    }
-
-    if (this.ifc.loggingEnabled()) {
-      const log = new Logger();
-      log.text(`Paragraph ${this.ifc.id}:\n`);
-      log.pushIndent();
-      for (const item of this.items) {
-        const lead = `@${item.offset} `.padEnd(5);
-        log.text(lead);
-        log.pushIndent(' '.repeat(lead.length));
-        log.text(`F:${basename(item.face.url)}\n`);
-        log.text(`T:"${item.text()}"\n`);
-        log.text(`G:`);
-        log.glyphs(item.glyphs);
-        log.text('\n');
-        log.popIndent();
-      }
-      for (const [i, line] of lines.entries()) {
-        const W = line.width.toFixed(2);
-        const A = line.ascender.toFixed(2);
-        const D = line.descender.toFixed(2);
-        const B = line.blockOffset.toFixed(2);
-        log.text(`Line ${i} (W:${W} A:${A} D:${D} B:${B}): `);
-        for (let n = line.head; n; n = n.next) {
-          log.text(n.value instanceof ShapedItem ? `"${n.value.text()}" ` : '"" ');
-        }
-        log.text('\n');
-      }
-      if (bfc.fctx) {
-        log.text('Left floats\n');
-        log.text(`${bfc.fctx.leftFloats.repr()}\n`);
-        log.text('Right floats');
-        log.text(`${bfc.fctx.rightFloats.repr()}\n`);
-      }
-      log.pushIndent();
-      log.flush();
-    }
-
-    this.lineboxes = lines;
   }
 
-  positionItems(ctx: LayoutContext) {
-    const counts: Map<Inline, number> = new Map();
-    const direction = this.ifc.style.direction;
-    const ifc = this.ifc;
-    const containingBlock = ifc.getContainingBlock();
-    let x = 0;
-    let bgcursor = 0;
+  if (mode === 'max-content') contribution = Math.max(contribution, width.trimmed());
 
-    function inlineMarginAdvance(inline: Inline, side: 'start' | 'end') {
-      const style = inline.style;
-      let margin
-        = (direction === 'ltr' ? side === 'start' : side === 'end')
-        ? style.getMarginLineLeft(containingBlock)
-        : style.getMarginLineRight(containingBlock);
+  return contribution;
+}
 
-      if (margin === 'auto') margin = 0;
+function splitItem(ifc: IfcInline, itemIndex: number, offset: number) {
+  const left = ifc.items[itemIndex];
+  const {needsReshape, right} = left.split(offset - left.offset);
 
-      if (side === 'start') {
-        bgcursor += direction === 'ltr' ? margin : -margin;
-      }
+  if (needsReshape) {
+    left.reshape(true);
+    right.reshape(false);
+  }
 
-      x += direction === 'ltr' ? margin : -margin;
-    }
-
-    function inlineBorderAdvance(inline: Inline, side: 'start' | 'end') {
-      const style = inline.style;
-      const borderWidth
-        = (direction === 'ltr' ? side === 'start' : side === 'end')
-        ? style.borderLeftWidth
-        : style.borderRightWidth;
-
-      if (side === 'start' && style.backgroundClip !== 'border-box') {
-        bgcursor += direction === 'ltr' ? borderWidth : -borderWidth;
-      }
-
-      if (side === 'end' && style.backgroundClip === 'border-box') {
-        bgcursor += direction === 'ltr' ? borderWidth : -borderWidth;
-      }
-
-      x += direction === 'ltr' ? borderWidth : -borderWidth;
-    }
-
-    function inlinePaddingAdvance(inline: Inline, side: 'start' | 'end') {
-      const style = inline.style;
-      const padding
-        = (direction === 'ltr' ? side === 'start' : side === 'end')
-        ? style.getPaddingLineLeft(containingBlock)
-        : style.getPaddingLineRight(containingBlock);
-
-      if (side === 'start' && style.backgroundClip === 'content-box') {
-        bgcursor += direction === 'ltr' ? padding : -padding;
-      }
-
-      if (side === 'end' && style.backgroundClip !== 'content-box') {
-        bgcursor += direction === 'ltr' ? padding : -padding;
-      }
-
-      x += direction === 'ltr' ? padding : -padding;
-    }
-
-    function inlineSideAdvance(inline: Inline, side: 'start' | 'end') {
-      if (side === 'start') {
-        inlineMarginAdvance(inline, side);
-        inlineBorderAdvance(inline, side);
-        inlinePaddingAdvance(inline, side);
+  ifc.items.splice(itemIndex + 1, 0, right);
+  if (ifc.text[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
+    const hyphen = getHyphen(left)?.glyphs;
+    if (hyphen?.length) {
+      const glyphs = new Int32Array(left.glyphs.length + hyphen.length);
+      if (left.attrs.level & 1) {
+        glyphs.set(hyphen, 0);
+        glyphs.set(left.glyphs, hyphen.length);
+        for (let i = G_CL; i < hyphen.length; i += G_SZ) {
+          glyphs[i] = offset - 1;
+        }
       } else {
-        inlinePaddingAdvance(inline, side);
-        inlineBorderAdvance(inline, side);
-        inlineMarginAdvance(inline, side);
-      }
-    }
-
-    function inlineBackgroundAdvance(item: ShapedItem, mark: number, side: 'start' | 'end') {
-      if (mark > item.offset && mark < item.end()) {
-        if (direction === 'ltr' && side === 'start' || direction === 'rtl' && side === 'end') {
-          const direction = item.attrs.level & 1 ? -1 : 1;
-          bgcursor += item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
-        }
-
-        if (direction === 'rtl' && side === 'start' || direction === 'ltr' && side === 'end') {
-          const direction = item.attrs.level & 1 ? 1 : -1;
-          bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
+        glyphs.set(left.glyphs, 0);
+        glyphs.set(hyphen, left.glyphs.length);
+        for (let i = left.glyphs.length + G_CL; i < glyphs.length; i += G_SZ) {
+          glyphs[i] = offset - 1;
         }
       }
+      left.glyphs = glyphs;
+    }
+  }
+}
+
+export function createIfcLineboxes(ifc: IfcInline, ctx: LayoutContext) {
+  const bfc = ctx.bfc!;
+  /** Holds shaped items, width and height trackers for the current word */
+  const candidates = new LineCandidates(ifc);
+  /** Tracks the width of the line being worked on */
+  const width = new LineWidthTracker();
+  /** Tracks the height, ascenders and descenders of the line being worked on */
+  const height = new LineHeightTracker(ifc);
+  const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
+  const parents: Inline[] = [];
+  let line: Linebox | null = null;
+  let lastBreakMark: IfcMark | undefined;
+  const lines = [];
+  let floatsInWord = [];
+  let blockOffset = bfc.cbBlockStart;
+  let lineHasWord = false;
+
+  const finishLine = (line: Linebox) => {
+    line.postprocess(width, height, vacancy, ifc.style.getTextAlign());
+    const blockSize = line.height();
+    width.reset();
+    height.reset();
+    bfc.fctx?.postLine(line, true);
+    blockOffset += blockSize;
+    bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+    lineHasWord = false;
+  };
+
+  for (const mark of createMarkIterator(ifc, 'normal')) {
+    const parent = parents[parents.length - 1] || ifc;
+    const item = ifc.items[mark.itemIndex];
+
+    if (mark.inlinePre) {
+      candidates.height.pushInline(mark.inlinePre);
+      if (
+        item &&
+        item.offset <= mark.inlinePre.textStart &&
+        item.end() > mark.inlinePre.textStart
+      ) {
+        candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.face));
+      }
+      parents.push(mark.inlinePre);
     }
 
-    for (const linebox of this.lineboxes) {
-      const boxBuilder = this.ifc.hasPaintedInlines() ? new ContiguousBoxBuilder() : undefined;
-      const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
-      let y = linebox.blockOffset + linebox.ascender;
+    const wsCollapsible = parent.style.isWsCollapsible();
+    const nowrap = isNowrap(parent.style.whiteSpace);
+    const inkAdvance = mark.advance - mark.trailingWs;
 
-      if (direction === 'ltr') {
-        x = linebox.inlineOffset;
+    if (inkAdvance) candidates.width.addInk(inkAdvance);
+    if (mark.trailingWs) candidates.width.addWs(mark.trailingWs, !!wsCollapsible);
+
+    const wouldHaveContent = width.hasContent() || candidates.width.hasContent();
+
+    if (mark.box?.isFloat()) {
+      if (
+        // No text content yet on the hypothetical line
+        !wouldHaveContent ||
+        // No text between the last break and the float
+        lastBreakMark && lastBreakMark.position === mark.position
+      ) {
+        const lineWidth = line ? width.forFloat() : 0;
+        const lineIsEmpty = line ? !candidates.head && !line.head : true;
+        const fctx = bfc.ensureFloatContext(blockOffset);
+        layoutFloatBox(mark.box, ctx);
+        fctx.placeFloat(lineWidth, lineIsEmpty, mark.box);
       } else {
-        x = containingBlock.inlineSize - linebox.inlineOffset;
+        // Have to place after the word
+        floatsInWord.push(mark.box);
+      }
+    }
+
+    if (mark.inlinePre) candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
+    if (mark.inlinePost) candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
+
+    if (mark.box?.isInlineLevel()) {
+      layoutFloatBox(mark.box, ctx);
+      const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero();
+      const borderArea = mark.box.getBorderArea();
+      candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
+      candidates.height.stampBlock(mark.box, parent);
+    }
+
+    if (mark.inlinePre && (mark.inlinePost || mark.isBreakForced) || mark.box?.isInlineLevel()) {
+      const [left, right] = [item, ifc.items[mark.itemIndex + 1]];
+      let level: number = 0;
+      // Treat the empty span as an Other Neutral (ON) according to UAX29. I
+      // think that's what browsers are doing.
+      if (left && !right /* beyond last item */) level = left.attrs.level;
+      if (!left && right /* before first item */) level = right.attrs.level;
+      // An ON should take on the embedding level if the left and right levels
+      // are diferent, but there is no embedding level for the empty span since
+      // it isn't a character. Taking the min should fit most scenarios.
+      if (left && right) level = Math.min(left.attrs.level, right.attrs.level);
+      // If there are no left or right, there is no text, so level=0 is OK
+      const style = mark.inlinePre?.style || (mark.box as Box).style;
+      const attrs = {level, isEmoji: false, script: 'Latn', style};
+      const shiv = new ShapedShim(mark.position, parents.slice(), attrs, mark.box || undefined);
+      candidates.push(shiv);
+      for (const p of parents) p.nshaped += 1;
+    }
+
+    // Either a Unicode soft wrap, before/after an inline-block, or cluster
+    // boundary enabled by overflow-wrap
+    const isBreak = mark.isBreak || mark.isGraphemeBreak;
+
+    if (
+      // Is an opportunity for soft wrapping
+      isBreak && (
+        // There is content on the hypothetical line and CSS allows wrapping
+        wouldHaveContent && !nowrap ||
+        // A <br> or preserved \n always creates a new line
+        mark.isBreakForced ||
+        // The end of the paragraph always ensures there's a line
+        mark.position === ifc.text.length
+      )
+    ) {
+      if (!line) {
+        lines.push(line = new Linebox(0, ifc));
+        bfc.fctx?.preTextContent();
       }
 
-      for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
-        const item = n.value;
-        let baselineShift = 0;
+      const blockSize = height.totalWith(candidates.height);
+      bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
 
-        boxBuilder?.closeAll(item.inlines, x);
-
-        for (let i = 0; i < item.inlines.length; ++i) {
-          const inline = item.inlines[i];
-          const count = counts.get(inline);
-          const isFirstOccurance = count === undefined;
-          const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
-          const mark = isOrthogonal ? inline.textEnd : inline.textStart;
-          const alignmentContext = linebox.contextRoots.get(inline);
-
-          bgcursor = x;
-
-          if (alignmentContext) baselineShift = alignmentContext.baselineShift;
-
-          baselineShift += baselineStep(item.inlines[i - 1] || ifc, inline);
-
-          if (item instanceof ShapedItem) {
-            inlineBackgroundAdvance(item, mark, 'start');
-          }
-
-          if (isFirstOccurance) inlineSideAdvance(inline, 'start');
-          const offset = Math.max(item.offset, mark);
-          boxBuilder?.open(inline, offset, isFirstOccurance, bgcursor, y - baselineShift);
-
-          if (isFirstOccurance) {
-            counts.set(inline, 1);
-          } else {
-            counts.set(inline, count! + 1);
-          }
+      if (ifc.text[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
+        const glyphs = getHyphen(item)?.glyphs;
+        const {face: {hbface: {upem}}, attrs: {style: {fontSize}}} = item;
+        if (glyphs?.length) {
+          let w = 0;
+          for (let i = 0; i < glyphs.length; i += G_SZ) w += glyphs[i + G_AX];
+          candidates.width.addHyphen(w / upem * fontSize);
         }
+      }
+
+      // Conditions to finish the current line and start a new one
+      // This is for soft wraps. Hard wraps are followed again later.
+      if (
+        // The line has non-whitespace text or inline-blocks
+        line.hasContent() &&
+        // The word being added isn't just whitespace
+        candidates.width.hasContent() &&
+        // The line would overflow if we added the word
+        !vacancy.fits(width.forWord() + candidates.width.asWord())
+      ) {
+        const lastLine = line;
+        if (!lastBreakMark) throw new Error('Assertion failed');
+        lines.push(line = new Linebox(lastBreakMark.position, ifc));
+        const lastBreakMarkItem = ifc.items[lastBreakMark.itemIndex];
+
+        if (lastBreakMarkItem?.hasCharacterInside(lastBreakMark.position)) {
+          splitItem(ifc, lastBreakMark.itemIndex, lastBreakMark.position);
+          lastBreakMark.split(mark);
+          candidates.unshift(ifc.items[lastBreakMark.itemIndex]);
+          // Stamp the brand new line with its metrics, since the only other
+          // place this happens is mark.itemStart
+          candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
+        }
+
+        finishLine(lastLine);
+      }
+
+      if (!line.hasContent() /* line was just added */) {
+        if (candidates.width.forFloat() > vacancy.inlineSize && bfc.fctx) {
+          const newVacancy = bfc.fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
+          blockOffset = newVacancy.blockOffset;
+          bfc.fctx?.dropShelf(blockOffset);
+        }
+      }
+
+      // Add at each normal wrapping opportunity. Inside overflow-wrap
+      // segments, we add each character while the line doesn't have a word.
+      if (mark.isBreak || !lineHasWord) {
+        if (mark.isBreak) lineHasWord = true;
+        line.addCandidates(candidates, mark.position);
+        width.concat(candidates.width);
+        height.concat(candidates.height);
+
+        candidates.clearContents();
+        lastBreakMark = mark;
+
+        for (const float of floatsInWord) {
+          const fctx = bfc.ensureFloatContext(blockOffset);
+          layoutFloatBox(float, ctx);
+          fctx.placeFloat(width.forFloat(), false, float);
+        }
+        if (floatsInWord.length) floatsInWord = [];
+
+        if (mark.isBreakForced) {
+          finishLine(line);
+          lines.push(line = new Linebox(mark.position, ifc));
+        }
+      }
+    }
+
+    if (mark.isItemStart) {
+      item.inlines = parents.slice();
+      for (const p of parents) p.nshaped += 1;
+      candidates.push(item);
+      candidates.height.stampMetrics(getMetrics(parent.style, item.face));
+    }
+
+    // Handle a span that starts inside a shaped item
+    if (mark.inlinePre && item && mark.position < item.end()) {
+      item.inlines.push(mark.inlinePre);
+      mark.inlinePre.nshaped += 1;
+    }
+
+    if (mark.inlinePost) {
+      parents.pop();
+      candidates.height.popInline();
+    }
+  }
+
+  for (const float of floatsInWord) {
+    const fctx = bfc.ensureFloatContext(blockOffset);
+    layoutFloatBox(float, ctx);
+    fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);
+  }
+
+  if (line) {
+    // If the IFC consists of only whitespace and inline-blocks or replaced
+    // elements, the whitespace is added here
+    line.addCandidates(candidates, ifc.text.length);
+    // There could have been floats after the paragraph's final line break
+    bfc.getLocalVacancyForLine(bfc, blockOffset, line.height(), vacancy);
+    finishLine(line);
+  } else if (candidates.width.hasContent()) {
+    // We never hit a break opportunity because there is no non-whitespace
+    // text and no inline-blocks, but there is some content on spans (border,
+    // padding, or margin). Add everything.
+    lines.push(line = new Linebox(0, ifc));
+    line.addCandidates(candidates, ifc.text.length);
+    finishLine(line);
+  } else {
+    bfc.fctx?.consumeMisfits();
+  }
+
+  if (ifc.loggingEnabled()) {
+    const log = new Logger();
+    log.text(`Paragraph ${ifc.id}:\n`);
+    log.pushIndent();
+    for (const item of ifc.items) {
+      const lead = `@${item.offset} `.padEnd(5);
+      log.text(lead);
+      log.pushIndent(' '.repeat(lead.length));
+      log.text(`F:${basename(item.face.url)}\n`);
+      log.text(`T:"${item.text()}"\n`);
+      log.text(`G:`);
+      log.glyphs(item.glyphs);
+      log.text('\n');
+      log.popIndent();
+    }
+    for (const [i, line] of lines.entries()) {
+      const W = line.width.toFixed(2);
+      const A = line.ascender.toFixed(2);
+      const D = line.descender.toFixed(2);
+      const B = line.blockOffset.toFixed(2);
+      log.text(`Line ${i} (W:${W} A:${A} D:${D} B:${B}): `);
+      for (let n = line.head; n; n = n.next) {
+        log.text(n.value instanceof ShapedItem ? `"${n.value.text()}" ` : '"" ');
+      }
+      log.text('\n');
+    }
+    if (bfc.fctx) {
+      log.text('Left floats\n');
+      log.text(`${bfc.fctx.leftFloats.repr()}\n`);
+      log.text('Right floats');
+      log.text(`${bfc.fctx.rightFloats.repr()}\n`);
+    }
+    log.pushIndent();
+    log.flush();
+  }
+
+  return lines;
+}
+
+export function positionIfcItems(ifc: IfcInline) {
+  const counts: Map<Inline, number> = new Map();
+  const direction = ifc.style.direction;
+  const containingBlock = ifc.getContainingBlock();
+  let x = 0;
+  let bgcursor = 0;
+
+  function inlineMarginAdvance(inline: Inline, side: 'start' | 'end') {
+    const style = inline.style;
+    let margin
+      = (direction === 'ltr' ? side === 'start' : side === 'end')
+      ? style.getMarginLineLeft(containingBlock)
+      : style.getMarginLineRight(containingBlock);
+
+    if (margin === 'auto') margin = 0;
+
+    if (side === 'start') {
+      bgcursor += direction === 'ltr' ? margin : -margin;
+    }
+
+    x += direction === 'ltr' ? margin : -margin;
+  }
+
+  function inlineBorderAdvance(inline: Inline, side: 'start' | 'end') {
+    const style = inline.style;
+    const borderWidth
+      = (direction === 'ltr' ? side === 'start' : side === 'end')
+      ? style.borderLeftWidth
+      : style.borderRightWidth;
+
+    if (side === 'start' && style.backgroundClip !== 'border-box') {
+      bgcursor += direction === 'ltr' ? borderWidth : -borderWidth;
+    }
+
+    if (side === 'end' && style.backgroundClip === 'border-box') {
+      bgcursor += direction === 'ltr' ? borderWidth : -borderWidth;
+    }
+
+    x += direction === 'ltr' ? borderWidth : -borderWidth;
+  }
+
+  function inlinePaddingAdvance(inline: Inline, side: 'start' | 'end') {
+    const style = inline.style;
+    const padding
+      = (direction === 'ltr' ? side === 'start' : side === 'end')
+      ? style.getPaddingLineLeft(containingBlock)
+      : style.getPaddingLineRight(containingBlock);
+
+    if (side === 'start' && style.backgroundClip === 'content-box') {
+      bgcursor += direction === 'ltr' ? padding : -padding;
+    }
+
+    if (side === 'end' && style.backgroundClip !== 'content-box') {
+      bgcursor += direction === 'ltr' ? padding : -padding;
+    }
+
+    x += direction === 'ltr' ? padding : -padding;
+  }
+
+  function inlineSideAdvance(inline: Inline, side: 'start' | 'end') {
+    if (side === 'start') {
+      inlineMarginAdvance(inline, side);
+      inlineBorderAdvance(inline, side);
+      inlinePaddingAdvance(inline, side);
+    } else {
+      inlinePaddingAdvance(inline, side);
+      inlineBorderAdvance(inline, side);
+      inlineMarginAdvance(inline, side);
+    }
+  }
+
+  function inlineBackgroundAdvance(item: ShapedItem, mark: number, side: 'start' | 'end') {
+    if (mark > item.offset && mark < item.end()) {
+      if (direction === 'ltr' && side === 'start' || direction === 'rtl' && side === 'end') {
+        const direction = item.attrs.level & 1 ? -1 : 1;
+        bgcursor += item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
+      }
+
+      if (direction === 'rtl' && side === 'start' || direction === 'ltr' && side === 'end') {
+        const direction = item.attrs.level & 1 ? 1 : -1;
+        bgcursor -= item instanceof ShapedItem ? item.measure(mark, direction).advance : 0;
+      }
+    }
+  }
+
+  for (const linebox of ifc.lineboxes) {
+    const boxBuilder = ifc.hasPaintedInlines() ? new ContiguousBoxBuilder() : undefined;
+    const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
+    let y = linebox.blockOffset + linebox.ascender;
+
+    if (direction === 'ltr') {
+      x = linebox.inlineOffset;
+    } else {
+      x = ifc.getContainingBlock().inlineSize - linebox.inlineOffset;
+    }
+
+    for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {
+      const item = n.value;
+      let baselineShift = 0;
+
+      boxBuilder?.closeAll(item.inlines, x);
+
+      for (let i = 0; i < item.inlines.length; ++i) {
+        const inline = item.inlines[i];
+        const count = counts.get(inline);
+        const isFirstOccurance = count === undefined;
+        const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
+        const mark = isOrthogonal ? inline.textEnd : inline.textStart;
+        const alignmentContext = linebox.contextRoots.get(inline);
+
+        bgcursor = x;
+
+        if (alignmentContext) baselineShift = alignmentContext.baselineShift;
+
+        baselineShift += baselineStep(item.inlines[i - 1] || ifc, inline);
 
         if (item instanceof ShapedItem) {
-          const width = item.measure().advance;
-          item.x = direction === 'ltr' ? x : x - width;
-          item.y = y - baselineShift;
-          x += direction === 'ltr' ? width : -width;
-        } else if (item.box) {
-          const parent = item.inlines.at(-1) || ifc;
-          const {lineLeft, blockStart, lineRight} = item.box.getMarginsAutoIsZero();
-          const borderArea = item.box.getBorderArea();
-
-          if (item.box.style.verticalAlign === 'top') {
-            item.box.setBlockPosition(linebox.blockOffset + blockStart);
-          } else if (item.box.style.verticalAlign === 'bottom') {
-            const {ascender, descender} = inlineBlockMetrics(item.box);
-            item.box.setBlockPosition(
-              linebox.blockOffset + linebox.height() - descender - ascender + blockStart
-            );
-          } else {
-            const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(parent, item.box);
-            const {ascender} = inlineBlockMetrics(item.box);
-            item.box.setBlockPosition(y - inlineBlockBaselineShift - ascender + blockStart);
-          }
-
-          if (direction === 'ltr') {
-            item.box.setInlinePosition(x + lineLeft);
-            x += lineLeft + borderArea.width + lineRight;
-          } else {
-            x -= lineRight + borderArea.width + lineLeft;
-            item.box.setInlinePosition(x + lineLeft);
-          }
+          inlineBackgroundAdvance(item, mark, 'start');
         }
 
-        for (let i = item.inlines.length - 1; i >= 0; --i) {
-          const inline = item.inlines[i];
-          const count = counts.get(inline)!;
-          const isLastOccurance = count === inline.nshaped;
-          const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
-          const mark = isOrthogonal ? inline.textStart : inline.textEnd;
+        if (isFirstOccurance) inlineSideAdvance(inline, 'start');
+        const offset = Math.max(item.offset, mark);
+        boxBuilder?.open(inline, offset, isFirstOccurance, bgcursor, y - baselineShift);
 
-          bgcursor = x;
-
-          if (item instanceof ShapedItem) {
-            inlineBackgroundAdvance(item, mark, 'end');
-          }
-
-          if (isLastOccurance) inlineSideAdvance(inline, 'end');
-
-          if (
-            boxBuilder && (
-              isLastOccurance || isOrthogonal && (mark > item.offset && mark < item.end())
-            )
-          ) {
-            boxBuilder.close(inline, isLastOccurance, bgcursor);
-          }
+        if (isFirstOccurance) {
+          counts.set(inline, 1);
+        } else {
+          counts.set(inline, count! + 1);
         }
       }
 
-      boxBuilder?.closeAll([], x);
+      if (item instanceof ShapedItem) {
+        const width = item.measure().advance;
+        item.x = direction === 'ltr' ? x : x - width;
+        item.y = y - baselineShift;
+        x += direction === 'ltr' ? width : -width;
+      } else if (item.box) {
+        const parent = item.inlines.at(-1) || ifc;
+        const {lineLeft, blockStart, lineRight} = item.box.getMarginsAutoIsZero();
+        const borderArea = item.box.getBorderArea();
 
-      if (boxBuilder) {
-        for (const [inline, list] of boxBuilder.closed) {
-          const thisList = this.fragments.get(inline);
-          if (thisList) {
-            for (const fragment of list) thisList.push(fragment);
-          } else {
-            this.fragments.set(inline, list);
-          }
+        if (item.box.style.verticalAlign === 'top') {
+          item.box.setBlockPosition(linebox.blockOffset + blockStart);
+        } else if (item.box.style.verticalAlign === 'bottom') {
+          const {ascender, descender} = inlineBlockMetrics(item.box);
+          item.box.setBlockPosition(
+            linebox.blockOffset + linebox.height() - descender - ascender + blockStart
+          );
+        } else {
+          const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(parent, item.box);
+          const {ascender} = inlineBlockMetrics(item.box);
+          item.box.setBlockPosition(y - inlineBlockBaselineShift - ascender + blockStart);
+        }
+
+        if (direction === 'ltr') {
+          item.box.setInlinePosition(x + lineLeft);
+          x += lineLeft + borderArea.width + lineRight;
+        } else {
+          x -= lineRight + borderArea.width + lineLeft;
+          item.box.setInlinePosition(x + lineLeft);
+        }
+      }
+
+      for (let i = item.inlines.length - 1; i >= 0; --i) {
+        const inline = item.inlines[i];
+        const count = counts.get(inline)!;
+        const isLastOccurance = count === inline.nshaped;
+        const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
+        const mark = isOrthogonal ? inline.textStart : inline.textEnd;
+
+        bgcursor = x;
+
+        if (item instanceof ShapedItem) {
+          inlineBackgroundAdvance(item, mark, 'end');
+        }
+
+        if (isLastOccurance) inlineSideAdvance(inline, 'end');
+
+        if (
+          boxBuilder && (
+            isLastOccurance || isOrthogonal && (mark > item.offset && mark < item.end())
+          )
+        ) {
+          boxBuilder.close(inline, isLastOccurance, bgcursor);
+        }
+      }
+    }
+
+    boxBuilder?.closeAll([], x);
+
+    if (boxBuilder) {
+      for (const [inline, list] of boxBuilder.closed) {
+        const thisList = ifc.fragments.get(inline);
+        if (thisList) {
+          for (const fragment of list) thisList.push(fragment);
+        } else {
+          ifc.fragments.set(inline, list);
         }
       }
     }
   }
-}
-
-export function createParagraph(ifc: IfcInline) {
-  const buffer = createIfcBuffer(ifc.text)
-  return new Paragraph(ifc, buffer);
-}
-
-const EmptyBuffer = {
-  array: new Uint16Array(),
-  destroy: () => {}
-};
-
-export function createEmptyParagraph(ifc: IfcInline) {
-  return new Paragraph(ifc, EmptyBuffer);
 }

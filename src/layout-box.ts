@@ -813,7 +813,7 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
         stack.push(box.ifc);
       }
     } else if (box.isRun()) {
-      box.propagate(parents.at(-1)!, ifcs.at(-1)!.paragraph.string);
+      box.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
     } else {
       box.propagate(parents.at(-1)!);
     }

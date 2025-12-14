@@ -734,39 +734,6 @@ export abstract class BlockContainer extends FormattingBox {
     isBfcRoot: Box.BITS.isBfcRoot
   };
 
-  contribution(mode: 'min-content' | 'max-content'): number {
-    const marginLineLeft = this.style.getMarginLineLeft(this);
-    const marginLineRight = this.style.getMarginLineRight(this);
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
-    const paddingLineRight = this.style.getPaddingLineRight(this);
-    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-    let isize = this.style.getInlineSize(this);
-    let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-      + borderLineLeftWidth
-      + paddingLineLeft
-      + paddingLineRight
-      + borderLineRightWidth
-      + (marginLineRight === 'auto' ? 0 : marginLineRight);
-
-    if (isize === 'auto') {
-      isize = 0;
-      if (this.isBlockContainerOfBlocks()) {
-        for (const child of this.children) {
-          isize = Math.max(isize, child.contribution(mode));
-        }
-      } else if (this.isBlockContainerOfInlines()) {
-        if (this.ifc.shouldLayoutContent()) {
-          isize = this.ifc.contribution(mode);
-        }
-      }
-    }
-
-    contribution += isize;
-
-    return contribution;
-  }
-
   getLogSymbol() {
     if (this.isFloat()) {
       return '○︎';
@@ -890,6 +857,13 @@ export class BlockContainerOfInlines extends BlockContainer {
     return true;
   }
 
+  contribution(mode: 'min-content' | 'max-content') {
+    const styleContribution = this.style.getSideContribution(this);
+    let isize = this.style.getInlineSize(this);
+    if (isize === 'auto') isize = getIfcContribution(this.ifc, mode);
+    return styleContribution + isize;
+  }
+
   doTextLayout(ctx: LayoutContext) {
     const blockSize = this.style.getBlockSize(this);
     this.ifc.doTextLayout(ctx);
@@ -909,6 +883,18 @@ export class BlockContainerOfBlocks extends BlockContainer {
 
   isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
     return true;
+  }
+
+  contribution(mode: 'min-content' | 'max-content') {
+    const styleContribution = this.style.getSideContribution(this);
+    let isize = this.style.getInlineSize(this);
+    if (isize === 'auto') {
+      isize = 0;
+      for (const child of this.children) {
+        isize = Math.max(isize, child.contribution(mode));
+      }
+    }
+    return styleContribution + isize;
   }
 }
 
@@ -1307,10 +1293,6 @@ export class IfcInline extends Inline {
     return sliceIfcRenderText(this, item, start, end);
   }
 
-  contribution(mode: 'min-content' | 'max-content') {
-    return getIfcContribution(this, mode);
-  }
-
   getLineboxHeight() {
     if (this.lineboxes.length) {
       const line = this.lineboxes.at(-1)!;
@@ -1473,25 +1455,9 @@ export class ReplacedBox extends FormattingBox {
   }
 
   contribution() {
-    const marginLineLeft = this.style.getMarginLineLeft(this);
-    const marginLineRight = this.style.getMarginLineLeft(this);
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
-    const paddingLineRight = this.style.getPaddingLineRight(this);
-    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
     let isize = this.style.getInlineSize(this);
-    let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-      + borderLineLeftWidth
-      + paddingLineLeft
-      + paddingLineRight
-      + borderLineRightWidth
-      + (marginLineRight === 'auto' ? 0 : marginLineRight);
-
     if (isize === 'auto') isize = this.getIntrinsicIsize();
-
-    contribution += isize;
-
-    return contribution;
+    return isize + this.style.getSideContribution(this);;
   }
 
   getLastBaseline() {

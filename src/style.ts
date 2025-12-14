@@ -620,6 +620,21 @@ export class Style {
     return cssVal;
   }
 
+  getSideContribution(box: Box) {
+    const marginLineLeft = this.getMarginLineLeft(box);
+    const marginLineRight = this.getMarginLineRight(box);
+    const borderLineLeftWidth = this.getBorderLineLeftWidth(box);
+    const paddingLineLeft = this.getPaddingLineLeft(box);
+    const paddingLineRight = this.getPaddingLineRight(box);
+    const borderLineRightWidth = this.getBorderLineRightWidth(box);
+    return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+      + borderLineLeftWidth
+      + paddingLineLeft
+      + paddingLineRight
+      + borderLineRightWidth
+      + (marginLineRight === 'auto' ? 0 : marginLineRight);
+  }
+
   hasLineLeftGap(box: Box) {
     const writingMode = box.writingModeAsParticipant;
     const marginLineLeft = this[LogicalMaps[writingMode].marginLineLeft];

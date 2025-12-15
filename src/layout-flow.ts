@@ -746,7 +746,7 @@ export abstract class BlockContainer extends FormattingBox {
 
   logName(log: Logger) {
     if (this.isAnonymous()) log.dim();
-    if (this.isBfcRoot()) log.underline();
+    if (this.isBfcRoot() || this.isBlockContainerOfInlines()) log.underline();
     log.text(`Block ${this.id}`);
     log.reset();
   }
@@ -775,7 +775,7 @@ export abstract class BlockContainer extends FormattingBox {
       const {block, offset} = stack.pop()!;
 
       if (block.isBlockContainerOfInlines()) {
-        const linebox = block.ifc.lineboxes.at(-1);
+        const linebox = block.lineboxes.at(-1);
         if (linebox) return offset + linebox.blockOffset + linebox.ascender;
       }
 
@@ -818,7 +818,7 @@ export abstract class BlockContainer extends FormattingBox {
     if (blockSize !== 'auto' && blockSize !== 0) return false;
 
     if (this.isBlockContainerOfInlines()) {
-      return !this.ifc.hasText();
+      return !this.root.hasText();
     } else if (this.isBlockContainerOfBlocks()) {
       return this.children.length === 0;
     } else {
@@ -846,11 +846,101 @@ export abstract class BlockContainer extends FormattingBox {
 }
 
 export class BlockContainerOfInlines extends BlockContainer {
-  ifc: IfcInline;
+  root: Inline;
+  text: string;
+  buffer: AllocatedUint16Array;
+  items: ShapedItem[];
+  lineboxes: Linebox[];
+  fragments: Map<Inline, InlineFragment[]>;
 
-  constructor(style: Style, ifc: IfcInline, attrs: number) {
+  constructor(style: Style, root: Inline, text: string, attrs: number) {
     super(style, attrs);
-    this.ifc = ifc;
+    this.root = root;
+    this.text = text;
+    this.buffer = EmptyBuffer;
+    this.items = [];
+    this.lineboxes = [];
+    this.fragments = new Map();
+  }
+
+  prelayoutPostorder(ctx: PrelayoutContext) {
+    if (this.shouldLayoutContent()) {
+      if (this.root.hasCollapsibleWs()) collapseWhitespace(this);
+      this.buffer.destroy();
+      this.buffer = createIfcBuffer(this.text);
+      this.items = createIfcShapedItems(this);
+      this.fragments.clear();
+    }
+  }
+
+  positionItemsPostlayout() {
+    const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
+    const stack: (InlineLevel | {sentinel: Inline})[] = [this.root];
+    const contentArea = this.getContentArea();
+    let dx = 0;
+    let dy = 0;
+    let itemIndex = 0;
+
+    while (stack.length) {
+      const box = stack.pop()!;
+
+      if ('sentinel' in box) {
+        while (
+          itemIndex < this.items.length &&
+          this.items[itemIndex].offset < box.sentinel.end
+        ) {
+          const item = this.items[itemIndex];
+          item.x += contentArea.x;
+          item.y += contentArea.y;
+          if (item.end() > box.sentinel.start) {
+            item.x += dx;
+            item.y += dy;
+          }
+          itemIndex++;
+        }
+
+        if (box.sentinel.style.position === 'relative') {
+          dx -= box.sentinel.getRelativeHorizontalShift();
+          dy -= box.sentinel.getRelativeVerticalShift();
+        }
+      } else if (box.isInline()) {
+        stack.push({sentinel: box});
+        for (let i = box.children.length - 1; i >= 0; i--) {
+          stack.push(box.children[i]);
+        }
+
+        if (box.style.position === 'relative') {
+          dx += box.getRelativeHorizontalShift();
+          dy += box.getRelativeVerticalShift();
+        }
+
+        inlineShifts.set(box, {dx, dy});
+      } else if (box.isFormattingBox()) {
+        const borderArea = box.getBorderArea();
+        // floats or inline-blocks
+        borderArea.x += dx;
+        borderArea.y += dy;
+      }
+    }
+
+    for (const [inline, fragments] of this.fragments) {
+      const {dx, dy} = inlineShifts.get(inline)!;
+
+      for (const fragment of fragments) {
+        fragment.blockOffset += contentArea.y + dy;
+        fragment.start += contentArea.x + dx;
+        fragment.end += contentArea.x + dx;
+      }
+    }
+  }
+
+  postlayoutPreorder() {
+    super.postlayoutPreorder();
+    this.buffer.destroy();
+    this.buffer = EmptyBuffer;
+    if (this.shouldLayoutContent()) {
+      this.positionItemsPostlayout();
+    }
   }
 
   isBlockContainerOfInlines(): this is BlockContainerOfInlines {
@@ -860,14 +950,42 @@ export class BlockContainerOfInlines extends BlockContainer {
   contribution(mode: 'min-content' | 'max-content') {
     const styleContribution = this.style.getSideContribution(this);
     let isize = this.style.getInlineSize(this);
-    if (isize === 'auto') isize = getIfcContribution(this.ifc, mode);
+    if (isize === 'auto') isize = getIfcContribution(this, mode);
     return styleContribution + isize;
+  }
+
+  loggingEnabled() {
+    return Boolean(this.bitfield & Box.BITS.enableLogging);
+  }
+
+  sliceRenderText(item: ShapedItem, start: number, end: number) {
+    return sliceIfcRenderText(this, item, start, end);
+  }
+
+
+  getLineboxHeight() {
+    if (this.lineboxes.length) {
+      const line = this.lineboxes.at(-1)!;
+      return line.blockOffset + line.height();
+    } else {
+      return 0;
+    }
+  }
+
+  shouldLayoutContent() {
+    return this.root.hasText()
+      || this.root.hasSizedInline()
+      || this.root.hasFloatOrReplaced()
+      || this.root.hasInlineBlocks();
   }
 
   doTextLayout(ctx: LayoutContext) {
     const blockSize = this.style.getBlockSize(this);
-    this.ifc.doTextLayout(ctx);
-    if (blockSize === 'auto') this.setBlockSize(this.ifc.getLineboxHeight());
+    if (this.shouldLayoutContent()) {
+      this.lineboxes = createIfcLineboxes(this, ctx);
+      positionIfcItems(this);
+    }
+    if (blockSize === 'auto') this.setBlockSize(this.getLineboxHeight());
   }
 }
 
@@ -1239,7 +1357,6 @@ export class Inline extends Box {
 
   logName(log: Logger) {
     if (this.isAnonymous()) log.dim();
-    if (this.isIfcInline()) log.underline();
     log.text(`Inline ${this.id}`);
     log.reset();
   }
@@ -1261,140 +1378,6 @@ const EmptyBuffer = {
   array: new Uint16Array(),
   destroy: () => {}
 };
-
-export class IfcInline extends Inline {
-  children: InlineLevel[];
-  text: string;
-  buffer: AllocatedUint16Array;
-  items: ShapedItem[];
-  lineboxes: Linebox[];
-  fragments: Map<Inline, InlineFragment[]>;
-
-  constructor(style: Style, text: string, children: InlineLevel[], attrs: number) {
-    super(0, text.length, style, children, Box.ATTRS.isAnonymous | attrs);
-
-    this.children = children;
-    this.text = text;
-    this.buffer = EmptyBuffer;
-    this.items = [];
-    this.lineboxes = [];
-    this.fragments = new Map();
-  }
-
-  isIfcInline(): this is IfcInline {
-    return true;
-  }
-
-  loggingEnabled() {
-    return Boolean(this.bitfield & Box.BITS.enableLogging);
-  }
-
-  sliceRenderText(item: ShapedItem, start: number, end: number) {
-    return sliceIfcRenderText(this, item, start, end);
-  }
-
-  getLineboxHeight() {
-    if (this.lineboxes.length) {
-      const line = this.lineboxes.at(-1)!;
-      return line.blockOffset + line.height();
-    } else {
-      return 0;
-    }
-  }
-
-  prelayoutPostorder(ctx: PrelayoutContext) {
-    if (this.shouldLayoutContent()) {
-      if (this.hasCollapsibleWs()) collapseWhitespace(this);
-      this.buffer.destroy();
-      this.buffer = createIfcBuffer(this.text);
-      this.items = createIfcShapedItems(this);
-      this.fragments.clear();
-    }
-  }
-
-  positionItemsPostlayout() {
-    const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
-    const stack: (InlineLevel | {sentinel: Inline})[] = [this];
-    let dx = 0;
-    let dy = 0;
-    let itemIndex = 0;
-
-    while (stack.length) {
-      const box = stack.pop()!;
-
-      if ('sentinel' in box) {
-        while (
-          itemIndex < this.items.length &&
-          this.items[itemIndex].offset < box.sentinel.end
-        ) {
-          const item = this.items[itemIndex];
-          item.x += this.containingBlock.x;
-          item.y += this.containingBlock.y;
-          if (item.end() > box.sentinel.start) {
-            item.x += dx;
-            item.y += dy;
-          }
-          itemIndex++;
-        }
-
-        if (box.sentinel.style.position === 'relative') {
-          dx -= box.sentinel.getRelativeHorizontalShift();
-          dy -= box.sentinel.getRelativeVerticalShift();
-        }
-      } else if (box.isInline()) {
-        stack.push({sentinel: box});
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
-        }
-
-        if (box.style.position === 'relative') {
-          dx += box.getRelativeHorizontalShift();
-          dy += box.getRelativeVerticalShift();
-        }
-
-        inlineShifts.set(box, {dx, dy});
-      } else if (box.isFormattingBox()) {
-        const borderArea = box.getBorderArea();
-        // floats or inline-blocks
-        borderArea.x += dx;
-        borderArea.y += dy;
-      }
-    }
-
-    for (const [inline, fragments] of this.fragments) {
-      const {dx, dy} = inlineShifts.get(inline)!;
-
-      for (const fragment of fragments) {
-        fragment.blockOffset += this.containingBlock.y + dy;
-        fragment.start += this.containingBlock.x + dx;
-        fragment.end += this.containingBlock.x + dx;
-      }
-    }
-  }
-
-  postlayoutPreorder() {
-    this.buffer.destroy();
-    this.buffer = EmptyBuffer;
-    if (this.shouldLayoutContent()) {
-      this.positionItemsPostlayout();
-    }
-    super.postlayoutPreorder();
-  }
-
-  shouldLayoutContent() {
-    return this.hasText()
-      || this.hasSizedInline()
-      || this.hasFloatOrReplaced()
-      || this.hasInlineBlocks();
-  }
-
-  doTextLayout(ctx: LayoutContext) {
-    if (this.shouldLayoutContent()) {
-      this.lineboxes = createIfcLineboxes(this, ctx);
-      positionIfcItems(this);
-    }
-  }
-}
 
 // So far this is always backed by an image (<img>) which, like browsers, always
 // has a natural width and height and always has a ratio. In the browsers it's
@@ -1512,7 +1495,7 @@ type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
 // breakop: a break opportunity introduced by an inline-block (these are unique
 // compared to text break opportunities because they do not exist on character
 // positions). one of thse comes before and one after an inline-block
-export function createInlineIterator(inline: IfcInline) {
+export function createInlineIterator(inline: Inline) {
   const stack: (InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
   const buffered: InlineIteratorBuffered[] = [];
   let minlevel = 0;
@@ -1589,7 +1572,7 @@ function mapTree(
   level: number
 ): [boolean, Inline] {
   const start = text.value.length;
-  let children = [], bail = false, attrs = 0;
+  let children = [], bail = false;
 
   if (!path[level]) path[level] = 0;
 
@@ -1627,9 +1610,8 @@ function mapTree(
   }
 
   if (!bail) path.pop();
-  if ('x-dropflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
   const end = text.value.length;
-  const box = new Inline(start, end, el.style, children, attrs);
+  const box = new Inline(start, end, el.style, children, 0);
   el.boxes.push(box);
 
   return [bail, box];
@@ -1657,10 +1639,9 @@ function generateInlineBox(
 // CSS2.1 section 9.2.1.1
 function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], text: ParagraphText) {
   const anonStyle = createStyle(parentEl.style, EMPTY_STYLE);
-  let attrs = Box.ATTRS.isAnonymous;
-  if ('x-dropflow-log' in parentEl.attrs) attrs |= Box.ATTRS.enableLogging;
-  const ifc = new IfcInline(anonStyle, text.value, inlines, attrs);
-  return new BlockContainerOfInlines(anonStyle, ifc, attrs);
+  const attrs = Box.ATTRS.isAnonymous;
+  const root = new Inline(0, text.value.length, anonStyle, inlines, attrs);
+  return new BlockContainerOfInlines(anonStyle, root, text.value, attrs);
 }
 
 function generateFormattingBox(el: HTMLElement): BlockLevel {
@@ -1763,9 +1744,9 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       box = new BlockContainerOfBlocks(el.style, blocks, attrs);
     } else {
       const anonComputedStyle = createStyle(el.style, EMPTY_STYLE);
-      const ifcAttrs = Box.ATTRS.isAnonymous | (enableLogging ? Box.ATTRS.enableLogging : 0);
-      const ifc = new IfcInline(anonComputedStyle, text.value, inlines, ifcAttrs);
-      box = new BlockContainerOfInlines(el.style, ifc, attrs);
+      const ifcAttrs = Box.ATTRS.isAnonymous;
+      const root = new Inline(0, text.value.length, anonComputedStyle, inlines, ifcAttrs);
+      box = new BlockContainerOfInlines(el.style, root, text.value, attrs);
     }
   } else {
     box = new BlockContainerOfBlocks(el.style, blocks, attrs);

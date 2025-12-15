@@ -6,7 +6,6 @@ import type {
   InlineLevel,
   Break,
   Inline,
-  IfcInline,
   BlockContainer,
   BlockContainerOfInlines,
   BlockContainerOfBlocks,
@@ -71,10 +70,6 @@ export abstract class RenderItem {
     return false;
   }
 
-  isIfcInline(): this is IfcInline {
-    return false;
-  }
-
   isBox(): this is Box {
     return false;
   }
@@ -88,7 +83,7 @@ export abstract class RenderItem {
 
     log ||= new Logger();
 
-    if (this.isIfcInline()) {
+    if (this.isBlockContainerOfInlines()) {
       options = {...options};
       options.paragraphText = this.text;
     }
@@ -116,7 +111,7 @@ export abstract class RenderItem {
       this.isBlockContainerOfBlocks() ||
       this.isInline()
     ) {
-      const children = this.isBlockContainerOfInlines() ? [this.ifc] : this.children;
+      const children = this.isBlockContainerOfInlines() ? [this.root] : this.children;
       log.pushIndent();
 
       for (let i = 0; i < children.length; i++) {
@@ -771,7 +766,7 @@ const EmptyContainingBlock = new BoxArea(null!);
 export function prelayout(root: BlockContainer) {
   const stack: (InlineLevel | {sentinel: true})[] = [root];
   const parents: Box[] = [];
-  const ifcs: IfcInline[] = [];
+  const ifcs: BlockContainerOfInlines[] = [];
   const pstack = [root.containingBlock];
   const bstack = [root.containingBlock];
   const ctx: PrelayoutContext = {
@@ -784,7 +779,7 @@ export function prelayout(root: BlockContainer) {
 
     if ('sentinel' in box) {
       const box = parents.pop()!;
-      if (box.isIfcInline()) ifcs.pop();
+      if (box.isBlockContainerOfInlines()) ifcs.pop();
 
       if (box.isBlockContainer()) {
         bstack.pop();
@@ -798,7 +793,7 @@ export function prelayout(root: BlockContainer) {
       box.prelayoutPostorder(ctx);
     } else if (box.isBox()) {
       parents.push(box);
-      if (box.isIfcInline()) ifcs.push(box);
+      if (box.isBlockContainerOfInlines()) ifcs.push(box);
 
       ctx.lastPositionedArea = pstack.at(-1)!;
       ctx.lastBlockContainerArea = bstack.at(-1)!;
@@ -815,7 +810,7 @@ export function prelayout(root: BlockContainer) {
           stack.push(box.children[i]);
         }
       } else if (box.isBlockContainerOfInlines()) {
-        stack.push(box.ifc);
+        stack.push(box.root);
       }
     } else if (box.isRun()) {
       box.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
@@ -850,7 +845,7 @@ export function postlayout(root: BlockContainer) {
           }
         }
       } else if (box.isBlockContainerOfInlines()) {
-        stack.push(box.ifc);
+        stack.push(box.root);
       }
     }
   }

@@ -6,7 +6,6 @@ import type {
   InlineLevel,
   Break,
   Inline,
-  IfcInline,
   BlockContainer,
   BlockContainerBase,
   BlockContainerOfInlines,
@@ -72,10 +71,6 @@ export abstract class RenderItem {
     return false;
   }
 
-  isIfcInline(): this is IfcInline {
-    return false;
-  }
-
   isBox(): this is Box {
     return false;
   }
@@ -89,7 +84,7 @@ export abstract class RenderItem {
 
     log ||= new Logger();
 
-    if (this.isIfcInline()) {
+    if (this.isBlockContainerOfInlines()) {
       options = {...options};
       options.paragraphText = this.text;
     }
@@ -117,7 +112,7 @@ export abstract class RenderItem {
       this.isBlockContainerOfBlocks() ||
       this.isInline()
     ) {
-      const children = this.isBlockContainerOfInlines() ? [this.ifc] : this.children;
+      const children = this.isBlockContainerOfInlines() ? [this.root] : this.children;
       log.pushIndent();
 
       for (let i = 0; i < children.length; i++) {
@@ -766,7 +761,7 @@ export class BoxArea {
 export function prelayout(root: BlockContainer, icb: BoxArea) {
   const stack: (InlineLevel | {sentinel: true})[] = [root];
   const parents: Box[] = [];
-  const ifcs: IfcInline[] = [];
+  const ifcs: BlockContainerOfInlines[] = [];
   const pstack = [icb];
   const bstack = [icb];
   const ctx: PrelayoutContext = {
@@ -779,7 +774,7 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
 
     if ('sentinel' in box) {
       const box = parents.pop()!;
-      if (box.isIfcInline()) ifcs.pop();
+      if (box.isBlockContainerOfInlines()) ifcs.pop();
 
       if (box.isBlockContainer()) {
         bstack.pop();
@@ -793,7 +788,7 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
       box.prelayoutPostorder(ctx);
     } else if (box.isBox()) {
       parents.push(box);
-      if (box.isIfcInline()) ifcs.push(box);
+      if (box.isBlockContainerOfInlines()) ifcs.push(box);
 
       ctx.lastPositionedArea = pstack.at(-1)!;
       ctx.lastBlockContainerArea = bstack.at(-1)!;
@@ -810,7 +805,7 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
           stack.push(box.children[i]);
         }
       } else if (box.isBlockContainerOfInlines()) {
-        stack.push(box.ifc);
+        stack.push(box.root);
       }
     } else if (box.isRun()) {
       box.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
@@ -845,7 +840,7 @@ export function postlayout(root: BlockContainer) {
           }
         }
       } else {
-        stack.push(box.ifc);
+        stack.push(box.root);
       }
     }
   }

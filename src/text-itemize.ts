@@ -1,7 +1,7 @@
 import wasm from './wasm.ts';
 import {onWasmMemoryResized} from './wasm-env.ts';
 import {codeToName} from '../gen/script-names.ts';
-import {IfcInline, Inline} from './layout-flow.ts';
+import {BlockContainerOfInlines, Inline} from './layout-flow.ts';
 
 import {Style} from './style.ts';
 import * as hb from './text-harfbuzz.ts';
@@ -492,13 +492,13 @@ interface StyleIteratorState {
   leader: InlineLevel | typeof END_CHILDREN;
   direction: 'ltr' | 'rtl';
   lastOffset: number;
-  ifc: IfcInline;
+  ifc: BlockContainerOfInlines;
 }
 
-export function createStyleIteratorState(ifc: IfcInline): StyleIteratorState {
+export function createStyleIteratorState(ifc: BlockContainerOfInlines): StyleIteratorState {
   return {
-    parents: [ifc],
-    stack: ifc.children.slice().reverse(),
+    parents: [ifc.root],
+    stack: ifc.root.children.slice().reverse(),
     leader: ifc,
     direction: ifc.style.direction,
     style: ifc.style,
@@ -617,7 +617,7 @@ interface ItemizeState {
   free: (() => void) | undefined;
 }
 
-export function createItemizeState(ifc: IfcInline): ItemizeState {
+export function createItemizeState(ifc: BlockContainerOfInlines): ItemizeState {
   let newlineState;
   let inlineState;
   let emojiState;
@@ -625,15 +625,15 @@ export function createItemizeState(ifc: IfcInline): ItemizeState {
   let scriptState;
   let free;
 
-  if (ifc.hasNewlines()) {
+  if (ifc.root.hasNewlines()) {
     newlineState = createNewlineIteratorState(ifc.text);
   }
 
-  if (ifc.hasBreakOrInlineOrReplaced() || ifc.hasInlineBlocks()) {
+  if (ifc.root.hasBreakOrInlineOrReplaced() || ifc.root.hasInlineBlocks()) {
     inlineState = createStyleIteratorState(ifc);
   }
 
-  if (ifc.hasComplexText()) {
+  if (ifc.root.hasComplexText()) {
     const allocation = hb.allocateUint16Array(ifc.text.length);
     const initialLevel = ifc.style.direction === 'ltr' ? 0 : 1;
     const array = allocation.array;

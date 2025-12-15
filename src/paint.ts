@@ -1,4 +1,4 @@
-import {ReplacedBox, Inline, IfcInline} from './layout-flow.ts';
+import {ReplacedBox, Inline, BlockContainerOfInlines} from './layout-flow.ts';
 import {Image} from './layout-image.ts';
 import {G_CL, G_AX, G_SZ} from './text-harfbuzz.ts';
 import {ShapedItem, isSpaceOrTabOrNewline} from './layout-text.ts';
@@ -208,7 +208,7 @@ function snap(ox: number, oy: number, ow: number, oh: number) {
 
 function paintInlineBackground(
   fragment: InlineFragment,
-  ifc: IfcInline,
+  ifc: BlockContainerOfInlines,
   b: PaintBackend
 ) {
   const direction = ifc.style.direction;
@@ -311,7 +311,7 @@ function paintReplacedBox(box: ReplacedBox, b: PaintBackend) {
 function paintInline(
   inlineRoot: Inline,
   layerRoot: LayerRoot,
-  ifc: IfcInline,
+  ifc: BlockContainerOfInlines,
   b: PaintBackend
 ) {
   const items = ifc.items;
@@ -399,7 +399,7 @@ function paintInline(
 }
 
 function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
-  const stack: (IfcInline | BlockLevel | {sentinel: true})[] = [root.box];
+  const stack: (BlockLevel | {sentinel: true})[] = [root.box];
 
   while (stack.length) {
     const box = stack.pop()!;
@@ -409,8 +409,6 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
     } else if (box.isReplacedBox()) {
       // Belongs to this LayerRoot
       if (box === root.box || !box.isLayerRoot()) paintReplacedBox(box, b);
-    } else if (box.isInline()) {
-      paintInline(box, root, box, b);
     } else {
       if (
         // Belongs to this LayerRoot
@@ -429,7 +427,7 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
             stack.push(box.children[i]);
           }
         } else {
-          stack.push(box.ifc);
+          paintInline(box.root, root, box, b);
         }
       }
     }
@@ -527,9 +525,9 @@ class BlockLayerRoot extends LayerRoot {
 
 class InlineLayerRoot extends LayerRoot {
   box: Inline;
-  ifc: IfcInline;
+  ifc: BlockContainerOfInlines;
 
-  constructor(box: Inline, parents: Box[], ifc: IfcInline) {
+  constructor(box: Inline, parents: Box[], ifc: BlockContainerOfInlines) {
     super(box, parents);
     this.box = box;
     this.ifc = ifc;
@@ -610,7 +608,7 @@ function createLayerRoot(rootBox: BlockContainer) {
         if (box.isInline()) {
           for (let i = parents.length - 1; i >= 0; i--) {
             const parent = parents[i];
-            if (parent.isIfcInline()) {
+            if (parent.isBlockContainerOfInlines()) {
               nearestIfc = parent;
               break;
             }
@@ -643,7 +641,7 @@ function createLayerRoot(rootBox: BlockContainer) {
         parents.push(box);
         if (layerRoot) parentRoots.push(layerRoot);
         if (box.isBlockContainerOfInlines()) {
-          stack.push(box.ifc);
+          stack.push(box.root);
         } else if (box.isInline() || box.isBlockContainerOfBlocks()) {
           for (let i = box.children.length - 1; i >= 0; i--) {
             stack.push(box.children[i]);

@@ -1576,29 +1576,6 @@ export function createInlineIterator(inline: IfcInline) {
   return {next};
 }
 
-export function createPreorderInlineIterator(inline: Inline) {
-  const stack: InlineLevel[] = inline.children.slice().reverse();
-
-  function next(): {done: true} | {done: false, value: Inline | Run} {
-    while (stack.length) {
-      const item = stack.pop()!;
-
-      if (item.isInline()) {
-        for (let i = item.children.length - 1; i >= 0; --i) {
-          stack.push(item.children[i]);
-        }
-        return {done: false, value: item};
-      } else if (item.isRun()) {
-        return {done: false, value: item};
-      }
-    }
-
-    return {done: true};
-  }
-
-  return {next};
-}
-
 interface ParagraphText {
   value: string;
 }

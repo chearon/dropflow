@@ -6,7 +6,7 @@ import {Box, FormattingBox} from './layout-box.ts';
 import {binarySearchOf} from './util.ts';
 
 import type {InlineLevel, BlockLevel} from './layout-flow.ts';
-import type {InlineFragment} from './layout-text.ts';
+import type {InlineFragment, Run} from './layout-text.ts';
 import type {Color} from './style.ts';
 import type {LoadedFontFace} from './text-font.ts';
 
@@ -70,7 +70,7 @@ function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
 
 function drawText(
   item: ShapedItem,
-  colors: [Color, number][],
+  run: Run,
   textStart: number,
   textEnd: number,
   b: PaintBackend
@@ -81,8 +81,6 @@ function drawText(
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  const colorEnd = item.colorsEnd(colors);
-  let colorIndex = item.colorsStart(colors);
   let tx = item.x;
   const collapsed = getTextOffsetsForUncollapsedGlyphs(item);
   textStart = Math.max(textStart, collapsed.textStart);
@@ -95,32 +93,23 @@ function drawText(
     tx += item.measure(textStart, 1, state).advance;
   }
 
-  while (colorIndex !== colorEnd) {
-    const [color, offset] = colors[colorIndex];
-    const colorStart = offset;
-    const colorEnd = colorIndex + 1 < colors.length ? colors[colorIndex + 1][1] : textEnd;
-    const start = Math.max(colorStart, textStart);
-    const end = Math.min(colorEnd, textEnd);
+  if (textStart < textEnd) {
+    // TODO: should really have isStartColorBoundary, isEndColorBoundary
+    const isColorBoundary = textStart !== item.offset && textStart === run.start
+      || textEnd !== item.end() && textEnd === run.end;
+    const ax = item.measure(textEnd, 1, state).advance;
 
-    if (start < end) {
-      // TODO: should really have isStartColorBoundary, isEndColorBoundary
-      const isColorBoundary = start !== item.offset && start === colorStart
-        || end !== item.end() && end === colorEnd;
-      const ax = item.measure(end, 1, state).advance;
+    if (item.attrs.level & 1) tx -= ax;
 
-      if (item.attrs.level & 1) tx -= ax;
+    b.fillColor = run.style.color;
+    b.fontSize = style.fontSize;
+    b.font = item.face;
+    b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
+    b.text(tx, item.y, item, textStart, textEnd, isColorBoundary);
 
-      b.fillColor = color;
-      b.fontSize = style.fontSize;
-      b.font = item.face;
-      b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
-      b.text(tx, item.y, item, start, end, isColorBoundary);
-
-      if (!(item.attrs.level & 1)) tx += ax;
-    }
-
-    colorIndex += 1;
+    if (!(item.attrs.level & 1)) tx += ax;
   }
+
 }
 
 /**
@@ -321,11 +310,11 @@ function paintInline(
   paragraph: Paragraph,
   b: PaintBackend
 ) {
-  const colors = paragraph.getColors();
   const items = paragraph.items;
   const stack: InlineLevel[] = [inlineRoot];
   let lastMark = inlineRoot.start;
   let inlineMark = inlineRoot.start;
+  let run: Run | undefined = undefined;
   let mark = inlineRoot.start;
   let itemIndex = 0; // common case, adjusted below if necessary
   let itemEnd = items.length; // common case, adjusted below
@@ -341,7 +330,7 @@ function paintInline(
   while (itemIndex < itemEnd || stack.length) {
     // paint lastMark..mark
     if (itemIndex < itemEnd) {
-      if (lastMark < mark) drawText(items[itemIndex], colors, lastMark, mark, b);
+      if (lastMark < mark) drawText(items[itemIndex], run!, lastMark, mark, b);
       if (mark === items[itemIndex].end()) itemIndex++;
     }
 
@@ -375,6 +364,7 @@ function paintInline(
           }
         }
       } else if (box.isRun()) {
+        run = box;
         inlineMark = box.end;
       }
     }

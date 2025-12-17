@@ -851,26 +851,18 @@ describe('Lines', function () {
 
   it('carries over colors and line heights correctly', function () {
     this.layout(`
-      <div style="width: 0; line-height: 32px;">
+      <div style="width: 0; line-height: 32px; font: 10px Ahem;">
         break
         it
         <span style="color: red; line-height: 64px;">down</span>
       </div>
     `);
 
-    /** @type import('../src/layout-flow.ts').IfcInline[] */
-    const [ifc] = this.get(0).children;
-    const colors = ifc.paragraph.getColors();
-
-    expect(colors).to.deep.equal([
-      [{r: 0, g: 0, b: 0, a: 1}, 0],
-      [{r: 255, g: 0, b: 0, a: 1}, 10],
-      [{r: 0, g: 0, b: 0, a: 1}, 14]
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 8, text: 'break', fillColor: '#000'},
+      {t: 'text', x: 0, y: 18, text: 'it', fillColor: '#000'},
+      {t: 'text', x: 0, y: 55, text: 'down', fillColor: '#f00'}
     ]);
-
-    expect(ifc.paragraph.lineboxes[0].head.value.colorsStart(colors)).to.deep.equal(0);
-    expect(ifc.paragraph.lineboxes[1].head.value.colorsStart(colors)).to.deep.equal(0);
-    expect(ifc.paragraph.lineboxes[2].head.value.colorsStart(colors)).to.deep.equal(1);
   });
 
   it('takes strut into account', function () {

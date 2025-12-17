@@ -1,4 +1,4 @@
-import {binarySearchTuple, basename, loggableText, Logger} from './util.ts';
+import {basename, loggableText, Logger} from './util.ts';
 import {Box, FormattingBox, RenderItem} from './layout-box.ts';
 import {Style} from './style.ts';
 import {
@@ -8,7 +8,6 @@ import {
   IfcVacancy,
   Inline,
   createInlineIterator,
-  createPreorderInlineIterator,
   layoutFloatBox
 } from './layout-flow.ts';
 import LineBreak, {HardBreaker} from './text-line-break.ts';
@@ -21,7 +20,7 @@ import {createItemizeState, itemizeNext} from './text-itemize.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.ts';
 import type {RenderItemLogOptions} from './layout-box.ts';
-import type {Color, TextAlign, WhiteSpace} from './style.ts';
+import type {TextAlign, WhiteSpace} from './style.ts';
 import type {BlockLevel, InlineLevel, LayoutContext} from './layout-flow.ts';
 
 const lineFeedCharacter = 0x000a;
@@ -776,22 +775,6 @@ export class ShapedItem implements IfcRenderItem {
         }
       } while ((index = prevCluster(this.glyphs, index)) >= 0);
     }
-  }
-
-  // used in shaping
-  colorsStart(colors: [Color, number][]) {
-    const s = binarySearchTuple(colors, this.offset);
-    if (s === colors.length) return s - 1;
-    if (colors[s][1] !== this.offset) return s - 1;
-    return s;
-  }
-
-  // used in shaping
-  colorsEnd(colors: [Color, number][]) {
-    const s = binarySearchTuple(colors, this.end() - 1);
-    if (s === colors.length) return s;
-    if (colors[s][1] !== this.end() - 1) return s;
-    return s + 1;
   }
 
   end() {
@@ -1803,38 +1786,6 @@ export class Paragraph {
     } else {
       return this.shapePartWithWordCache(offset, length, face.hbfont, attrs);
     }
-  }
-
-  getColors() {
-    const colors: [Color, number][] = [[this.ifc.style.color, 0]];
-
-    if (this.ifc.hasColoredInline()) {
-      const inlineIterator = createPreorderInlineIterator(this.ifc);
-      let inline = inlineIterator.next();
-
-      while (!inline.done) {
-        const [, lastColorOffset] = colors[colors.length - 1];
-        if (inline.value.isRun()) {
-          const style = inline.value.style;
-          const color = colors[colors.length - 1];
-
-          if (lastColorOffset === inline.value.start) {
-            color[0] = style.color;
-          } else if (
-            style.color.r !== color[0].r ||
-            style.color.g !== color[0].g ||
-            style.color.b !== color[0].b ||
-            style.color.a !== color[0].a
-          ) {
-            colors.push([style.color, inline.value.start]);
-          }
-        }
-
-        inline = inlineIterator.next();
-      }
-    }
-
-    return colors;
   }
 
   postShapeLoadHyphens() {

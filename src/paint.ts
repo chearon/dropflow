@@ -516,11 +516,11 @@ class InlineLayerRoot extends LayerRoot {
   }
 }
 
-function createLayerRoot(box: BlockContainer) {
-  const layerRoot = new BlockLayerRoot(box, []);
+function createLayerRoot(rootBox: BlockContainer) {
+  const layerRoot = new BlockLayerRoot(rootBox, []);
   const preorderIndices = new Map<Box, number>();
   const parentRoots: LayerRoot[] = [layerRoot];
-  const stack: (InlineLevel | {sentinel: true})[] = box.children.slice().reverse();
+  const stack: (InlineLevel | {sentinel: true})[] = [rootBox];
   const parents: Box[] = [];
   let preorderIndex = 0;
 
@@ -569,7 +569,9 @@ function createLayerRoot(box: BlockContainer) {
 
       preorderIndices.set(box, preorderIndex++);
 
-      if (box.isPositioned()) {
+      if (box === rootBox) {
+        // only push children
+      } else if (box.isPositioned()) {
         while (
           parentRootIndex > 0 &&
           !parentRoots[parentRootIndex].box.isStackingContextRoot()

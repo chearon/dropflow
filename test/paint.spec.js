@@ -754,6 +754,23 @@ describe('Painting', function () {
     ]);
   });
 
+  it('paints fragmented backgrounds in relative order', function () {
+    this.layout(`
+      <div style="width: 0; color: #fff; line-height: 1;">
+        <span style="background-color: #000;">pyranees husky shepherd</span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 128, height: 16, fillColor: '#000'},
+      {t: 'text', x: 0, y: 12.8, text: 'pyranees', fillColor: '#fff'},
+      {t: 'rect', x: 0, y: 16, width: 80, height: 16, fillColor: '#000'},
+      {t: 'text', x: 0, y: 28.8, text: 'husky', fillColor: '#fff'},
+      {t: 'rect', x: 0, y: 32, width: 128, height: 16, fillColor: '#000'},
+      {t: 'text', x: 0, y: 44.8, text: 'shepherd', fillColor: '#fff'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

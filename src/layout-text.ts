@@ -1502,6 +1502,7 @@ export class Linebox extends LineItemLinkedList {
 
 export interface InlineFragment {
   inline: Inline;
+  textOffset: number;
   start: number;
   end: number;
   blockOffset: number;
@@ -1520,7 +1521,13 @@ class ContiguousBoxBuilder {
     this.closed = new Map();
   }
 
-  open(inline: Inline, naturalStart: boolean, start: number, blockOffset: number) {
+  open(
+    inline: Inline,
+    textOffset: number,
+    naturalStart: boolean,
+    start: number,
+    blockOffset: number
+  ) {
     const fragment = this.opened.get(inline);
 
     if (fragment) {
@@ -1530,7 +1537,7 @@ class ContiguousBoxBuilder {
       const naturalEnd = false;
       const {ascender, descender} = inline.metrics;
       const fragment: InlineFragment = {
-        start, end, inline, blockOffset, ascender, descender, naturalStart, naturalEnd
+        start, end, inline, textOffset, blockOffset, ascender, descender, naturalStart, naturalEnd
       };
       this.opened.set(inline, fragment);
       // Make sure closed is in open order
@@ -2534,7 +2541,8 @@ export class Paragraph {
           }
 
           if (isFirstOccurance) inlineSideAdvance(inline, 'start');
-          boxBuilder?.open(inline, isFirstOccurance, bgcursor, y - baselineShift);
+          const offset = Math.max(item.offset, mark);
+          boxBuilder?.open(inline, offset, isFirstOccurance, bgcursor, y - baselineShift);
 
           if (isFirstOccurance) {
             counts.set(inline, 1);

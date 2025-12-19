@@ -311,6 +311,8 @@ function paintInline(
   b: PaintBackend
 ) {
   const items = paragraph.items;
+  const fragments: InlineFragment[] = [];
+  let fragmentIndex = 0;
   const stack: InlineLevel[] = [inlineRoot];
   let lastMark = inlineRoot.start;
   let inlineMark = inlineRoot.start;
@@ -327,11 +329,23 @@ function paintInline(
     itemEnd = binarySearchOf(items, inlineRoot.end, item => item.end()) + 1;
   }
 
-  while (itemIndex < itemEnd || stack.length) {
+  while (
+    itemIndex < itemEnd ||
+    stack.length ||
+    fragmentIndex < fragments.length
+  ) {
     // paint lastMark..mark
     if (itemIndex < itemEnd) {
       if (lastMark < mark) drawText(items[itemIndex], run!, lastMark, mark, b);
       if (mark === items[itemIndex].end()) itemIndex++;
+    }
+
+    // Fragmented backgrounds from an inline already seen
+    while (
+      fragmentIndex < fragments.length &&
+      fragments[fragmentIndex].textOffset === mark
+    ) {
+      paintInlineBackground(fragments[fragmentIndex++], paragraph, b);
     }
 
     // Inlines, inline-block, images
@@ -339,14 +353,15 @@ function paintInline(
       const box = stack.pop()!;
       if (box.isInline()) {
         if (!box.isLayerRoot() || box === inlineRoot) {
-          const fragments = paragraph.fragments.get(box);
-          if (fragments) {
-            for (const background of fragments) {
-              paintInlineBackground(background, paragraph, b);
-            }
-          }
           for (let i = box.children.length - 1; i >= 0; i--) {
             stack.push(box.children[i]);
+          }
+          const inlineFragments = paragraph.fragments.get(box);
+          if (inlineFragments) {
+            for (const fragment of inlineFragments) {
+              fragments.push(fragment);
+            }
+            break;
           }
         } else {
           while (
@@ -371,6 +386,7 @@ function paintInline(
 
     lastMark = mark;
     mark = Math.min(
+      fragmentIndex < fragments.length ? fragments[fragmentIndex].textOffset : Infinity,
       itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
       inlineMark,
       inlineRoot.end

@@ -153,8 +153,8 @@ function paintFormattingBoxBackground(box: FormattingBox, b: PaintBackend, isRoo
   }
 }
 
-function paintBackgroundDescendents(root: FormattingBox | Inline, b: PaintBackend) {
-  const stack: (FormattingBox | Inline | {sentinel: true})[] = [root];
+function paintBackgroundDescendents(root: FormattingBox, b: PaintBackend) {
+  const stack: (FormattingBox | {sentinel: true})[] = [root];
   const parents: Box[] = [];
 
   while (stack.length) {
@@ -171,7 +171,11 @@ function paintBackgroundDescendents(root: FormattingBox | Inline, b: PaintBacken
         paintFormattingBoxBackground(box, b);
       }
 
-      if (box.isBlockContainer() && box.hasBackgroundInLayerRoot()) {
+      if (
+        box.isBlockContainer() &&
+        box.isBlockContainerOfBlocks() &&
+        box.hasBackgroundInLayerRoot()
+      ) {
         stack.push({sentinel: true});
         parents.push(box);
 
@@ -650,10 +654,6 @@ function createLayerRoot(rootBox: BlockContainer) {
 
 function paintInlineLayerRoot(root: InlineLayerRoot, b: PaintBackend) {
   for (const r of root.negativeRoots) paintLayerRoot(r, b);
-
-  if (root.box.hasBackgroundInLayerRoot()) {
-    paintBackgroundDescendents(root.box, b);
-  }
 
   for (const r of root.floats) paintLayerRoot(r, b);
 

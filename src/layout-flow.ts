@@ -818,7 +818,7 @@ export abstract class BlockContainer extends FormattingBox {
     if (blockSize !== 'auto' && blockSize !== 0) return false;
 
     if (this.isBlockContainerOfInlines()) {
-      return !this.root.hasText();
+      return !this.tree[0].hasText();
     } else if (this.isBlockContainerOfBlocks()) {
       return this.children.length === 0;
     } else {
@@ -846,16 +846,16 @@ export abstract class BlockContainer extends FormattingBox {
 }
 
 export class BlockContainerOfInlines extends BlockContainer {
-  root: Inline;
+  tree: [Inline, ...InlineLevel[]];
   text: string;
   buffer: AllocatedUint16Array;
   items: ShapedItem[];
   lineboxes: Linebox[];
   fragments: Map<Inline, InlineFragment[]>;
 
-  constructor(style: Style, root: Inline, text: string, attrs: number) {
+  constructor(style: Style, tree: [Inline, ...InlineLevel[]], text: string, attrs: number) {
     super(style, attrs);
-    this.root = root;
+    this.tree = tree;
     this.text = text;
     this.buffer = EmptyBuffer;
     this.items = [];
@@ -865,7 +865,7 @@ export class BlockContainerOfInlines extends BlockContainer {
 
   prelayoutPostorder(ctx: PrelayoutContext) {
     if (this.shouldLayoutContent()) {
-      if (this.root.hasCollapsibleWs()) collapseWhitespace(this);
+      if (this.tree[0].hasCollapsibleWs()) collapseWhitespace(this);
       this.buffer.destroy();
       this.buffer = createIfcBuffer(this.text);
       this.items = createIfcShapedItems(this);
@@ -875,51 +875,50 @@ export class BlockContainerOfInlines extends BlockContainer {
 
   positionItemsPostlayout() {
     const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
-    const stack: (InlineLevel | {sentinel: Inline})[] = [this.root];
+    const parents: Inline[] = [];
     const contentArea = this.getContentArea();
     let dx = 0;
     let dy = 0;
     let itemIndex = 0;
 
-    while (stack.length) {
-      const box = stack.pop()!;
+    for (let i = 0; i < this.tree.length; i++) {
+      const box = this.tree[i];
 
-      if ('sentinel' in box) {
-        while (
-          itemIndex < this.items.length &&
-          this.items[itemIndex].offset < box.sentinel.end
-        ) {
-          const item = this.items[itemIndex];
-          item.x += contentArea.x;
-          item.y += contentArea.y;
-          if (item.end() > box.sentinel.start) {
-            item.x += dx;
-            item.y += dy;
-          }
-          itemIndex++;
-        }
-
-        if (box.sentinel.style.position === 'relative') {
-          dx -= box.sentinel.getRelativeHorizontalShift();
-          dy -= box.sentinel.getRelativeVerticalShift();
-        }
-      } else if (box.isInline()) {
-        stack.push({sentinel: box});
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
-        }
-
+      if (box.isInline()) {
         if (box.style.position === 'relative') {
           dx += box.getRelativeHorizontalShift();
           dy += box.getRelativeVerticalShift();
         }
 
         inlineShifts.set(box, {dx, dy});
+        parents.push(box);
       } else if (box.isFormattingBox()) {
         const borderArea = box.getBorderArea();
         // floats or inline-blocks
         borderArea.x += dx;
         borderArea.y += dy;
+      }
+
+      while (parents.length && i === parents.at(-1)!.lastDescendant) {
+        const parent = parents.pop()!;
+        while (
+          itemIndex < this.items.length &&
+          this.items[itemIndex].offset < parent.end
+        ) {
+          const item = this.items[itemIndex];
+          item.x += contentArea.x;
+          item.y += contentArea.y;
+          if (item.end() > parent.start) {
+            item.x += dx;
+            item.y += dy;
+          }
+          itemIndex++;
+        }
+
+        if (parent.style.position === 'relative') {
+          dx -= parent.getRelativeHorizontalShift();
+          dy -= parent.getRelativeVerticalShift();
+        }
       }
     }
 
@@ -945,6 +944,43 @@ export class BlockContainerOfInlines extends BlockContainer {
 
   isBlockContainerOfInlines(): this is BlockContainerOfInlines {
     return true;
+  }
+
+  getRunIndex(ci: number) {
+    let l = 0, r = this.tree.length - 1;
+
+    while (true) {
+      const i = Math.floor((l + r) / 2);
+
+      if (this.tree[i].isRun()) {
+        if (ci < this.tree[i].start) {
+          r = i - 1;
+        } else if (ci >= this.tree[i].end) {
+          l = i + 1;
+        } else {
+          return i;
+        }
+      } else if (this.tree[i].isInline()) {
+        if (ci < this.tree[i].start) {
+          r = i - 1;
+        } else {
+          l = i + 1;
+        }
+      } else { // inline-block, float, or image. pick a side.
+        let ml = i;
+        let mr = i;
+
+        while (mr < r && !this.tree[mr].isRun() && !this.tree[mr].isInline()) mr++;
+        while (ml > l && !this.tree[ml].isRun() && !this.tree[ml].isInline()) ml--;
+
+        const item = this.tree[mr];
+        if ((item.isRun() || item.isInline()) && ci < item.start) {
+          r = ml;
+        } else {
+          l = mr;
+        }
+      }
+    }
   }
 
   contribution(mode: 'min-content' | 'max-content') {
@@ -973,10 +1009,10 @@ export class BlockContainerOfInlines extends BlockContainer {
   }
 
   shouldLayoutContent() {
-    return this.root.hasText()
-      || this.root.hasSizedInline()
-      || this.root.hasFloatOrReplaced()
-      || this.root.hasInlineBlocks();
+    return this.tree[0].hasText()
+      || this.tree[0].hasSizedInline()
+      || this.tree[0].hasFloatOrReplaced()
+      || this.tree[0].hasInlineBlocks();
   }
 
   doTextLayout(ctx: LayoutContext) {
@@ -1219,17 +1255,17 @@ export class Break extends RenderItem {
 }
 
 export class Inline extends Box {
-  public children: InlineLevel[];
+  public lastDescendant: number;
   public nshaped: number;
   public metrics: InlineMetrics;
   public start: number;
   public end: number;
 
-  constructor(start: number, end: number, style: Style, children: InlineLevel[], attrs: number) {
+  constructor(start: number, style: Style, attrs: number) {
     super(style, attrs);
     this.start = start;
-    this.end = end;
-    this.children = children;
+    this.end = 0;
+    this.lastDescendant = 0;
     this.nshaped = 0;
     this.metrics = EmptyInlineMetrics;
   }
@@ -1476,6 +1512,7 @@ export class ReplacedBox extends FormattingBox {
   }
 }
 
+
 export type InlineLevel = Inline | Run | Break | BlockContainer | ReplacedBox;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
@@ -1486,52 +1523,68 @@ type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
 
 type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
 
-// break: an actual forced break; <br>.
-//
-// breakspot: the location in between spans at which to break if needed. for
-// example, `abc </span><span>def ` would emit breakspot between the closing
-// ("post") and opening ("pre") span
-//
-// breakop: a break opportunity introduced by an inline-block (these are unique
-// compared to text break opportunities because they do not exist on character
-// positions). one of thse comes before and one after an inline-block
-export function createInlineIterator(inline: Inline) {
-  const stack: (InlineLevel | {post: Inline})[] = inline.children.slice().reverse();
-  const buffered: InlineIteratorBuffered[] = [];
-  let minlevel = 0;
-  let level = 0;
-  let bk = 0;
-  let shouldFlushBreakop = false;
+interface InlineIteratorState {
+  value: InlineIteratorValue | null;
+  ifc: BlockContainerOfInlines;
+  index: number;
+  minlevel: number;
+  inlineEnd: number;
+  buffered: InlineIteratorBuffered[];
+  emitBreakspot: boolean;
+  parents: Inline[];
+}
 
-  function next(): {done: true} | {done: false; value: InlineIteratorValue} {
-    if (!buffered.length) {
-      while (stack.length) {
-        const item = stack.pop()!;
-        if ('post' in item) {
-          level -= 1;
-          buffered.push({state: 'post', item: item.post});
-          if (level <= minlevel) {
-            bk = buffered.length;
-            minlevel = level;
-          }
-        } else if (item.isInline()) {
-          level += 1;
-          buffered.push({state: 'pre', item});
-          stack.push({post: item});
-          for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
+export function createInlineIteratorState(
+  ifc: BlockContainerOfInlines
+): InlineIteratorState {
+  return {
+    /* out */
+    value: null,
+    /* private */
+    ifc,
+    index: 1,
+    buffered: [],
+    minlevel: 0,
+    parents: [],
+    inlineEnd: 0,
+    emitBreakspot: false,
+  };
+}
+
+export function inlineIteratorStateNext(state: InlineIteratorState) {
+  if (!state.buffered.length) {
+    while (state.index < state.ifc.tree.length || state.parents.length) {
+      while (
+        state.parents.length &&
+        state.index - 1 === state.parents.at(-1)!.lastDescendant
+      ) {
+        const parent = state.parents.pop()!;
+        state.buffered.push({state: 'post', item: parent});
+        if (state.parents.length <= state.minlevel) {
+          state.inlineEnd = state.buffered.length;
+          state.minlevel = state.parents.length;
+        }
+      }
+
+      if (state.index < state.ifc.tree.length) {
+        const item = state.ifc.tree[state.index++];
+
+        if (item.isInline()) {
+          state.parents.push(item);
+          state.buffered.push({state: 'pre', item});
         } else {
-          shouldFlushBreakop = minlevel !== level;
-          minlevel = level;
+          state.emitBreakspot = state.minlevel !== state.parents.length;
+          state.minlevel = state.parents.length;
           if (item.isRun()) {
-            buffered.push({state: 'text', item});
+            state.buffered.push({state: 'text', item});
           } else if (item.isBreak()) {
-            buffered.push({state: 'break'});
+            state.buffered.push({state: 'break'});
           } else {
             if (item.isFloat()) {
-              shouldFlushBreakop = true;
-              buffered.push({state: 'box', item});
+              state.emitBreakspot = true;
+              state.buffered.push({state: 'box', item});
             } else {
-              buffered.push(
+              state.buffered.push(
                 {state: 'breakop'},
                 {state: 'box', item},
                 {state: 'breakop'}
@@ -1542,39 +1595,40 @@ export function createInlineIterator(inline: Inline) {
         }
       }
     }
-
-    if (buffered.length) {
-      if (bk > 0) {
-        bk -= 1;
-      } else if (shouldFlushBreakop) {
-        shouldFlushBreakop = false;
-        return {value: {state: 'breakspot'}, done: false};
-      }
-
-      return {value: buffered.shift()!, done: false};
-    }
-
-    return {done: true};
   }
 
-  return {next};
+  if (state.buffered.length) {
+    if (state.inlineEnd === 0 && state.emitBreakspot) {
+      state.emitBreakspot = false;
+      state.value = {state: 'breakspot'};
+    } else {
+      if (state.inlineEnd > 0) state.inlineEnd -= 1;
+      state.value = state.buffered.shift()!;
+    }
+  } else {
+    state.value = null;
+  }
 }
 
-interface ParagraphText {
-  value: string;
+interface IfcContext {
+  text: string;
+  tree: InlineLevel[];
 }
 
 // Helper for generateInlineBox
 function mapTree(
   el: HTMLElement,
-  text: ParagraphText,
+  ctx: IfcContext,
   path: number[],
   level: number
 ): [boolean, Inline] {
-  const start = text.value.length;
-  let children = [], bail = false;
+  const start = ctx.text.length;
+  const box = new Inline(start, el.style, 0);
+  let bail = false;
 
-  if (!path[level]) path[level] = 0;
+  if (level >= path.length) path[level] = 0;
+
+  ctx.tree.push(box);
 
   while (!bail && path[level] < el.children.length) {
     let child: InlineLevel | undefined, childEl = el.children[path[level]];
@@ -1582,9 +1636,11 @@ function mapTree(
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
         child = new Break(childEl.style);
+        ctx.tree.push(child);
       } else if (childEl.style.display.outer === 'block') {
         if (childEl.style.isOutOfFlow()) {
           child = generateFormattingBox(childEl);
+          ctx.tree.push(child);
         } else {
           bail = true;
         }
@@ -1594,24 +1650,25 @@ function mapTree(
           childEl.tagName === 'img'
         ) {
           child = generateFormattingBox(childEl);
+          ctx.tree.push(child);
         } else {
-          [bail, child] = mapTree(childEl, text, path, level + 1);
+          [bail, child] = mapTree(childEl, ctx, path, level + 1);
         }
       }
     } else if (childEl instanceof TextNode) {
-      const start = text.value.length;
+      const start = ctx.text.length;
       const end = start + childEl.text.length;
       child = new Run(start, end, childEl.style);
-      text.value += childEl.text;
+      ctx.tree.push(child);
+      ctx.text += childEl.text;
     }
 
-    if (child != null) children.push(child);
     if (!bail) path[level]++;
   }
 
   if (!bail) path.pop();
-  const end = text.value.length;
-  const box = new Inline(start, end, el.style, children, 0);
+  box.end = ctx.text.length;
+  box.lastDescendant = ctx.tree.length; // +1 because no root Inline yet
   el.boxes.push(box);
 
   return [bail, box];
@@ -1622,7 +1679,7 @@ function mapTree(
 // level elements and the (fully nested) inlines in between and around them.
 function generateInlineBox(
   el: HTMLElement,
-  text: ParagraphText,
+  ctx: IfcContext,
   path: number[]
 ): [boolean, Inline | BlockLevel] {
   const target = el.getEl(path);
@@ -1632,16 +1689,18 @@ function generateInlineBox(
     return [true, generateFormattingBox(target)];
   }
 
-  return mapTree(el, text, path, 0);
+  return mapTree(el, ctx, path, 0);
 }
 
 // Wraps consecutive inlines and runs in block-level block containers.
 // CSS2.1 section 9.2.1.1
-function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], text: ParagraphText) {
+function wrapInBlockContainer(parentEl: HTMLElement, ctx: IfcContext) {
   const anonStyle = createStyle(parentEl.style, EMPTY_STYLE);
-  const attrs = Box.ATTRS.isAnonymous;
-  const root = new Inline(0, text.value.length, anonStyle, inlines, attrs);
-  return new BlockContainerOfInlines(anonStyle, root, text.value, attrs);
+  const root = new Inline(0, anonStyle, Box.ATTRS.isAnonymous);
+  const tree: [Inline, ...InlineLevel[]] = [root, ...ctx.tree];
+  root.end = ctx.text.length;
+  root.lastDescendant = tree.length - 1;
+  return new BlockContainerOfInlines(anonStyle, tree, ctx.text, Box.ATTRS.isAnonymous);
 }
 
 function generateFormattingBox(el: HTMLElement): BlockLevel {
@@ -1656,10 +1715,9 @@ function generateFormattingBox(el: HTMLElement): BlockLevel {
 
 // Generates a block container for the element
 export function generateBlockContainer(el: HTMLElement): BlockContainer {
-  const text: ParagraphText = {value: ''};
+  const ctx: IfcContext = {text: '', tree: []};
   const enableLogging = 'x-dropflow-log' in el.attrs;
   const blocks: BlockLevel[] = [];
-  let inlines: InlineLevel[] = [];
   let attrs = 0;
 
   // TODO: it's time to start moving some of this type of logic to HTMLElement.
@@ -1681,17 +1739,17 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       if (child.style.display.outer === 'none') continue;
 
       if (child.tagName === 'br') {
-        inlines.push(new Break(child.style));
+        ctx.tree.push(new Break(child.style));
       } else if (child.style.display.outer === 'block') {
         const block = generateFormattingBox(child);
 
         if (block.style.isOutOfFlow()) {
-          inlines.push(block);
+          ctx.tree.push(block);
         } else {
-          if (inlines.length) {
-            blocks.push(wrapInBlockContainer(el, inlines, text));
-            inlines = [];
-            text.value = '';
+          if (ctx.tree.length) {
+            blocks.push(wrapInBlockContainer(el, ctx));
+            ctx.tree = [];
+            ctx.text = '';
           }
 
           blocks.push(block);
@@ -1701,21 +1759,21 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
           child.style.display.inner === 'flow-root' || // inline-block
           child.tagName === 'img'
         ) {
-          inlines.push(generateFormattingBox(child));
+          ctx.tree.push(generateFormattingBox(child));
         } else {
           const path: number[] = [];
           let more, box;
 
           do {
-            ([more, box] = generateInlineBox(child, text, path));
+            ([more, box] = generateInlineBox(child, ctx, path));
 
             if (box.isInline() || box.isInlineLevel()) {
-              inlines.push(box);
+              // ok
             } else {
-              if (inlines.length) {
-                blocks.push(wrapInBlockContainer(el, inlines, text));
-                inlines = [];
-                text.value = '';
+              if (ctx.tree.length) {
+                blocks.push(wrapInBlockContainer(el, ctx));
+                ctx.tree = [];
+                ctx.text = '';
               }
 
               blocks.push(box);
@@ -1725,10 +1783,10 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       }
     } else { // TextNode
       const computed = createStyle(el.style, EMPTY_STYLE);
-      const start = text.value.length;
+      const start = ctx.text.length;
       const end = start + child.text.length;
-      inlines.push(new Run(start, end, computed));
-      text.value += child.text;
+      ctx.tree.push(new Run(start, end, computed));
+      ctx.text += child.text;
     }
   }
 
@@ -1738,15 +1796,18 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
 
   let box;
 
-  if (inlines.length) {
+  if (ctx.tree.length) {
     if (blocks.length) {
-      blocks.push(wrapInBlockContainer(el, inlines, text));
+      blocks.push(wrapInBlockContainer(el, ctx));
       box = new BlockContainerOfBlocks(el.style, blocks, attrs);
     } else {
       const anonComputedStyle = createStyle(el.style, EMPTY_STYLE);
       const ifcAttrs = Box.ATTRS.isAnonymous;
-      const root = new Inline(0, text.value.length, anonComputedStyle, inlines, ifcAttrs);
-      box = new BlockContainerOfInlines(el.style, root, text.value, attrs);
+      const root = new Inline(0, anonComputedStyle, ifcAttrs);
+      const tree: [Inline, ...InlineLevel[]] = [root, ...ctx.tree];
+      box = new BlockContainerOfInlines(el.style, tree, ctx.text, attrs);
+      root.end = ctx.text.length;
+      root.lastDescendant = tree.length - 1;
     }
   } else {
     box = new BlockContainerOfBlocks(el.style, blocks, attrs);

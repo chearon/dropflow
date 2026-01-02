@@ -4,6 +4,7 @@ import type {Style} from './style.ts';
 import type {Run} from './layout-text.ts';
 import type {
   InlineLevel,
+  BlockLevel,
   Break,
   Inline,
   BlockContainer,
@@ -106,19 +107,29 @@ export abstract class RenderItem {
 
     log.text('\n');
 
-    if (
-      this.isBlockContainerOfInlines() ||
-      this.isBlockContainerOfBlocks() ||
-      this.isInline()
-    ) {
-      const children = this.isBlockContainerOfInlines() ? [this.root] : this.children;
+    if (this.isBlockContainerOfBlocks()) {
       log.pushIndent();
-
-      for (let i = 0; i < children.length; i++) {
-        children[i].log(options, log);
+      for (let i = 0; i < this.children.length; i++) {
+        this.children[i].log(options, log);
       }
-
       log.popIndent();
+    }
+
+    if (this.isBlockContainerOfInlines()) {
+      const parents: Inline[] = [];
+      for (let i = 0; i < this.tree.length; i++) {
+        const child = this.tree[i];
+        log.pushIndent();
+        if (child.isInline()) {
+          parents.push(child);
+        }
+        child.log(options, log);
+        if (!child.isInline()) log.popIndent();
+        while (parents.at(-1)?.lastDescendant === i) {
+          log.popIndent();
+          parents.pop();
+        }
+      }
     }
 
     if (flush) log.flush();
@@ -761,11 +772,59 @@ export class BoxArea {
   }
 }
 
+export class InlineStack {
+  tree: InlineLevel[];
+  parents: Box[];
+  parentsStart: number;
+  index: number;
+  inlineStack: true;
+
+  constructor(ifc: BlockContainerOfInlines, parents: Box[], index = 0) {
+    this.tree = ifc.tree;
+    this.parents = parents;
+    this.parentsStart = parents.length;
+    this.index = index;
+    this.inlineStack = true;
+  }
+
+  getValue() {
+    if (this.parentsStart < this.parents.length) {
+      const parent = this.parents[this.parents.length - 1] as Inline;
+      if (parent.lastDescendant === this.index - 1) return {sentinel: true as const};
+    }
+
+    return this.index < this.tree.length ? this.tree[this.index] : undefined;
+  }
+
+  lastChild() {
+    const value = this.index < this.tree.length ? this.tree[this.index] : undefined;
+    if (value?.isInline()) this.index = value.lastDescendant;
+  }
+
+  next() {
+    const item = this.getValue();
+    if (item && !('sentinel' in item)) this.index++;
+    return item;
+  }
+}
+
 const EmptyContainingBlock = new BoxArea(null!);
 
+export function nextStack(stack: (BlockLevel | InlineStack | {sentinel: true})[]) {
+  const value = stack[stack.length - 1];
+  if ('inlineStack' in value) {
+    const ret = value.next();
+    if (ret === undefined) stack.pop();
+    return ret;
+  } else {
+    stack.pop();
+    return value;
+  }
+}
+
 export function prelayout(root: BlockContainer) {
-  const stack: (InlineLevel | {sentinel: true})[] = [root];
-  const parents: Box[] = [];
+  const stack: (BlockLevel | InlineStack | {sentinel: true})[] = [root];
+  const parents: (FormattingBox | Inline)[] = [];
   const ifcs: BlockContainerOfInlines[] = [];
   const pstack = [root.containingBlock];
   const bstack = [root.containingBlock];
@@ -775,10 +834,13 @@ export function prelayout(root: BlockContainer) {
   };
 
   while (stack.length) {
-    const box = stack.pop()!;
+    const item = nextStack(stack);
 
-    if ('sentinel' in box) {
+    if (item === undefined) continue; // end of inlines
+
+    if ('sentinel' in item) {
       const box = parents.pop()!;
+
       if (box.isBlockContainerOfInlines()) ifcs.pop();
 
       if (box.isBlockContainer()) {
@@ -791,61 +853,66 @@ export function prelayout(root: BlockContainer) {
       const parent = parents.at(-1);
       if (parent) box.propagate(parent);
       box.prelayoutPostorder(ctx);
-    } else if (box.isBox()) {
-      parents.push(box);
+    } else if (item.isBox()) {
+      const box = item;
       if (box.isBlockContainerOfInlines()) ifcs.push(box);
 
       ctx.lastPositionedArea = pstack.at(-1)!;
       ctx.lastBlockContainerArea = bstack.at(-1)!;
 
-      stack.push({sentinel: true});
       box.prelayoutPreorder(ctx);
       if (box.isBlockContainer()) {
         bstack.push(box.getContentArea());
         if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
       }
 
-      if (box.isBlockContainerOfBlocks() || box.isInline()) {
+      if (box.isBlockContainerOfBlocks()) {
+        parents.push(box);
+        stack.push({sentinel: true});
         for (let i = box.children.length - 1; i >= 0; i--) {
           stack.push(box.children[i]);
         }
       } else if (box.isBlockContainerOfInlines()) {
-        stack.push(box.root);
+        parents.push(box);
+        stack.push({sentinel: true}, new InlineStack(box, parents));
+      } else if (box.isInline()) {
+        parents.push(box);
+      } else {
+        item.propagate(parents.at(-1)!);
       }
-    } else if (box.isRun()) {
-      box.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
+    } else if (item.isRun()) {
+      item.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
     } else {
-      box.propagate(parents.at(-1)!);
+      item.propagate(parents.at(-1)!);
     }
   }
 }
 
 export function postlayout(root: BlockContainer) {
-  const stack: (BlockContainer | Inline | {sentinel: true})[] = [root];
+  const stack: (BlockLevel | InlineStack | {sentinel: true})[] = [root];
   const parents: Box[] = [];
 
   while (stack.length) {
-    const box = stack.pop()!;
+    const item = nextStack(stack);
+    if (item === undefined) continue; // end inlines
 
-    if ('sentinel' in box) {
+    if ('sentinel' in item) {
       const parent = parents.pop()!;
       parent.postlayoutPostorder();
     } else {
-      box.postlayoutPreorder();
-      stack.push({sentinel: true});
-      parents.push(box);
-      if (box.isBlockContainerOfBlocks() || box.isInline()) {
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          const child = box.children[i];
-          if (child.isBlockContainer() || child.isInline()) {
-            stack.push(child);
-          } else {
-            child.postlayoutPreorder()
-            child.postlayoutPostorder();
-          }
+      item.postlayoutPreorder();
+      if (!item.isBox()) item.postlayoutPostorder();
+      if (item.isBlockContainerOfBlocks()) {
+        parents.push(item);
+        stack.push({sentinel: true});
+        for (let i = item.children.length - 1; i >= 0; i--) {
+          stack.push(item.children[i]);
         }
-      } else if (box.isBlockContainerOfInlines()) {
-        stack.push(box.root);
+      } else if (item.isBlockContainerOfInlines()) {
+        parents.push(item);
+        stack.push({sentinel: true}, new InlineStack(item, parents));
+      } else if (item.isInline()) {
+        parents.push(item);
       }
     }
   }

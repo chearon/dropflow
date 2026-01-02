@@ -182,16 +182,15 @@ export abstract class Box extends RenderItem {
     hasNewlines:               1 << 11,
     hasSoftWrap:               1 << 12,
     hasCollapsibleWs:          1 << 13,
-    // 14..16: propagation bits: Inline <- Inline
+    // 14..15: propagation bits: Inline <- Inline
     hasPaintedInlines:         1 << 14,
-    hasColoredInline:          1 << 15,
-    hasSizedInline:            1 << 16,
-    // 17: propagation bits: Inline <- Break, Inline, ReplacedBox
-    hasBreakInlineOrReplaced:  1 << 17,
-    // 18..19: propagation bits: Inline <- FormattingBox
-    hasFloatOrReplaced:        1 << 18,
-    hasInlineBlocks:           1 << 19,
-    // 20..32: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    hasSizedInline:            1 << 15,
+    // 16: propagation bits: Inline <- Break, Inline, ReplacedBox
+    hasBreakInlineOrReplaced:  1 << 16,
+    // 17..18: propagation bits: Inline <- FormattingBox
+    hasFloatOrReplaced:        1 << 17,
+    hasInlineBlocks:           1 << 18,
+    // 19..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**

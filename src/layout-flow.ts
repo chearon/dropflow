@@ -1145,16 +1145,6 @@ export class Inline extends Box {
       ) {
         parent.bitfield |= Box.BITS.hasSizedInline;
       }
-      if (
-        !parent.hasColoredInline() && (
-          this.style.color.r !== parent.style.color.r ||
-          this.style.color.g !== parent.style.color.g ||
-          this.style.color.b !== parent.style.color.b ||
-          this.style.color.a !== parent.style.color.a
-        )
-      ) {
-        parent.bitfield |= Box.BITS.hasColoredInline;
-      }
 
       // Bits that propagate to Inline propagate again if the parent is Inline
       parent.bitfield |= (this.bitfield & Box.PROPAGATES_TO_INLINE_BITS);
@@ -1203,10 +1193,6 @@ export class Inline extends Box {
 
   hasSizedInline() {
     return this.bitfield & Box.BITS.hasSizedInline;
-  }
-
-  hasColoredInline() {
-    return this.bitfield & Box.BITS.hasColoredInline;
   }
 
   hasLineLeftGap() {

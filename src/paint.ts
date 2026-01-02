@@ -76,7 +76,6 @@ function drawText(
   b: PaintBackend
 ) {
   const style = item.attrs.style;
-  const state = item.createMeasureState();
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
   // any normalizination, so I could probably stop trying to support it
@@ -86,30 +85,35 @@ function drawText(
   textStart = Math.max(textStart, collapsed.textStart);
   textEnd = Math.min(textEnd, collapsed.textEnd);
 
-  if (item.attrs.level & 1) {
-    tx += item.measure().advance;
-    tx -= item.measure(textStart, 1, state).advance;
-  } else {
-    tx += item.measure(textStart, 1, state).advance;
-  }
-
   if (textStart < textEnd) {
+    const toPx = 1 / item.face.hbface.upem * item.attrs.style.fontSize;
+    let axToStart = 0;
+
+    // Move tx to the x offset for textStart
+    if (item.attrs.level & 1) {
+      for (let i = 0; i < item.glyphs.length; i += G_SZ) {
+        if (item.glyphs[i + G_CL] < textEnd) break;
+        axToStart += item.glyphs[i + G_AX];
+      }
+    } else {
+      for (let i = 0; i < item.glyphs.length; i += G_SZ) {
+        if (item.glyphs[i + G_CL] >= textStart) break;
+        axToStart += item.glyphs[i + G_AX];
+      }
+    }
+
+    tx += axToStart * toPx;
+
     // TODO: should really have isStartColorBoundary, isEndColorBoundary
     const isColorBoundary = textStart !== item.offset && textStart === run.start
       || textEnd !== item.end() && textEnd === run.end;
-    const ax = item.measure(textEnd, 1, state).advance;
-
-    if (item.attrs.level & 1) tx -= ax;
 
     b.fillColor = run.style.color;
     b.fontSize = style.fontSize;
     b.font = item.face;
     b.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
     b.text(tx, item.y, item, textStart, textEnd, isColorBoundary);
-
-    if (!(item.attrs.level & 1)) tx += ax;
   }
-
 }
 
 /**

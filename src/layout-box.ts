@@ -360,18 +360,6 @@ export abstract class Box extends RenderItem {
     }
   }
 
-  prelayout(ctx: PrelayoutContext) {
-    // CSS2.2 10.1
-    if (this.style.position === 'absolute') {
-      this.containingBlock = ctx.lastPositionedArea;
-    } else {
-      this.containingBlock = ctx.lastBlockContainerArea;
-    }
-
-    this.fillAreas();
-    this.getBorderArea().setParent(this.containingBlock);
-  }
-
   isBox(): this is Box {
     return true;
   }

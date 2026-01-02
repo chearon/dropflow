@@ -80,7 +80,7 @@ export abstract class RenderItem {
     this.logName(log, options);
 
     if (options?.containingBlocks && this.isBox()) {
-      log.text(` (cb: ${this.containingBlock?.box.id ?? '(null)'})`);
+      log.text(` (cb: ${this.getContainingBlock()?.box.id ?? '(null)'})`);
     }
 
     if (options?.css) {
@@ -138,7 +138,6 @@ export abstract class RenderItem {
 
 export abstract class Box extends RenderItem {
   public id: string;
-  public containingBlock: BoxArea;
   /**
    * General boolean bitfield shared by all box subclasses. The bits labeled
    * with "has" say something about their content to allow for optimizations.
@@ -209,7 +208,6 @@ export abstract class Box extends RenderItem {
     super(style);
     this.id = id();
     this.bitfield = attrs;
-    this.containingBlock = EmptyContainingBlock;
     this.area = new BoxArea(this);
 
     const hasBorder = this.style.hasBorderArea();
@@ -248,15 +246,19 @@ export abstract class Box extends RenderItem {
     return this.area;
   }
 
-  prelayoutPreorder(ctx: PrelayoutContext) {
-    // CSS2.2 10.1
-    if (this.style.position === 'absolute') {
-      this.containingBlock = ctx.lastPositionedArea;
-    } else {
-      this.containingBlock = ctx.lastBlockContainerArea;
-    }
+  getContainingBlock(): BoxArea {
+    const containingBlock = this.getBorderArea().parent;
+    if (!containingBlock) throw new Error('Assertion failed');
+    return containingBlock;
+  }
 
-    this.getBorderArea().setParent(this.containingBlock);
+  prelayoutPreorder(ctx: PrelayoutContext) {
+    // CSS2.2 10.1: set containing block
+    if (this.style.position === 'absolute') {
+      this.getBorderArea().setParent(ctx.lastPositionedArea);
+    } else {
+      this.getBorderArea().setParent(ctx.lastBlockContainerArea);
+    }
   }
 
   /**
@@ -333,11 +335,11 @@ export abstract class Box extends RenderItem {
   }
 
   getWritingModeAsParticipant() {
-    return this.containingBlock.box.style.writingMode;
+    return this.getContainingBlock().box.style.writingMode;
   }
 
   getDirectionAsParticipant() {
-    return this.containingBlock.box.style.direction;
+    return this.getContainingBlock().box.style.direction;
   }
 
   propagate(parent: Box) {
@@ -458,7 +460,7 @@ export abstract class Box extends RenderItem {
   }
 
   getRelativeVerticalShift() {
-    const height = this.containingBlock.height;
+    const height = this.getContainingBlock().height;
     let {top, bottom} = this.style;
 
     if (top !== 'auto') {
@@ -473,8 +475,9 @@ export abstract class Box extends RenderItem {
   }
 
   getRelativeHorizontalShift() {
-    const direction = this.containingBlock.getEstablishedDirection();
-    const width = this.containingBlock.width;
+    const containingBlock = this.getContainingBlock();
+    const direction = containingBlock.getEstablishedDirection();
+    const width = containingBlock.width;
     let {right, left} = this.style;
 
     if (left !== 'auto' && (right === 'auto' || direction === 'ltr')) {
@@ -737,17 +740,15 @@ export class BoxArea {
   }
 }
 
-const EmptyContainingBlock = new BoxArea(null!);
-
-export function prelayout(root: BlockContainer) {
+export function prelayout(root: BlockContainer, icb: BoxArea) {
   const stack: (InlineLevel | {sentinel: true})[] = [root];
   const parents: Box[] = [];
   const ifcs: IfcInline[] = [];
-  const pstack = [root.containingBlock];
-  const bstack = [root.containingBlock];
+  const pstack = [icb];
+  const bstack = [icb];
   const ctx: PrelayoutContext = {
-    lastPositionedArea: root.containingBlock,
-    lastBlockContainerArea: root.containingBlock
+    lastPositionedArea: icb,
+    lastBlockContainerArea: icb
   };
 
   while (stack.length) {

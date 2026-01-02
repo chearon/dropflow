@@ -41,8 +41,7 @@ export function generate(rootElement: HTMLElement): BlockContainer {
 export function layout(root: BlockContainer, width = 640, height = 480) {
   const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
 
-  root.containingBlock = initialContainingBlock;
-  prelayout(root);
+  prelayout(root, initialContainingBlock);
   layoutBlockLevelBox(root, {});
   postlayout(root);
 }
@@ -58,7 +57,7 @@ export function paintToHtml(root: BlockContainer): string {
 
 export function paintToSvg(root: BlockContainer): string {
   const backend = new SvgPaintBackend();
-  const {width, height} = root.containingBlock;
+  const {width, height} = root.getContainingBlock();
   let cssFonts = '';
 
   paint(root, backend);

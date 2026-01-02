@@ -500,7 +500,7 @@ class FloatSide {
     if (box.style.float === 'left') {
       box.setInlinePosition(vcOffset - cbOffset + marginOffset);
     } else {
-      const inlineSize = box.containingBlock.inlineSize;
+      const inlineSize = box.getContainingBlock().inlineSize;
       const size = borderArea.inlineSize;
       box.setInlinePosition(inlineSize - size - vcOffset + cbOffset - marginOffset);
     }
@@ -799,7 +799,7 @@ export class BlockContainer extends FormattingBox {
   }
 
   getContainingBlockToContent() {
-    const inlineSize = this.containingBlock.inlineSizeForPotentiallyOrthogonal(this);
+    const inlineSize = this.getContainingBlock().inlineSizeForPotentiallyOrthogonal(this);
     const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
     const paddingBlockStart = this.style.getPaddingBlockStart(this);
     const borderArea = this.getBorderArea();
@@ -909,7 +909,7 @@ export class BlockContainer extends FormattingBox {
 
 // §10.3.3
 function doInlineBoxModelForBlockBox(box: FormattingBox) {
-  const cInlineSize = box.containingBlock.inlineSizeForPotentiallyOrthogonal(box);
+  const cInlineSize = box.getContainingBlock().inlineSizeForPotentiallyOrthogonal(box);
   const inlineSize = box.getDefiniteInnerInlineSize();
   let marginLineLeft = box.style.getMarginLineLeft(box);
   let marginLineRight = box.style.getMarginLineRight(box);
@@ -1072,7 +1072,7 @@ export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
   if (inlineSize === undefined) {
     const minContent = box.contribution('min-content');
     const maxContent = box.contribution('max-content');
-    const availableSpace = box.containingBlock.inlineSize;
+    const availableSpace = box.getContainingBlock().inlineSize;
     const marginLineLeft = box.style.getMarginLineLeft(box);
     const marginLineRight = box.style.getMarginLineRight(box);
     inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
@@ -1300,6 +1300,7 @@ export class IfcInline extends Inline {
   positionItemsPostlayout() {
     const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
     const stack: (InlineLevel | {sentinel: Inline})[] = [this];
+    const containingBlock = this.getContainingBlock();
     let dx = 0;
     let dy = 0;
     let itemIndex = 0;
@@ -1313,8 +1314,8 @@ export class IfcInline extends Inline {
           this.paragraph.items[itemIndex].offset < box.sentinel.end
         ) {
           const item = this.paragraph.items[itemIndex];
-          item.x += this.containingBlock.x;
-          item.y += this.containingBlock.y;
+          item.x += containingBlock.x;
+          item.y += containingBlock.y;
           if (item.end() > box.sentinel.start) {
             item.x += dx;
             item.y += dy;
@@ -1350,9 +1351,9 @@ export class IfcInline extends Inline {
       const {dx, dy} = inlineShifts.get(inline)!;
 
       for (const fragment of fragments) {
-        fragment.blockOffset += this.containingBlock.y + dy;
-        fragment.start += this.containingBlock.x + dx;
-        fragment.end += this.containingBlock.x + dx;
+        fragment.blockOffset += containingBlock.y + dy;
+        fragment.start += containingBlock.x + dx;
+        fragment.end += containingBlock.x + dx;
       }
     }
   }

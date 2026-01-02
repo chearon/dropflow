@@ -728,13 +728,13 @@ export default function paint(block: BlockContainer, b: PaintBackend) {
   if (!layerRoot.isEmpty()) {
     // Propagate background color and overflow to the viewport
     if (block.style.backgroundColor.a > 0) {
-      const area = block.containingBlock;
+      const area = block.getContainingBlock();
       b.fillColor = block.style.backgroundColor;
       b.rect(area.x, area.y, area.width, area.height);
     }
 
     if (block.style.overflow === 'hidden') {
-      const {x, y, width, height} = block.containingBlock;
+      const {x, y, width, height} = block.getContainingBlock();
       b.pushClip(x, y, width, height);
     }
 

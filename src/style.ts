@@ -284,9 +284,10 @@ interface ComputedStyle {
 
 function resolvePercent(box: Box, cssVal: number | {value: number, unit: '%'}) {
   if (typeof cssVal === 'object') {
-    if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
+    const containingBlock = box.getContainingBlock();
+    if (containingBlock.width === undefined) throw new Error('Assertion failed');
     const writingMode = box.getWritingModeAsParticipant();
-    const inlineSize = box.containingBlock[LogicalMaps[writingMode].inlineSize];
+    const inlineSize = containingBlock[LogicalMaps[writingMode].inlineSize];
     if (inlineSize === undefined) throw new Error('Assertion failed');
     return cssVal.value / 100 * inlineSize;
   }
@@ -603,7 +604,7 @@ export class Style {
     const writingMode = box.getWritingModeAsParticipant();
     let cssVal = this[LogicalMaps[writingMode].blockSize];
     if (typeof cssVal === 'object') {
-      const parentBlockSize = box.containingBlock[LogicalMaps[writingMode].blockSize];
+      const parentBlockSize = box.getContainingBlock()[LogicalMaps[writingMode].blockSize];
       if (parentBlockSize === undefined) return 'auto' as const; // §CSS2 10.5
       cssVal = cssVal.value / 100 * parentBlockSize;
     }

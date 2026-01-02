@@ -2513,7 +2513,7 @@ export class Paragraph {
       if (direction === 'ltr') {
         x = linebox.inlineOffset;
       } else {
-        x = this.ifc.containingBlock.inlineSize - linebox.inlineOffset;
+        x = this.ifc.getContainingBlock().inlineSize - linebox.inlineOffset;
       }
 
       for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {

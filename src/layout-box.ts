@@ -332,12 +332,12 @@ export abstract class Box extends RenderItem {
     }
   }
 
-  get writingModeAsParticipant() {
-    return this.containingBlock.writingMode;
+  getWritingModeAsParticipant() {
+    return this.containingBlock.box.style.writingMode;
   }
 
-  get directionAsParticipant() {
-    return this.containingBlock.direction;
+  getDirectionAsParticipant() {
+    return this.containingBlock.box.style.direction;
   }
 
   propagate(parent: Box) {
@@ -485,7 +485,8 @@ export abstract class Box extends RenderItem {
   }
 
   getRelativeHorizontalShift() {
-    const {direction, width} = this.containingBlock;
+    const direction = this.containingBlock.getEstablishedDirection();
+    const width = this.containingBlock.width;
     let {right, left} = this.style;
 
     if (left !== 'auto' && (right === 'auto' || direction === 'ltr')) {
@@ -633,11 +634,11 @@ export class BoxArea {
     );
   }
 
-  get writingMode() {
+  getEstablishedWritingMode() {
     return this.box.style.writingMode;
   }
 
-  get direction() {
+  getEstablishedDirection() {
     return this.box.style.direction;
   }
 
@@ -673,8 +674,8 @@ export class BoxArea {
     if (!this.parent) return this.inlineSize; // root area
     if (!this.box.isBlockContainer()) return this.inlineSize; // cannot be orthogonal
     if (
-      (this.box.writingModeAsParticipant === 'horizontal-tb') !==
-      (box.writingModeAsParticipant === 'horizontal-tb')
+      (this.box.getWritingModeAsParticipant() === 'horizontal-tb') !==
+      (box.getWritingModeAsParticipant() === 'horizontal-tb')
     ) {
       return this.blockSize;
     } else {
@@ -689,12 +690,14 @@ export class BoxArea {
       throw new Error(`Cannot absolutify area for ${this.box.id}, parent was never set`);
     }
 
-    if (this.parent.writingMode === 'vertical-lr') {
+    const writingMode = this.parent.getEstablishedWritingMode();
+
+    if (writingMode === 'vertical-lr') {
       x = this.blockStart;
       y = this.lineLeft;
       width = this.blockSize;
       height = this.inlineSize;
-    } else if (this.parent.writingMode === 'vertical-rl') {
+    } else if (writingMode === 'vertical-rl') {
       x = this.parent.width - this.blockStart - this.blockSize;
       y = this.lineLeft;
       width = this.blockSize;
@@ -719,10 +722,12 @@ export class BoxArea {
       throw new Error(`Cannot absolutify area for ${this.box.id}, parent was never set`);
     }
 
-    if (this.parent.writingMode === 'vertical-lr') {
+    const writingMode = this.parent.getEstablishedWritingMode();
+
+    if (writingMode === 'vertical-lr') {
       width = this.blockSize;
       height = this.inlineSize;
-    } else if (this.parent.writingMode === 'vertical-rl') {
+    } else if (writingMode === 'vertical-rl') {
       width = this.blockSize;
       height = this.inlineSize;
     } else { // 'horizontal-tb'

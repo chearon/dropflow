@@ -285,7 +285,8 @@ interface ComputedStyle {
 function resolvePercent(box: Box, cssVal: number | {value: number, unit: '%'}) {
   if (typeof cssVal === 'object') {
     if (box.containingBlock.width === undefined) throw new Error('Assertion failed');
-    const inlineSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].inlineSize];
+    const writingMode = box.getWritingModeAsParticipant();
+    const inlineSize = box.containingBlock[LogicalMaps[writingMode].inlineSize];
     if (inlineSize === undefined) throw new Error('Assertion failed');
     return cssVal.value / 100 * inlineSize;
   }
@@ -515,81 +516,94 @@ export class Style {
   }
 
   getMarginBlockStart(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockStart];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].marginBlockStart];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginBlockEnd(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginBlockEnd];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].marginBlockEnd];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginLineLeft(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineLeft];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].marginLineLeft];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getMarginLineRight(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].marginLineRight];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].marginLineRight];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(box, cssVal);
   }
 
   getPaddingBlockStart(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockStart];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].paddingBlockStart];
     return resolvePercent(box, cssVal);
   }
 
   getPaddingBlockEnd(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingBlockEnd];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].paddingBlockEnd];
     return resolvePercent(box, cssVal);
   }
 
   getPaddingLineLeft(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineLeft];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].paddingLineLeft];
     return resolvePercent(box, cssVal);
   }
 
   getPaddingLineRight(box: Box) {
-    const cssVal = this[LogicalMaps[box.writingModeAsParticipant].paddingLineRight];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssVal = this[LogicalMaps[writingMode].paddingLineRight];
     return resolvePercent(box, cssVal);
   }
 
   getBorderBlockStartWidth(box: Box) {
-    let cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartStyle];
+    const writingMode = box.getWritingModeAsParticipant();
+    let cssStyleVal = this[LogicalMaps[writingMode].borderBlockStartStyle];
     if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockStartWidth];
+    const cssWidthVal = this[LogicalMaps[writingMode].borderBlockStartWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBorderBlockEndWidth(box: Box) {
-    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndStyle];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssStyleVal = this[LogicalMaps[writingMode].borderBlockEndStyle];
     if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderBlockEndWidth];
+    const cssWidthVal = this[LogicalMaps[writingMode].borderBlockEndWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBorderLineLeftWidth(box: Box) {
-    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftStyle];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssStyleVal = this[LogicalMaps[writingMode].borderLineLeftStyle];
     if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineLeftWidth]
+    const cssWidthVal = this[LogicalMaps[writingMode].borderLineLeftWidth]
     return resolvePercent(box, cssWidthVal);
   }
 
   getBorderLineRightWidth(box: Box) {
-    const cssStyleVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightStyle];
+    const writingMode = box.getWritingModeAsParticipant();
+    const cssStyleVal = this[LogicalMaps[writingMode].borderLineRightStyle];
     if (cssStyleVal === 'none') return 0;
-    const cssWidthVal = this[LogicalMaps[box.writingModeAsParticipant].borderLineRightWidth];
+    const cssWidthVal = this[LogicalMaps[writingMode].borderLineRightWidth];
     return resolvePercent(box, cssWidthVal);
   }
 
   getBlockSize(box: Box) {
-    let cssVal = this[LogicalMaps[box.writingModeAsParticipant].blockSize];
+    const writingMode = box.getWritingModeAsParticipant();
+    let cssVal = this[LogicalMaps[writingMode].blockSize];
     if (typeof cssVal === 'object') {
-      const parentBlockSize = box.containingBlock[LogicalMaps[box.writingModeAsParticipant].blockSize];
+      const parentBlockSize = box.containingBlock[LogicalMaps[writingMode].blockSize];
       if (parentBlockSize === undefined) return 'auto' as const; // §CSS2 10.5
       cssVal = cssVal.value / 100 * parentBlockSize;
     }
@@ -604,7 +618,8 @@ export class Style {
   }
 
   getInlineSize(box: Box) {
-    let cssVal = this[LogicalMaps[box.writingModeAsParticipant].inlineSize];
+    const writingMode = box.getWritingModeAsParticipant();
+    let cssVal = this[LogicalMaps[writingMode].inlineSize];
     if (cssVal === 'auto') {
       cssVal = 'auto';
     } else {
@@ -621,7 +636,7 @@ export class Style {
   }
 
   hasLineLeftGap(box: Box) {
-    const writingMode = box.writingModeAsParticipant;
+    const writingMode = box.getWritingModeAsParticipant();
     const marginLineLeft = this[LogicalMaps[writingMode].marginLineLeft];
     if (marginLineLeft === 'auto') return false;
     if (typeof marginLineLeft === 'object' && marginLineLeft.value !== 0) return true;
@@ -634,7 +649,7 @@ export class Style {
   }
 
   hasLineRightGap(box: Box) {
-    const writingMode = box.writingModeAsParticipant;
+    const writingMode = box.getWritingModeAsParticipant();
     const marginLineRight = this[LogicalMaps[writingMode].marginLineRight];
     if (marginLineRight === 'auto') return false;
     if (typeof marginLineRight === 'object' && marginLineRight.value !== 0) return true;

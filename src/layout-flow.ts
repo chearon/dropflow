@@ -939,7 +939,7 @@ function doInlineBoxModelForBlockBox(box: FormattingBox) {
       // Paragraph 3: check over-constrained values. This expands the right
       // margin in LTR documents to fill space, or, if the above scenario was
       // hit, it makes the right margin negative.
-      if (box.directionAsParticipant === 'ltr') {
+      if (box.getDirectionAsParticipant() === 'ltr') {
         marginLineRight = cInlineSize - (specifiedInlineSize - marginLineRight);
       } else {
         marginLineLeft = cInlineSize - (specifiedInlineSize - marginLineRight);
@@ -1218,9 +1218,10 @@ export class Inline extends Box {
   }
 
   getInlineSideSize(side: 'pre' | 'post') {
+    const direction = this.getDirectionAsParticipant();
     if (
-      this.directionAsParticipant === 'ltr' && side === 'pre' ||
-      this.directionAsParticipant === 'rtl' && side === 'post'
+      direction === 'ltr' && side === 'pre' ||
+      direction === 'rtl' && side === 'post'
     ) {
       const marginLineLeft = this.style.getMarginLineLeft(this);
       return (marginLineLeft === 'auto' ? 0 : marginLineLeft)

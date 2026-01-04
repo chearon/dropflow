@@ -747,40 +747,6 @@ export class BlockContainer extends FormattingBox {
     this.children = children;
   }
 
-  contribution(mode: 'min-content' | 'max-content'): number {
-    const marginLineLeft = this.style.getMarginLineLeft(this);
-    const marginLineRight = this.style.getMarginLineRight(this);
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
-    const paddingLineRight = this.style.getPaddingLineRight(this);
-    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-    let isize = this.style.getInlineSize(this);
-    let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-      + borderLineLeftWidth
-      + paddingLineLeft
-      + paddingLineRight
-      + borderLineRightWidth
-      + (marginLineRight === 'auto' ? 0 : marginLineRight);
-
-    if (isize === 'auto') {
-      isize = 0;
-      if (this.isBlockContainerOfBlocks()) {
-        for (const child of this.children) {
-          isize = Math.max(isize, child.contribution(mode));
-        }
-      } else if (this.isBlockContainerOfInlines()) {
-        const [ifc] = this.children;
-        if (ifc.shouldLayoutContent()) {
-          isize = ifc.paragraph.contribution(mode);
-        }
-      }
-    }
-
-    contribution += isize;
-
-    return contribution;
-  }
-
   getLogSymbol() {
     if (this.isFloat()) {
       return '○︎';
@@ -813,35 +779,6 @@ export class BlockContainer extends FormattingBox {
     const lineRight = inlineSize - lineLeft - cInlineSize;
 
     return {blockStart, lineLeft, lineRight};
-  }
-
-  getLastBaseline(): number | undefined {
-    const stack: {block: BlockContainer, offset: number}[] = [{block: this, offset: 0}];
-
-    while (stack.length) {
-      const {block, offset} = stack.pop()!;
-
-      if (block.isBlockContainerOfInlines()) {
-        const [ifc] = block.children;
-        const linebox = ifc.paragraph.lineboxes.at(-1);
-        if (linebox) return offset + linebox.blockOffset + linebox.ascender;
-      }
-
-      if (block.isBlockContainerOfBlocks()) {
-        const parentOffset = offset;
-
-        for (const child of block.children) {
-          if (child.isBlockContainer()) {
-            const offset = parentOffset
-              + child.getBorderArea().blockStart
-              + child.style.getBorderBlockStartWidth(child);
-              + child.style.getPaddingBlockStart(child);
-
-            stack.push({block: child, offset});
-          }
-        }
-      }
-    }
   }
 
   isBlockContainer(): this is BlockContainer {
@@ -1063,6 +1000,47 @@ function doBlockBoxModelForFloatBox(box: FormattingBox) {
   if (size !== undefined) box.setBlockSize(size);
 }
 
+export function layoutContribution(
+  box: BlockLevel,
+  mode: 'min-content' | 'max-content'
+) {
+  const marginLineLeft = box.style.getMarginLineLeft(box);
+  const marginLineRight = box.style.getMarginLineLeft(box);
+  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
+  const paddingLineLeft = box.style.getPaddingLineLeft(box);
+  const paddingLineRight = box.style.getPaddingLineRight(box);
+  const borderLineRightWidth = box.style.getBorderLineRightWidth(box);
+  let isize = box.style.getInlineSize(box);
+  let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
+    + borderLineLeftWidth
+    + paddingLineLeft
+    + paddingLineRight
+    + borderLineRightWidth
+    + (marginLineRight === 'auto' ? 0 : marginLineRight);
+
+  if (isize === 'auto') {
+    if (box.isReplacedBox()) {
+      isize = box.getIntrinsicIsize();
+    } else {
+      isize = 0;
+      if (box.isBlockContainerOfBlocks()) {
+        for (const child of box.children) {
+          isize = Math.max(isize, layoutContribution(child, mode));
+        }
+      } else if (box.isBlockContainerOfInlines()) {
+        const [ifc] = box.children;
+        if (ifc.shouldLayoutContent()) {
+          isize = ifc.paragraph.contribution(mode);
+        }
+      }
+    }
+  }
+
+  contribution += isize;
+
+  return contribution;
+}
+
 export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
   const cctx: LayoutContext = {...ctx, bfc: undefined};
   box.fillAreas();
@@ -1070,8 +1048,8 @@ export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
   let inlineSize = box.getDefiniteOuterInlineSize();
 
   if (inlineSize === undefined) {
-    const minContent = box.contribution('min-content');
-    const maxContent = box.contribution('max-content');
+    const minContent = layoutContribution(box, 'min-content');
+    const maxContent = layoutContribution(box, 'max-content');
     const availableSpace = box.getContainingBlock().inlineSize;
     const marginLineLeft = box.style.getMarginLineLeft(box);
     const marginLineRight = box.style.getMarginLineRight(box);
@@ -1423,32 +1401,6 @@ export class ReplacedBox extends FormattingBox {
     super.propagate(parent);
     parent.bitfield |= Box.BITS.hasBreakInlineOrReplaced;
     parent.bitfield |= Box.BITS.hasFloatOrReplaced;
-  }
-
-  contribution() {
-    const marginLineLeft = this.style.getMarginLineLeft(this);
-    const marginLineRight = this.style.getMarginLineLeft(this);
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
-    const paddingLineRight = this.style.getPaddingLineRight(this);
-    const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
-    let isize = this.style.getInlineSize(this);
-    let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-      + borderLineLeftWidth
-      + paddingLineLeft
-      + paddingLineRight
-      + borderLineRightWidth
-      + (marginLineRight === 'auto' ? 0 : marginLineRight);
-
-    if (isize === 'auto') isize = this.getIntrinsicIsize();
-
-    contribution += isize;
-
-    return contribution;
-  }
-
-  getLastBaseline() {
-    return undefined;
   }
 
   getDefiniteInnerInlineSize() {

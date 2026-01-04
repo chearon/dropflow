@@ -591,10 +591,6 @@ export abstract class FormattingBox extends Box {
   isInlineLevel() {
     return this.style.display.outer === 'inline';
   }
-
-  abstract getLastBaseline(): number | undefined;
-
-  abstract contribution(mode: 'min-content' | 'max-content'): number;
 }
 
 export class BoxArea {

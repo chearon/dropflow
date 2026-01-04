@@ -8,7 +8,8 @@ import {
   IfcVacancy,
   Inline,
   createInlineIterator,
-  layoutFloatBox
+  layoutFloatBox,
+  layoutContribution
 } from './layout-flow.ts';
 import LineBreak, {HardBreaker} from './text-line-break.ts';
 import {nextGraphemeBreak, previousGraphemeBreak} from './text-grapheme-break.ts';
@@ -1002,9 +1003,42 @@ function baselineStep(parent: Inline, inline: Inline) {
   return 0;
 }
 
+function getLastBaseline(block: FormattingBox) {
+  const stack = [{block, offset: 0}];
+
+  while (stack.length) {
+    const {block, offset} = stack.pop()!;
+
+    if (block.isReplacedBox()) {
+      return undefined;
+    } else if (block.isBlockContainer()) {
+      if (block.isBlockContainerOfInlines()) {
+        const [ifc] = block.children;
+        const linebox = ifc.paragraph.lineboxes.at(-1);
+        if (linebox) return offset + linebox.blockOffset + linebox.ascender;
+      }
+
+      if (block.isBlockContainerOfBlocks()) {
+        const parentOffset = offset;
+
+        for (const child of block.children) {
+          if (child.isBlockContainer()) {
+            const offset = parentOffset
+              + child.getBorderArea().blockStart
+              + child.style.getBorderBlockStartWidth(child);
+              + child.style.getPaddingBlockStart(child);
+
+            stack.push({block: child, offset});
+          }
+        }
+      }
+    }
+  }
+}
+
 export function inlineFormattingBoxMetrics(box: FormattingBox) {
   const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = box.getMarginsAutoIsZero();
-  const baseline = box.style.overflow === 'hidden' ? undefined : box.getLastBaseline();
+  const baseline = box.style.overflow === 'hidden' ? undefined : getLastBaseline(box);
   let ascender, descender;
 
   if (baseline !== undefined) {
@@ -2129,7 +2163,7 @@ export class Paragraph {
       if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
       if (mark.box) {
-        width.addInk(mark.box.contribution(mode));
+        width.addInk(layoutContribution(mark.box, mode));
         // floats don't have breaks before/after them
         if (mode === 'min-content') {
           contribution = Math.max(contribution, width.trimmed());

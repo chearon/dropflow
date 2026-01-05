@@ -2,7 +2,7 @@ import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.ts';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.ts';
 import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.ts';
-import {generateBlockContainer, layoutBlockLevelBox, BlockContainer} from './layout-flow.ts';
+import {generateBlockContainer, layoutBlockLevelBox} from './layout-flow.ts';
 import HtmlPaintBackend from './paint-html.ts';
 import SvgPaintBackend from './paint-svg.ts';
 import CanvasPaintBackend from './paint-canvas.ts';
@@ -16,6 +16,7 @@ import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
 import type {Style} from './style.ts';
 import type {Image} from './layout-image.ts';
+import type {BlockContainer} from './layout-flow.ts';
 
 export {environment} from './environment.ts';
 
@@ -222,7 +223,7 @@ export function staticLayoutContribution(box: BlockContainer): number {
       intrinsicSize = Math.max(intrinsicSize, line.width);
     }
     // TODO: floats
-  } else if (box.isBlockContainerOfBlocks()) {
+  } else {
     for (const child of box.children) {
       if (child.isBlockContainer()) {
         intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
@@ -231,8 +232,6 @@ export function staticLayoutContribution(box: BlockContainer): number {
         intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
       }
     }
-  } else {
-    throw new Error(`Unknown box type: ${box.id}`);
   }
 
   const containingBlock = box.getContainingBlock();

@@ -1,11 +1,11 @@
-import {BlockContainer, ReplacedBox, Inline, IfcInline} from './layout-flow.ts';
+import {ReplacedBox, Inline, IfcInline} from './layout-flow.ts';
 import {Image} from './layout-image.ts';
 import {G_CL, G_AX, G_SZ} from './text-harfbuzz.ts';
 import {ShapedItem, Paragraph, isSpaceOrTabOrNewline} from './layout-text.ts';
-import {Box, FormattingBox} from './layout-box.ts';
+import {Box} from './layout-box.ts';
 import {binarySearchOf} from './util.ts';
 
-import type {InlineLevel, BlockLevel} from './layout-flow.ts';
+import type {InlineLevel, BlockLevel, BlockContainer} from './layout-flow.ts';
 import type {InlineFragment, Run} from './layout-text.ts';
 import type {Color} from './style.ts';
 import type {LoadedFontFace} from './text-font.ts';
@@ -119,7 +119,7 @@ function drawText(
 /**
  * Paints the background and borders
  */
-function paintFormattingBoxBackground(box: FormattingBox, b: PaintBackend, isRoot = false) {
+function paintBlockBackground(box: BlockLevel, b: PaintBackend, isRoot = false) {
   const style = box.style;
   const borderArea = box.getBorderArea();
 
@@ -157,8 +157,8 @@ function paintFormattingBoxBackground(box: FormattingBox, b: PaintBackend, isRoo
   }
 }
 
-function paintBackgroundDescendents(root: FormattingBox, b: PaintBackend) {
-  const stack: (FormattingBox | {sentinel: true})[] = [root];
+function paintBackgroundDescendents(root: BlockLevel, b: PaintBackend) {
+  const stack: (BlockLevel | {sentinel: true})[] = [root];
   const parents: Box[] = [];
 
   while (stack.length) {
@@ -172,7 +172,7 @@ function paintBackgroundDescendents(root: FormattingBox, b: PaintBackend) {
       }
     } else {
       if (!box.isInline() && !box.isInlineLevel() && box !== root) {
-        paintFormattingBoxBackground(box, b);
+        paintBlockBackground(box, b);
       }
 
       if (box.isBlockContainerOfBlocks() && box.hasBackgroundInLayerRoot()) {
@@ -377,7 +377,7 @@ function paintInline(
       } else if (box.isFormattingBox()) {
         if (!box.isLayerRoot()) {
           if (box.isReplacedBox()) {
-            paintFormattingBoxBackground(box, b);
+            paintBlockBackground(box, b);
             paintReplacedBox(box, b);
           } else {
             paintBlockLayerRoot(layerRoot.inlineBlocks.get(box)!, b);
@@ -429,7 +429,7 @@ function paintBlockForeground(root: BlockLayerRoot, b: PaintBackend) {
           for (let i = box.children.length - 1; i >= 0; i--) {
             stack.push(box.children[i]);
           }
-        } else if (box.isBlockContainerOfInlines()) {
+        } else {
           stack.push(box.ifc);
         }
       }
@@ -678,7 +678,7 @@ function paintBlockLayerRoot(
   b: PaintBackend,
   isRoot = false
 ) {
-  if (root.box.hasBackground() && !isRoot) paintFormattingBoxBackground(root.box, b);
+  if (root.box.hasBackground() && !isRoot) paintBlockBackground(root.box, b);
 
   if (!isRoot && root.box.style.overflow === 'hidden') {
     const {x, y, width, height} = root.box.getPaddingArea();

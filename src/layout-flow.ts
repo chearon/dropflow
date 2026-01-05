@@ -108,7 +108,7 @@ export class BlockFormattingContext {
     this.hypotheticals = EMPTY_MAP;
   }
 
-  collapseStart(box: FormattingBox) {
+  collapseStart(box: BlockLevel) {
     const containingBlock = box.getContainingBlock();
     const marginBlockStart = box.style.getMarginBlockStart(containingBlock);
     let floatBottom = 0;
@@ -222,7 +222,7 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
-  boxAtomic(box: FormattingBox) {
+  boxAtomic(box: BlockLevel) {
     const containingBlock = box.getContainingBlock();
     const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
     assumePx(marginBlockEnd);
@@ -343,7 +343,7 @@ export class BlockFormattingContext {
 }
 
 class FloatSide {
-  items: FormattingBox[];
+  items: BlockLevel[];
   // Moving shelf area (stretches to infinity in the block direction)
   shelfBlockOffset: number;
   shelfTrackIndex: number;
@@ -469,7 +469,7 @@ class FloatSide {
     }
   }
 
-  placeFloat(box: FormattingBox, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
+  placeFloat(box: BlockLevel, vacancy: IfcVacancy, cbLineLeft: number, cbLineRight: number) {
     if (box.style.float === 'none') {
       throw new Error('Tried to place float:none');
     }
@@ -563,7 +563,7 @@ export class FloatContext {
   bfc: BlockFormattingContext;
   leftFloats: FloatSide;
   rightFloats: FloatSide;
-  misfits: FormattingBox[];
+  misfits: BlockLevel[];
 
   constructor(bfc: BlockFormattingContext, blockOffset: number) {
     this.bfc = bfc;
@@ -586,7 +586,7 @@ export class FloatContext {
     return new IfcVacancy(leftOffset, rightOffset, blockOffset, inlineSize, 0, 0);
   }
 
-  getVacancyForBox(box: FormattingBox, lineWidth: number) {
+  getVacancyForBox(box: BlockLevel, lineWidth: number) {
     const float = box.style.float;
     const floats = float === 'left' ? this.leftFloats : this.rightFloats;
     const oppositeFloats = float === 'left' ? this.rightFloats : this.leftFloats;
@@ -656,7 +656,7 @@ export class FloatContext {
     return this.getVacancyForLine(blockOffset, blockSize);
   }
 
-  placeFloat(lineWidth: number, lineIsEmpty: boolean, box: FormattingBox) {
+  placeFloat(lineWidth: number, lineIsEmpty: boolean, box: BlockLevel) {
     if (box.style.float === 'none') {
       throw new Error('Attempted to place float: none');
     }
@@ -728,7 +728,9 @@ export class FloatContext {
   }
 }
 
-export abstract class BlockContainer extends FormattingBox {
+export type BlockContainer = BlockContainerOfInlines | BlockContainerOfBlocks;
+
+export abstract class BlockContainerBase extends FormattingBox {
   static ATTRS = {
     ...FormattingBox.ATTRS,
     isInline: Box.BITS.isInline,
@@ -769,7 +771,7 @@ export abstract class BlockContainer extends FormattingBox {
     return {blockStart, lineLeft, lineRight};
   }
 
-  isBlockContainer(): this is BlockContainer {
+  isBlockContainer(): this is BlockContainerBase {
     return true;
   }
 
@@ -818,7 +820,7 @@ export abstract class BlockContainer extends FormattingBox {
   }
 }
 
-export class BlockContainerOfInlines extends BlockContainer {
+export class BlockContainerOfInlines extends BlockContainerBase {
   ifc: IfcInline;
 
   constructor(style: Style, ifc: IfcInline, attrs: number) {
@@ -839,7 +841,7 @@ export class BlockContainerOfInlines extends BlockContainer {
 
 export type BlockLevel = BlockContainer | ReplacedBox;
 
-export class BlockContainerOfBlocks extends BlockContainer {
+export class BlockContainerOfBlocks extends BlockContainerBase {
   children: BlockLevel[];
 
   constructor(style: Style, children: BlockLevel[], attrs: number) {
@@ -853,9 +855,9 @@ export class BlockContainerOfBlocks extends BlockContainer {
 }
 
 // §10.3.3
-function doInlineBoxModelForBlockBox(box: FormattingBox) {
+function doInlineBoxModelForBlockBox(box: BlockLevel) {
   const containingBlock = box.getContainingBlock();
-  const cInlineSize = containingBlock.inlineSizeForPotentiallyOrthogonal(box);
+  const cInlineSize = box.getContainingBlock().inlineSizeForPotentiallyOrthogonal(box);
   const inlineSize = box.getDefiniteInnerInlineSize(containingBlock);
   let marginLineLeft = box.style.getMarginLineLeft(containingBlock);
   let marginLineRight = box.style.getMarginLineRight(containingBlock);
@@ -959,8 +961,6 @@ function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
     }
   } else if (box.isBlockContainerOfBlocks()) {
     for (const child of box.children) layoutBlockLevelBox(child, cctx);
-  } else {
-    throw new Error(`Unknown box type: ${box.id}`);
   }
 
   if (establishedBfc) {
@@ -1001,11 +1001,11 @@ export function layoutBlockLevelBox(box: BlockLevel, ctx: LayoutContext) {
   }
 }
 
-function doInlineBoxModelForFloatBox(box: FormattingBox, inlineSize: number) {
+function doInlineBoxModelForFloatBox(box: BlockLevel, inlineSize: number) {
   box.setInlineOuterSize(inlineSize);
 }
 
-function doBlockBoxModelForFloatBox(box: FormattingBox) {
+function doBlockBoxModelForFloatBox(box: BlockLevel) {
   const size = box.getDefiniteInnerBlockSize();
   if (size !== undefined) box.setBlockSize(size);
 }
@@ -1038,7 +1038,7 @@ export function layoutContribution(
         for (const child of box.children) {
           isize = Math.max(isize, layoutContribution(child, mode));
         }
-      } else if (box.isBlockContainerOfInlines()) {
+      } else {
         if (box.ifc.shouldLayoutContent()) {
           isize = box.ifc.paragraph.contribution(mode);
         }
@@ -1553,7 +1553,7 @@ function mapTree(
         child = new Break(childEl.style);
       } else if (childEl.style.display.outer === 'block') {
         if (childEl.style.isOutOfFlow()) {
-          child = generateFormattingBox(childEl);
+          child = generateBlockBox(childEl);
         } else {
           bail = true;
         }
@@ -1562,7 +1562,7 @@ function mapTree(
           childEl.style.display.inner === 'flow-root' ||
           childEl.tagName === 'img'
         ) {
-          child = generateFormattingBox(childEl);
+          child = generateBlockBox(childEl);
         } else {
           [bail, child] = mapTree(childEl, text, path, level + 1);
         }
@@ -1599,7 +1599,7 @@ function generateInlineBox(
 
   if (target instanceof HTMLElement && target.style.display.outer === 'block') {
     ++path[path.length - 1];
-    return [true, generateFormattingBox(target)];
+    return [true, generateBlockBox(target)];
   }
 
   return mapTree(el, text, path, 0);
@@ -1615,7 +1615,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
   return new BlockContainerOfInlines(anonStyle, ifc, attrs);
 }
 
-function generateFormattingBox(el: HTMLElement): BlockLevel {
+function generateBlockBox(el: HTMLElement): BlockLevel {
   if (el.tagName === 'img') {
     const box = new ReplacedBox(el.style, el.attrs.src ?? "");
     el.boxes.push(box);
@@ -1642,7 +1642,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
     el.style.display.inner === 'flow-root' ||
     el.parent && writingModeInlineAxis(el) !== writingModeInlineAxis(el.parent)
   ) {
-    attrs |= BlockContainer.ATTRS.isBfcRoot;
+    attrs |= BlockContainerBase.ATTRS.isBfcRoot;
   }
 
   if (enableLogging) attrs |= Box.ATTRS.enableLogging;
@@ -1654,7 +1654,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       if (child.tagName === 'br') {
         inlines.push(new Break(child.style));
       } else if (child.style.display.outer === 'block') {
-        const block = generateFormattingBox(child);
+        const block = generateBlockBox(child);
 
         if (block.style.isOutOfFlow()) {
           inlines.push(block);
@@ -1672,7 +1672,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
           child.style.display.inner === 'flow-root' || // inline-block
           child.tagName === 'img'
         ) {
-          inlines.push(generateFormattingBox(child));
+          inlines.push(generateBlockBox(child));
         } else {
           const path: number[] = [];
           let more, box;
@@ -1704,7 +1704,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
   }
 
   if (el.style.display.outer === 'inline') {
-    attrs |= BlockContainer.ATTRS.isInline;
+    attrs |= BlockContainerBase.ATTRS.isInline;
   }
 
   let box;

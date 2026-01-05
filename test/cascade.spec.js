@@ -1,5 +1,5 @@
 import {createStyle, createDeclaredStyle, getOriginStyle, inherited, initial} from '../src/style.ts';
-import {BlockContainer} from '../src/layout-flow.ts';
+import {BlockContainerOfBlocks} from '../src/layout-flow.ts';
 import {BoxArea} from '../src/layout-box.ts';
 import {expect} from 'chai';
 
@@ -16,7 +16,7 @@ describe('CSS Style', function () {
       borderLeftStyle: 'none'
     }));
 
-    const box = new BlockContainer(style, [], 0);
+    const box = new BlockContainerOfBlocks(style, [], 0);
     box.getBorderArea().parent = new BoxArea(box, 0, 0, 100, 100);
     const containingBlock = box.getContainingBlock();
 
@@ -40,10 +40,10 @@ describe('CSS Style', function () {
       marginLeft: {value: 50, unit: '%'}
     }));
 
-    const documentElement = new BlockContainer(
+    const documentElement = new BlockContainerOfBlocks(
       createStyle(getOriginStyle(), createDeclaredStyle({width: 100, height: 200})), [], 0
     );
-    const box = new BlockContainer(style, [], 0);
+    const box = new BlockContainerOfBlocks(style, [], 0);
     box.getBorderArea().parent = new BoxArea(documentElement, 0, 0, 100, 200);
     const containingBlock = box.getContainingBlock();
 
@@ -71,7 +71,7 @@ describe('CSS Style', function () {
       boxSizing: 'border-box'
     }));
 
-    const box = new BlockContainer(style, [], 0);
+    const box = new BlockContainerOfBlocks(style, [], 0);
     box.getBorderArea().parent = new BoxArea(box, 0, 0, 100, 100);
     const containingBlock = box.getContainingBlock();
     expect(style.getInlineSize(containingBlock)).to.equal(60);
@@ -87,7 +87,7 @@ describe('CSS Style', function () {
       boxSizing: 'padding-box'
     }));
 
-    const box = new BlockContainer(style, [], 0);
+    const box = new BlockContainerOfBlocks(style, [], 0);
     box.getBorderArea().parent = new BoxArea(box, 0, 0, 100, 100);
     const containingBlock = box.getContainingBlock();
 

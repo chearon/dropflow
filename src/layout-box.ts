@@ -8,6 +8,7 @@ import type {
   Inline,
   IfcInline,
   BlockContainer,
+  BlockContainerBase,
   BlockContainerOfInlines,
   BlockContainerOfBlocks,
   ReplacedBox
@@ -39,7 +40,7 @@ export abstract class RenderItem {
     this.style = style;
   }
 
-  isBlockContainer(): this is BlockContainer {
+  isBlockContainer(): this is BlockContainerBase {
     return false;
   }
 
@@ -843,7 +844,7 @@ export function postlayout(root: BlockContainer) {
             child.postlayoutPostorder();
           }
         }
-      } else if (box.isBlockContainerOfInlines()) {
+      } else {
         stack.push(box.ifc);
       }
     }

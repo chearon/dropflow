@@ -1,8 +1,7 @@
 import {basename, loggableText, Logger} from './util.ts';
-import {Box, FormattingBox, RenderItem} from './layout-box.ts';
+import {Box, RenderItem} from './layout-box.ts';
 import {Style} from './style.ts';
 import {
-  BlockContainer,
   ReplacedBox,
   IfcInline,
   IfcVacancy,
@@ -22,7 +21,7 @@ import type {LoadedFontFace} from './text-font.ts';
 import type {HbFace, HbFont, AllocatedUint16Array} from './text-harfbuzz.ts';
 import type {RenderItemLogOptions} from './layout-box.ts';
 import type {TextAlign, WhiteSpace} from './style.ts';
-import type {BlockLevel, InlineLevel, LayoutContext} from './layout-flow.ts';
+import type {BlockLevel, InlineLevel, BlockContainer, LayoutContext} from './layout-flow.ts';
 
 const lineFeedCharacter = 0x000a;
 const formFeedCharacter = 0x000c;
@@ -1003,7 +1002,7 @@ function baselineStep(parent: Inline, inline: Inline) {
   return 0;
 }
 
-function getLastBaseline(block: FormattingBox) {
+function getLastBaseline(block: BlockLevel) {
   const stack = [{block, offset: 0}];
 
   while (stack.length) {
@@ -1014,7 +1013,7 @@ function getLastBaseline(block: FormattingBox) {
     } else if (block.isBlockContainerOfInlines()) {
       const linebox = block.ifc.paragraph.lineboxes.at(-1);
       if (linebox) return offset + linebox.blockOffset + linebox.ascender;
-    } else if (block.isBlockContainerOfBlocks()) {
+    } else {
       const parentOffset = offset;
 
       for (const child of block.children) {
@@ -1032,7 +1031,7 @@ function getLastBaseline(block: FormattingBox) {
   }
 }
 
-export function inlineFormattingBoxMetrics(box: FormattingBox) {
+export function inlineBlockMetrics(box: BlockLevel) {
   const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = box.getMarginsAutoIsZero();
   const baseline = box.style.overflow === 'hidden' ? undefined : getLastBaseline(box);
   let ascender, descender;
@@ -1054,7 +1053,7 @@ export function inlineFormattingBoxMetrics(box: FormattingBox) {
   return {ascender, descender};
 }
 
-function formattingBoxBaselineStep(parent: Inline, box: FormattingBox) {
+function inlineBlockBaselineStep(parent: Inline, box: BlockLevel) {
   if (box.style.overflow === 'hidden') {
     return 0;
   }
@@ -1072,19 +1071,19 @@ function formattingBoxBaselineStep(parent: Inline, box: FormattingBox) {
   }
 
   if (box.style.verticalAlign === 'middle') {
-    const {ascender, descender} = inlineFormattingBoxMetrics(box);
+    const {ascender, descender} = inlineBlockMetrics(box);
     const midParent = parent.metrics.xHeight / 2;
     const midInline = (ascender - descender) / 2;
     return midParent - midInline;
   }
 
   if (box.style.verticalAlign === 'text-top') {
-    const {ascender} = inlineFormattingBoxMetrics(box);
+    const {ascender} = inlineBlockMetrics(box);
     return parent.metrics.ascender - ascender;
   }
 
   if (box.style.verticalAlign === 'text-bottom') {
-    const {descender} = inlineFormattingBoxMetrics(box);
+    const {descender} = inlineBlockMetrics(box);
     return descender - parent.metrics.descender;
   }
 
@@ -1132,9 +1131,9 @@ class AlignmentContext {
     this.descender = Math.max(this.descender, bottom);
   }
 
-  stampBlock(box: FormattingBox, parent: Inline) {
-    const {ascender, descender} = inlineFormattingBoxMetrics(box);
-    const baselineShift = this.baselineShift + formattingBoxBaselineStep(parent, box);
+  stampBlock(box: BlockLevel, parent: Inline) {
+    const {ascender, descender} = inlineBlockMetrics(box);
+    const baselineShift = this.baselineShift + inlineBlockBaselineStep(parent, box);
     const top = baselineShift + ascender;
     const bottom = descender - baselineShift;
     this.ascender = Math.max(this.ascender, top);
@@ -1186,7 +1185,7 @@ class LineHeightTracker {
   contextStack: AlignmentContext[];
   contextRoots: Map<Inline, AlignmentContext>;
   /** Inline blocks, images */
-  boxes: FormattingBox[];
+  boxes: BlockLevel[];
   markedContextRoots: Inline[];
 
   constructor(ifc: IfcInline) {
@@ -1204,7 +1203,7 @@ class LineHeightTracker {
     this.contextStack.at(-1)!.stampMetrics(metrics);
   }
 
-  stampBlock(box: FormattingBox, parent: Inline) {
+  stampBlock(box: BlockLevel, parent: Inline) {
     if (box.style.verticalAlign === 'top' || box.style.verticalAlign === 'bottom') {
       this.boxes.push(box);
     } else {
@@ -2609,13 +2608,13 @@ export class Paragraph {
           if (item.box.style.verticalAlign === 'top') {
             item.box.setBlockPosition(linebox.blockOffset + blockStart);
           } else if (item.box.style.verticalAlign === 'bottom') {
-            const {ascender, descender} = inlineFormattingBoxMetrics(item.box);
+            const {ascender, descender} = inlineBlockMetrics(item.box);
             item.box.setBlockPosition(
               linebox.blockOffset + linebox.height() - descender - ascender + blockStart
             );
           } else {
-            const inlineBlockBaselineShift = baselineShift + formattingBoxBaselineStep(parent, item.box);
-            const {ascender} = inlineFormattingBoxMetrics(item.box);
+            const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(parent, item.box);
+            const {ascender} = inlineBlockMetrics(item.box);
             item.box.setBlockPosition(y - inlineBlockBaselineShift - ascender + blockStart);
           }
 

@@ -16,7 +16,9 @@ import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
 import type {Style} from './style.ts';
 import type {Image} from './layout-image.ts';
-import type {BlockContainer} from './layout-flow.ts';
+import type {BlockContainer, InlineLevel} from './layout-flow.ts';
+
+export {log} from './layout-box.ts';
 
 export {environment} from './environment.ts';
 
@@ -39,12 +41,14 @@ export function generate(rootElement: HTMLElement): BlockContainer {
   return generateBlockContainer(rootElement);
 }
 
-export function layout(root: BlockContainer, width = 640, height = 480) {
+export function layout(tree: InlineLevel[], width = 640, height = 480) {
+  const root = tree[0];
+  if (!root.isBlockContainer()) throw new Error('Assertion failed');
   const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
 
-  prelayout(root, initialContainingBlock);
+  prelayout(tree, initialContainingBlock);
   layoutBlockLevelBox(root, {});
-  postlayout(root);
+  postlayout(tree);
 }
 
 /**

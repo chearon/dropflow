@@ -5,7 +5,6 @@ import {
   EmptyInlineMetrics,
   Linebox,
   Run,
-  collapseWhitespace,
   getFontMetrics,
   createIfcBuffer,
   getIfcContribution,
@@ -112,7 +111,7 @@ export class BlockFormattingContext {
     this.hypotheticals = EMPTY_MAP;
   }
 
-  collapseStart(box: BlockLevel) {
+  collapseStart(tree: InlineLevel[], box: BlockLevel) {
     const marginBlockStart = box.style.getMarginBlockStart(box);
     let floatBottom = 0;
     let clearance = 0;
@@ -140,17 +139,17 @@ export class BlockFormattingContext {
       this.positionBlockContainers();
       const c = floatBottom - this.cbBlockStart;
       this.margin = {level: this.level, collection: new MarginCollapseCollection(c)};
-      if (box.canCollapseThrough()) this.margin.clearanceAtLevel = this.level;
+      if (box.canCollapseThrough(tree)) this.margin.clearanceAtLevel = this.level;
     }
   }
 
-  boxStart(box: BlockContainer, ctx: LayoutContext) {
+  boxStart(tree: InlineLevel[], box: BlockContainer, ctx: LayoutContext) {
     const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent();
     const paddingBlockStart = box.style.getPaddingBlockStart(box);
     const borderBlockStartWidth = box.style.getBorderBlockStartWidth(box);
     const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
 
-    this.collapseStart(box);
+    this.collapseStart(tree, box);
 
     this.last = 'start';
     this.level += 1;
@@ -166,7 +165,7 @@ export class BlockFormattingContext {
     this.fctx?.boxStart();
 
     if (box.isBlockContainerOfInlines()) {
-      box.doTextLayout(ctx);
+      box.doTextLayout(tree, ctx);
       this.cbBlockStart -= blockStart + this.margin.collection.get();
     }
 
@@ -176,7 +175,7 @@ export class BlockFormattingContext {
     }
   }
 
-  boxEnd(box: BlockContainer) {
+  boxEnd(tree: InlineLevel[], box: BlockContainer) {
     const {lineLeft, lineRight} = box.getContainingBlockToContent();
     const paddingBlockEnd = box.style.getPaddingBlockEnd(box);
     const borderBlockEndWidth = box.style.getBorderBlockEndWidth(box);
@@ -189,7 +188,7 @@ export class BlockFormattingContext {
 
     if (adjoins) {
       if (this.last === 'start') {
-        adjoins = box.canCollapseThrough();
+        adjoins = box.canCollapseThrough(tree);
       } else {
         const blockSize = box.style.getBlockSize(box);
         // Handle the end of a block box that was at the end of its parent
@@ -223,10 +222,10 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
-  boxAtomic(box: BlockLevel) {
+  boxAtomic(tree: InlineLevel[], box: BlockLevel) {
     const marginBlockEnd = box.style.getMarginBlockEnd(box);
     assumePx(marginBlockEnd);
-    this.collapseStart(box);
+    this.collapseStart(tree, box);
     this.fctx?.boxStart();
     this.positionBlockContainers();
     box.setBlockPosition(this.cbBlockStart);
@@ -786,15 +785,17 @@ export abstract class BlockContainerBase extends FormattingBox {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
-  canCollapseThrough(): boolean {
+  canCollapseThrough(tree: InlineLevel[]): boolean {
     const blockSize = this.style.getBlockSize(this);
 
     if (blockSize !== 'auto' && blockSize !== 0) return false;
 
     if (this.isBlockContainerOfInlines()) {
-      return !this.tree[0].hasText();
+      const child = tree[this.treeStart + 1];
+      if (!child.isInline()) throw new Error('Assertion failed');
+      return !child.hasText();
     } else if (this.isBlockContainerOfBlocks()) {
-      return this.children.length === 0;
+      return this.treeFinal > this.treeStart;
     } else {
       // TODO: this is a terrible situation, but where else does the method go?
       throw new Error('Unreachable');
@@ -820,16 +821,14 @@ export abstract class BlockContainerBase extends FormattingBox {
 }
 
 export class BlockContainerOfInlines extends BlockContainerBase {
-  tree: [Inline, ...InlineLevel[]];
   text: string;
   buffer: AllocatedUint16Array;
   items: ShapedItem[];
   lineboxes: Linebox[];
   fragments: Map<Inline, InlineFragment[]>;
 
-  constructor(style: Style, tree: [Inline, ...InlineLevel[]], text: string, attrs: number) {
+  constructor(style: Style, text: string, attrs: number) {
     super(style, attrs);
-    this.tree = tree;
     this.text = text;
     this.buffer = EmptyBuffer;
     this.items = [];
@@ -837,17 +836,18 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     this.fragments = new Map();
   }
 
-  prelayoutPostorder(ctx: PrelayoutContext) {
-    if (this.shouldLayoutContent()) {
-      if (this.tree[0].hasCollapsibleWs()) collapseWhitespace(this);
+  prelayoutPostorder(tree: InlineLevel[], ctx: PrelayoutContext) {
+    if (this.shouldLayoutContent(tree)) {
+      const inline = tree[this.treeStart + 1];
+      if (!inline.isInline()) throw new Error('Assertion failed');
       this.buffer.destroy();
       this.buffer = createIfcBuffer(this.text);
-      this.items = createIfcShapedItems(this);
+      this.items = createIfcShapedItems(this, inline);
       this.fragments.clear();
     }
   }
 
-  positionItemsPostlayout() {
+  positionItemsPostlayout(tree: InlineLevel[]) {
     const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
     const parents: Inline[] = [];
     const contentArea = this.getContentArea();
@@ -855,8 +855,8 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     let dy = 0;
     let itemIndex = 0;
 
-    for (let i = 0; i < this.tree.length; i++) {
-      const box = this.tree[i];
+    for (let i = this.treeStart; i <= this.treeFinal; i++) {
+      const box = tree[i];
 
       if (box.isInline()) {
         if (box.style.position === 'relative') {
@@ -873,7 +873,7 @@ export class BlockContainerOfInlines extends BlockContainerBase {
         borderArea.y += dy;
       }
 
-      while (parents.length && i === parents.at(-1)!.lastDescendant) {
+      while (parents.length && i === parents.at(-1)!.treeFinal) {
         const parent = parents.pop()!;
         while (
           itemIndex < this.items.length &&
@@ -907,12 +907,12 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     }
   }
 
-  postlayoutPreorder() {
-    super.postlayoutPreorder();
+  postlayoutPreorder(tree: InlineLevel[]) {
+    super.postlayoutPreorder(tree);
     this.buffer.destroy();
     this.buffer = EmptyBuffer;
-    if (this.shouldLayoutContent()) {
-      this.positionItemsPostlayout();
+    if (this.shouldLayoutContent(tree)) {
+      this.positionItemsPostlayout(tree);
     }
   }
 
@@ -920,22 +920,22 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     return true;
   }
 
-  getRunIndex(ci: number) {
-    let l = 0, r = this.tree.length - 1;
+  getRunIndex(tree: InlineLevel[], ci: number) {
+    let l = this.treeStart, r = this.treeFinal;
 
     while (true) {
       const i = Math.floor((l + r) / 2);
 
-      if (this.tree[i].isRun()) {
-        if (ci < this.tree[i].start) {
+      if (tree[i].isRun()) {
+        if (ci < tree[i].start) {
           r = i - 1;
-        } else if (ci >= this.tree[i].end) {
+        } else if (ci >= tree[i].end) {
           l = i + 1;
         } else {
           return i;
         }
-      } else if (this.tree[i].isInline()) {
-        if (ci < this.tree[i].start) {
+      } else if (tree[i].isInline()) {
+        if (ci < tree[i].start) {
           r = i - 1;
         } else {
           l = i + 1;
@@ -944,10 +944,10 @@ export class BlockContainerOfInlines extends BlockContainerBase {
         let ml = i;
         let mr = i;
 
-        while (mr < r && !this.tree[mr].isRun() && !this.tree[mr].isInline()) mr++;
-        while (ml > l && !this.tree[ml].isRun() && !this.tree[ml].isInline()) ml--;
+        while (mr < r && !tree[mr].isRun() && !tree[mr].isInline()) mr++;
+        while (ml > l && !tree[ml].isRun() && !tree[ml].isInline()) ml--;
 
-        const item = this.tree[mr];
+        const item = tree[mr];
         if ((item.isRun() || item.isInline()) && ci < item.start) {
           r = ml;
         } else {
@@ -961,8 +961,8 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     return Boolean(this.bitfield & Box.BITS.enableLogging);
   }
 
-  sliceRenderText(item: ShapedItem, start: number, end: number) {
-    return sliceIfcRenderText(this, item, start, end);
+  sliceRenderText(tree: InlineLevel[], item: ShapedItem, start: number, end: number) {
+    return sliceIfcRenderText(tree, this, item, start, end);
   }
 
   getLineboxHeight() {
@@ -974,18 +974,20 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     }
   }
 
-  shouldLayoutContent() {
-    return this.tree[0].hasText()
-      || this.tree[0].hasSizedInline()
-      || this.tree[0].hasFloatOrReplaced()
-      || this.tree[0].hasInlineBlocks();
+  shouldLayoutContent(tree: InlineLevel[]) {
+    const inline = tree[this.treeStart + 1];
+    if (!inline.isInline()) throw new Error('Assertion failed');
+    return inline.hasText()
+      || inline.hasSizedInline()
+      || inline.hasFloatOrReplaced()
+      || inline.hasInlineBlocks();
   }
 
-  doTextLayout(ctx: LayoutContext) {
+  doTextLayout(tree: InlineLevel[], ctx: LayoutContext) {
     const blockSize = this.style.getBlockSize(this);
-    if (this.shouldLayoutContent()) {
-      this.lineboxes = createIfcLineboxes(this, ctx);
-      positionIfcItems(this);
+    if (this.shouldLayoutContent(tree)) {
+      this.lineboxes = createIfcLineboxes(tree, this, ctx);
+      positionIfcItems(tree, this);
     }
     if (blockSize === 'auto') this.setBlockSize(this.getLineboxHeight());
   }
@@ -994,13 +996,6 @@ export class BlockContainerOfInlines extends BlockContainerBase {
 export type BlockLevel = BlockContainer | ReplacedBox;
 
 export class BlockContainerOfBlocks extends BlockContainerBase {
-  children: BlockLevel[];
-
-  constructor(style: Style, children: BlockLevel[], attrs: number) {
-    super(style, attrs);
-    this.children = children;
-  }
-
   isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
     return true;
   }
@@ -1072,11 +1067,11 @@ function doInlineBoxModelForBlockBox(box: BlockLevel) {
 }
 
 // §10.6.3
-function doBlockBoxModelForBlockBox(box: BlockContainer) {
+function doBlockBoxModelForBlockBox(tree: InlineLevel[], box: BlockContainer) {
   const blockSize = box.style.getBlockSize(box);
 
   if (blockSize === 'auto') {
-    if (box.canCollapseThrough()) {
+    if (box.canCollapseThrough(tree)) {
       box.setBlockSize(0); // Case 4
     } else {
       // Cases 1-4 should be handled by doBoxPositioning, where margin
@@ -1089,7 +1084,11 @@ function doBlockBoxModelForBlockBox(box: BlockContainer) {
   }
 }
 
-function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
+function layoutBlockBoxInner(
+  tree: InlineLevel[],
+  box: BlockContainer,
+  ctx: LayoutContext
+) {
   const containingBfc = ctx.bfc;
   const cctx = {...ctx};
   let establishedBfc;
@@ -1100,17 +1099,21 @@ function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
     establishedBfc = cctx.bfc;
   }
 
-  containingBfc?.boxStart(box, cctx); // Assign block position if it's an IFC
+  containingBfc?.boxStart(tree, box, cctx); // Assign block position if it's an IFC
   // Child flow is now possible
 
   if (box.isBlockContainerOfInlines()) {
     if (containingBfc) {
       // text layout happens in bfc.boxStart
     } else {
-      box.doTextLayout(cctx);
+      box.doTextLayout(tree, cctx);
     }
   } else if (box.isBlockContainerOfBlocks()) {
-    for (const child of box.children) layoutBlockLevelBox(child, cctx);
+    for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
+      const child = tree[i];
+      if (!child.isBlockContainer()) throw new Error('Assertion failed');
+      layoutBlockLevelBox(tree, child, cctx);
+    }
   }
 
   if (establishedBfc) {
@@ -1126,28 +1129,40 @@ function layoutBlockBoxInner(box: BlockContainer, ctx: LayoutContext) {
     }
   }
 
-  containingBfc?.boxEnd(box);
+  containingBfc?.boxEnd(tree, box);
 }
 
-function layoutBlockBox(box: BlockContainer, ctx: LayoutContext) {
+function layoutBlockBox(
+  tree: InlineLevel[],
+  box: BlockContainer,
+  ctx: LayoutContext
+) {
   box.fillAreas();
   doInlineBoxModelForBlockBox(box);
-  doBlockBoxModelForBlockBox(box);
-  layoutBlockBoxInner(box, ctx);
+  doBlockBoxModelForBlockBox(tree, box);
+  layoutBlockBoxInner(tree, box, ctx);
 }
 
-function layoutReplacedBox(box: ReplacedBox, ctx: LayoutContext) {
+function layoutReplacedBox(
+  tree: InlineLevel[],
+  box: ReplacedBox,
+  ctx: LayoutContext
+) {
   box.fillAreas();
   doInlineBoxModelForBlockBox(box);
   box.setBlockSize(box.getDefiniteInnerBlockSize());
-  ctx.bfc!.boxAtomic(box);
+  ctx.bfc!.boxAtomic(tree, box);
 }
 
-export function layoutBlockLevelBox(box: BlockLevel, ctx: LayoutContext) {
+export function layoutBlockLevelBox(
+  tree: InlineLevel[],
+  box: BlockContainer,
+  ctx: LayoutContext
+) {
   if (box.isBlockContainer()) {
-    layoutBlockBox(box, ctx);
+    layoutBlockBox(tree, box, ctx);
   } else {
-    layoutReplacedBox(box, ctx);
+    layoutReplacedBox(tree, box, ctx);
   }
 }
 
@@ -1161,6 +1176,7 @@ function doBlockBoxModelForFloatBox(box: BlockLevel) {
 }
 
 export function layoutContribution(
+  tree: InlineLevel[],
   box: BlockLevel,
   mode: 'min-content' | 'max-content'
 ) {
@@ -1184,12 +1200,14 @@ export function layoutContribution(
     } else {
       isize = 0;
       if (box.isBlockContainerOfBlocks()) {
-        for (const child of box.children) {
-          isize = Math.max(isize, layoutContribution(child, mode));
+        for (let i = box.treeStart; i <= box.treeFinal; i++) {
+          const child = tree[i];
+          if (!child.isFormattingBox()) throw new Error('Assertion failed');
+          isize = Math.max(isize, layoutContribution(tree, child, mode));
         }
       } else {
-        if (box.shouldLayoutContent()) {
-          isize = getIfcContribution(box, mode);
+        if (box.shouldLayoutContent(tree)) {
+          isize = getIfcContribution(tree, box, mode);
         }
       }
     }
@@ -1200,15 +1218,19 @@ export function layoutContribution(
   return contribution;
 }
 
-export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
+export function layoutFloatBox(
+  tree: InlineLevel[],
+  box: BlockLevel,
+  ctx: LayoutContext
+) {
   const cctx: LayoutContext = {...ctx, bfc: undefined};
   box.fillAreas();
 
   let inlineSize = box.getDefiniteOuterInlineSize();
 
   if (inlineSize === undefined) {
-    const minContent = layoutContribution(box, 'min-content');
-    const maxContent = layoutContribution(box, 'max-content');
+    const minContent = layoutContribution(tree, box, 'min-content');
+    const maxContent = layoutContribution(tree, box, 'max-content');
     const availableSpace = box.getContainingBlock().inlineSize;
     const marginLineLeft = box.style.getMarginLineLeft(box);
     const marginLineRight = box.style.getMarginLineRight(box);
@@ -1220,7 +1242,7 @@ export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
   doInlineBoxModelForFloatBox(box, inlineSize);
   doBlockBoxModelForFloatBox(box);
   if (box.isBlockContainer()) {
-    layoutBlockBoxInner(box, cctx);
+    layoutBlockBoxInner(tree, box, cctx);
   } else {
     // replaced boxes have no layout. they were sized by doInline/Block above
   }
@@ -1247,7 +1269,8 @@ export class Break extends RenderItem {
 }
 
 export class Inline extends Box {
-  public lastDescendant: number;
+  public treeStart: number;
+  public treeFinal: number;
   public nshaped: number;
   public metrics: InlineMetrics;
   public start: number;
@@ -1257,7 +1280,8 @@ export class Inline extends Box {
     super(style, attrs);
     this.start = start;
     this.end = 0;
-    this.lastDescendant = 0;
+    this.treeStart = 0;
+    this.treeFinal = 0;
     this.nshaped = 0;
     this.metrics = EmptyInlineMetrics;
   }
@@ -1495,6 +1519,7 @@ type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
 interface InlineIteratorState {
   value: InlineIteratorValue | null;
   ifc: BlockContainerOfInlines;
+  tree: InlineLevel[];
   index: number;
   minlevel: number;
   inlineEnd: number;
@@ -1504,6 +1529,7 @@ interface InlineIteratorState {
 }
 
 export function createInlineIteratorState(
+  tree: InlineLevel[],
   ifc: BlockContainerOfInlines
 ): InlineIteratorState {
   return {
@@ -1511,7 +1537,8 @@ export function createInlineIteratorState(
     value: null,
     /* private */
     ifc,
-    index: 1,
+    tree,
+    index: ifc.treeStart + 1,
     buffered: [],
     minlevel: 0,
     parents: [],
@@ -1522,10 +1549,10 @@ export function createInlineIteratorState(
 
 export function inlineIteratorStateNext(state: InlineIteratorState) {
   if (!state.buffered.length) {
-    while (state.index < state.ifc.tree.length || state.parents.length) {
+    while (state.index <= state.ifc.treeFinal || state.parents.length) {
       while (
         state.parents.length &&
-        state.index - 1 === state.parents.at(-1)!.lastDescendant
+        state.index - 1 === state.parents.at(-1)!.treeFinal
       ) {
         const parent = state.parents.pop()!;
         state.buffered.push({state: 'post', item: parent});
@@ -1535,8 +1562,8 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
         }
       }
 
-      if (state.index < state.ifc.tree.length) {
-        const item = state.ifc.tree[state.index++];
+      if (state.index <= state.ifc.treeFinal) {
+        const item = state.tree[state.index++];
 
         if (item.isInline()) {
           state.parents.push(item);
@@ -1637,7 +1664,7 @@ function mapTree(
 
   if (!bail) path.pop();
   box.end = ctx.text.length;
-  box.lastDescendant = ctx.tree.length; // +1 because no root Inline yet
+  box.treeFinal = ctx.tree.length; // +1 because no root Inline yet
   el.boxes.push(box);
 
   return [bail, box];
@@ -1668,7 +1695,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, ctx: IfcContext) {
   const root = new Inline(0, anonStyle, Box.ATTRS.isAnonymous);
   const tree: [Inline, ...InlineLevel[]] = [root, ...ctx.tree];
   root.end = ctx.text.length;
-  root.lastDescendant = tree.length - 1;
+  root.treeFinal = tree.length - 1;
   return new BlockContainerOfInlines(anonStyle, tree, ctx.text, Box.ATTRS.isAnonymous);
 }
 
@@ -1776,7 +1803,7 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
       const tree: [Inline, ...InlineLevel[]] = [root, ...ctx.tree];
       box = new BlockContainerOfInlines(el.style, tree, ctx.text, attrs);
       root.end = ctx.text.length;
-      root.lastDescendant = tree.length - 1;
+      root.treeFinal = tree.length - 1;
     }
   } else {
     box = new BlockContainerOfBlocks(el.style, blocks, attrs);

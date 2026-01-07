@@ -2,7 +2,7 @@ import {ReplacedBox, Inline, BlockContainerOfInlines} from './layout-flow.ts';
 import {Image} from './layout-image.ts';
 import {G_CL, G_AX, G_SZ} from './text-harfbuzz.ts';
 import {ShapedItem, isSpaceOrTabOrNewline} from './layout-text.ts';
-import {Box, InlineStack, nextStack} from './layout-box.ts';
+import {Box} from './layout-box.ts';
 import {binarySearchOf} from './util.ts';
 
 import type {BlockLevel, BlockContainer} from './layout-flow.ts';

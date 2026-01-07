@@ -4,7 +4,6 @@ import type {Style} from './style.ts';
 import type {Run} from './layout-text.ts';
 import type {
   InlineLevel,
-  BlockLevel,
   Break,
   Inline,
   BlockContainer,
@@ -80,62 +79,6 @@ export abstract class RenderItem {
 
   abstract getLogSymbol(): string;
 
-  log(options?: RenderItemLogOptions, log?: Logger) {
-    const flush = !log;
-
-    log ||= new Logger();
-
-    if (this.isBlockContainerOfInlines()) {
-      options = {...options};
-      options.paragraphText = this.text;
-    }
-
-    log.text(`${this.getLogSymbol()} `);
-    this.logName(log, options);
-
-    if (options?.containingBlocks && this.isBox()) {
-      log.text(` (cb: ${this.getContainingBlock()?.box.id ?? '(null)'})`);
-    }
-
-    if (options?.css) {
-      const css = this.style[options.css];
-      log.text(` (${options.css}: ${css && JSON.stringify(css)})`);
-    }
-
-    if (options?.bits && this.isBox()) {
-      log.text(` (bf: ${this.stringifyBitfield()})`);
-    }
-
-    log.text('\n');
-
-    if (this.isBlockContainerOfBlocks()) {
-      log.pushIndent();
-      for (let i = 0; i < this.children.length; i++) {
-        this.children[i].log(options, log);
-      }
-      log.popIndent();
-    }
-
-    if (this.isBlockContainerOfInlines()) {
-      const parents: Inline[] = [];
-      for (let i = 0; i < this.tree.length; i++) {
-        const child = this.tree[i];
-        log.pushIndent();
-        if (child.isInline()) {
-          parents.push(child);
-        }
-        child.log(options, log);
-        if (!child.isInline()) log.popIndent();
-        while (parents.at(-1)?.lastDescendant === i) {
-          log.popIndent();
-          parents.pop();
-        }
-      }
-    }
-
-    if (flush) log.flush();
-  }
-
   /**
    * Typically the time to assign the containing block
    */
@@ -146,14 +89,14 @@ export abstract class RenderItem {
   /**
    * Typically the time to shape text and gather font metrics
    */
-  prelayoutPostorder(ctx: PrelayoutContext) {
+  prelayoutPostorder(tree: InlineLevel[], ctx: PrelayoutContext) {
     // should be overridden
   }
 
   /**
    * Typically the time to absolutize relative coordinates
    */
-  postlayoutPreorder() {
+  postlayoutPreorder(tree: InlineLevel[]) {
     // should be overridden
   }
 
@@ -174,6 +117,8 @@ export abstract class Box extends RenderItem {
    * do so conditionally.
    */
   public bitfield: number;
+  public treeStart: number;
+  public treeFinal: number;
   private area: BoxArea;
 
   /**
@@ -236,6 +181,8 @@ export abstract class Box extends RenderItem {
     super(style);
     this.id = id();
     this.bitfield = attrs;
+    this.treeStart = 0;
+    this.treeFinal = 0;
     this.area = new BoxArea(this);
 
     const hasBorder = this.style.hasBorderArea();
@@ -466,7 +413,7 @@ export abstract class Box extends RenderItem {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }
 
-  postlayoutPreorder() {
+  postlayoutPreorder(tree: InlineLevel[]) {
     // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
     // and use normal inline areas instead, with fragmentation
     const borderArea = this.getBorderArea();
@@ -597,7 +544,7 @@ export abstract class FormattingBox extends Box {
     };
   }
 
-  canCollapseThrough() {
+  canCollapseThrough(tree: InlineLevel[]) {
     return false;
   }
 
@@ -764,51 +711,8 @@ export class BoxArea {
   }
 }
 
-export class InlineStack {
-  tree: InlineLevel[];
-  parents: Box[];
-  parentsStart: number;
-  index: number;
-  inlineStack: true;
-
-  constructor(ifc: BlockContainerOfInlines, parents: Box[], index = 0) {
-    this.tree = ifc.tree;
-    this.parents = parents;
-    this.parentsStart = parents.length;
-    this.index = index;
-    this.inlineStack = true;
-  }
-
-  lastChild() {
-    const value = this.index < this.tree.length ? this.tree[this.index] : undefined;
-    if (value?.isInline()) this.index = value.lastDescendant;
-  }
-
-  next() {
-    if (this.parentsStart < this.parents.length) {
-      const parent = this.parents[this.parents.length - 1] as Inline;
-      if (parent.lastDescendant === this.index - 1) return {sentinel: true as const};
-    }
-
-    return this.index < this.tree.length ? this.tree[this.index++] : undefined;
-  }
-}
-
-export function nextStack(stack: (BlockLevel | InlineStack | {sentinel: true})[]) {
-  const value = stack[stack.length - 1];
-  if ('inlineStack' in value) {
-    const ret = value.next();
-    if (ret === undefined) stack.pop();
-    return ret;
-  } else {
-    stack.pop();
-    return value;
-  }
-}
-
-export function prelayout(root: BlockContainer, icb: BoxArea) {
-  const stack: (BlockLevel | InlineStack | {sentinel: true})[] = [root];
-  const parents: (FormattingBox | Inline)[] = [];
+export function prelayout(tree: InlineLevel[], icb: BoxArea) {
+  const parents: (BlockContainer | Inline)[] = [];
   const ifcs: BlockContainerOfInlines[] = [];
   const pstack = [icb];
   const bstack = [icb];
@@ -817,12 +721,34 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
     lastBlockContainerArea: icb
   };
 
-  while (stack.length) {
-    const item = nextStack(stack);
+  for (let i = 0; i < tree.length; i++) {
+    const item = tree[i];
 
-    if (item === undefined) continue; // end of inlines
+    if (item.isBox()) {
+      const box = item;
+      if (box.isBlockContainerOfInlines()) ifcs.push(box);
 
-    if ('sentinel' in item) {
+      ctx.lastPositionedArea = pstack.at(-1)!;
+      ctx.lastBlockContainerArea = bstack.at(-1)!;
+
+      box.prelayoutPreorder(ctx);
+      if (box.isBlockContainer()) {
+        bstack.push(box.getContentArea());
+        if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
+      }
+
+      if (box.isBlockContainer() || box.isInline()) {
+        parents.push(box);
+      } else {
+        item.propagate(parents.at(-1)!);
+      }
+    } else if (item.isRun()) {
+      item.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
+    } else {
+      item.propagate(parents.at(-1)!);
+    }
+
+    while (parents.length && parents[parents.length - 1].treeFinal === i) {
       const box = parents.pop()!;
 
       if (box.isBlockContainerOfInlines()) ifcs.pop();
@@ -836,68 +762,70 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
 
       const parent = parents.at(-1);
       if (parent) box.propagate(parent);
-      box.prelayoutPostorder(ctx);
-    } else if (item.isBox()) {
-      const box = item;
-      if (box.isBlockContainerOfInlines()) ifcs.push(box);
-
-      ctx.lastPositionedArea = pstack.at(-1)!;
-      ctx.lastBlockContainerArea = bstack.at(-1)!;
-
-      box.prelayoutPreorder(ctx);
-      if (box.isBlockContainer()) {
-        bstack.push(box.getContentArea());
-        if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
-      }
-
-      if (box.isBlockContainerOfBlocks()) {
-        parents.push(box);
-        stack.push({sentinel: true});
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
-        }
-      } else if (box.isBlockContainerOfInlines()) {
-        parents.push(box);
-        stack.push({sentinel: true}, new InlineStack(box, parents));
-      } else if (box.isInline()) {
-        parents.push(box);
-      } else {
-        item.propagate(parents.at(-1)!);
-      }
-    } else if (item.isRun()) {
-      item.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
-    } else {
-      item.propagate(parents.at(-1)!);
+      box.prelayoutPostorder(tree, ctx);
     }
   }
 }
 
-export function postlayout(root: BlockContainer) {
-  const stack: (BlockLevel | InlineStack | {sentinel: true})[] = [root];
-  const parents: Box[] = [];
+export function postlayout(tree: InlineLevel[]) {
+  const parents: (BlockContainer | Inline)[] = [];
 
-  while (stack.length) {
-    const item = nextStack(stack);
-    if (item === undefined) continue; // end inlines
-
-    if ('sentinel' in item) {
-      const parent = parents.pop()!;
-      parent.postlayoutPostorder();
+  for (let i = 0; i < tree.length; i++) {
+    const item = tree[i];
+    item.postlayoutPreorder(tree);
+    if (item.isBlockContainer() || item.isInline()) {
+      parents.push(item);
     } else {
-      item.postlayoutPreorder();
-      if (!item.isBox()) item.postlayoutPostorder();
-      if (item.isBlockContainerOfBlocks()) {
-        parents.push(item);
-        stack.push({sentinel: true});
-        for (let i = item.children.length - 1; i >= 0; i--) {
-          stack.push(item.children[i]);
-        }
-      } else if (item.isBlockContainerOfInlines()) {
-        parents.push(item);
-        stack.push({sentinel: true}, new InlineStack(item, parents));
-      } else if (item.isInline()) {
-        parents.push(item);
-      }
+      item.postlayoutPostorder();
+    }
+
+    while (parents.length && parents[parents.length - 1].treeFinal === i) {
+      const box = parents.pop()!;
+      box.postlayoutPostorder();
     }
   }
+}
+
+export function log(tree: RenderItem[], options?: RenderItemLogOptions) {
+  const parents: (BlockContainer | Inline)[] = [];
+  const ifcs: BlockContainerOfInlines[] = [];
+  const logger = new Logger();
+
+  options ||= {};
+
+  for (let i = 0; i < tree.length; i++) {
+    const item = tree[i];
+
+    if (item.isBlockContainerOfInlines()) {
+      ifcs.push(item);
+    }
+
+    logger.text(`${item.getLogSymbol()} `);
+    options.paragraphText = ifcs.length > 0 ? ifcs[ifcs.length - 1].text : undefined;
+    item.logName(logger, options);
+
+    if (options.containingBlocks && item.isBox()) {
+      logger.text(` (cb: ${item.getContainingBlock()?.box.id ?? '(null)'})`);
+    }
+
+    if (options.css) {
+      const css = item.style[options.css];
+      logger.text(` (${options.css}: ${css && JSON.stringify(css)})`);
+    }
+
+    if (options.bits && item.isBox()) {
+      logger.text(` (bf: ${item.stringifyBitfield()})`);
+    }
+
+    logger.text('\n');
+    logger.pushIndent();
+
+    while (parents.length && parents[parents.length - 1].treeFinal === i) {
+      const box = parents.pop()!;
+      if (box.isBlockContainerOfInlines()) ifcs.pop();
+      logger.popIndent();
+    }
+  }
+
+  logger.flush();
 }

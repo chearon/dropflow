@@ -2,7 +2,7 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
-import {bench, run} from 'mitata';
+import {bench, run, do_not_optimize} from 'mitata';
 
 const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
 flow.fonts.add(flow.createFaceFromTablesSync(p('Arimo/Arimo-Bold.ttf')));
@@ -54,12 +54,26 @@ ctx.clearRect(0, 0, canvas.width, canvas.height);
 flow.paintToCanvas(blockContainer, ctx);
 fs.writeFileSync(new URL('perf-1.png', import.meta.url), canvas.toBuffer());
 
-bench('10 paragraphs generate, layout, and paint', () => {
+bench('altogether', () => {
   const blockContainer = flow.generate(rootElement);
   flow.clearWordCache();
   flow.layout(blockContainer, canvas.width, canvas.height);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   flow.paintToCanvas(blockContainer, ctx);
-});
+}).gc('inner');
+
+bench('generate', () => {
+  do_not_optimize(flow.generate(rootElement));
+}).gc('inner');
+
+bench('layout', () => {
+  flow.clearWordCache();
+  flow.layout(blockContainer, canvas.width, canvas.height);
+}).gc('inner');
+
+bench('paint', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  flow.paintToCanvas(blockContainer, ctx);
+}).gc('inner');
 
 await run();

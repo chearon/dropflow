@@ -1,7 +1,7 @@
 import * as flow from 'dropflow';
 import fs from 'fs';
 import {createCanvas} from 'canvas';
-import {bench, run} from 'mitata';
+import {bench, run, do_not_optimize} from 'mitata';
 
 const p = (p: string) => new URL(`../assets/${p}`, import.meta.url);
 flow.fonts.add(flow.createFaceFromTablesSync(p('Roboto/Roboto-Regular.ttf')));
@@ -31,13 +31,30 @@ flow.layout(blockContainer, 100, 20);
 flow.paintToCanvas(blockContainer, ctx);
 fs.writeFileSync(new URL('perf-3.png', import.meta.url), canvas.toBuffer());
 
-bench('generate and layout one random word', () => {
+bench('altogether', () => {
   const html = flow.dom(
     flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
   );
   const blockContainer = flow.generate(html);
   flow.clearWordCache();
   flow.layout(blockContainer, 100, 20);
-});
+}).gc('inner');
+
+bench('dom', () => {
+  const html = flow.dom(
+    flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
+  );
+  do_not_optimize(html);
+}).gc('inner');
+
+bench('generate', () => {
+  const blockContainer = flow.generate(html);
+  do_not_optimize(blockContainer);
+}).gc('inner');
+
+bench('layout', () => {
+  flow.clearWordCache();
+  flow.layout(blockContainer, 100, 20);
+}).gc('inner');
 
 await run();

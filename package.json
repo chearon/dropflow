@@ -10,7 +10,7 @@
     "canvas": "^3.1.0",
     "chai": "^4.2.0",
     "codemirror": "^6.0.1",
-    "mitata": "^1.0.21",
+    "mitata": "^1.0.34",
     "mocha": "^10.0.0",
     "peggy": "^2.0.1",
     "punycode": "^2.1.1",

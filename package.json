@@ -3,6 +3,7 @@
     "@codemirror/lang-html": "^6.4.8",
     "@codemirror/state": "^6.4.1",
     "@ddietr/codemirror-themes": "^1.4.2",
+    "@mitata/counters": "^0.0.8",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@types/mocha": "^8.0.3",
     "@types/node": "^20.17.10",

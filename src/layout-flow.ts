@@ -827,9 +827,9 @@ export class BlockContainerOfInlines extends BlockContainerBase {
   lineboxes: Linebox[];
   fragments: Map<Inline, InlineFragment[]>;
 
-  constructor(style: Style, text: string, attrs: number) {
+  constructor(style: Style, attrs: number) {
     super(style, attrs);
-    this.text = text;
+    this.text = '';
     this.buffer = EmptyBuffer;
     this.items = [];
     this.lineboxes = [];
@@ -842,7 +842,7 @@ export class BlockContainerOfInlines extends BlockContainerBase {
       if (!inline.isInline()) throw new Error('Assertion failed');
       this.buffer.destroy();
       this.buffer = createIfcBuffer(this.text);
-      this.items = createIfcShapedItems(this, inline);
+      this.items = createIfcShapedItems(tree, this, inline);
       this.fragments.clear();
     }
   }
@@ -996,6 +996,10 @@ export class BlockContainerOfInlines extends BlockContainerBase {
 export type BlockLevel = BlockContainer | ReplacedBox;
 
 export class BlockContainerOfBlocks extends BlockContainerBase {
+  __isBlockContainerOfBlocks() {
+    // needed for TS because otherwise it's equivalent to the base 🤦‍♂️
+  }
+
   isBlockContainerOfBlocks(): this is BlockContainerOfBlocks {
     return true;
   }
@@ -1113,6 +1117,7 @@ function layoutBlockBoxInner(
       const child = tree[i];
       if (!child.isBlockContainer()) throw new Error('Assertion failed');
       layoutBlockLevelBox(tree, child, cctx);
+      i = child.treeFinal;
     }
   }
 
@@ -1276,9 +1281,9 @@ export class Inline extends Box {
   public start: number;
   public end: number;
 
-  constructor(start: number, style: Style, attrs: number) {
+  constructor(style: Style, attrs: number) {
     super(style, attrs);
-    this.start = start;
+    this.start = 0;
     this.end = 0;
     this.treeStart = 0;
     this.treeFinal = 0;
@@ -1606,37 +1611,146 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
   }
 }
 
-interface IfcContext {
-  text: string;
-  tree: InlineLevel[];
+// Strategy for mixed block and inline content:
+//
+// 1. Push null onto the tree for the wrapper; we don't know which kind of
+//    BlockContainer it is yet (OfInlines or OfBlocks).
+// 2. When the wrapper is null, block-level children make it OfBlocks and
+//    inline-level children make it OfInlines.
+// 3. When the wrapper is OfInline, any block-level children shift the wrapper
+//    and its descendents ahead one, and the wrapper becomes wrapper 2. A new
+//    OfBlocks is put in its old position.
+// 4. When the wrapper is OfBlocks, any inline children immediately generate
+//    a block-level wrapper, known as wrapper 3, before the child.
+//
+// This way, the most wrapper transitions are null -> OfInlines -> OfBlocks, and
+// the most expensive step, (3), can only happen once per block container, and
+// while the tree is still small
+
+interface GenerateBcContext {
+  treeStart: number;
+  // info for constructing the lazily-constructed BlockContainer
+  attrs: number;
+  style: Style;
+  // location of the BlockContainerOfInlines being worked on
+  ifcIndex: number;
+}
+
+function preBcBlockChild(
+  tree: InlineLevel[],
+  ctx: GenerateBcContext
+) {
+  if (tree[ctx.treeStart] === null) {
+    const block = new BlockContainerOfBlocks(ctx.style, ctx.attrs);
+    block.treeStart = ctx.treeStart;
+    tree[ctx.treeStart] = block;
+  } else {
+    const wrapper2 = tree[ctx.treeStart];
+    if (wrapper2.isBlockContainerOfInlines()) {
+      // finish wrapper 2
+      wrapper2.bitfield = Box.ATTRS.isAnonymous;
+      wrapper2.style = createStyle(ctx.style, EMPTY_STYLE);
+      for (let i = tree.length; i > ctx.treeStart; i--) {
+        const item = tree[i] = tree[i - 1];
+        if (item.isBox()) {
+          item.treeStart++;
+          item.treeFinal++;
+        }
+      }
+      wrapper2.treeFinal = tree.length - 1;
+
+      // finish inline root
+      const inlineRoot = tree[ctx.treeStart + 2];
+      if (!inlineRoot.isInline()) throw new Error('Assertion failed');
+      inlineRoot.treeFinal = tree.length - 1;
+      inlineRoot.end = wrapper2.text.length;
+
+      // add the new wrapper
+      const wrapper = new BlockContainerOfBlocks(ctx.style, ctx.attrs);
+      wrapper.treeStart = ctx.treeStart;
+      tree[ctx.treeStart] = wrapper;
+      ctx.ifcIndex = -1;
+    }
+
+    if (ctx.ifcIndex > -1) {
+      // finish ifc
+      const ifc = tree[ctx.ifcIndex];
+      if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+      ifc.treeFinal = tree.length - 1;
+
+      // finish inline root
+      const inlineRoot = tree[ctx.ifcIndex + 1];
+      if (!inlineRoot.isInline()) throw new Error('Assertion failed');
+      inlineRoot.treeFinal = tree.length - 1;
+      inlineRoot.end = ifc.text.length;
+
+      ctx.ifcIndex = -1;
+    }
+  }
+}
+
+function preBcInlineChild(tree: InlineLevel[], ctx: GenerateBcContext) {
+  if (tree[ctx.treeStart] === null) {
+    const block = new BlockContainerOfInlines(ctx.style, ctx.attrs);
+    tree[ctx.treeStart] = block;
+    block.treeStart = ctx.treeStart;
+    ctx.ifcIndex = ctx.treeStart;
+
+    const anonStyle = createStyle(ctx.style, EMPTY_STYLE);
+    const inlineRoot = new Inline(anonStyle, Box.ATTRS.isAnonymous);
+    inlineRoot.treeStart = ctx.treeStart + 1;
+    tree.push(inlineRoot);
+  } else if (ctx.ifcIndex < 0) {
+    const wrapper = tree[ctx.treeStart];
+    if (wrapper.isBlockContainerOfBlocks()) {
+      const anonStyle = createStyle(ctx.style, EMPTY_STYLE);
+      const wrapper3 = new BlockContainerOfInlines(anonStyle, ctx.attrs);
+      tree.push(wrapper3);
+      wrapper3.bitfield = Box.ATTRS.isAnonymous;
+      wrapper3.treeStart = tree.length - 1;
+      ctx.ifcIndex = tree.length - 1;
+
+      const inlineRoot = new Inline(anonStyle, Box.ATTRS.isAnonymous);
+      tree.push(inlineRoot);
+      inlineRoot.treeStart = tree.length - 1;
+    }
+  }
+
+  const ifc = tree[ctx.ifcIndex];
+  if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+  return ifc;
 }
 
 // Helper for generateInlineBox
 function mapTree(
+  tree: InlineLevel[],
   el: HTMLElement,
-  ctx: IfcContext,
+  ctx: GenerateBcContext,
   path: number[],
   level: number
-): [boolean, Inline] {
-  const start = ctx.text.length;
-  const box = new Inline(start, el.style, 0);
-  let bail = false;
+): boolean {
+  const box = new Inline(el.style, 0);
+  const ifc = preBcInlineChild(tree, ctx);
+
+  if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+  tree.push(box);
+  box.treeStart = tree.length - 1;
+  box.start = ifc.text.length;
 
   if (level >= path.length) path[level] = 0;
-
-  ctx.tree.push(box);
+  let bail = false;
 
   while (!bail && path[level] < el.children.length) {
-    let child: InlineLevel | undefined, childEl = el.children[path[level]];
+    const childEl = el.children[path[level]];
 
     if (childEl instanceof HTMLElement) {
       if (childEl.tagName === 'br') {
-        child = new Break(childEl.style);
-        ctx.tree.push(child);
+        preBcInlineChild(tree, ctx);
+        tree.push(new Break(childEl.style));
       } else if (childEl.style.display.outer === 'block') {
         if (childEl.style.isOutOfFlow()) {
-          child = generateBlockBox(childEl);
-          ctx.tree.push(child);
+          preBcInlineChild(tree, ctx);
+          generateBlockBox(tree, childEl);
         } else {
           bail = true;
         }
@@ -1645,75 +1759,64 @@ function mapTree(
           childEl.style.display.inner === 'flow-root' ||
           childEl.tagName === 'img'
         ) {
-          child = generateBlockBox(childEl);
-          ctx.tree.push(child);
+          preBcInlineChild(tree, ctx);
+          generateBlockBox(tree, childEl);
         } else {
-          [bail, child] = mapTree(childEl, ctx, path, level + 1);
+          bail = mapTree(tree, childEl, ctx, path, level + 1);
         }
       }
     } else if (childEl instanceof TextNode) {
-      const start = ctx.text.length;
+      const ifc = preBcInlineChild(tree, ctx);
+      const start = ifc.text.length;
       const end = start + childEl.text.length;
-      child = new Run(start, end, childEl.style);
-      ctx.tree.push(child);
-      ctx.text += childEl.text;
+      ifc.text += childEl.text;
+      tree.push(new Run(start, end, childEl.style));
     }
 
     if (!bail) path[level]++;
   }
 
   if (!bail) path.pop();
-  box.end = ctx.text.length;
-  box.treeFinal = ctx.tree.length; // +1 because no root Inline yet
+  box.end = ifc.text.length;
+  box.treeFinal = tree.length - 1;
   el.boxes.push(box);
 
-  return [bail, box];
+  return bail;
 }
 
 // Generates at least one inline box for the element. This must be called
 // repeatedly until the first tuple value returns false to split out all block-
 // level elements and the (fully nested) inlines in between and around them.
 function generateInlineBox(
+  tree: InlineLevel[],
   el: HTMLElement,
-  ctx: IfcContext,
+  ctx: GenerateBcContext,
   path: number[]
-): [boolean, Inline | BlockLevel] {
+): boolean {
   const target = el.getEl(path);
 
   if (target instanceof HTMLElement && target.style.display.outer === 'block') {
     ++path[path.length - 1];
-    return [true, generateBlockBox(target)];
+    preBcBlockChild(tree, ctx);
+    generateBlockBox(tree, target);
+    return true;
   }
 
-  return mapTree(el, ctx, path, 0);
+  return mapTree(tree, el, ctx, path, 0);
 }
 
-// Wraps consecutive inlines and runs in block-level block containers.
-// CSS2.1 section 9.2.1.1
-function wrapInBlockContainer(parentEl: HTMLElement, ctx: IfcContext) {
-  const anonStyle = createStyle(parentEl.style, EMPTY_STYLE);
-  const root = new Inline(0, anonStyle, Box.ATTRS.isAnonymous);
-  const tree: [Inline, ...InlineLevel[]] = [root, ...ctx.tree];
-  root.end = ctx.text.length;
-  root.treeFinal = tree.length - 1;
-  return new BlockContainerOfInlines(anonStyle, tree, ctx.text, Box.ATTRS.isAnonymous);
-}
-
-function generateBlockBox(el: HTMLElement): BlockLevel {
+function generateBlockBox(tree: InlineLevel[], el: HTMLElement){
   if (el.tagName === 'img') {
-    const box = new ReplacedBox(el.style, el.attrs.src ?? "");
-    el.boxes.push(box);
-    return box;
+    const block = new ReplacedBox(el.style, el.attrs.src ?? "");
+    tree.push(block);
+    return block;
   } else {
-    return generateBlockContainer(el);
+    return generateBlockContainer(tree, el);
   }
 }
 
 // Generates a block container for the element
-export function generateBlockContainer(el: HTMLElement): BlockContainer {
-  const ctx: IfcContext = {text: '', tree: []};
-  const enableLogging = 'x-dropflow-log' in el.attrs;
-  const blocks: BlockLevel[] = [];
+export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
   let attrs = 0;
 
   // TODO: it's time to start moving some of this type of logic to HTMLElement.
@@ -1728,87 +1831,77 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
     attrs |= BlockContainerBase.ATTRS.isBfcRoot;
   }
 
-  if (enableLogging) attrs |= Box.ATTRS.enableLogging;
+  if (el.style.display.outer === 'inline') {
+    attrs |= BlockContainerBase.ATTRS.isInline;
+  }
+
+  if ('x-dropflow-log' in el.attrs) attrs |= Box.ATTRS.enableLogging;
+
+  // @ts-expect-error see "strategy" paragraph above -> 1
+  tree.push(null);
+
+  const ctx: GenerateBcContext = {
+    treeStart: tree.length - 1,
+    attrs,
+    style: el.style,
+    ifcIndex: -1
+  };
 
   for (const child of el.children) {
     if (child instanceof HTMLElement) {
       if (child.style.display.outer === 'none') continue;
 
       if (child.tagName === 'br') {
-        ctx.tree.push(new Break(child.style));
+        preBcInlineChild(tree, ctx);
+        tree.push(new Break(child.style));
       } else if (child.style.display.outer === 'block') {
-        const block = generateBlockBox(child);
-
-        if (block.style.isOutOfFlow()) {
-          ctx.tree.push(block);
+        if (child.style.isOutOfFlow()) {
+          preBcInlineChild(tree, ctx);
         } else {
-          if (ctx.tree.length) {
-            blocks.push(wrapInBlockContainer(el, ctx));
-            ctx.tree = [];
-            ctx.text = '';
-          }
-
-          blocks.push(block);
+          preBcBlockChild(tree, ctx);
         }
+
+        generateBlockBox(tree, child);
       } else { // inline
         if (
           child.style.display.inner === 'flow-root' || // inline-block
           child.tagName === 'img'
         ) {
-          ctx.tree.push(generateBlockBox(child));
+          preBcInlineChild(tree, ctx);
+          generateBlockBox(tree, child);
         } else {
           const path: number[] = [];
-          let more, box;
-
-          do {
-            ([more, box] = generateInlineBox(child, ctx, path));
-
-            if (box.isInline() || box.isInlineLevel()) {
-              // ok
-            } else {
-              if (ctx.tree.length) {
-                blocks.push(wrapInBlockContainer(el, ctx));
-                ctx.tree = [];
-                ctx.text = '';
-              }
-
-              blocks.push(box);
-            }
-          } while (more);
+          // TODO(commit) move while loop to inside this func
+          while (generateInlineBox(tree, child, ctx, path))
+            ;
         }
       }
     } else { // TextNode
       const computed = createStyle(el.style, EMPTY_STYLE);
-      const start = ctx.text.length;
+      const ifc = preBcInlineChild(tree, ctx);
+      const start = ifc.text.length;
       const end = start + child.text.length;
-      ctx.tree.push(new Run(start, end, computed));
-      ctx.text += child.text;
+      tree.push(new Run(start, end, computed));
+      ifc.text += child.text;
     }
   }
 
-  if (el.style.display.outer === 'inline') {
-    attrs |= BlockContainerBase.ATTRS.isInline;
+  // no children encountered, so make it an OfBlocks
+  if (tree[ctx.treeStart] === null) preBcBlockChild(tree, ctx);
+
+  const box = tree[ctx.treeStart];
+  if (!box.isBlockContainer()) throw new Error('Assertion failed');
+  box.treeFinal = tree.length - 1;
+  if (ctx.ifcIndex > -1) {
+    const ifc = tree[ctx.ifcIndex];
+    if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+    ifc.treeFinal = tree.length - 1;
+
+    const inlineRoot = tree[ctx.ifcIndex + 1];
+    if (!inlineRoot.isInline()) throw new Error('Assertion failed');
+    inlineRoot.treeFinal = tree.length - 1;
+    inlineRoot.end = ifc.text.length;
   }
-
-  let box;
-
-  if (ctx.tree.length) {
-    if (blocks.length) {
-      blocks.push(wrapInBlockContainer(el, ctx));
-      box = new BlockContainerOfBlocks(el.style, blocks, attrs);
-    } else {
-      const anonComputedStyle = createStyle(el.style, EMPTY_STYLE);
-      const ifcAttrs = Box.ATTRS.isAnonymous;
-      const root = new Inline(0, anonComputedStyle, ifcAttrs);
-      const tree: [Inline, ...InlineLevel[]] = [root, ...ctx.tree];
-      box = new BlockContainerOfInlines(el.style, tree, ctx.text, attrs);
-      root.end = ctx.text.length;
-      root.treeFinal = tree.length - 1;
-    }
-  } else {
-    box = new BlockContainerOfBlocks(el.style, blocks, attrs);
-  }
-
   el.boxes.push(box);
   return box;
 }

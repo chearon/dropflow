@@ -171,6 +171,8 @@ export function collapseWhitespace(tree: InlineLevel[]) {
   for (let i = 0; i < tree.length; i++) {
     const item = tree[i];
 
+    if (item.isBox()) item.treeStart -= treeDelta;
+
     if (item.isInline() || item.isBlockContainer()) {
       parents.push(item);
     }
@@ -1850,6 +1852,7 @@ function shapePart(
 }
 
 export function createIfcShapedItems(
+  tree: InlineLevel[],
   ifc: BlockContainerOfInlines,
   inlineRoot: Inline
 ) {
@@ -1857,7 +1860,7 @@ export function createIfcShapedItems(
   const log = ifc.loggingEnabled() ? new Logger() : null;
   const t = log ? (s: string) => log.text(s) : null;
   const g = log ? (glyphs: Int32Array) => log.glyphs(glyphs) : null;
-  const itemizeState = createItemizeState(ifc);
+  const itemizeState = createItemizeState(tree, ifc);
 
   t?.(`Preprocess ${ifc.id}\n`);
   t?.('='.repeat(`Preprocess ${ifc.id}`.length) + '\n');
@@ -2638,6 +2641,7 @@ export function positionIfcItems(
 
         if (isFirstOccurance) inlineSideAdvance(inline, 'start');
         const offset = Math.max(item.offset, mark);
+        if (!inline.isAnonymous())
         boxBuilder?.open(inline, offset, isFirstOccurance, bgcursor, y - baselineShift);
 
         if (isFirstOccurance) {

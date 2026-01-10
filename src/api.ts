@@ -3,6 +3,7 @@ import {HTMLElement, TextNode} from './dom.ts';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.ts';
 import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.ts';
 import {generateBlockContainer, layoutBlockLevelBox} from './layout-flow.ts';
+import {collapseWhitespace} from './layout-text.ts';
 import HtmlPaintBackend from './paint-html.ts';
 import SvgPaintBackend from './paint-svg.ts';
 import CanvasPaintBackend from './paint-canvas.ts';
@@ -30,7 +31,9 @@ export {createDeclaredStyle as style, setOriginStyle} from './style.ts';
 
 export {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync};
 
-export function generate(rootElement: HTMLElement): BlockContainer {
+export function generate(rootElement: HTMLElement): InlineLevel[] {
+  const tree: InlineLevel[] = [];
+
   if (rootElement.style === getOriginStyle()) {
     throw new Error(
       'To use the hyperscript API, pass the element tree to dom() and use ' +
@@ -38,7 +41,9 @@ export function generate(rootElement: HTMLElement): BlockContainer {
     );
   }
 
-  return generateBlockContainer(rootElement);
+  generateBlockContainer(tree, rootElement);
+
+  return tree;
 }
 
 export function layout(tree: InlineLevel[], width = 640, height = 480) {
@@ -46,26 +51,29 @@ export function layout(tree: InlineLevel[], width = 640, height = 480) {
   if (!root.isBlockContainer()) throw new Error('Assertion failed');
   const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
 
+  collapseWhitespace(tree);
   prelayout(tree, initialContainingBlock);
-  layoutBlockLevelBox(root, {});
+  layoutBlockLevelBox(tree, root, {});
   postlayout(tree);
 }
 
 /**
  * Old paint target for testing, not maintained much anymore
  */
-export function paintToHtml(root: BlockContainer): string {
+export function paintToHtml(tree: InlineLevel[]): string {
   const backend = new HtmlPaintBackend();
-  paint(root, backend);
+  paint(tree, backend);
   return backend.s;
 }
 
-export function paintToSvg(root: BlockContainer): string {
+export function paintToSvg(tree: InlineLevel[]): string {
   const backend = new SvgPaintBackend();
+  const root = tree[0];
+  if (!root.isBlockContainer()) throw new Error('Assertion failed');
   const {width, height} = root.getContainingBlock();
   let cssFonts = '';
 
-  paint(root, backend);
+  paint(tree, backend);
 
   for (const [src, face] of backend.usedFonts) {
     cssFonts +=
@@ -85,17 +93,17 @@ export function paintToSvg(root: BlockContainer): string {
   `.trim();
 }
 
-export function paintToSvgElements(root: BlockContainer): string {
+export function paintToSvgElements(tree: InlineLevel[]): string {
   const backend = new SvgPaintBackend();
-  paint(root, backend);
+  paint(tree, backend);
   return backend.main;
 }
 
 export {eachRegisteredFont} from './text-font.ts';
 
-export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): void {
-  const backend = new CanvasPaintBackend(ctx);
-  paint(root, backend);
+export function paintToCanvas(tree: InlineLevel[], ctx: CanvasRenderingContext2D): void {
+  const backend = new CanvasPaintBackend(ctx, tree);
+  paint(tree, backend);
 }
 
 export async function renderToCanvasContext(
@@ -210,7 +218,7 @@ export function t(text: string): TextNode {
   return new TextNode(id(), text);
 }
 
-export function staticLayoutContribution(box: BlockContainer): number {
+export function staticLayoutContribution(tree: InlineLevel[], box: BlockContainer): number {
   let intrinsicSize = 0;
 
   const definiteSize = box.getDefiniteOuterInlineSize();
@@ -227,13 +235,15 @@ export function staticLayoutContribution(box: BlockContainer): number {
     }
     // TODO: floats
   } else {
-    for (const child of box.children) {
+    for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
+      const child = tree[i];
       if (child.isBlockContainer()) {
-        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
-      } else {
+        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(tree, child));
+      } else if (child.isBox()) {
         // TODO:
         intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
       }
+      if (child.isBox()) i = child.treeFinal;
     }
   }
 

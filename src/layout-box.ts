@@ -786,7 +786,7 @@ export function postlayout(tree: InlineLevel[]) {
   }
 }
 
-export function log(tree: RenderItem[], options?: RenderItemLogOptions) {
+export function log(tree: InlineLevel[], options?: RenderItemLogOptions) {
   const parents: (BlockContainer | Inline)[] = [];
   const ifcs: BlockContainerOfInlines[] = [];
   const logger = new Logger();
@@ -795,10 +795,6 @@ export function log(tree: RenderItem[], options?: RenderItemLogOptions) {
 
   for (let i = 0; i < tree.length; i++) {
     const item = tree[i];
-
-    if (item.isBlockContainerOfInlines()) {
-      ifcs.push(item);
-    }
 
     logger.text(`${item.getLogSymbol()} `);
     options.paragraphText = ifcs.length > 0 ? ifcs[ifcs.length - 1].text : undefined;
@@ -818,7 +814,12 @@ export function log(tree: RenderItem[], options?: RenderItemLogOptions) {
     }
 
     logger.text('\n');
-    logger.pushIndent();
+
+    if (item.isBlockContainer() || item.isInline()) {
+      parents.push(item);
+      if (item.isBlockContainerOfInlines()) ifcs.push(item);
+      logger.pushIndent();
+    }
 
     while (parents.length && parents[parents.length - 1].treeFinal === i) {
       const box = parents.pop()!;

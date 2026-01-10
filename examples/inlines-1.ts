@@ -27,12 +27,12 @@ const rootElement = parse(`
 
 flow.loadSync(rootElement);
 
-const blockContainer = flow.generate(rootElement);
-blockContainer.log({css: 'zoom'});
+const tree = flow.generate(rootElement);
+flow.log(tree, {css: 'zoom'});
 
 const canvas = createCanvas(600, 400);
-flow.layout(blockContainer, canvas.width, canvas.height);
+flow.layout(tree, canvas.width, canvas.height);
 
 const ctx = canvas.getContext('2d');
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(tree, ctx);
 fs.writeFileSync(new URL('inlines-1.png', import.meta.url), canvas.toBuffer());

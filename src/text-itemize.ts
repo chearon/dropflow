@@ -2,7 +2,6 @@ import wasm from './wasm.ts';
 import {onWasmMemoryResized} from './wasm-env.ts';
 import {codeToName} from '../gen/script-names.ts';
 import {BlockContainerOfInlines, Inline} from './layout-flow.ts';
-import {InlineStack} from './layout-box.ts';
 
 import {Style} from './style.ts';
 import * as hb from './text-harfbuzz.ts';
@@ -486,19 +485,23 @@ interface StyleIteratorState {
   style: Style;
   done: boolean;
   /* private */
+  tree: InlineLevel[];
+  index: number;
   parents: Inline[];
-  stack: InlineStack;
-  leader: InlineLevel | {sentinel: true};
+  leader: InlineLevel;
   direction: 'ltr' | 'rtl';
   lastOffset: number;
   ifc: BlockContainerOfInlines;
 }
 
-export function createStyleIteratorState(ifc: BlockContainerOfInlines): StyleIteratorState {
-  const parents: Inline[] = [];
+export function createStyleIteratorState(
+  tree: InlineLevel[],
+  ifc: BlockContainerOfInlines
+): StyleIteratorState {
   return {
-    stack: new InlineStack(ifc, parents),
-    parents,
+    tree,
+    index: ifc.treeStart + 1,
+    parents: [],
     leader: ifc,
     direction: ifc.style.direction,
     style: ifc.style,
@@ -513,20 +516,23 @@ export function styleIteratorNext(state: StyleIteratorState) {
   if (state.done) return;
 
   state.lastOffset = state.offset;
+  state.style = state.leader.style;
+  if (state.leader.isRun()) state.offset += state.leader.length;
 
-  if (!('sentinel' in state.leader)) {
-    state.style = state.leader.style;
-    if (state.leader.isRun()) state.offset += state.leader.length;
-  }
-
-  for (let item; item = state.stack.next(); ) {
-    if ('sentinel' in item) {
+  outer: while (
+    state.index <= state.ifc.treeFinal ||
+    state.parents.length
+  ) {
+    while (
+      state.parents.length &&
+      state.parents[state.parents.length - 1].treeFinal === state.index
+    ) {
       const parent = state.parents.pop()!;
 
       if (state.direction === 'ltr' ? parent.hasLineRightGap() : parent.hasLineLeftGap()) {
         if (state.offset !== state.lastOffset) {
-          state.leader = item;
-          break;
+          state.leader = parent;
+          break outer;
         }
       }
       if (
@@ -534,11 +540,15 @@ export function styleIteratorNext(state: StyleIteratorState) {
         parent.style.position === 'relative'
       ) {
         if (state.offset !== state.lastOffset) {
-          state.leader = item;
-          break;
+          state.leader = parent;
+          break outer;
         }
       }
-    } else if (item.isRun()) {
+    }
+
+    const item = state.tree[state.index++];
+
+    if (item.isRun()) {
       if (!state.style.fontsEqual(item.style)) {
         if (state.offset !== state.lastOffset) {
           state.leader = item;
@@ -573,12 +583,16 @@ export function styleIteratorNext(state: StyleIteratorState) {
         state.leader = item;
         break;
       }
-    } else if (item.isFloat()) {
-      // OK
-    } else { // inline-block
-      if (state.offset !== state.lastOffset) {
-        state.leader = item;
-        break;
+    } else {
+      // out-of-flow
+      state.index = item.treeFinal + 1;
+      if (item.isFloat()) {
+        // OK
+      } else { // inline-block
+        if (state.offset !== state.lastOffset) {
+          state.leader = item;
+          break;
+        }
       }
     }
   }
@@ -609,7 +623,11 @@ interface ItemizeState {
   free: (() => void) | undefined;
 }
 
-export function createItemizeState(ifc: BlockContainerOfInlines): ItemizeState {
+export function createItemizeState(
+  tree: InlineLevel[],
+  ifc: BlockContainerOfInlines
+): ItemizeState {
+  const inlineRoot = tree[ifc.treeStart + 1];
   let newlineState;
   let inlineState;
   let emojiState;
@@ -617,15 +635,17 @@ export function createItemizeState(ifc: BlockContainerOfInlines): ItemizeState {
   let scriptState;
   let free;
 
-  if (ifc.tree[0].hasNewlines()) {
+  if (!inlineRoot.isInline()) throw new Error('Assertion failed');
+
+  if (inlineRoot.hasNewlines()) {
     newlineState = createNewlineIteratorState(ifc.text);
   }
 
-  if (ifc.tree[0].hasBreakOrInlineOrReplaced() || ifc.tree[0].hasInlineBlocks()) {
-    inlineState = createStyleIteratorState(ifc);
+  if (inlineRoot.hasBreakOrInlineOrReplaced() || inlineRoot.hasInlineBlocks()) {
+    inlineState = createStyleIteratorState(tree, ifc);
   }
 
-  if (ifc.tree[0].hasComplexText()) {
+  if (inlineRoot.hasComplexText()) {
     const allocation = hb.allocateUint16Array(ifc.text.length);
     const initialLevel = ifc.style.direction === 'ltr' ? 0 : 1;
     const array = allocation.array;

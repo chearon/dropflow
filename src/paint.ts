@@ -226,16 +226,17 @@ function paintInlineBackground(
   const {a: ba} = borderBottomColor;
   const {a: la} = borderLeftColor;
   const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = fragment;
-  const paddingTop = inline.style.getPaddingBlockStart(ifc);
-  const paddingRight = inline.style.getPaddingLineRight(ifc);
-  const paddingBottom = inline.style.getPaddingBlockEnd(ifc);
-  const paddingLeft = inline.style.getPaddingLineLeft(ifc);
+  const containingBlock = inline.getContainingBlock();
+  const paddingTop = inline.style.getPaddingBlockStart(containingBlock);
+  const paddingRight = inline.style.getPaddingLineRight(containingBlock);
+  const paddingBottom = inline.style.getPaddingBlockEnd(containingBlock);
+  const paddingLeft = inline.style.getPaddingLineLeft(containingBlock);
   const paintLeft = naturalStart && direction === 'ltr' || naturalEnd && direction === 'rtl';
   const paintRight = naturalEnd && direction === 'ltr' || naturalStart && direction === 'rtl';
-  const borderTopWidth = inline.style.getBorderBlockStartWidth(ifc);
-  let borderRightWidth = inline.style.getBorderLineRightWidth(ifc);
-  const borderBottomWidth = inline.style.getBorderBlockEndWidth(ifc);
-  let borderLeftWidth = inline.style.getBorderLineLeftWidth(ifc);
+  const borderTopWidth = inline.style.getBorderBlockStartWidth(containingBlock);
+  let borderRightWidth = inline.style.getBorderLineRightWidth(containingBlock);
+  const borderBottomWidth = inline.style.getBorderBlockEndWidth(containingBlock);
+  let borderLeftWidth = inline.style.getBorderLineLeftWidth(containingBlock);
 
   if (!paintLeft) borderLeftWidth = 0;
   if (!paintRight) borderRightWidth = 0;
@@ -245,8 +246,8 @@ function paintInlineBackground(
     let extraBottom = 0;
 
     if (clip !== 'content-box') {
-      extraTop += inline.style.getPaddingBlockStart(ifc);
-      extraBottom += inline.style.getPaddingBlockEnd(ifc);
+      extraTop += inline.style.getPaddingBlockStart(containingBlock);
+      extraBottom += inline.style.getPaddingBlockEnd(containingBlock);
     }
 
     if (clip === 'border-box') {

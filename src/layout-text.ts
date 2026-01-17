@@ -1023,10 +1023,11 @@ function getLastBaseline(block: FormattingBox) {
 
         for (const child of block.children) {
           if (child.isBlockContainer()) {
+            const containingBlock = child.getContainingBlock();
             const offset = parentOffset
               + child.getBorderArea().blockStart
-              + child.style.getBorderBlockStartWidth(child);
-              + child.style.getPaddingBlockStart(child);
+              + child.style.getBorderBlockStartWidth(containingBlock);
+              + child.style.getPaddingBlockStart(containingBlock);
 
             stack.push({block: child, offset});
           }
@@ -1042,10 +1043,11 @@ export function inlineFormattingBoxMetrics(box: FormattingBox) {
   let ascender, descender;
 
   if (baseline !== undefined) {
-    const paddingBlockStart = box.style.getPaddingBlockStart(box);
-    const paddingBlockEnd = box.style.getPaddingBlockEnd(box);
-    const borderBlockStart = box.style.getBorderBlockStartWidth(box);
-    const borderBlockEnd = box.style.getBorderBlockEndWidth(box);
+    const containingBlock = box.getContainingBlock();
+    const paddingBlockStart = box.style.getPaddingBlockStart(containingBlock);
+    const paddingBlockEnd = box.style.getPaddingBlockEnd(containingBlock);
+    const borderBlockStart = box.style.getBorderBlockStartWidth(containingBlock);
+    const borderBlockEnd = box.style.getBorderBlockEndWidth(containingBlock);
     const blockSize = box.getContentArea().blockSize;
     ascender = marginBlockStart + borderBlockStart + paddingBlockStart + baseline;
     descender = (blockSize - baseline) + paddingBlockEnd + borderBlockEnd + marginBlockEnd;
@@ -2471,6 +2473,7 @@ export class Paragraph {
     const counts: Map<Inline, number> = new Map();
     const direction = this.ifc.style.direction;
     const ifc = this.ifc;
+    const containingBlock = ifc.getContainingBlock();
     let x = 0;
     let bgcursor = 0;
 
@@ -2478,8 +2481,8 @@ export class Paragraph {
       const style = inline.style;
       let margin
         = (direction === 'ltr' ? side === 'start' : side === 'end')
-        ? style.getMarginLineLeft(ifc)
-        : style.getMarginLineRight(ifc);
+        ? style.getMarginLineLeft(containingBlock)
+        : style.getMarginLineRight(containingBlock);
 
       if (margin === 'auto') margin = 0;
 
@@ -2512,8 +2515,8 @@ export class Paragraph {
       const style = inline.style;
       const padding
         = (direction === 'ltr' ? side === 'start' : side === 'end')
-        ? style.getPaddingLineLeft(ifc)
-        : style.getPaddingLineRight(ifc);
+        ? style.getPaddingLineLeft(containingBlock)
+        : style.getPaddingLineRight(containingBlock);
 
       if (side === 'start' && style.backgroundClip === 'content-box') {
         bgcursor += direction === 'ltr' ? padding : -padding;
@@ -2560,7 +2563,7 @@ export class Paragraph {
       if (direction === 'ltr') {
         x = linebox.inlineOffset;
       } else {
-        x = this.ifc.getContainingBlock().inlineSize - linebox.inlineOffset;
+        x = containingBlock.inlineSize - linebox.inlineOffset;
       }
 
       for (let n = firstItem; n; n = direction === 'ltr' ? n.next : n.previous) {

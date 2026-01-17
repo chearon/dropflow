@@ -210,8 +210,9 @@ export function staticLayoutContribution(box: BlockContainer): number {
 
   const definiteSize = box.getDefiniteOuterInlineSize();
   if (definiteSize !== undefined) {
-    const marginLineLeft = box.style.getMarginLineLeft(box);
-    const marginLineRight = box.style.getMarginLineRight(box);
+    const containingBlock = box.getContainingBlock();
+    const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
+    const marginLineRight = box.style.getMarginLineRight(containingBlock);
     return definiteSize + (marginLineLeft === 'auto' ? 0 : marginLineLeft)
       + (marginLineRight === 'auto' ? 0 : marginLineRight)
   }
@@ -235,12 +236,13 @@ export function staticLayoutContribution(box: BlockContainer): number {
     throw new Error(`Unknown box type: ${box.id}`);
   }
 
-  const marginLineLeft = box.style.getMarginLineLeft(box);
-  const marginLineRight = box.style.getMarginLineRight(box);
-  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
-  const paddingLineLeft = box.style.getPaddingLineLeft(box);
-  const paddingLineRight = box.style.getPaddingLineRight(box);
-  const borderLineRightWidth = box.style.getBorderLineRightWidth(box);
+  const containingBlock = box.getContainingBlock();
+  const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
+  const marginLineRight = box.style.getMarginLineRight(containingBlock);
+  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(containingBlock);
+  const paddingLineLeft = box.style.getPaddingLineLeft(containingBlock);
+  const paddingLineRight = box.style.getPaddingLineRight(containingBlock);
+  const borderLineRightWidth = box.style.getBorderLineRightWidth(containingBlock);
 
   intrinsicSize += (marginLineLeft === 'auto' ? 0 : marginLineLeft)
     + borderLineLeftWidth

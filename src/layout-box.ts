@@ -266,17 +266,18 @@ export abstract class Box extends RenderItem {
    * containers must have been laid out for percentages to work.
    */
   fillAreas() {
+    const containingBlock = this.getContainingBlock();
     if (this.style.hasBorderArea()) {
-      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
-      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
+      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(containingBlock);
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
       const paddingArea = this.getPaddingArea();
       paddingArea.blockStart = borderBlockStartWidth;
       paddingArea.lineLeft = borderLineLeftWidth;
     }
 
     if (this.style.hasPaddingArea()) {
-      const paddingBlockStart = this.style.getPaddingBlockStart(this);
-      const paddingLineLeft = this.style.getPaddingLineLeft(this);
+      const paddingBlockStart = this.style.getPaddingBlockStart(containingBlock);
+      const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
       const contentArea = this.getContentArea();
       contentArea.blockStart = paddingBlockStart;
       contentArea.lineLeft = paddingLineLeft;
@@ -289,18 +290,19 @@ export abstract class Box extends RenderItem {
 
   setBlockSize(size: number) {
     this.getContentArea().blockSize = size;
+    const containingBlock = this.getContainingBlock();
 
     if (this.style.hasPaddingArea()) {
-      const paddingBlockStart = this.style.getPaddingBlockStart(this);
-      const paddingBlockEnd = this.style.getPaddingBlockEnd(this);
+      const paddingBlockStart = this.style.getPaddingBlockStart(containingBlock);
+      const paddingBlockEnd = this.style.getPaddingBlockEnd(containingBlock);
       const paddingSize = size + paddingBlockStart + paddingBlockEnd;
       const paddingArea = this.getPaddingArea();
       paddingArea.blockSize = paddingSize;
     }
 
     if (this.style.hasBorderArea()) {
-      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
-      const borderBlockEndWidth = this.style.getBorderBlockEndWidth(this);
+      const borderBlockStartWidth = this.style.getBorderBlockStartWidth(containingBlock);
+      const borderBlockEndWidth = this.style.getBorderBlockEndWidth(containingBlock);
       const paddingArea = this.getPaddingArea();
       const borderArea = this.getBorderArea();
       const borderSize = paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
@@ -314,18 +316,19 @@ export abstract class Box extends RenderItem {
 
   setInlineOuterSize(size: number) {
     this.getBorderArea().inlineSize = size;
+    const containingBlock = this.getContainingBlock();
 
     if (this.style.hasBorderArea()) {
-      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
+      const borderLineRightWidth = this.style.getBorderLineRightWidth(containingBlock);
       const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
       const paddingArea = this.getPaddingArea();
       paddingArea.inlineSize = paddingSize;
     }
 
     if (this.style.hasPaddingArea()) {
-      const paddingLineLeft = this.style.getPaddingLineLeft(this);
-      const paddingLineRight = this.style.getPaddingLineRight(this);
+      const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
+      const paddingLineRight = this.style.getPaddingLineRight(containingBlock);
       const paddingArea = this.getPaddingArea();
       const contentArea = this.getContentArea();
       const contentSize = paddingArea.inlineSize - paddingLineLeft - paddingLineRight;
@@ -523,18 +526,19 @@ export abstract class FormattingBox extends Box {
     return true;
   }
 
-  getDefiniteInnerInlineSize() {
-    const inlineSize = this.style.getInlineSize(this);
+  getDefiniteInnerInlineSize(containingBlock: BoxArea) {
+    const inlineSize = this.style.getInlineSize(containingBlock);
     if (inlineSize !== 'auto') return inlineSize;
   }
 
   getDefiniteOuterInlineSize() {
-    const inlineSize = this.getDefiniteInnerInlineSize();
+    const containingBlock = this.getContainingBlock();
+    const inlineSize = this.getDefiniteInnerInlineSize(containingBlock);
     if (inlineSize !== undefined) {
-      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-      const paddingLineLeft = this.style.getPaddingLineLeft(this);
-      const paddingLineRight = this.style.getPaddingLineRight(this);
-      const borderLineRightWidth = this.style.getBorderLineRightWidth(this);
+      const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
+      const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
+      const paddingLineRight = this.style.getPaddingLineRight(containingBlock);
+      const borderLineRightWidth = this.style.getBorderLineRightWidth(containingBlock);
 
       return borderLineLeftWidth
         + paddingLineLeft
@@ -545,15 +549,16 @@ export abstract class FormattingBox extends Box {
   }
 
   getDefiniteInnerBlockSize() {
-    const blockSize = this.style.getBlockSize(this);
+    const blockSize = this.style.getBlockSize(this.getContainingBlock());
     if (blockSize !== 'auto') return blockSize;
   }
 
   getMarginsAutoIsZero() {
-    let marginLineLeft = this.style.getMarginLineLeft(this);
-    let marginLineRight = this.style.getMarginLineRight(this);
-    let marginBlockStart = this.style.getMarginBlockStart(this);
-    let marginBlockEnd = this.style.getMarginBlockEnd(this);
+    const containingBlock = this.getContainingBlock();
+    let marginLineLeft = this.style.getMarginLineLeft(containingBlock);
+    let marginLineRight = this.style.getMarginLineRight(containingBlock);
+    let marginBlockStart = this.style.getMarginBlockStart(containingBlock);
+    let marginBlockEnd = this.style.getMarginBlockEnd(containingBlock);
 
     if (marginBlockStart === 'auto') marginBlockStart = 0;
     if (marginLineRight === 'auto') marginLineRight = 0;

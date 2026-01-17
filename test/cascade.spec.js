@@ -18,11 +18,12 @@ describe('CSS Style', function () {
 
     const box = new BlockContainer(style, [], 0);
     box.getBorderArea().parent = new BoxArea(box, 0, 0, 100, 100);
+    const containingBlock = box.getContainingBlock();
 
-    expect(style.getBorderBlockStartWidth(box)).to.equal(0);
-    expect(style.getBorderBlockEndWidth(box)).to.equal(0);
-    expect(style.getBorderLineLeftWidth(box)).to.equal(0);
-    expect(style.getBorderLineRightWidth(box)).to.equal(0);
+    expect(style.getBorderBlockStartWidth(containingBlock)).to.equal(0);
+    expect(style.getBorderBlockEndWidth(containingBlock)).to.equal(0);
+    expect(style.getBorderLineLeftWidth(containingBlock)).to.equal(0);
+    expect(style.getBorderLineRightWidth(containingBlock)).to.equal(0);
   });
 
   it('calculates used values for percentages', function () {
@@ -44,17 +45,18 @@ describe('CSS Style', function () {
     );
     const box = new BlockContainer(style, [], 0);
     box.getBorderArea().parent = new BoxArea(documentElement, 0, 0, 100, 200);
+    const containingBlock = box.getContainingBlock();
 
-    expect(style.getPaddingBlockStart(box)).to.equal(50);
-    expect(style.getPaddingLineRight(box)).to.equal(50);
-    expect(style.getPaddingBlockEnd(box)).to.equal(50);
-    expect(style.getPaddingLineLeft(box)).to.equal(50);
-    expect(style.getInlineSize(box)).to.equal(50);
-    expect(style.getBlockSize(box)).to.equal(100);
-    expect(style.getMarginBlockStart(box)).to.equal(50);
-    expect(style.getMarginLineRight(box)).to.equal(50);
-    expect(style.getMarginBlockEnd(box)).to.equal(50);
-    expect(style.getMarginLineLeft(box)).to.equal(50);
+    expect(style.getPaddingBlockStart(containingBlock)).to.equal(50);
+    expect(style.getPaddingLineRight(containingBlock)).to.equal(50);
+    expect(style.getPaddingBlockEnd(containingBlock)).to.equal(50);
+    expect(style.getPaddingLineLeft(containingBlock)).to.equal(50);
+    expect(style.getInlineSize(containingBlock)).to.equal(50);
+    expect(style.getBlockSize(containingBlock)).to.equal(100);
+    expect(style.getMarginBlockStart(containingBlock)).to.equal(50);
+    expect(style.getMarginLineRight(containingBlock)).to.equal(50);
+    expect(style.getMarginBlockEnd(containingBlock)).to.equal(50);
+    expect(style.getMarginLineLeft(containingBlock)).to.equal(50);
   });
 
   it('normalizes border-box to content-box', function () {
@@ -71,7 +73,8 @@ describe('CSS Style', function () {
 
     const box = new BlockContainer(style, [], 0);
     box.getBorderArea().parent = new BoxArea(box, 0, 0, 100, 100);
-    expect(style.getInlineSize(box)).to.equal(60);
+    const containingBlock = box.getContainingBlock();
+    expect(style.getInlineSize(containingBlock)).to.equal(60);
   });
 
   it('normalizes padding-box to content-box', function () {
@@ -86,8 +89,9 @@ describe('CSS Style', function () {
 
     const box = new BlockContainer(style, [], 0);
     box.getBorderArea().parent = new BoxArea(box, 0, 0, 100, 100);
+    const containingBlock = box.getContainingBlock();
 
-    expect(style.getInlineSize(box)).to.equal(80);
+    expect(style.getInlineSize(containingBlock)).to.equal(80);
   });
 
   it('computes unitless line-height', function () {

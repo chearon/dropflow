@@ -15,7 +15,7 @@ import {getImage} from './layout-image.ts';
 import {Box, FormattingBox, RenderItem} from './layout-box.ts';
 
 import type {InlineMetrics} from './layout-text.ts';
-import type {PrelayoutContext} from './layout-box.ts';
+import type {BoxArea, PrelayoutContext} from './layout-box.ts';
 
 function assumePx(v: any): asserts v is number {
   if (typeof v !== 'number') {
@@ -109,7 +109,8 @@ export class BlockFormattingContext {
   }
 
   collapseStart(box: FormattingBox) {
-    const marginBlockStart = box.style.getMarginBlockStart(box);
+    const containingBlock = box.getContainingBlock();
+    const marginBlockStart = box.style.getMarginBlockStart(containingBlock);
     let floatBottom = 0;
     let clearance = 0;
 
@@ -141,9 +142,10 @@ export class BlockFormattingContext {
   }
 
   boxStart(box: BlockContainer, ctx: LayoutContext) {
-    const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent();
-    const paddingBlockStart = box.style.getPaddingBlockStart(box);
-    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(box);
+    const containingBlock = box.getContainingBlock();
+    const {lineLeft, lineRight, blockStart} = box.getContainingBlockToContent(containingBlock);
+    const paddingBlockStart = box.style.getPaddingBlockStart(containingBlock);
+    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(containingBlock);
     const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
 
     this.collapseStart(box);
@@ -173,10 +175,11 @@ export class BlockFormattingContext {
   }
 
   boxEnd(box: BlockContainer) {
-    const {lineLeft, lineRight} = box.getContainingBlockToContent();
-    const paddingBlockEnd = box.style.getPaddingBlockEnd(box);
-    const borderBlockEndWidth = box.style.getBorderBlockEndWidth(box);
-    const marginBlockEnd = box.style.getMarginBlockEnd(box);
+    const containingBlock = box.getContainingBlock();
+    const {lineLeft, lineRight} = box.getContainingBlockToContent(containingBlock);
+    const paddingBlockEnd = box.style.getPaddingBlockEnd(containingBlock);
+    const borderBlockEndWidth = box.style.getBorderBlockEndWidth(containingBlock);
+    const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
     let adjoins = paddingBlockEnd === 0
       && borderBlockEndWidth === 0
       && (this.margin.clearanceAtLevel == null || this.level > this.margin.clearanceAtLevel);
@@ -187,7 +190,7 @@ export class BlockFormattingContext {
       if (this.last === 'start') {
         adjoins = box.canCollapseThrough();
       } else {
-        const blockSize = box.style.getBlockSize(box);
+        const blockSize = box.style.getBlockSize(containingBlock);
         // Handle the end of a block box that was at the end of its parent
         adjoins = blockSize === 'auto';
       }
@@ -220,7 +223,8 @@ export class BlockFormattingContext {
   }
 
   boxAtomic(box: FormattingBox) {
-    const marginBlockEnd = box.style.getMarginBlockEnd(box);
+    const containingBlock = box.getContainingBlock();
+    const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
     assumePx(marginBlockEnd);
     this.collapseStart(box);
     this.fctx?.boxStart();
@@ -259,8 +263,8 @@ export class BlockFormattingContext {
 
   finalize(box: BlockContainer) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
-
-    const blockSize = box.style.getBlockSize(box);
+    const containingBlock = box.getContainingBlock();
+    const blockSize = box.style.getBlockSize(containingBlock);
 
     this.positionBlockContainers();
 
@@ -290,7 +294,8 @@ export class BlockFormattingContext {
         const childSize = sizeStack.pop()!;
         const offset = offsetStack.pop()!;
         const level = sizeStack.length - 1;
-        const sBlockSize = box.style.getBlockSize(box);
+        const containingBlock = box.getContainingBlock();
+        const sBlockSize = box.style.getBlockSize(containingBlock);
 
         if (sBlockSize === 'auto' && box.isBlockContainerOfBlocks() && !box.isBfcRoot()) {
           box.setBlockSize(childSize);
@@ -764,17 +769,17 @@ export class BlockContainer extends FormattingBox {
     log.reset();
   }
 
-  getContainingBlockToContent() {
-    const inlineSize = this.getContainingBlock().inlineSizeForPotentiallyOrthogonal(this);
-    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(this);
-    const paddingBlockStart = this.style.getPaddingBlockStart(this);
+  getContainingBlockToContent(containingBlock: BoxArea) {
+    const inlineSize = containingBlock.inlineSizeForPotentiallyOrthogonal(this);
+    const borderBlockStartWidth = this.style.getBorderBlockStartWidth(containingBlock);
+    const paddingBlockStart = this.style.getPaddingBlockStart(containingBlock);
     const borderArea = this.getBorderArea();
     const contentArea = this.getContentArea();
     const bLineLeft = borderArea.lineLeft;
     const blockStart = borderBlockStartWidth + paddingBlockStart;
     const cInlineSize = contentArea.inlineSize;
-    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(this);
-    const paddingLineLeft = this.style.getPaddingLineLeft(this);
+    const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
+    const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
     const lineLeft = bLineLeft + borderLineLeftWidth + paddingLineLeft;
     const lineRight = inlineSize - lineLeft - cInlineSize;
 
@@ -802,7 +807,7 @@ export class BlockContainer extends FormattingBox {
   }
 
   canCollapseThrough(): boolean {
-    const blockSize = this.style.getBlockSize(this);
+    const blockSize = this.style.getBlockSize(this.getContainingBlock());
 
     if (blockSize !== 'auto' && blockSize !== 0) return false;
 
@@ -830,7 +835,7 @@ export class BlockContainer extends FormattingBox {
   doTextLayout(ctx: LayoutContext) {
     if (!this.isBlockContainerOfInlines()) throw new Error('Children are block containers');
     const [ifc] = this.children;
-    const blockSize = this.style.getBlockSize(this);
+    const blockSize = this.style.getBlockSize(this.getContainingBlock());
     ifc.doTextLayout(ctx);
     if (blockSize === 'auto') this.setBlockSize(ifc.paragraph.getHeight());
   }
@@ -846,17 +851,18 @@ export class BlockContainer extends FormattingBox {
 
 // §10.3.3
 function doInlineBoxModelForBlockBox(box: FormattingBox) {
-  const cInlineSize = box.getContainingBlock().inlineSizeForPotentiallyOrthogonal(box);
-  const inlineSize = box.getDefiniteInnerInlineSize();
-  let marginLineLeft = box.style.getMarginLineLeft(box);
-  let marginLineRight = box.style.getMarginLineRight(box);
+  const containingBlock = box.getContainingBlock();
+  const cInlineSize = containingBlock.inlineSizeForPotentiallyOrthogonal(box);
+  const inlineSize = box.getDefiniteInnerInlineSize(containingBlock);
+  let marginLineLeft = box.style.getMarginLineLeft(containingBlock);
+  let marginLineRight = box.style.getMarginLineRight(containingBlock);
 
   // Paragraphs 2 and 3
   if (inlineSize !== undefined) {
-    const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
-    const paddingLineLeft = box.style.getPaddingLineLeft(box);
-    const paddingLineRight = box.style.getPaddingLineRight(box);
-    const borderLineRightWidth = box.style.getBorderLineRightWidth(box);
+    const borderLineLeftWidth = box.style.getBorderLineLeftWidth(containingBlock);
+    const paddingLineLeft = box.style.getPaddingLineLeft(containingBlock);
+    const paddingLineRight = box.style.getPaddingLineRight(containingBlock);
+    const borderLineRightWidth = box.style.getBorderLineRightWidth(containingBlock);
     const specifiedInlineSize = inlineSize
       + borderLineLeftWidth
       + paddingLineLeft
@@ -911,7 +917,8 @@ function doInlineBoxModelForBlockBox(box: FormattingBox) {
 
 // §10.6.3
 function doBlockBoxModelForBlockBox(box: BlockContainer) {
-  const blockSize = box.style.getBlockSize(box);
+  const containingBlock = box.getContainingBlock();
+  const blockSize = box.style.getBlockSize(containingBlock);
 
   if (blockSize === 'auto') {
     if (box.children.length === 0) {
@@ -1004,13 +1011,14 @@ export function layoutContribution(
   box: BlockLevel,
   mode: 'min-content' | 'max-content'
 ) {
-  const marginLineLeft = box.style.getMarginLineLeft(box);
-  const marginLineRight = box.style.getMarginLineLeft(box);
-  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(box);
-  const paddingLineLeft = box.style.getPaddingLineLeft(box);
-  const paddingLineRight = box.style.getPaddingLineRight(box);
-  const borderLineRightWidth = box.style.getBorderLineRightWidth(box);
-  let isize = box.style.getInlineSize(box);
+  const containingBlock = box.getContainingBlock();
+  const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
+  const marginLineRight = box.style.getMarginLineLeft(containingBlock);
+  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(containingBlock);
+  const paddingLineLeft = box.style.getPaddingLineLeft(containingBlock);
+  const paddingLineRight = box.style.getPaddingLineRight(containingBlock);
+  const borderLineRightWidth = box.style.getBorderLineRightWidth(containingBlock);
+  let isize = box.style.getInlineSize(containingBlock);
   let contribution = (marginLineLeft === 'auto' ? 0 : marginLineLeft)
     + borderLineLeftWidth
     + paddingLineLeft
@@ -1043,6 +1051,7 @@ export function layoutContribution(
 
 export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
   const cctx: LayoutContext = {...ctx, bfc: undefined};
+  const containingBlock = box.getContainingBlock();
   box.fillAreas();
 
   let inlineSize = box.getDefiniteOuterInlineSize();
@@ -1051,8 +1060,8 @@ export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
     const minContent = layoutContribution(box, 'min-content');
     const maxContent = layoutContribution(box, 'max-content');
     const availableSpace = box.getContainingBlock().inlineSize;
-    const marginLineLeft = box.style.getMarginLineLeft(box);
-    const marginLineRight = box.style.getMarginLineRight(box);
+    const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
+    const marginLineRight = box.style.getMarginLineRight(containingBlock);
     inlineSize = Math.max(minContent, Math.min(maxContent, availableSpace));
     if (marginLineLeft !== 'auto') inlineSize -= marginLineLeft;
     if (marginLineRight !== 'auto') inlineSize -= marginLineRight;
@@ -1174,28 +1183,29 @@ export class Inline extends Box {
   }
 
   hasLineLeftGap() {
-    return this.style.hasLineLeftGap(this);
+    return this.style.hasLineLeftGap(this.getContainingBlock());
   }
 
   hasLineRightGap() {
-    return this.style.hasLineRightGap(this);
+    return this.style.hasLineRightGap(this.getContainingBlock());
   }
 
   getInlineSideSize(side: 'pre' | 'post') {
     const direction = this.getDirectionAsParticipant();
+    const containingBlock = this.getContainingBlock();
     if (
       direction === 'ltr' && side === 'pre' ||
       direction === 'rtl' && side === 'post'
     ) {
-      const marginLineLeft = this.style.getMarginLineLeft(this);
+      const marginLineLeft = this.style.getMarginLineLeft(containingBlock);
       return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-        + this.style.getBorderLineLeftWidth(this)
-        + this.style.getPaddingLineLeft(this);
+        + this.style.getBorderLineLeftWidth(containingBlock)
+        + this.style.getPaddingLineLeft(containingBlock);
     } else {
-      const marginLineRight = this.style.getMarginLineRight(this);
+      const marginLineRight = this.style.getMarginLineRight(containingBlock);
       return (marginLineRight === 'auto' ? 0 : marginLineRight)
-        + this.style.getBorderLineRightWidth(this)
-        + this.style.getPaddingLineRight(this);
+        + this.style.getBorderLineRightWidth(containingBlock)
+        + this.style.getPaddingLineRight(containingBlock);
     }
   }
 
@@ -1404,11 +1414,11 @@ export class ReplacedBox extends FormattingBox {
   }
 
   getDefiniteInnerInlineSize() {
-    let isize = this.style.getInlineSize(this);
-
+    const containingBlock = this.getContainingBlock();
+    let isize = this.style.getInlineSize(containingBlock);
     if (isize === 'auto') {
       let bsize;
-      if ((bsize = this.style.getBlockSize(this)) !== 'auto') { // isize from bsize
+      if ((bsize = this.style.getBlockSize(containingBlock)) !== 'auto') { // isize from bsize
         return bsize * this.getRatio();
       } else {
         return this.getIntrinsicIsize();
@@ -1419,12 +1429,13 @@ export class ReplacedBox extends FormattingBox {
   }
 
   getDefiniteInnerBlockSize() {
-    const bsize = this.style.getBlockSize(this);
+    const containingBlock = this.getContainingBlock();
+    const bsize = this.style.getBlockSize(containingBlock);
     let isize;
 
     if (bsize !== 'auto') {
       return bsize;
-    } else if ((isize = this.style.getInlineSize(this)) !== 'auto') { // bsize from isize
+    } else if ((isize = this.style.getInlineSize(containingBlock)) !== 'auto') { // bsize from isize
       return isize / this.getRatio();
     } else {
       return this.getIntrinsicBsize();

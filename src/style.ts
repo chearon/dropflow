@@ -1,5 +1,5 @@
 import {HTMLElement, TextNode} from './dom.ts';
-import {Box} from './layout-box.ts';
+import {BoxArea} from './layout-box.ts';
 
 export const inherited = Symbol('inherited');
 
@@ -282,11 +282,10 @@ interface ComputedStyle {
   overflow: 'visible' | 'hidden';
 }
 
-function resolvePercent(box: Box, cssVal: number | {value: number, unit: '%'}) {
+function resolvePercent(containingBlock: BoxArea, cssVal: number | {value: number, unit: '%'}) {
   if (typeof cssVal === 'object') {
-    const containingBlock = box.getContainingBlock();
     if (containingBlock.width === undefined) throw new Error('Assertion failed');
-    const writingMode = box.getWritingModeAsParticipant();
+    const writingMode = containingBlock.box.style.writingMode;
     const inlineSize = containingBlock[LogicalMaps[writingMode].inlineSize];
     if (inlineSize === undefined) throw new Error('Assertion failed');
     return cssVal.value / 100 * inlineSize;
@@ -516,128 +515,128 @@ export class Style {
         && this.borderLeftStyle !== 'none';
   }
 
-  getMarginBlockStart(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getMarginBlockStart(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].marginBlockStart];
     if (cssVal === 'auto') return cssVal;
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getMarginBlockEnd(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getMarginBlockEnd(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].marginBlockEnd];
     if (cssVal === 'auto') return cssVal;
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getMarginLineLeft(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getMarginLineLeft(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].marginLineLeft];
     if (cssVal === 'auto') return cssVal;
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getMarginLineRight(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getMarginLineRight(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].marginLineRight];
     if (cssVal === 'auto') return cssVal;
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getPaddingBlockStart(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getPaddingBlockStart(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].paddingBlockStart];
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getPaddingBlockEnd(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getPaddingBlockEnd(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].paddingBlockEnd];
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getPaddingLineLeft(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getPaddingLineLeft(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].paddingLineLeft];
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getPaddingLineRight(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getPaddingLineRight(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].paddingLineRight];
-    return resolvePercent(box, cssVal);
+    return resolvePercent(containingBlock, cssVal);
   }
 
-  getBorderBlockStartWidth(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getBorderBlockStartWidth(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     let cssStyleVal = this[LogicalMaps[writingMode].borderBlockStartStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[writingMode].borderBlockStartWidth];
-    return resolvePercent(box, cssWidthVal);
+    return resolvePercent(containingBlock, cssWidthVal);
   }
 
-  getBorderBlockEndWidth(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getBorderBlockEndWidth(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssStyleVal = this[LogicalMaps[writingMode].borderBlockEndStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[writingMode].borderBlockEndWidth];
-    return resolvePercent(box, cssWidthVal);
+    return resolvePercent(containingBlock, cssWidthVal);
   }
 
-  getBorderLineLeftWidth(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getBorderLineLeftWidth(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssStyleVal = this[LogicalMaps[writingMode].borderLineLeftStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[writingMode].borderLineLeftWidth]
-    return resolvePercent(box, cssWidthVal);
+    return resolvePercent(containingBlock, cssWidthVal);
   }
 
-  getBorderLineRightWidth(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getBorderLineRightWidth(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const cssStyleVal = this[LogicalMaps[writingMode].borderLineRightStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[writingMode].borderLineRightWidth];
-    return resolvePercent(box, cssWidthVal);
+    return resolvePercent(containingBlock, cssWidthVal);
   }
 
-  getBlockSize(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getBlockSize(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     let cssVal = this[LogicalMaps[writingMode].blockSize];
     if (typeof cssVal === 'object') {
-      const parentBlockSize = box.getContainingBlock()[LogicalMaps[writingMode].blockSize];
+      const parentBlockSize = containingBlock[LogicalMaps[writingMode].blockSize];
       if (parentBlockSize === undefined) return 'auto' as const; // §CSS2 10.5
       cssVal = cssVal.value / 100 * parentBlockSize;
     }
     if (this.boxSizing !== 'content-box' && cssVal !== 'auto') {
-      cssVal -= this.getPaddingBlockStart(box) + this.getPaddingBlockEnd(box);
+      cssVal -= this.getPaddingBlockStart(containingBlock) + this.getPaddingBlockEnd(containingBlock);
       if (this.boxSizing === 'border-box') {
-        cssVal -= this.getBorderBlockStartWidth(box) + this.getBorderBlockEndWidth(box);
+        cssVal -= this.getBorderBlockStartWidth(containingBlock) + this.getBorderBlockEndWidth(containingBlock);
       }
       cssVal = Math.max(0, cssVal);
     }
     return cssVal;
   }
 
-  getInlineSize(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  getInlineSize(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     let cssVal = this[LogicalMaps[writingMode].inlineSize];
     if (cssVal === 'auto') {
       cssVal = 'auto';
     } else {
-      cssVal = resolvePercent(box, cssVal);
+      cssVal = resolvePercent(containingBlock, cssVal);
     }
     if (this.boxSizing !== 'content-box' && cssVal !== 'auto') {
-      cssVal -= this.getPaddingLineLeft(box) + this.getPaddingLineRight(box);
+      cssVal -= this.getPaddingLineLeft(containingBlock) + this.getPaddingLineRight(containingBlock);
       if (this.boxSizing === 'border-box') {
-        cssVal -= this.getBorderLineLeftWidth(box) + this.getBorderLineRightWidth(box);
+        cssVal -= this.getBorderLineLeftWidth(containingBlock) + this.getBorderLineRightWidth(containingBlock);
       }
       cssVal = Math.max(0, cssVal);
     }
     return cssVal;
   }
 
-  hasLineLeftGap(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  hasLineLeftGap(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const marginLineLeft = this[LogicalMaps[writingMode].marginLineLeft];
     if (marginLineLeft === 'auto') return false;
     if (typeof marginLineLeft === 'object' && marginLineLeft.value !== 0) return true;
@@ -649,8 +648,8 @@ export class Style {
     if (this[LogicalMaps[writingMode].borderLineLeftWidth] > 0) return true;
   }
 
-  hasLineRightGap(box: Box) {
-    const writingMode = box.getWritingModeAsParticipant();
+  hasLineRightGap(containingBlock: BoxArea) {
+    const writingMode = containingBlock.box.style.writingMode;
     const marginLineRight = this[LogicalMaps[writingMode].marginLineRight];
     if (marginLineRight === 'auto') return false;
     if (typeof marginLineRight === 'object' && marginLineRight.value !== 0) return true;

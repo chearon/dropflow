@@ -105,8 +105,8 @@ function drawText(
     tx += axToStart * toPx;
 
     // TODO: should really have isStartColorBoundary, isEndColorBoundary
-    const isColorBoundary = textStart !== item.offset && textStart === run.start
-      || textEnd !== item.end() && textEnd === run.end;
+    const isColorBoundary = textStart !== item.offset && textStart === run.textStart
+      || textEnd !== item.end() && textEnd === run.textEnd;
 
     b.fillColor = run.style.color;
     b.fontSize = style.fontSize;
@@ -322,19 +322,19 @@ function paintInline(
   const fragments: InlineFragment[] = [];
   let fragmentIndex = 0;
   const stack: InlineLevel[] = [inlineRoot];
-  let lastMark = inlineRoot.start;
-  let inlineMark = inlineRoot.start;
+  let lastMark = inlineRoot.textStart;
+  let inlineMark = inlineRoot.textStart;
   let run: Run | undefined = undefined;
-  let mark = inlineRoot.start;
+  let mark = inlineRoot.textStart;
   let itemIndex = 0; // common case, adjusted below if necessary
   let itemEnd = items.length; // common case, adjusted below
 
-  if (items.length > 0 && inlineRoot.start !== items[0].offset) {
-    itemIndex = binarySearchOf(items, inlineRoot.start, item => item.end());
-    if (items[itemIndex].end() === inlineRoot.start) itemIndex += 1;
+  if (items.length > 0 && inlineRoot.textStart !== items[0].offset) {
+    itemIndex = binarySearchOf(items, inlineRoot.textStart, item => item.end());
+    if (items[itemIndex].end() === inlineRoot.textStart) itemIndex += 1;
   }
-  if (items.length > 0 && inlineRoot.end !== items[itemEnd - 1].end()) {
-    itemEnd = binarySearchOf(items, inlineRoot.end, item => item.end()) + 1;
+  if (items.length > 0 && inlineRoot.textEnd !== items[itemEnd - 1].end()) {
+    itemEnd = binarySearchOf(items, inlineRoot.textEnd, item => item.end()) + 1;
   }
 
   while (
@@ -374,7 +374,7 @@ function paintInline(
         } else {
           while (
             itemIndex < itemEnd && 
-            items[itemIndex].end() <= box.end
+            items[itemIndex].end() <= box.textEnd
           ) itemIndex++;
         }
       } else if (box.isFormattingBox()) {
@@ -388,7 +388,7 @@ function paintInline(
         }
       } else if (box.isRun()) {
         run = box;
-        inlineMark = box.end;
+        inlineMark = box.textEnd;
       }
     }
 
@@ -397,7 +397,7 @@ function paintInline(
       fragmentIndex < fragments.length ? fragments[fragmentIndex].textOffset : Infinity,
       itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
       inlineMark,
-      inlineRoot.end
+      inlineRoot.textEnd
     );
   }
 }

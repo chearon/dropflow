@@ -72,8 +72,8 @@ export function prevGrapheme(text: string, index: number) {
 }
 
 export class Run extends RenderItem {
-  public start: number;
-  public end: number;
+  public textStart: number;
+  public textEnd: number;
 
   static TEXT_BITS = Box.BITS.hasText
     | Box.BITS.hasForegroundInLayer
@@ -81,12 +81,12 @@ export class Run extends RenderItem {
 
   constructor(start: number, end: number, style: Style) {
     super(style);
-    this.start = start;
-    this.end = end;
+    this.textStart = start;
+    this.textEnd = end;
   }
 
   get length() {
-    return this.end - this.start;
+    return this.textEnd - this.textStart;
   }
 
   getLogSymbol() {
@@ -113,9 +113,9 @@ export class Run extends RenderItem {
   }
 
   logName(log: Logger, options?: RenderItemLogOptions) {
-    log.text(`${this.start},${this.end}`);
+    log.text(`${this.textStart},${this.textEnd}`);
     if (options?.paragraphText) {
-      log.text(` "${loggableText(options.paragraphText.slice(this.start, this.end))}"`);
+      log.text(` "${loggableText(options.paragraphText.slice(this.textStart, this.textEnd))}"`);
     }
   }
 
@@ -126,7 +126,7 @@ export class Run extends RenderItem {
       parent.bitfield |= Run.TEXT_BITS;
     }
 
-    for (let i = this.start; i < this.end; i++) {
+    for (let i = this.textStart; i < this.textEnd; i++) {
       const code = paragraph.charCodeAt(i);
 
       if (code & NON_ASCII_MASK) {
@@ -167,21 +167,21 @@ export function collapseWhitespace(ifc: IfcInline) {
 
     if ('post' in item) {
       const inline = item.post;
-      inline.end -= delta;
+      inline.textEnd -= delta;
       parents.pop();
     } else if (item.isInline()) {
-      item.start -= delta;
+      item.textStart -= delta;
       parents.push(item);
       stack.push({post: item});
       for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
     } else if (item.isRun()) {
       const whiteSpace = item.style.whiteSpace;
-      const originalStart = item.start;
+      const originalStart = item.textStart;
 
-      item.start -= delta;
+      item.textStart -= delta;
 
       if (whiteSpace === 'normal' || whiteSpace === 'nowrap') {
-        for (let i = originalStart; i < item.end; i++) {
+        for (let i = originalStart; i < item.textEnd; i++) {
           const isWhitespace = isSpaceOrTabOrNewline(ifc.text[i]);
 
           if (inWhitespace && isWhitespace) {
@@ -193,14 +193,14 @@ export function collapseWhitespace(ifc: IfcInline) {
           inWhitespace = isWhitespace;
         }
       } else if (whiteSpace === 'pre-line') {
-        for (let i = originalStart; i < item.end; i++) {
+        for (let i = originalStart; i < item.textEnd; i++) {
           const isWhitespace = isSpaceOrTabOrNewline(ifc.text[i]);
 
           if (isWhitespace) {
             let j = i + 1;
             let hasNewline = isNewline(ifc.text[i]);
 
-            for (; j < item.end && isSpaceOrTabOrNewline(ifc.text[j]); j++) {
+            for (; j < item.textEnd && isSpaceOrTabOrNewline(ifc.text[j]); j++) {
               hasNewline = hasNewline || isNewline(ifc.text[j]);
             }
 
@@ -228,12 +228,12 @@ export function collapseWhitespace(ifc: IfcInline) {
         }
       } else { // pre
         inWhitespace = false;
-        for (let i = originalStart; i < item.end; i++) {
+        for (let i = originalStart; i < item.textEnd; i++) {
           str[stri++] = ifc.text.charCodeAt(i);
         }
       }
 
-      item.end -= delta;
+      item.textEnd -= delta;
 
       if (item.length === 0) {
         const parent = parents.at(-1)!;
@@ -247,7 +247,7 @@ export function collapseWhitespace(ifc: IfcInline) {
   }
 
   ifc.text = decoder.decode(str.subarray(0, stri));
-  ifc.end = ifc.text.length;
+  ifc.textEnd = ifc.text.length;
 }
 
 export interface ShapingAttrs {
@@ -603,10 +603,10 @@ export class ShapedItem implements IfcRenderItem {
     this.glyphs = leftGlyphs;
     this.length = offset;
     this.inlines = inlines.filter(inline => {
-      return inline.start < this.end() && inline.end > this.offset;
+      return inline.textStart < this.end() && inline.textEnd > this.offset;
     });
     right.inlines = inlines.filter(inline => {
-      return inline.start < right.end() && inline.end > right.offset;
+      return inline.textStart < right.end() && inline.textEnd > right.offset;
     });
 
     for (const i of right.inlines) i.nshaped += 1;
@@ -2229,7 +2229,7 @@ export class Paragraph {
 
       if (mark.inlinePre) {
         candidates.height.pushInline(mark.inlinePre);
-        if (item && item.offset <= mark.inlinePre.start && item.end() > mark.inlinePre.start) {
+        if (item && item.offset <= mark.inlinePre.textStart && item.end() > mark.inlinePre.textStart) {
           candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.face));
         }
         parents.push(mark.inlinePre);
@@ -2574,7 +2574,7 @@ export class Paragraph {
           const count = counts.get(inline);
           const isFirstOccurance = count === undefined;
           const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
-          const mark = isOrthogonal ? inline.end : inline.start;
+          const mark = isOrthogonal ? inline.textEnd : inline.textStart;
           const alignmentContext = linebox.contextRoots.get(inline);
 
           bgcursor = x;
@@ -2635,7 +2635,7 @@ export class Paragraph {
           const count = counts.get(inline)!;
           const isLastOccurance = count === inline.nshaped;
           const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
-          const mark = isOrthogonal ? inline.start : inline.end;
+          const mark = isOrthogonal ? inline.textStart : inline.textEnd;
 
           bgcursor = x;
 

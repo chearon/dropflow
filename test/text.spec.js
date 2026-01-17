@@ -649,11 +649,11 @@ describe('Lines', function () {
     const [ifc] = this.get('div').children;
     expect(ifc.paragraph.items).to.have.lengthOf(2);
     expect(ifc.paragraph.items[0].inlines).to.have.lengthOf(2);
-    expect(ifc.paragraph.items[0].inlines[0].end).to.equal(19);
-    expect(ifc.paragraph.items[0].inlines[1].end).to.equal(10);
+    expect(ifc.paragraph.items[0].inlines[0].textEnd).to.equal(19);
+    expect(ifc.paragraph.items[0].inlines[1].textEnd).to.equal(10);
     expect(ifc.paragraph.items[1].inlines).to.have.lengthOf(2);
-    expect(ifc.paragraph.items[1].inlines[0].end).to.equal(19);
-    expect(ifc.paragraph.items[1].inlines[1].end).to.equal(19);
+    expect(ifc.paragraph.items[1].inlines[0].textEnd).to.equal(19);
+    expect(ifc.paragraph.items[1].inlines[1].textEnd).to.equal(19);
   });
 
   it('considers padding-right on a break as belonging to the left word', function () {

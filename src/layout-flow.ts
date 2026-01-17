@@ -1091,13 +1091,13 @@ export class Inline extends Box {
   public children: InlineLevel[];
   public nshaped: number;
   public metrics: InlineMetrics;
-  public start: number;
-  public end: number;
+  public textStart: number;
+  public textEnd: number;
 
   constructor(start: number, end: number, style: Style, children: InlineLevel[], attrs: number) {
     super(style, attrs);
-    this.start = start;
-    this.end = end;
+    this.textStart = start;
+    this.textEnd = end;
     this.children = children;
     this.nshaped = 0;
     this.metrics = EmptyInlineMetrics;
@@ -1275,12 +1275,12 @@ export class IfcInline extends Inline {
       if ('sentinel' in box) {
         while (
           itemIndex < this.paragraph.items.length &&
-          this.paragraph.items[itemIndex].offset < box.sentinel.end
+          this.paragraph.items[itemIndex].offset < box.sentinel.textEnd
         ) {
           const item = this.paragraph.items[itemIndex];
           item.x += containingBlock.x;
           item.y += containingBlock.y;
-          if (item.end() > box.sentinel.start) {
+          if (item.end() > box.sentinel.textStart) {
             item.x += dx;
             item.y += dy;
           }

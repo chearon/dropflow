@@ -74,7 +74,7 @@ const LogicalMaps = Object.freeze({
 
 export type WhiteSpace = 'normal' | 'nowrap' | 'pre-wrap' | 'pre-line' | 'pre';
 
-type Length = number | {value: number, unit: 'em'};
+type Length = number | {value: number, unit: 'cm' | 'mm' | 'Q' | 'in' | 'pc' | 'pt' | 'em'};
 
 type Percentage = {value: number, unit: '%'};
 
@@ -956,12 +956,26 @@ function defaultProperty(
   }
 }
 
-function resolveEm(
+function resolveUnit(
   value: DeclaredStyleProperties[keyof DeclaredStyleProperties],
   fontSize: number
 ) {
-  if (typeof value === 'object' && 'unit' in value && value.unit === 'em') {
-    return fontSize * value.value;
+  if (typeof value === 'object' && 'unit' in value) {
+    const unitToPx: Record<string, (val: number, fontSize?: number) => number> = {
+      'em': (val, fontSize) => fontSize! * val,
+      'cm': (val) => (val / 2.54) * 96,
+      'mm': (val) => (val / 25.4) * 96,
+      'Q': (val) => (val / 40 / 25.4) * 96,
+      'in': (val) => val * 96,
+      'pc': (val) => (val / 6) * 96,
+      'pt': (val) => (val / 72) * 96,
+      // Add more units as needed
+    };
+    if (value.unit !== null) {
+      return unitToPx[value.unit]?.(value.value, fontSize) ?? value.value;
+    } else {
+      return value.value;
+    }
   } else {
     return value;
   }
@@ -974,7 +988,7 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 
   // Compute fontSize first since em values depend on it
   const specifiedFontSize = defaultProperty(parentStyle, cascadedStyle, 'fontSize');
-  let fontSize = resolveEm(specifiedFontSize, parentFontSize) as number | Percentage;
+  let fontSize = resolveUnit(specifiedFontSize, parentFontSize) as number | Percentage;
 
   if (typeof fontSize === 'object') {
     fontSize = fontSize.value / 100 * parentFontSize;
@@ -984,9 +998,9 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
   for (const _ in initialPlainStyle) {
     const p = _ as keyof ComputedStyle;
     const specifiedValue = defaultProperty(parentStyle, cascadedStyle, p);
-    // as any because TS does not know that resolveEm will only reduce the union
+    // as any because TS does not know that resolveUnit will only reduce the union
     // of possible values at a per-property level
-    (working as any)[p] = resolveEm(specifiedValue, fontSize)!;
+    (working as any)[p] = resolveUnit(specifiedValue, fontSize)!;
   }
 
   working.fontSize = fontSize;

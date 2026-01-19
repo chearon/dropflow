@@ -24,9 +24,9 @@ const doc = parse(`
 
 registerNotoFonts();
 await flow.load(doc);
-const block = flow.generate(doc);
-block.log();
-flow.layout(block, 600, 100);
-const svg = flow.paintToSvg(block);
+const layout = flow.layout(doc);
+flow.log(layout);
+flow.reflow(layout, 600, 100);
+const svg = flow.paintToSvg(layout);
 
 fs.writeFileSync(new URL('svg-1.svg', import.meta.url), svg);

@@ -115,7 +115,7 @@ const spanStyle = flow.style({
 });
 
 // Create a DOM
-const rootElement = flow.dom(
+const el = flow.dom(
   flow.h('div', {style: divStyle}, [
     'Hello, ',
     flow.h('span', {style: spanStyle}, ['World!'])
@@ -124,7 +124,7 @@ const rootElement = flow.dom(
 
 // Layout and paint into the entire canvas (see also renderToCanvasContext)
 const canvas = createCanvas(250, 50);
-await flow.renderToCanvas(rootElement, canvas);
+await flow.renderToCanvas(el, canvas);
 
 // Save your image
 fs.writeFileSync(new URL('file:///hello.png'), canvas.toBuffer());
@@ -152,14 +152,14 @@ const roboto1 = new flow.FontFace('Roboto', new URL('file:///Roboto-Regular.ttf'
 const roboto2 = new flow.FontFace('Roboto', new URL('file:///Roboto-Bold.ttf'), {weight: 700});
 flow.fonts.add(roboto1).add(roboto2);
 
-const rootElement = parse(`
+const el = parse(`
   <div style="background-color: #1c0a00; color: #b3c890; text-align: center;">
     Hello, <span style="color: #73a9ad; font-weight: bold;">World!</span>
   </div>
 `);
 
 const canvas = createCanvas(250, 50);
-flow.renderToCanvas(rootElement, canvas);
+flow.renderToCanvas(el, canvas);
 
 canvas.createPNGStream().pipe(fs.createWriteStream(new URL('hello.png', import.meta.url)));
 ```
@@ -185,12 +185,12 @@ Then, you can either render the DOM into a canvas using its size as the viewport
 
 1. [Render DOM to canvas](#render-dom-to-canvas)
 
-Or, you can use the lower-level functions to retain the layout, in case you want to re-layout at a different size, choose not to paint (for example if the layout isn't visible) or get intrinsics:
+Or, you can use the lower-level functions to retain the layout, in case you want to reflow at a different size, choose not to paint (for example if the layout isn't visible) or get intrinsics:
 
 1. [Load dependent resources](#load)
-2. [Generate a tree of layout boxes from the DOM](#generate)
-3. [Layout the box tree](#layout)
-4. [Paint the box tree to a target like canvas](#paint)
+2. [Create a layout for the DOM](#layout)
+3. [Reflow the layout](#layout)
+4. [Paint the layout to a target like HTML5 canvas](#paint)
 
 ## Fonts
 
@@ -378,7 +378,7 @@ Parses HTML. If you don't specify a root `<html>` element, content will be wrapp
 This is only for simple use cases. For more advanced usage continue on to the next section.
 
 ```ts
-function renderToCanvas(rootElement: HTMLElement, canvas: Canvas): Promise<void>;
+function renderToCanvas(el: HTMLElement, canvas: Canvas): Promise<void>;
 ```
 
 Renders the whole layout to the canvas, using its width and height as the viewport size.
@@ -393,7 +393,7 @@ class Image {
   reason: unknown;
 }
 
-function load(rootElement: HTMLElement): Promise<LoadableResource[]>;
+function load(el: HTMLElement): Promise<LoadableResource[]>;
 ```
 
 Ensures that all of the fonts and images required by the document are loaded.
@@ -405,7 +405,7 @@ For images, it means fetching the image data so it's ready for layout. In additi
 Because the whole fallback list for every unique set of font properties is appended to the returned loaded list, it may contain duplicate fonts. And since there is only one `Image` instance per unique URL, there may be duplicate images. Deduplication is left up to the caller since it impacts performance. The list is in document order.
 
 ```ts
-function loadSync(rootElement: HTMLElement): LoadableResource[];
+function loadSync(el: HTMLElement): LoadableResource[];
 ```
 
 If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies.
@@ -421,38 +421,42 @@ function revokeObjectURL(url: string): void;
 
 These functions can be used to send image buffers to `<img src>`. Since there is no associated document (unlike the browser), memory is retained between `createObjectURL` and `revokeObjectURL`.
 
-## Generate
-
-### `generate`
-
-```ts
-function generate(rootElement: HTMLElement): BlockContainer
-```
-
-Generates a box tree for the element tree. Box trees roughly correspond to DOM trees, but usually have more boxes (like for anonymous text content between block-level elements (`div`s)) and sometimes fewer (like for `display: none`).
-
-`BlockContainer` has a `repr()` method for logging the tree.
-
-Hold on to the return value so you can lay it out many times in different sizes, paint it or don't paint it if it's off-screen, or get intrinsics to build a higher-level logical layout (for example, spreadsheet column or row size even if the content is off screen).
-
-## Layout
+## Create a layout
 
 ### `layout`
 
 ```ts
-function layout(root: BlockContainer, width = 640, height = 480);
+class Layout {
+  root(): BlockContainer;
+}
+
+function layout(el: HTMLElement): Layout;
+```
+
+Creates a layout, which consists of a box tree (the input to layout) as well as the fragmentation tree and glyphs (the output of layout). You need to call [`flow.reflow`](#reflow) at least once before painting or getting intrinsics.
+
+Box trees roughly correspond to DOM trees, but usually have more boxes (like for anonymous text content between block-level elements (`div`s)) and sometimes fewer (like for `display: none`).
+
+Hold on to the return value so you can lay it out many times in different sizes, paint it or don't paint it if it's off-screen, or get intrinsics to build a higher-level logical layout (for example, spreadsheet column or row size even if the content is off screen).
+
+## Reflowing a layout
+
+### `reflow`
+
+```ts
+function reflow(layout: Layout, width = 640, height = 480);
 ```
 
 Position boxes and split text into lines so the layout tree is ready to paint. Can be called over and over with a different viewport size.
 
-In more detail, layout involves:
+In more detail, reflowing involves:
 
 * Margin collapsing for block boxes
 * Passing text to HarfBuzz, iterating font fallbacks, wrapping, reshaping depending on break points
 * Float placement and `clear`ing
 * Positioning shaped text spans and backgrounds according to `direction` and text direction
-* Second and third pass layouts for intrinsics of `float`, `inline-block`, and `absolute`s
-* Post-layout positioning (`position`)
+* Calculating intrinsics for the content of `float`s, `inline-block`s, and `absolute`s
+* Post normal flow positioning (`position`)
 
 ## Paint
 
@@ -465,7 +469,7 @@ There is also a toy HTML target that was used early on in development, and kept 
 ### `paintToCanvas`
 
 ```ts
-function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): void;
+function paintToCanvas(root: Layout, ctx: CanvasRenderingContext2D): void;
 ```
 
 Paints the layout to a browser canvas, node-canvas, or similar standards-compliant context.
@@ -473,7 +477,7 @@ Paints the layout to a browser canvas, node-canvas, or similar standards-complia
 ### `paintToSvg`
 
 ```ts
-function paintToSvg(root: BlockContainer): string;
+function paintToSvg(root: Layout): string;
 ```
 
 Paints the layout to an SVG string, with `@font-face` rules referencing the URL you passed to `flow.FontFace`.
@@ -481,7 +485,7 @@ Paints the layout to an SVG string, with `@font-face` rules referencing the URL 
 ### `paintToSvgElements`
 
 ```ts
-function paintToSvgElements(root: BlockContainer): string;
+function paintToSvgElements(root: Layout): string;
 ```
 
 Similar to `paintToSvg`, but doesn't add `<svg>` or `@font-face` rules. Useful if you're painting inside of an already-existing SVG element.
@@ -489,7 +493,7 @@ Similar to `paintToSvg`, but doesn't add `<svg>` or `@font-face` rules. Useful i
 ### `paintToHtml`
 
 ```ts
-function paintToHtml(root: BlockContainer): string;
+function paintToHtml(root: Layout): string;
 ```
 
 Paint to HTML! Yes, this API can actually be used to go from HTML to HTML. It generates a flat list of a bunch of absolutely positioned elements. Probably don't use this, but it can be useful in development and is amusing.
@@ -529,8 +533,8 @@ Typically when you use `query`, you'll be getting a `BlockContainer`:
 
 ```ts
 const dom = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
-const root = flow.generate(dom);
-flow.layout(root, 200, 200);
+const layout = flow.layout(dom);
+flow.reflow(layout, 200, 200);
 const [box] = dom.query('#d')!.boxes as flow.BlockContainer[];
 box.getContentArea().width; // 100
 box.getContentArea().height; // 100

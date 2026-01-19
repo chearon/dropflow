@@ -10,25 +10,34 @@ import {Logger} from '../src/util.ts';
 const log = new Logger();
 
 function setupLayoutTests() {
-  this.layout = function (html) {
+  this.reflow = function (html) {
     this.rootElement = parse(html);
-    this.blockContainer = flow.generate(this.rootElement);
-    flow.layout(this.blockContainer);
+    this.layout = flow.layout(this.rootElement);
+    flow.reflow(this.layout);
     this.get = function (...args) {
       if (typeof args[0] === 'string') {
         return this.rootElement.query(args[0])?.boxes[0];
       } else {
-        /** @type import('../src/layout-box.ts').Box */
-        let ret = this.blockContainer;
-        while (args.length) ret = ret.children[args.shift()];
+        let ret = this.layout.root();
+        outer: while (args.length) {
+          const target = args.shift();
+          for (let j = 0, i = ret.treeStart + 1; i <= ret.treeFinal; i++, j++) {
+            if (j === target) {
+              ret = this.layout.tree[i];
+              continue outer;
+            } else if (this.layout.tree[i].isBox()) {
+              i = this.layout.tree[i].treeFinal;
+            }
+          }
+        }
         return ret;
       }
     };
   };
 
   this.paint = function () {
-    const b = new PaintSpy();
-    paintBlockContainer(this.blockContainer, b);
+    const b = new PaintSpy(this.layout);
+    paintBlockContainer(this.layout, b);
     return b;
   };
 }
@@ -39,7 +48,7 @@ function logIfFailed() {
     while (t = t.parent) indent += 1;
     log.pushIndent('  '.repeat(indent));
     log.text('Box tree:\n');
-    this.currentTest.ctx.blockContainer.log({}, log);
+    flow.log(this.currentTest.ctx.layout, log);
     log.popIndent();
     log.flush();
   }
@@ -59,7 +68,7 @@ describe('Whitespace collapsing', function () {
   afterEach(logIfFailed);
 
   it('collapses whitespace', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t">
         \there\n
         <span style="white-space: nowrap;">\t\t  I  go killin  </span>
@@ -73,7 +82,7 @@ describe('Whitespace collapsing', function () {
   });
 
   it('preserves newlines', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t">
         <span style="white-space: pre-line;">  \there\n</span>
         <span style="white-space: nowrap;">\t\t  I  go killin  </span>
@@ -87,7 +96,7 @@ describe('Whitespace collapsing', function () {
   });
 
   it('preserves everything', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="white-space: pre;">  \there\n\t\t  I  go killin    \n\t\n\t  again  </div>
     `);
 
@@ -97,7 +106,7 @@ describe('Whitespace collapsing', function () {
   });
 
   it('preserves parts', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t">
         \there
         \t\t  I  go killin
@@ -111,7 +120,7 @@ describe('Whitespace collapsing', function () {
   });
 
   it('preserves nested parts', function () {
-    this.layout(
+    this.reflow(
       '<div id="t">' +
         'applejack: an ' +
         '<span style="white-space: pre;">' +
@@ -131,7 +140,7 @@ describe('Whitespace collapsing', function () {
   });
 
   it('carries over whitespace state when changing white-space modes', function () {
-    this.layout(
+    this.reflow(
       '<div id="t">' +
         '<span style="white-space: pre;"> one\n</span>' +
         ' two ' +
@@ -151,7 +160,7 @@ describe('Whitespace collapsing', function () {
   });
 
   it('preserves whitespace correctly when blocks are in newlines', function () {
-    this.layout(`
+    this.reflow(`
       this is an ifc
       <span style="white-space: pre;">
         <span>but it has inside of it</span>
@@ -160,8 +169,12 @@ describe('Whitespace collapsing', function () {
       but it works!
     `);
 
-    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines[] */
-    const [ifc1, ifc2, ifc3] = this.get().children
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc1 = this.layout.tree[1];
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc2 = this.layout.tree[9];
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc3 = this.layout.tree[12];
     expect(ifc1.text).to.equal(
       'this is an ifc \n        but it has inside of it\n        '
     );
@@ -181,7 +194,7 @@ describe('Whitespace collapsing', function () {
     //
     // (this has been changed once already since the above comment was writen.
     // next time this needs to be touched, probably can just delete it)
-    this.layout(
+    this.reflow(
       'layout code<span>\n</span>\n<span>\nbecause </span>' +
       'it really very <span>is very</span>I love this!<span>\n</span>'
     );
@@ -191,13 +204,13 @@ describe('Whitespace collapsing', function () {
   });
 
   it('preserves whitespace around inline-block', function () {
-    this.layout('abc  <span style="display: inline-block;"></span> 123');
+    this.reflow('abc  <span style="display: inline-block;"></span> 123');
     const ifc = this.get()
     expect(ifc.text).to.equal('abc  123');
   });
 
   it('preserves whitespace around images', function () {
-    this.layout('abc  <img>  123');
+    this.reflow('abc  <img>  123');
     const ifc = this.get()
     expect(ifc.text).to.equal('abc  123');
   });
@@ -228,7 +241,7 @@ describe('Shaping', function () {
   afterEach(logIfFailed);
 
   it('doesn\'t infinite loop when the last match can\'t shape two parts', function () {
-    this.layout('𓀀 𓀁');
+    this.reflow('𓀀 𓀁');
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const inline = this.get();
     expect(inline.items).to.have.lengthOf(3);
@@ -239,7 +252,7 @@ describe('Shaping', function () {
 
   describe('Word cache', function () {
     it('doesn\'t use a word cache when the font has ligatures that use spaces', function () {
-      this.layout(`
+      this.reflow(`
         <div id="t" style="font: 12px LigatureSymbolsWithSpaces;">
           daily calendar calendar align left
         </div>
@@ -259,7 +272,7 @@ describe('Shaping', function () {
     });
 
     it('uses a non-kerned space in "T " without kerning explicitly set', function () {
-      this.layout('<div id="t" style="font: 12px Roboto;">T M</div>');
+      this.reflow('<div id="t" style="font: 12px Roboto;">T M</div>');
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get('#t');
@@ -268,7 +281,7 @@ describe('Shaping', function () {
     });
 
     it('uses a non-kerned T in " T" without kerning explicitly set', function () {
-      this.layout('<div id="t" style="font: 12px Roboto;">M T</div>');
+      this.reflow('<div id="t" style="font: 12px Roboto;">M T</div>');
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const i5 = this.get('#t');
@@ -279,7 +292,7 @@ describe('Shaping', function () {
 
   describe('Boundaries', function () {
     it('splits shaping boundaries on fonts', function () {
-      this.layout(`
+      this.reflow(`
         <span style="font: 12px Arimo;">Arimo</span>
         <span style="font: 12px Roboto;">Roboto</span>
       `);
@@ -289,7 +302,7 @@ describe('Shaping', function () {
     });
 
     it('splits shaping boundaries on font-size', function () {
-      this.layout(`
+      this.reflow(`
         <span style="font-size: 12px;">a</span>
         <span style="font-size: 13px;">b</span>
       `);
@@ -299,14 +312,14 @@ describe('Shaping', function () {
     });
 
     it('splits shaping boundaries on font-style', function () {
-      this.layout(`a<span style="font-style: italic;">b</span>`);
+      this.reflow(`a<span style="font-style: italic;">b</span>`);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(2);
     });
 
     it('does not split shaping boundaries on line-height', function () {
-      this.layout(`
+      this.reflow(`
         <span style="line-height: 3;">Left</span>
         <span style="line-height: 4;">Right</span>
       `);
@@ -316,7 +329,7 @@ describe('Shaping', function () {
     });
 
     it('splits shaping boundaries based on script', function () {
-      this.layout('Lorem Ipusm העמוד');
+      this.reflow('Lorem Ipusm העמוד');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(2);
@@ -324,14 +337,14 @@ describe('Shaping', function () {
     });
 
     it('splits shaping boundaries based on emoji', function () {
-      this.layout('Hey 😃 emoji are kinda hard 🦷');
+      this.reflow('Hey 😃 emoji are kinda hard 🦷');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(4);
     });
 
     it('splits shaping boundaries on inline padding', function () {
-      this.layout(`It's me, <span style="padding: 1em;">padding boi</span>`);
+      this.reflow(`It's me, <span style="padding: 1em;">padding boi</span>`);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(2);
@@ -339,7 +352,7 @@ describe('Shaping', function () {
     });
 
     it('doesn\'t create empty shaped items if shaping boundaries overlap', function () {
-      this.layout(`L<span style="padding: 1em; font: 8px Arimo;">R</span>`);
+      this.reflow(`L<span style="padding: 1em; font: 8px Arimo;">R</span>`);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(2);
@@ -348,7 +361,7 @@ describe('Shaping', function () {
 
     it('has correct glyph order for Hebrew text', function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
-      this.layout('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
+      this.reflow('<div style="width: 60px; font: 16px Arimo;">הלו</div>');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get('div');
       expect(inline.items).to.have.lengthOf(1);
@@ -360,14 +373,14 @@ describe('Shaping', function () {
 
     it('doesn\'t create empty shaped items if style and script overlap', function () {
       // "Hello" according to https://omniglot.com/language/phrases/hebrew.php
-      this.layout('Hello <span style="font: 16px Arimo;">הלו</span>');
+      this.reflow('Hello <span style="font: 16px Arimo;">הלו</span>');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(2);
     });
 
     it('assigns levels, inlcuding to LRE..PDF', function () {
-      this.layout('Saying HNY: \u202Bحلول السنة intruding english! الجديدة\u202C');
+      this.reflow('Saying HNY: \u202Bحلول السنة intruding english! الجديدة\u202C');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(5);
@@ -379,7 +392,7 @@ describe('Shaping', function () {
     });
 
     it('chooses the correct text boundaries when painting emoji', function () {
-      this.layout('paint 😑 this!');
+      this.reflow('paint 😑 this!');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       const b = this.paint();
@@ -391,7 +404,7 @@ describe('Shaping', function () {
 
   describe('Fallbacks', function () {
     it('falls back on diacritic é', function () {
-      this.layout('<span style="font: 12px/1 Ramabhadra;">xe\u0301</span>');
+      this.reflow('<span style="font: 12px/1 Ramabhadra;">xe\u0301</span>');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(2);
@@ -404,7 +417,7 @@ describe('Shaping', function () {
     });
 
     it('sums to the same string with many reshapes', function () {
-      this.layout('Lorem大併外بينᏣᎳᎩ');
+      this.reflow('Lorem大併外بينᏣᎳᎩ');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       let s = '';
@@ -413,7 +426,7 @@ describe('Shaping', function () {
     });
 
     it('falls back to tofu', function () {
-      this.layout('\uffff');
+      this.reflow('\uffff');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const inline = this.get();
       expect(inline.items).to.have.lengthOf(1);
@@ -422,7 +435,7 @@ describe('Shaping', function () {
     });
 
     it('reshapes the correct segments', function () {
-      this.layout(`
+      this.reflow(`
         <span style="font-family: Arimo, Cairo;">هل تتحدث لغة أخرى بجانب العربية؟</span>
       `);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -431,7 +444,7 @@ describe('Shaping', function () {
     });
 
     it('affect line height when line height is normal', function () {
-      this.layout(`
+      this.reflow(`
         <span style="font-family: Arimo, Cairo;">hey هل تتحدث لغة أخرى بجانب العربية؟</span>
       `);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -471,7 +484,7 @@ describe('Lines', function () {
   afterEach(logIfFailed);
 
   it('always puts one word per line at minimum', function () {
-    this.layout('<div style="width: 0;">eat lots of peaches</div>');
+    this.reflow('<div style="width: 0;">eat lots of peaches</div>');
     const inline = this.get('div');
     expect(inline.lineboxes).to.have.lengthOf(4);
     expect(inline.lineboxes[0].endOffset).to.equal(4);
@@ -481,7 +494,7 @@ describe('Lines', function () {
   });
 
   it('breaks between shaping boundaries', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 100px; font: 16px Roboto;">
         Lorem ipsum <span style="font-size: 17px;">lorem ipsum</span>
       </div>
@@ -494,7 +507,7 @@ describe('Lines', function () {
   });
 
   it('breaks inside shaping boundaries', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 100px; font: 16px Roboto;">
         Lorem ipsum lorem ipsum
       </div>
@@ -507,7 +520,7 @@ describe('Lines', function () {
   });
 
   it('leaves shaping boundaries whole if they can be', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 16px; font: 16px Roboto;">
         <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
         <span style="color: green;">lorem</span><span style="color: purple;">ipsum</span>
@@ -521,7 +534,7 @@ describe('Lines', function () {
   it('splits accurately on hebrew text', function () {
     // "I love you" according to https://omniglot.com/language/phrases/hebrew.php
     // Three words, Arimo@16px in 60px the first two should fit on the first line
-    this.layout('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
+    this.reflow('<div style="width: 60px; font: 16px Arimo;">אני אוהב אותך</div>');
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const inline = this.get('div');
     expect(inline.items).to.have.lengthOf(2);
@@ -533,7 +546,7 @@ describe('Lines', function () {
   it('measures break width correctly', function () {
     // there was once a bug in measureWidth that didn't measure the last
     // glyph. "aa a" is < 35px but "aa aa" is > 35px
-    this.layout(`
+    this.reflow(`
       <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -542,7 +555,7 @@ describe('Lines', function () {
   });
 
   it('correctly breaks items when a 1-word line follows 2+ 1-word lines', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 0px; font: 400 16px Roboto;">
         lorem ipsum lorem
       </div>
@@ -561,7 +574,7 @@ describe('Lines', function () {
   it('distributes border, margin, and padding to line items', function () {
     // this isn't really wrapping, it's text processing. should I come up
     // with a new word or should the code change to separate concepts?
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px Arimo;">
         <span style="padding: 5px;">A</span>
         <span style="border: 10px solid blue;">A</span>
@@ -593,7 +606,7 @@ describe('Lines', function () {
   });
 
   it('puts contiguous padding at the top line except the last padding-lefts', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 50px; font: 16px Arimo;">
         It's a <span style="padding: 10px;"></span><span style="padding-left: 11px;"></span>
         <span style="padding-left: 10px;">wrap!</span>
@@ -624,17 +637,14 @@ describe('Lines', function () {
   });
 
   it('assigns the right number of shaped items with non-shaping-boundary spans', function () {
-    this.layout(`
-      <span>One span<span>Two spans</span></span>
-    `);
-
-    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-    const ifc = this.get();
-    expect(ifc.root.children[0].nshaped).to.equal(1);
+    this.reflow('<span id="t">One span<span>Two spans</span></span>');
+    /** @type import('../src/layout-flow.ts').Inline */
+    const span = this.get('#t');
+    expect(span.nshaped).to.equal(1);
   });
 
   it('updates item inlines/count when wrapping', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 100px; font: Arimo;">
         <span><span>One span </span><span>Two spans</span></span>
       </div>
@@ -652,7 +662,7 @@ describe('Lines', function () {
   });
 
   it('considers padding-right on a break as belonging to the left word', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-right: 70px;">fits </span>padding
       </div>
@@ -666,7 +676,7 @@ describe('Lines', function () {
   });
 
   it('ignores empty spans when assigning padding to words', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-left: 70px;"><span></span>hey</span>
       </div>
@@ -686,7 +696,7 @@ describe('Lines', function () {
   });
 
   it('adds padding that wasn\'t measured for fit to the line', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 70px; font: 16px Arimo;">
         Word <span style="padding-right: 30px;">x </span>x
       </div>
@@ -698,7 +708,7 @@ describe('Lines', function () {
   });
 
   it('adds buffered padding to line width', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px Arimo; width: 5em;">
         Hey<span style="padding-left: 5em;"> wrap</span>
       </div>
@@ -711,7 +721,7 @@ describe('Lines', function () {
 
 
   it('adds buffered padding to line width', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 300px; font: 16px Arimo;">
         Give_me_the_next_span
         <span style="padding-left: 300px;"></span><span style="padding-left: 150px;">not me</span>
@@ -735,7 +745,7 @@ describe('Lines', function () {
   });
 
   it('calculates line height with the correct shaped item/inline pairings', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 0;"><span style="font: 16px/2 Noto Sans Hebrew;">אוטו </span><span style="font: 16px/3 Cairo;">Car</span></div>
     `);
 
@@ -750,7 +760,7 @@ describe('Lines', function () {
   });
 
   it('supports line-height: px', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/100px Arimo;">The lines are so big!</div>
     `);
 
@@ -760,7 +770,7 @@ describe('Lines', function () {
   });
 
   it('uses the correct line height when multiple spans cross a shaped item', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 16px; font: 16px Roboto;">
         <span style="line-height: 1;">lorem</span><span style="line-height: 2;">ipsum</span>
       </div>
@@ -771,7 +781,7 @@ describe('Lines', function () {
   });
 
   it('uses the correct line height when a shaped item is broken', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 0; font: 16px Roboto;">
         <span style="line-height: 32px;">lorem</span> <span style="line-height: 64px;">ipsum</span>
       </div>
@@ -782,7 +792,7 @@ describe('Lines', function () {
   });
 
   it('uses the correct inline side to create shaping boundaries', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 300px; direction: rtl; font: 16px Cairo;">
         <span style="padding-left: 1em;">أنا </span>بخير شكرا و أنت؟
       </div>
@@ -798,7 +808,7 @@ describe('Lines', function () {
     // Translation from Arabic:
     // How are you?
     // I'm fine thank you, and you?
-    this.layout(`
+    this.reflow(`
       <div style="width: 150px; direction: rtl; font: 16px Cairo;">
         كيف حالك؟
         <br>أنا بخير شكرا و أنت؟
@@ -812,7 +822,7 @@ describe('Lines', function () {
   });
 
   it('paints an inline with a hard break immediately after', function () {
-    this.layout(`
+    this.reflow(`
       <span style="background-color: green; padding: 0 10px;"><br>f</span>
     `);
 
@@ -824,7 +834,7 @@ describe('Lines', function () {
   });
 
   it('sets the height of an ifc box correctly', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 500px; font: 16px Ramabhadra">
         <span style="font: 16px Roboto;">I could be<br>reading a book</span>
         <span style="font: 12px Arimo;">But I like writing layout engines instead</span>
@@ -835,7 +845,7 @@ describe('Lines', function () {
   });
 
   it('doesn\'t set the height if it\'s explicitly set', function () {
-    this.layout(`
+    this.reflow(`
       <div style="height: 50px; width: 100px; font: 16px Arimo;">
         I could be reading a book but I like writing layout engines instead
       </div>
@@ -845,7 +855,7 @@ describe('Lines', function () {
   });
 
   it('carries over colors and line heights correctly', function () {
-    this.layout(`
+    this.reflow(`
       <div style="width: 0; line-height: 32px; font: 10px Ahem;">
         break
         it
@@ -861,7 +871,7 @@ describe('Lines', function () {
   });
 
   it('takes strut into account', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/1 Arimo;"><span style="font: 4px Arimo;">tiny!</span></div>
     `);
 
@@ -871,7 +881,7 @@ describe('Lines', function () {
   });
 
   it('takes inline struts into account', function () {
-    this.layout(`
+    this.reflow(`
       <!-- Cairo does not have Phi. Cairo has larger suggested leading than Arimo. -->
       <div style="font: 16px/0 Arimo;">
         <span style="font: 16px Cairo, Arimo;">ɸ</span>
@@ -884,7 +894,7 @@ describe('Lines', function () {
   });
 
   it('takes inline struts into account even if they have no content', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/0 Arimo;">
         whoop_de_do<span style="font: 16px Cairo;"></span>
       </div>
@@ -896,7 +906,7 @@ describe('Lines', function () {
   });
 
   it('sets box to linebox height when it\'s a bfc and ifc', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="display: flow-root; line-height: 20px;">woeisme</div>
     `);
 
@@ -906,7 +916,7 @@ describe('Lines', function () {
   });
 
   it('uses the right block position for a wrapped word with a hard break at the end', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px/20px Arimo; width: 80px;">
         A simple test<br>
       </div>
@@ -919,7 +929,7 @@ describe('Lines', function () {
   });
 
   it('doesn\'t wrap in spans with soft wraps turned off', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px Arimo; width: 100px;">
         I like
         <span style="white-space: nowrap;">tests that aren't hard to think about</span>
@@ -934,7 +944,7 @@ describe('Lines', function () {
   });
 
   it('does wrap on a <br> inside a nowrap span', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px Arimo; width: 100px;">
         I like
         <span style="white-space: nowrap;">tests that aren't<br>hard to think about</span>
@@ -949,7 +959,7 @@ describe('Lines', function () {
   });
 
   it('wraps on soft wraps inside a nowrap span', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px Arimo; width: 100px;">
         I like
         <span style="white-space: nowrap;">tests that <span style="white-space: normal;">aren't hard</span> to think about</span>
@@ -964,7 +974,7 @@ describe('Lines', function () {
   });
 
   it('lays out entirely nowrap text', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px Arimo; width: 100px; white-space: nowrap;">
         I like tests that aren't hard to think about because easy
       </div>
@@ -977,7 +987,7 @@ describe('Lines', function () {
   });
 
   it('follows all hard breaks', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="white-space: pre;">
       second line
       third line
@@ -991,7 +1001,7 @@ describe('Lines', function () {
   });
 
   it('breaks ligatures with internal break opportunities', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px/1.4 Raleway; width: 95px;">
         Affable waf&ZeroWidthSpace;fle
       </div>
@@ -1005,7 +1015,7 @@ describe('Lines', function () {
 
   it('breaks after ligature when it fits', function () {
     // Note: with word cache, glyphs sum to 100.176. Without, it's 99.728
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px/1.4 Raleway; width: 101px;">
         Affable waf&ZeroWidthSpace;fle
       </div>
@@ -1016,7 +1026,7 @@ describe('Lines', function () {
   });
 
   it('breaks before ligature when it doesn\'t fit', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px/1.4 Raleway; width: 52px;">
         Affable waf&ZeroWidthSpace;fle
       </div>
@@ -1028,7 +1038,7 @@ describe('Lines', function () {
   });
 
   it('remembers in-ligature measure state when carried to next line', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 24px LigatureSymbolsWithSpaces; width: 100px;">
         Ligature symbols
         daily calendar calendar align left align center align right
@@ -1041,7 +1051,7 @@ describe('Lines', function () {
   });
 
   it('adds a soft hyphen if one fits after a &shy', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px Arimo; width: 119px;">
         Characters com&shy;bine to create words
       </div>
@@ -1053,7 +1063,7 @@ describe('Lines', function () {
   });
 
   it('doesn\'t add a hyphen if it wouldn\'t fit', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px Arimo; width: 118px;">
         Characters com&shy;bine to create words
       </div>
@@ -1065,7 +1075,7 @@ describe('Lines', function () {
   });
 
   it('adds a soft hyphen to RTL text if one fits after a &shy', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="direction: rtl; font: 24px Cairo; width: 51px;">
         دامي&shy;دى
       </div>
@@ -1077,7 +1087,7 @@ describe('Lines', function () {
   });
 
   it('carries over leading to the next line', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px/1 Arimo; width: 0;">
         <span style="line-height: 2;">Scarves of red</span>
       </div>
@@ -1088,7 +1098,7 @@ describe('Lines', function () {
   });
 
   it('positions RTL items at the end of the CB', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="width: 100px; direction: rtl;">
         whereami
       </div>
@@ -1100,7 +1110,7 @@ describe('Lines', function () {
   });
 
   it('measures the last glyph in an RTL item correctly', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="width: 100px; direction: rtl;">
         أسف<br>
       </div>
@@ -1112,7 +1122,7 @@ describe('Lines', function () {
   });
 
   it('breaks shaping boundaries on negative margins', function () {
-    this.layout(`
+    this.reflow(`
       <div>
         left <span style="margin-left: -10px;">right</span>
       </div>
@@ -1129,7 +1139,7 @@ describe('Lines', function () {
 
   it('takes margin-right into account on the line', function () {
     // a dumb mistake caused this one
-    this.layout(`
+    this.reflow(`
       <div style="width: 100px;">
         big <span style="margin-right: 100px;"></span> crane
       </div>
@@ -1142,7 +1152,7 @@ describe('Lines', function () {
   });
 
   it('follows text-align: end', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="text-align: end; direction: rtl; font: 10px Ahem; width: 100px;">
         burrito
       </div>
@@ -1161,7 +1171,7 @@ describe('Lines', function () {
 
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
-      this.layout(`
+      this.reflow(`
         <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
       `);
       const inline = this.get('div');
@@ -1169,7 +1179,7 @@ describe('Lines', function () {
     });
 
     it('keeps whitespace at the beginning of the line when it\'s not collapsible', function () {
-      this.layout(`
+      this.reflow(`
         <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
       `);
       const inline = this.get('div');
@@ -1182,7 +1192,7 @@ describe('Lines', function () {
       // Interestingly, Firefox fails this one - it puts the padding-right on the
       // first line right up next to the end of the word "fits", even though that
       // appears incorrect since we put a space before the padding in the source below.
-      this.layout(`
+      this.reflow(`
         <div style="width: 70px; font: 16px Arimo;">
           Word <span style="padding-right: 5px;">fits </span>padding
         </div>
@@ -1194,7 +1204,7 @@ describe('Lines', function () {
     });
 
     it('collapses whitespace at the start of the line', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 100px; font: 16px Arimo;">
           Oh give me a home where the buffalo roam
         </div>
@@ -1206,7 +1216,7 @@ describe('Lines', function () {
     });
 
     it('collapses whitespace after bidi reordering', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 100px; font: 16px Cairo, Arimo; direction: rtl;">
           هبني home حيث يسرح الجاموس
         </div>
@@ -1219,7 +1229,7 @@ describe('Lines', function () {
     });
 
     it('starts a new linebox after \\n when newlines are preserved', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 300px; font: 16px/20px Arimo; white-space: pre-line;">
           Funny it is
           The things that I spout
@@ -1238,7 +1248,7 @@ describe('Lines', function () {
     });
 
     it('can make empty lineboxes when newlines are preserved', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 300px; font: 16px Arimo; white-space: pre-line;">
           I have to make words
 
@@ -1258,7 +1268,7 @@ describe('Lines', function () {
     });
 
     it('makes two lineboxes for <br>\\n or \\n<br> when newlines are preserved', function () {
-      this.layout('<div style="white-space: pre-line;">a\n<br>b<br>\nc');
+      this.reflow('<div style="white-space: pre-line;">a\n<br>b<br>\nc');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const ifc = this.get('div');
       expect(ifc.lineboxes).to.have.lengthOf(5);
@@ -1275,7 +1285,7 @@ describe('Lines', function () {
     });
 
     it('measures uncollapsible whitespace for fit', function () {
-      this.layout(
+      this.reflow(
         '<div style="width: 100px; font: 16px Arimo; white-space: pre-wrap;">' +
           '            im not gonna fit' +
         '</div>'
@@ -1289,7 +1299,7 @@ describe('Lines', function () {
     });
 
     it('doesn\'t measure uncollapsible whitespace at the end of the line for fit', function () {
-      this.layout(
+      this.reflow(
         '<div style="width: 100px; font: 16px Arimo; white-space: pre-wrap;">' +
           'im gonna fit            ' +
         '</div>'
@@ -1301,7 +1311,7 @@ describe('Lines', function () {
     });
 
     it('correctly collapses end-of-line whitespace in glyphs', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 300px; font: 16px Arimo, Cairo;">
            hello السلام عليكم (as-salām 'alaykum)
         </div>
@@ -1313,7 +1323,7 @@ describe('Lines', function () {
     });
 
     it('does create lineboxes if there were sized inlines but no text', function () {
-      this.layout(`
+      this.reflow(`
         <div style="font: 16px/20px Arimo;">
           <span style="margin-right: 1px;"></span>
         </div>
@@ -1329,7 +1339,7 @@ describe('Lines', function () {
       // text with a span because that has a strut. Searching for a font that
       // doesn't exist allows the itemized portion to find a font via language,
       // (Cairo) and the div will use the first registered font (not Cairo).
-      this.layout('<div style="font: 16px XXX; width: 0;">متشرف بمعرفتك</div>');
+      this.reflow('<div style="font: 16px XXX; width: 0;">متشرف بمعرفتك</div>');
       const ifc = this.get('div');
       expect(ifc.lineboxes.length).to.equal(2);
       expect(ifc.lineboxes[1].height()).to.be.approximately(29.984, 0.001);
@@ -1338,7 +1348,7 @@ describe('Lines', function () {
 
   describe('Overflow-wrap', function () {
     it('breaks inlines that have the rule, not ones that don\'t', function () {
-      this.layout(`
+      this.reflow(`
         <div id="t" style="width: 50px; font: 10px Ahem;">
           guided by
           <span style="overflow-wrap: anywhere;">voices</span>
@@ -1356,7 +1366,7 @@ describe('Lines', function () {
     });
 
     it('word-break: break-word functions as anywhere', function () {
-      this.layout(`
+      this.reflow(`
         <div id="t" style="font: 10px Ahem; word-break: break-word; width: 90px;">
           Is it springtime today yet?
         </div>
@@ -1375,7 +1385,7 @@ describe('Lines', function () {
     it('places floats after broken words', function () {
       // https://bugs.webkit.org/show_bug.cgi?id=272534
       // ab | cd◾️ | ef
-      this.layout(`
+      this.reflow(`
         <div id="t1" style="font: 10px/1 Ahem; width: 25px; overflow-wrap: anywhere;">
           abcd<div id="t2" style="float: left; width: 5px; height: 5px;"></div>ef
         </div>
@@ -1395,7 +1405,7 @@ describe('Lines', function () {
 
     it('measures and places inlines inside break-word correctly', function () {
       // big | [ro | om] | bar
-      this.layout(`
+      this.reflow(`
         <div id="t" style="font: 10px Ahem; width: 30px; overflow-wrap: anywhere;">
           big <span style="padding: 0 10px;">room</span> bar
         </div>
@@ -1412,7 +1422,7 @@ describe('Lines', function () {
     });
 
     it('anywhere affects min-content', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 0;">
           <div id="t" style="font: 10px Ahem; overflow-wrap: anywhere; float: left;">abcde</div>
         </div>
@@ -1422,7 +1432,7 @@ describe('Lines', function () {
     });
 
     it('break-word doesn\'t affect min-content', function () {
-      this.layout(`
+      this.reflow(`
         <div style="width: 0;">
           <div id="t" style="font: 10px Ahem; overflow-wrap: break-word; float: left;">abcde</div>
         </div>
@@ -1432,7 +1442,7 @@ describe('Lines', function () {
     });
 
     it('anywhere doesn\'t infinite loop on an ifc with only floats', function () {
-      this.layout(`
+      this.reflow(`
         <div style="overflow-wrap: anywhere;">
           <div style="float: left;"></div>
         </div>
@@ -1457,7 +1467,7 @@ describe('Vertical Align', function () {
   afterEach(logIfFailed);
 
   it('aligns text to middle', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: middle; font: 8px/8px Arimo;">middle</span>
       </div>
@@ -1472,7 +1482,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block to middle', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: middle;"></div>
@@ -1489,7 +1499,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns text to subscript', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: sub;">sub</span>
       </div>
@@ -1504,7 +1514,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block to subscript', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: sub;"></div>
@@ -1521,7 +1531,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns text to superscript', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: super;">super</span>
       </div>
@@ -1536,7 +1546,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block to superscript', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: super;"></div>
@@ -1553,7 +1563,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns text to text-top', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: text-top;">text-top</span>
       </div>
@@ -1568,7 +1578,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block to text-top', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: text-top;"></div>
@@ -1585,7 +1595,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns text to text-bottom', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: text-bottom;">text-bottom</span>
       </div>
@@ -1600,7 +1610,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block to text-bottom', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: text-bottom;"></div>
@@ -1617,7 +1627,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns text with pixels', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: 30px;">30px</span>
       </div>
@@ -1632,7 +1642,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block with pixels', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: 30px;"></div>
@@ -1649,7 +1659,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns text with percentage', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: 50%; line-height: 10px;">percentage</span>
       </div>
@@ -1664,7 +1674,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns inline-block with percentage', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 10px; vertical-align: 50%; line-height: 10px;"></div>
@@ -1681,7 +1691,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns top', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: top; line-height: 40px;">
           <span style="vertical-align: super;">top</span>
@@ -1698,7 +1708,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns top inline-block', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 30px; vertical-align: top;"></div>
@@ -1713,7 +1723,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns bottom', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline <span style="vertical-align: bottom; line-height: 40px;">
           <span style="vertical-align: sub;">bottom</span>
@@ -1730,7 +1740,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns bottom inline-block', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo;">
         baseline
         <div id="t2" style="display: inline-block; height: 30px; vertical-align: bottom;"></div>
@@ -1745,7 +1755,7 @@ describe('Vertical Align', function () {
   });
 
   it('aligns strut with the bottom when there are tops and bottoms', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         baseline
         <span style="vertical-align: top; line-height: 80px;">t</span>
@@ -1763,7 +1773,7 @@ describe('Vertical Align', function () {
   });
 
   it('changes line height for shifted empty spans', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         text
         <span style="vertical-align: super;"></span>
@@ -1776,7 +1786,7 @@ describe('Vertical Align', function () {
   });
 
   it('changes line height for shifted fallback glyphs', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo, Cairo;">
         text
         <span style="vertical-align: super;">هل</span>
@@ -1789,7 +1799,7 @@ describe('Vertical Align', function () {
   });
 
   it('affects line height on the second line', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo, Cairo; width: 400px;">
         Do you speak a language other than Arabic?
         <span style="vertical-align: super;">هل تتحدث لغة أخرى بجانب العربية؟</span>
@@ -1804,7 +1814,7 @@ describe('Vertical Align', function () {
   });
 
   it('does not carry fallback height to the second line', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px Arimo, Cairo; width: 80px;">
         <span style="vertical-align: super;">نعم</span>, قليل
         yes, <span style="vertical-align: super;">a little</span>
@@ -1820,7 +1830,7 @@ describe('Vertical Align', function () {
   });
 
   it('correctly resets separate alignment contexts for the second line', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         1b
         <span style="vertical-align: 10px;">
@@ -1848,7 +1858,7 @@ describe('Vertical Align', function () {
   });
 
   it('correctly splits out nested top and bottoms', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         <span style="vertical-align: top; line-height: 15px;">
           t1
@@ -1870,7 +1880,7 @@ describe('Vertical Align', function () {
   });
 
   it('keeps ascenders and descenders of tops and bottoms separate', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         <span style="vertical-align: top; line-height: 20px;">top</span>
         <span style="font-family: Cairo; vertical-align: bottom; line-height: 20px;">bottom</span>
@@ -1898,7 +1908,7 @@ describe('Inline Blocks', function () {
   afterEach(logIfFailed);
 
   it('accounts for margin, border, and padding', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         it's cold out
         <div id="t" style="
@@ -1922,7 +1932,7 @@ describe('Inline Blocks', function () {
   });
 
   it('sizes to intrinsics correctly', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo;">
         when it's cold out
         <div id="t" style="display: inline-block;">
@@ -1942,7 +1952,7 @@ describe('Inline Blocks', function () {
   });
 
   it('fills the entire cb width at most', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo; width: 100px;">
         line before
         <div id="t" style="display: inline-block;">
@@ -1969,7 +1979,7 @@ describe('Inline Blocks', function () {
   });
 
   it('fills the entire cb taking margin into account', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Arimo; width: 200px;">
         <div id="t" style="display: inline-block; margin: 5px; padding: 5px;">
           hemingway's paws are literally on my hands as I type
@@ -1984,7 +1994,7 @@ describe('Inline Blocks', function () {
   });
 
   it('doesn\'t collapse through a solitary inline-block', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="font: 16px/20px Arimo;">
         <div id="t" style="display: inline-block;">
           This is the way
@@ -2001,7 +2011,7 @@ describe('Inline Blocks', function () {
   });
 
   it('positions correctly among bidirectional text', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Cairo; direction: rtl; width: 200px;">
         excuse me: المعذرة<div id="t" style="display: inline-block; border-bottom: 2px solid red;">!</div>
       </div>
@@ -2012,7 +2022,7 @@ describe('Inline Blocks', function () {
   });
 
   it('breaks before and after', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo; width: 10px;">
         <div id="t2" style="display: inline-block; width: 10px; height: 10px;"></div>
         <div id="t3" style="display: inline-block; width: 10px; height: 10px;"></div>
@@ -2038,7 +2048,7 @@ describe('Inline Blocks', function () {
   });
 
   it('doesn\'t end with an empty line of space', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo; width: 10px;">
         abc
         <div id="t2" style="display: inline-block; width: 10px; height: 10px;"></div>
@@ -2051,7 +2061,7 @@ describe('Inline Blocks', function () {
   });
 
   it('prioritizes float over inline-block', function () {
-    this.layout(`
+    this.reflow(`
       <div style="font: 16px/20px Cairo; width: 100px;">
         hi <div id="t" style="display: inline-block; float: right; width: 10px;">!</div>
       </div>
@@ -2063,7 +2073,7 @@ describe('Inline Blocks', function () {
   });
 
   it('paints backgrounds behind inline-block correctly', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Cairo; width: 100px;">
         1<span id="t2" style="background-color: veronicayellow;"><span style="display: inline-block;">different ifc!</span></span>2
       </div>
@@ -2079,7 +2089,7 @@ describe('Inline Blocks', function () {
   });
 
   it('occupies the right amount of space for floats', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="width: 200px; display: flow-root; font-size: 0;">
         <div style="display: inline-block; width: 100px; height: 100px;"></div>
         <div style="float: right; width: 100px; height: 100px;"></div>
@@ -2092,7 +2102,7 @@ describe('Inline Blocks', function () {
   });
 
   it('occupies the right amount of space for text-align', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t" style="width: 200px; font: 16px Arimo; text-align: center;">
         I can't
         <div style="display: inline-block;">wait</div>
@@ -2106,7 +2116,7 @@ describe('Inline Blocks', function () {
   });
 
   it('takes horizontal margin into account on the line', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="width: 100px; font: 16px/20px Arimo;">
         one <div id="t2" style="display: inline-block; margin-left: 100px;"><div>
       </div>
@@ -2121,7 +2131,7 @@ describe('Inline Blocks', function () {
   });
 
   it('uses the bottom margin edge if overflow is hidden', function () {
-    this.layout(`
+    this.reflow(`
       <div id="t1" style="font: 16px/20px Arimo; width: 300px;">
         give a dog a <div id="t2" style="display: inline-block; overflow: hidden;">bone</div>
       </div>

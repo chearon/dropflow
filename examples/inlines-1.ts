@@ -27,12 +27,12 @@ const rootElement = parse(`
 
 flow.loadSync(rootElement);
 
-const blockContainer = flow.generate(rootElement);
-blockContainer.log({css: 'zoom'});
+const layout = flow.layout(rootElement);
+flow.log(layout, undefined, {css: 'zoom'});
 
 const canvas = createCanvas(600, 400);
-flow.layout(blockContainer, canvas.width, canvas.height);
+flow.reflow(layout, canvas.width, canvas.height);
 
 const ctx = canvas.getContext('2d');
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 fs.writeFileSync(new URL('inlines-1.png', import.meta.url), canvas.toBuffer());

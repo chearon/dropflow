@@ -48,32 +48,32 @@ flow.loadSync(rootElement);
 const canvas = createCanvas(1600, 1600);
 const ctx = canvas.getContext('2d');
 
-const blockContainer = flow.generate(rootElement);
-flow.layout(blockContainer, canvas.width, canvas.height);
+const layout = flow.layout(rootElement);
+flow.reflow(layout, canvas.width, canvas.height);
 ctx.clearRect(0, 0, canvas.width, canvas.height);
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 fs.writeFileSync(new URL('perf-1.png', import.meta.url), canvas.toBuffer());
 
 bench('altogether', () => {
-  const blockContainer = flow.generate(rootElement);
+  const layout = flow.layout(rootElement);
   flow.clearWordCache();
-  flow.layout(blockContainer, canvas.width, canvas.height);
+  flow.reflow(layout, canvas.width, canvas.height);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  flow.paintToCanvas(blockContainer, ctx);
+  flow.paintToCanvas(layout, ctx);
 }).gc('inner');
 
-bench('generate', () => {
-  do_not_optimize(flow.generate(rootElement));
+bench('flow.layout', () => {
+  do_not_optimize(flow.layout(rootElement));
 }).gc('inner');
 
-bench('layout', () => {
+bench('flow.reflow', () => {
   flow.clearWordCache();
-  flow.layout(blockContainer, canvas.width, canvas.height);
+  flow.reflow(layout, canvas.width, canvas.height);
 }).gc('inner');
 
-bench('paint', () => {
+bench('flow.paint', () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  flow.paintToCanvas(blockContainer, ctx);
+  flow.paintToCanvas(layout, ctx);
 }).gc('inner');
 
 await run();

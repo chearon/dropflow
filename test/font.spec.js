@@ -75,12 +75,12 @@ describe('Fonts', function () {
     });
 
     it('looks up based on script when nothing is specified', function () {
-      const ifc1 = flow.generate(parse('هل تتحدث لغة أخرى بجانب العربية؟'));
-      flow.layout(ifc1);
-      expect(ifc1.items[0].face.family).to.equal('Cairo');
-      const ifc2 = flow.generate(parse('Do you speak another language besides Arabic?'));
-      flow.layout(ifc2);
-      expect(ifc2.items[0].face.family).to.equal('Arimo');
+      const ifc1 = flow.layout(parse('هل تتحدث لغة أخرى بجانب العربية؟'));
+      flow.reflow(ifc1);
+      expect(ifc1.root().items[0].face.family).to.equal('Cairo');
+      const ifc2 = flow.layout(parse('Do you speak another language besides Arabic?'));
+      flow.reflow(ifc2);
+      expect(ifc2.root().items[0].face.family).to.equal('Arimo');
     });
 
     it('selects 500 if 400 is requested but not found', function () {

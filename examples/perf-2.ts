@@ -1910,33 +1910,33 @@ flow.loadSync(rootElement);
 const canvas = createCanvas(800 , 28696 );
 const ctx = canvas.getContext('2d');
 
-const blockContainer = flow.generate(rootElement);
-flow.layout(blockContainer, 800, 28696);
+const layout = flow.layout(rootElement);
+flow.reflow(layout, 800, 28696);
 ctx.clearRect(0, 0, 800 , 28696 );
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 
 fs.writeFileSync(new URL('perf-2.png', import.meta.url), canvas.toBuffer());
 
 bench('altogether', () => {
-  const blockContainer = flow.generate(rootElement);
+  const layout = flow.layout(rootElement);
   flow.clearWordCache();
-  flow.layout(blockContainer, 800, 28696);
+  flow.reflow(layout, 800, 28696);
   ctx.clearRect(0, 0, 800 , 28696 );
-  flow.paintToCanvas(blockContainer, ctx);
+  flow.paintToCanvas(layout, ctx);
 }).gc('inner');
 
-bench('generate', () => {
-  do_not_optimize(flow.generate(rootElement));
+bench('flow.layout', () => {
+  do_not_optimize(flow.layout(rootElement));
 }).gc('inner');
 
-bench('layout', () => {
+bench('flow.reflow', () => {
   flow.clearWordCache();
-  flow.layout(blockContainer, 800, 28696);
+  flow.reflow(layout, 800, 28696);
 }).gc('inner');
 
-bench('paint', () => {
+bench('flow.paint', () => {
   ctx.clearRect(0, 0, 800 , 28696 );
-  flow.paintToCanvas(blockContainer, ctx);
+  flow.paintToCanvas(layout, ctx);
 }).gc('inner');
 
 await run();

@@ -74,11 +74,11 @@ const rootElement = flow.dom(
 
 // Normal layout, logging
 await flow.load(rootElement);
-const blockContainer = flow.generate(rootElement);
-flow.layout(blockContainer, 1200, 1800);
-blockContainer.log({containingBlocks: true});
+const layout = flow.layout(rootElement);
+flow.reflow(layout, 1200, 1800);
+flow.log(layout, undefined, {containingBlocks: true});
 const canvas = createCanvas(1200, 1800);
 const ctx = canvas.getContext('2d');
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 
 fs.writeFileSync(new URL('images-1.png', import.meta.url), canvas.toBuffer());

@@ -17,14 +17,14 @@ const rootElement = parse(`
   </div>
 `);
 
-const blockContainer = flow.generate(rootElement);
+const layout = flow.layout(rootElement);
 
 flow.loadSync(rootElement);
-blockContainer.log();
+flow.log(layout);
 
 const canvas = createCanvas(400, 150);
-flow.layout(blockContainer, canvas.width, canvas.height);
+flow.reflow(layout, canvas.width, canvas.height);
 
 const ctx = canvas.getContext('2d');
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 fs.writeFileSync(new URL('fallbacks-1.png', import.meta.url), canvas.toBuffer());

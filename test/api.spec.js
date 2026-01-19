@@ -111,10 +111,10 @@ describe('Hyperscript API', function () {
       ])
     ]);
 
-    const box = flow.generate(tree);
+    const layout = flow.layout(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
-    flow.layout(box, 100);
-    const ifc = box.children[0].children[1];
+    flow.reflow(layout, 100);
+    const [ifc] = tree.query('#t').boxes;
     expect(ifc.lineboxes).to.have.lengthOf(4);
     expect(ifc.lineboxes[0].blockOffset).to.equal(0);
     expect(ifc.lineboxes[1].startOffset).to.equal(20);
@@ -127,7 +127,7 @@ describe('Hyperscript API', function () {
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
-  it('layout twice is successful', async function () {
+  it('reflow twice is successful', async function () {
     const style = flow.style({fontSize: 10, lineHeight: 20, fontFamily: ['Arimo']});
     const tree = flow.dom([
       flow.h('div', {style}, [
@@ -140,22 +140,22 @@ describe('Hyperscript API', function () {
       ])
     ]);
 
-    const box = flow.generate(tree);
+    const layout = flow.layout(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
-    flow.layout(box, 100);
-    flow.layout(box, 100);
-    const ifc = box.children[0].children[1];
+    flow.reflow(layout, 100);
+    flow.reflow(layout, 100);
+    const [ifc] = tree.query('#t').boxes;
     expect(ifc.lineboxes).to.have.lengthOf(4);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
   it('doesn\'t accumulate 2 boxes after generating twice', function () {
     const el = flow.dom([flow.h('div'), flow.h('span'), flow.h('img')]);
-    flow.generate(el);
+    flow.layout(el);
     expect(el.query('div').boxes).to.have.lengthOf(1);
     expect(el.query('span').boxes).to.have.lengthOf(1);
     expect(el.query('img').boxes).to.have.lengthOf(1);
-    flow.generate(el);
+    flow.layout(el);
     expect(el.query('div').boxes).to.have.lengthOf(1);
     expect(el.query('span').boxes).to.have.lengthOf(1);
     expect(el.query('img').boxes).to.have.lengthOf(1);
@@ -219,7 +219,7 @@ describe('DOM API', function () {
 
   it('exposes boxes', function () {
     const html = parse('<div id="d" style="width: 100px; height: 100px;"></div>');
-    flow.layout(flow.generate(html));
+    flow.reflow(flow.layout(html));
     const [box] = html.query('#d').boxes;
     expect(box.getContentArea().width).to.equal(100);
     expect(box.getContentArea().height).to.equal(100);
@@ -348,7 +348,8 @@ describe('createObjectURL', function () {
     const style = flow.style({display: {outer: 'block', inner: 'flow'}});
     const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
     flow.loadSync(doc);
-    flow.layout(flow.generate(doc));
+    const layout = flow.layout(doc);
+    flow.reflow(layout);
     const [box] = doc.query('img').boxes;
     expect(box.getContentArea().width).to.equal(1170);
     expect(box.getContentArea().height).to.equal(1157);
@@ -366,7 +367,7 @@ describe('createObjectURL', function () {
     const style = flow.style({display: {outer: 'block', inner: 'flow'}});
     const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
     flow.loadSync(doc);
-    flow.layout(flow.generate(doc));
+    flow.reflow(flow.layout(doc));
     const [box] = doc.query('img').boxes;
     expect(box.getContentArea().width).to.equal(0);
     expect(box.getContentArea().height).to.equal(0);

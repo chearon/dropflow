@@ -4,6 +4,7 @@ import type {Color} from './style.ts';
 import type {PaintBackend} from './paint.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {Image} from './layout-image.ts';
+import type {Layout} from './layout-box.ts';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
@@ -23,11 +24,13 @@ export default class HtmlPaintBackend implements PaintBackend {
   direction: 'ltr' | 'rtl';
   font: LoadedFontFace | undefined;
   fontSize: number;
+  layout: Layout;
 
-  constructor() {
+  constructor(layout: Layout) {
     this.s = '';
     this.fillColor = {r: 0, g: 0, b: 0, a: 0};
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
+    this.layout = layout;
     this.lineWidth = 0;
     this.direction = 'ltr';
     this.font = undefined;
@@ -64,7 +67,7 @@ export default class HtmlPaintBackend implements PaintBackend {
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
     const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, item.face);
-    const text = item.ifc.sliceRenderText(item, textStart, textEnd);
+    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const style = this.style({
       position: 'absolute',

@@ -19,13 +19,13 @@ const rootElement = parse(`
   </html>
 `);
 
-const blockContainer = flow.generate(rootElement);
+const layout = flow.layout(rootElement);
 
-blockContainer.log();
+flow.log(layout);
 flow.loadSync(rootElement);
 
 const canvas = createCanvas(200, 250);
-flow.layout(blockContainer, canvas.width, canvas.height);
+flow.reflow(layout, canvas.width, canvas.height);
 const ctx = canvas.getContext('2d');
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 fs.writeFileSync(new URL('bidi-1.png', import.meta.url), canvas.toBuffer());

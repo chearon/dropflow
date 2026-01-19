@@ -26,13 +26,13 @@ const rootElement = parse(`
 
 flow.loadSync(rootElement);
 
-const blockContainer = flow.generate(rootElement);
+const layout = flow.layout(rootElement);
 
-blockContainer.log();
+flow.log(layout);
 
 const canvas = createCanvas(200, 600);
-flow.layout(blockContainer, canvas.width, canvas.height);
+flow.reflow(layout, canvas.width, canvas.height);
 const ctx = canvas.getContext('2d');
-flow.paintToCanvas(blockContainer, ctx);
+flow.paintToCanvas(layout, ctx);
 
 fs.writeFileSync(new URL('rtl-1.png', import.meta.url), canvas.toBuffer());

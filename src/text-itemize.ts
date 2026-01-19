@@ -2,13 +2,14 @@ import wasm from './wasm.ts';
 import {onWasmMemoryResized} from './wasm-env.ts';
 import {codeToName} from '../gen/script-names.ts';
 import {BlockContainerOfInlines, Inline} from './layout-flow.ts';
+import type {InlineLevel} from './layout-flow.ts';
 
 import {Style} from './style.ts';
 import * as hb from './text-harfbuzz.ts';
 import * as EmojiTrie from './trie-emoji.ts';
 import * as ScriptTrie from './trie-script.ts';
 
-import type {InlineLevel} from './layout-flow.ts';
+import type {Layout} from './layout-box.ts';
 
 const {
   // SheenBidi
@@ -479,26 +480,29 @@ export function newlineIteratorNext(state: NewlineIteratorState) {
   if (state.offset === state.str.length) state.done = true;
 }
 
-const END_CHILDREN = Symbol('end of children');
-
 interface StyleIteratorState {
   /* output */
   offset: number;
   style: Style;
   done: boolean;
   /* private */
+  layout: Layout;
+  index: number;
   parents: Inline[];
-  stack: (InlineLevel | typeof END_CHILDREN)[];
-  leader: InlineLevel | typeof END_CHILDREN;
+  leader: InlineLevel;
   direction: 'ltr' | 'rtl';
   lastOffset: number;
   ifc: BlockContainerOfInlines;
 }
 
-export function createStyleIteratorState(ifc: BlockContainerOfInlines): StyleIteratorState {
+export function createStyleIteratorState(
+  layout: Layout,
+  ifc: BlockContainerOfInlines
+): StyleIteratorState {
   return {
-    parents: [ifc.root],
-    stack: ifc.root.children.slice().reverse(),
+    layout,
+    index: ifc.treeStart + 1,
+    parents: [],
     leader: ifc,
     direction: ifc.style.direction,
     style: ifc.style,
@@ -513,23 +517,23 @@ export function styleIteratorNext(state: StyleIteratorState) {
   if (state.done) return;
 
   state.lastOffset = state.offset;
+  state.style = state.leader.style;
+  if (state.leader.isRun()) state.offset += state.leader.length;
 
-  if (state.leader !== END_CHILDREN) {
-    state.style = state.leader.style;
-    if (state.leader.isRun()) state.offset += state.leader.length;
-  }
-
-  while (state.stack.length) {
-    const item = state.stack.pop()!;
-    const parent = state.parents.at(-1)!;
-
-    if (item === END_CHILDREN) {
-      state.parents.pop();
+  outer: while (
+    state.index <= state.ifc.treeFinal ||
+    state.parents.length
+  ) {
+    while (
+      state.parents.length &&
+      state.parents[state.parents.length - 1].treeFinal === state.index - 1
+    ) {
+      const parent = state.parents.pop()!;
 
       if (state.direction === 'ltr' ? parent.hasLineRightGap() : parent.hasLineLeftGap()) {
         if (state.offset !== state.lastOffset) {
-          state.leader = item;
-          break;
+          state.leader = parent;
+          break outer;
         }
       }
       if (
@@ -537,56 +541,61 @@ export function styleIteratorNext(state: StyleIteratorState) {
         parent.style.position === 'relative'
       ) {
         if (state.offset !== state.lastOffset) {
-          state.leader = item;
-          break;
+          state.leader = parent;
+          break outer;
         }
       }
-    } else if (item.isRun()) {
-      if (!state.style.fontsEqual(item.style)) {
+    }
+
+    if (state.index <= state.ifc.treeFinal) {
+      const item = state.layout.tree[state.index++];
+
+      if (item.isRun()) {
+        if (!state.style.fontsEqual(item.style)) {
+          if (state.offset !== state.lastOffset) {
+            state.leader = item;
+            break;
+          }
+
+          state.style = item.style;
+        }
+
+        state.offset += item.length;
+      } else if (item.isInline()) {
+        state.parents.push(item);
+
+        if (
+          item.style.verticalAlign !== 'baseline' ||
+          item.style.position === 'relative'
+        ) {
+          if (state.offset !== state.lastOffset) {
+            state.leader = item;
+            break;
+          }
+        }
+
+        if (state.direction === 'ltr' ? item.hasLineLeftGap() : item.hasLineRightGap()) {
+          if (state.offset !== state.lastOffset) {
+            state.leader = item;
+            break;
+          }
+        }
+      } else if (item.isBreak() || item.isReplacedBox()) {
         if (state.offset !== state.lastOffset) {
           state.leader = item;
           break;
         }
-
-        state.style = item.style;
-      }
-
-      state.offset += item.length;
-    } else if (item.isInline()) {
-      state.parents.push(item);
-
-      state.stack.push(END_CHILDREN);
-      for (let i = item.children.length - 1; i >= 0; --i) {
-        state.stack.push(item.children[i]);
-      }
-
-      if (
-        item.style.verticalAlign !== 'baseline' ||
-        item.style.position === 'relative'
-      ) {
-        if (state.offset !== state.lastOffset) {
-          state.leader = item;
-          break;
+      } else {
+        // out-of-flow
+        state.index = item.treeFinal + 1;
+        if (item.isFloat()) {
+          // OK
+        } else { // inline-block
+          if (state.offset !== state.lastOffset) {
+            state.leader = item;
+            break;
+          }
         }
-      }
-
-      if (state.direction === 'ltr' ? item.hasLineLeftGap() : item.hasLineRightGap()) {
-        if (state.offset !== state.lastOffset) {
-          state.leader = item;
-          break;
-        }
-      }
-    } else if (item.isBreak() || item.isReplacedBox()) {
-      if (state.offset !== state.lastOffset) {
-        state.leader = item;
-        break;
-      }
-    } else if (item.isFloat()) {
-      // OK
-    } else { // inline-block
-      if (state.offset !== state.lastOffset) {
-        state.leader = item;
-        break;
       }
     }
   }
@@ -617,7 +626,11 @@ interface ItemizeState {
   free: (() => void) | undefined;
 }
 
-export function createItemizeState(ifc: BlockContainerOfInlines): ItemizeState {
+export function createItemizeState(
+  layout: Layout,
+  ifc: BlockContainerOfInlines
+): ItemizeState {
+  const inlineRoot = layout.tree[ifc.treeStart + 1];
   let newlineState;
   let inlineState;
   let emojiState;
@@ -625,15 +638,17 @@ export function createItemizeState(ifc: BlockContainerOfInlines): ItemizeState {
   let scriptState;
   let free;
 
-  if (ifc.root.hasNewlines()) {
+  if (!inlineRoot.isInline()) throw new Error('Assertion failed');
+
+  if (inlineRoot.hasNewlines()) {
     newlineState = createNewlineIteratorState(ifc.text);
   }
 
-  if (ifc.root.hasBreakOrInlineOrReplaced() || ifc.root.hasInlineBlocks()) {
-    inlineState = createStyleIteratorState(ifc);
+  if (inlineRoot.hasBreakOrInlineOrReplaced() || inlineRoot.hasInlineBlocks()) {
+    inlineState = createStyleIteratorState(layout, ifc);
   }
 
-  if (ifc.root.hasComplexText()) {
+  if (inlineRoot.hasComplexText()) {
     const allocation = hb.allocateUint16Array(ifc.text.length);
     const initialLevel = ifc.style.direction === 'ltr' ? 0 : 1;
     const array = allocation.array;

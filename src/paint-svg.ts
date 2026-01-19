@@ -4,6 +4,7 @@ import type {Color} from './style.ts';
 import type {PaintBackend} from './paint.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {Image} from './layout-image.ts';
+import type {Layout} from './layout-box.ts';
 
 function encode(s: string) {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
@@ -55,8 +56,9 @@ export default class SvgPaintBackend implements PaintBackend {
   font: LoadedFontFace | undefined;
   fontSize: number;
   usedFonts: Map<string, LoadedFontFace>;
+  layout: Layout;
 
-  constructor() {
+  constructor(layout: Layout) {
     this.main = '';
     this.defs = '';
     this.clips = [];
@@ -67,6 +69,7 @@ export default class SvgPaintBackend implements PaintBackend {
     this.font = undefined;
     this.fontSize = 0;
     this.usedFonts = new Map();
+    this.layout = layout;
   }
 
   style(style: Record<string, string>) {
@@ -92,7 +95,7 @@ export default class SvgPaintBackend implements PaintBackend {
   }
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.ifc.sliceRenderText(item, textStart, textEnd).trim();
+    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd).trim();
     const {r, g, b, a} = this.fillColor;
     const color = `rgba(${r}, ${g}, ${b}, ${a})`;
     const style = this.style({

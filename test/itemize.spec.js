@@ -30,11 +30,11 @@ function createJsString(str) {
   };
 }
 
-function layout(html) {
+function Layout(html) {
   const el = parse(html);
-  const bc = flow.generate(el);
-  flow.layout(bc);
-  return bc;
+  const layout = flow.layout(el);
+  flow.reflow(layout);
+  return layout;
 }
 
 // These tests are mostly useful for debugging. They should already be covered
@@ -258,16 +258,15 @@ describe('Itemization', function () {
     });
 
     it('stops at the end when all is the same', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         <div style="font-size: 8px;">
           <span style="font-size: 8px;">hello</span>
           <span style="font-size: 8px;">
             <span><span><span>chump</span></span</span>
           </span>
         </div>
-      `).children[0];
-      const state = createStyleIteratorState(ifc);
+      `);
+      const state = createStyleIteratorState(layout, layout.tree[1]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(13);
@@ -276,12 +275,11 @@ describe('Itemization', function () {
     });
 
     it('stops at font changes', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         <span style="font-size: 1px;">hello</span>
         <span style="font-size: 2px;">world</span>
       `);
-      const state = createStyleIteratorState(ifc);
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(5);
@@ -301,13 +299,12 @@ describe('Itemization', function () {
     });
 
     it('stops at vertical-align changes', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         <span style="position: relative;">sanitizers:</span>
         bromine
         <span style="position: relative;">chlorine</span>
       `);
-      const state = createStyleIteratorState(ifc);
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(11);
@@ -327,13 +324,12 @@ describe('Itemization', function () {
     });
 
     it('stops at inline-block', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         cat
         <div style="display: inline-block;">dog</div>
         rat
       `);
-      const state = createStyleIteratorState(ifc);
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(4);
@@ -345,13 +341,12 @@ describe('Itemization', function () {
     });
 
     it('stops at position: relative', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         <span style="vertical-align: sub;">
           <span style="vertical-align: sub;">sub</span>
         </span>
       `);
-      const state = createStyleIteratorState(ifc);
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(1);
@@ -367,9 +362,8 @@ describe('Itemization', function () {
     });
 
     it('stops with the right style with nested inlines', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout('<span style="font-family: Abc;">Abc</span>');
-      const state = createStyleIteratorState(ifc);
+      const layout = Layout('<span style="font-family: Abc;">Abc</span>');
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.style.fontFamily[0]).to.equal('Abc');
@@ -378,11 +372,10 @@ describe('Itemization', function () {
     });
 
     it('stops at padding', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         <span>abc</span><span style="padding-left: 3px;">def</span>
       `);
-      const state = createStyleIteratorState(ifc);
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(3);
@@ -394,11 +387,10 @@ describe('Itemization', function () {
     });
 
     it('stops after negative margin', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout(`
+      const layout = Layout(`
         <span style="margin-right: -1px;">a</span> b
       `);
-      const state = createStyleIteratorState(ifc);
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(1);
@@ -410,9 +402,8 @@ describe('Itemization', function () {
     });
 
     it('stops after <img>', function () {
-      /** @type {import('../src/layout-flow.ts').BlockContainerOfInlines} */
-      const ifc = layout('a<img>b');
-      const state = createStyleIteratorState(ifc);
+      const layout = Layout('a<img>b');
+      const state = createStyleIteratorState(layout, layout.tree[0]);
 
       styleIteratorNext(state);
       expect(state.offset).to.equal(1);

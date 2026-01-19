@@ -35,8 +35,8 @@ async function loadLayoutPaint() {
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  flow.layout(blockContainer, canvas.width, canvas.height);
-  flow.paintToCanvas(blockContainer, canvas.getContext('2d'));
+  flow.reflow(layout, canvas.width, canvas.height);
+  flow.paintToCanvas(layout, canvas.getContext('2d'));
   ctx.restore();
 }
 
@@ -149,12 +149,12 @@ const state = EditorState.create({
 const view = new EditorView({state, parent: editor});
 
 let documentElement;
-let blockContainer;
+let layout;
 
 function parseGenerate() {
   documentElement = parse(view.state.doc.toString());
-  blockContainer = flow.generate(documentElement);
-  window.blockContainer = blockContainer;
+  layout = flow.layout(documentElement);
+  window.layout = layout;
   window.documentElement = documentElement;
 }
 

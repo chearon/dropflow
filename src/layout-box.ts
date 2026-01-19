@@ -1,4 +1,4 @@
-import {id, Logger} from './util.ts';
+import {Logger} from './util.ts';
 
 import type {Style} from './style.ts';
 import type {Run} from './layout-text.ts';
@@ -79,52 +79,6 @@ export abstract class TreeNode {
 
   abstract getLogSymbol(): string;
 
-  log(options?: TreeLogOptions, log?: Logger) {
-    const flush = !log;
-
-    log ||= new Logger();
-
-    if (this.isBlockContainerOfInlines()) {
-      options = {...options};
-      options.paragraphText = this.text;
-    }
-
-    log.text(`${this.getLogSymbol()} `);
-    this.logName(log, options);
-
-    if (options?.containingBlocks && this.isBox()) {
-      log.text(` (cb: ${this.getContainingBlock()?.box.id ?? '(null)'})`);
-    }
-
-    if (options?.css) {
-      const css = this.style[options.css];
-      log.text(` (${options.css}: ${css && JSON.stringify(css)})`);
-    }
-
-    if (options?.bits && this.isBox()) {
-      log.text(` (bf: ${this.stringifyBitfield()})`);
-    }
-
-    log.text('\n');
-
-    if (
-      this.isBlockContainerOfInlines() ||
-      this.isBlockContainerOfBlocks() ||
-      this.isInline()
-    ) {
-      const children = this.isBlockContainerOfInlines() ? [this.root] : this.children;
-      log.pushIndent();
-
-      for (let i = 0; i < children.length; i++) {
-        children[i].log(options, log);
-      }
-
-      log.popIndent();
-    }
-
-    if (flush) log.flush();
-  }
-
   /**
    * Typically the time to assign the containing block
    */
@@ -135,14 +89,14 @@ export abstract class TreeNode {
   /**
    * Typically the time to shape text and gather font metrics
    */
-  prelayoutPostorder(ctx: PrelayoutContext) {
+  prelayoutPostorder(layout: Layout, ctx: PrelayoutContext) {
     // should be overridden
   }
 
   /**
    * Typically the time to absolutize relative coordinates
    */
-  postlayoutPreorder() {
+  postlayoutPreorder(layout: Layout) {
     // should be overridden
   }
 
@@ -155,7 +109,6 @@ export abstract class TreeNode {
 }
 
 export abstract class Box extends TreeNode {
-  public id: string;
   /**
    * General boolean bitfield shared by all box subclasses. The bits labeled
    * with "has" say something about their content to allow for optimizations.
@@ -163,6 +116,8 @@ export abstract class Box extends TreeNode {
    * do so conditionally.
    */
   public bitfield: number;
+  public treeStart: number;
+  public treeFinal: number;
   private area: BoxArea;
 
   /**
@@ -199,16 +154,15 @@ export abstract class Box extends TreeNode {
     hasSoftHyphen:             1 << 10,
     hasNewlines:               1 << 11,
     hasSoftWrap:               1 << 12,
-    hasCollapsibleWs:          1 << 13,
-    // 14..15: propagation bits: Inline <- Inline
-    hasPaintedInlines:         1 << 14,
-    hasSizedInline:            1 << 15,
-    // 16: propagation bits: Inline <- Break, Inline, ReplacedBox
-    hasBreakInlineOrReplaced:  1 << 16,
-    // 17..18: propagation bits: Inline <- FormattingBox
-    hasFloatOrReplaced:        1 << 17,
-    hasInlineBlocks:           1 << 18,
-    // 19..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    // 13..14: propagation bits: Inline <- Inline
+    hasPaintedInlines:         1 << 13,
+    hasSizedInline:            1 << 14,
+    // 15: propagation bits: Inline <- Break, Inline, ReplacedBox
+    hasBreakInlineOrReplaced:  1 << 15,
+    // 16..17: propagation bits: Inline <- FormattingBox
+    hasFloatOrReplaced:        1 << 16,
+    hasInlineBlocks:           1 << 17,
+    // 18..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**
@@ -223,8 +177,9 @@ export abstract class Box extends TreeNode {
 
   constructor(style: Style, attrs: number) {
     super(style);
-    this.id = id();
     this.bitfield = attrs;
+    this.treeStart = 0;
+    this.treeFinal = 0;
     this.area = new BoxArea(this);
 
     const hasBorder = this.style.hasBorderArea();
@@ -237,6 +192,10 @@ export abstract class Box extends TreeNode {
     } else if (hasBorder || hasPadding) { // b -> c or p -> c
       this.area.setParent(new BoxArea(this));
     }
+  }
+
+  id() {
+    return this.treeStart;
   }
 
   getBorderArea(): BoxArea {
@@ -458,7 +417,7 @@ export abstract class Box extends TreeNode {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }
 
-  postlayoutPreorder() {
+  postlayoutPreorder(layout: Layout) {
     // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
     // and use normal inline areas instead, with fragmentation
     const borderArea = this.getBorderArea();
@@ -591,7 +550,7 @@ export abstract class FormattingBox extends Box {
     };
   }
 
-  canCollapseThrough() {
+  canCollapseThrough(layout: Layout) {
     return false;
   }
 
@@ -696,7 +655,7 @@ export class BoxArea {
     let x, y, width, height;
 
     if (!this.parent) {
-      throw new Error(`Cannot absolutify area for ${this.box.id}, parent was never set`);
+      throw new Error(`Cannot absolutify area for ${this.box.id()}, parent was never set`);
     }
 
     const writingMode = this.parent.getEstablishedWritingMode();
@@ -728,7 +687,7 @@ export class BoxArea {
     let width, height;
 
     if (!this.parent) {
-      throw new Error(`Cannot absolutify area for ${this.box.id}, parent was never set`);
+      throw new Error(`Cannot absolutify area for ${this.box.id()}, parent was never set`);
     }
 
     const writingMode = this.parent.getEstablishedWritingMode();
@@ -754,13 +713,12 @@ export class BoxArea {
 
   repr(indent = 0) {
     const {width: w, height: h, x, y} = this;
-    return '  '.repeat(indent) + `⚃ Area ${this.box.id}: ${w}⨯${h} @${x},${y}`;
+    return '  '.repeat(indent) + `⚃ Area ${this.box.id()}: ${w}⨯${h} @${x},${y}`;
   }
 }
 
-export function prelayout(root: BlockContainer, icb: BoxArea) {
-  const stack: (InlineLevel | {sentinel: true})[] = [root];
-  const parents: Box[] = [];
+export function prelayout(layout: Layout, icb: BoxArea) {
+  const parents: (BlockContainer | Inline)[] = [];
   const ifcs: BlockContainerOfInlines[] = [];
   const pstack = [icb];
   const bstack = [icb];
@@ -769,11 +727,37 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
     lastBlockContainerArea: icb
   };
 
-  while (stack.length) {
-    const box = stack.pop()!;
+  for (let i = 0; i < layout.tree.length; i++) {
+    const item = layout.tree[i];
 
-    if ('sentinel' in box) {
+    if (item.isBox()) {
+      const box = item;
+      if (box.isBlockContainerOfInlines()) ifcs.push(box);
+
+      ctx.lastPositionedArea = pstack.at(-1)!;
+      ctx.lastBlockContainerArea = bstack.at(-1)!;
+
+      box.prelayoutPreorder(ctx);
+      if (box.isBlockContainer()) {
+        bstack.push(box.getContentArea());
+        if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
+      }
+
+      if (box.isBlockContainer() || box.isInline()) {
+        parents.push(box);
+      } else {
+        item.propagate(parents.at(-1)!);
+        item.prelayoutPostorder(layout, ctx);
+      }
+    } else if (item.isRun()) {
+      item.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
+    } else {
+      item.propagate(parents.at(-1)!);
+    }
+
+    while (parents.length && parents[parents.length - 1].treeFinal === i) {
       const box = parents.pop()!;
+
       if (box.isBlockContainerOfInlines()) ifcs.pop();
 
       if (box.isBlockContainer()) {
@@ -785,63 +769,83 @@ export function prelayout(root: BlockContainer, icb: BoxArea) {
 
       const parent = parents.at(-1);
       if (parent) box.propagate(parent);
-      box.prelayoutPostorder(ctx);
-    } else if (box.isBox()) {
-      parents.push(box);
-      if (box.isBlockContainerOfInlines()) ifcs.push(box);
-
-      ctx.lastPositionedArea = pstack.at(-1)!;
-      ctx.lastBlockContainerArea = bstack.at(-1)!;
-
-      stack.push({sentinel: true});
-      box.prelayoutPreorder(ctx);
-      if (box.isBlockContainer()) {
-        bstack.push(box.getContentArea());
-        if (box.style.position !== 'static') pstack.push(box.getPaddingArea());
-      }
-
-      if (box.isBlockContainerOfBlocks() || box.isInline()) {
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          stack.push(box.children[i]);
-        }
-      } else if (box.isBlockContainerOfInlines()) {
-        stack.push(box.root);
-      }
-    } else if (box.isRun()) {
-      box.propagate(parents.at(-1)!, ifcs.at(-1)!.text);
-    } else {
-      box.propagate(parents.at(-1)!);
+      box.prelayoutPostorder(layout, ctx);
     }
   }
 }
 
-export function postlayout(root: BlockContainer) {
-  const stack: (BlockContainer | Inline | {sentinel: true})[] = [root];
-  const parents: Box[] = [];
+export function postlayout(layout: Layout) {
+  const parents: (BlockContainer | Inline)[] = [];
 
-  while (stack.length) {
-    const box = stack.pop()!;
-
-    if ('sentinel' in box) {
-      const parent = parents.pop()!;
-      parent.postlayoutPostorder();
+  for (let i = 0; i < layout.tree.length; i++) {
+    const item = layout.tree[i];
+    item.postlayoutPreorder(layout);
+    if (item.isBlockContainer() || item.isInline()) {
+      parents.push(item);
     } else {
-      box.postlayoutPreorder();
-      stack.push({sentinel: true});
-      parents.push(box);
-      if (box.isBlockContainerOfBlocks() || box.isInline()) {
-        for (let i = box.children.length - 1; i >= 0; i--) {
-          const child = box.children[i];
-          if (child.isBlockContainer() || child.isInline()) {
-            stack.push(child);
-          } else {
-            child.postlayoutPreorder()
-            child.postlayoutPostorder();
-          }
-        }
-      } else {
-        stack.push(box.root);
-      }
+      item.postlayoutPostorder();
     }
+
+    while (parents.length && parents[parents.length - 1].treeFinal === i) {
+      const box = parents.pop()!;
+      box.postlayoutPostorder();
+    }
+  }
+}
+
+export function log(layout: Layout, logger?: Logger, options?: TreeLogOptions) {
+  const parents: (BlockContainer | Inline)[] = [];
+  const ifcs: BlockContainerOfInlines[] = [];
+
+  options ||= {};
+  logger ||= new Logger();
+
+  for (let i = 0; i < layout.tree.length; i++) {
+    const item = layout.tree[i];
+
+    logger.text(`${item.getLogSymbol()} `);
+    options.paragraphText = ifcs.length > 0 ? ifcs[ifcs.length - 1].text : undefined;
+    item.logName(logger, options);
+
+    if (options.containingBlocks && item.isBox()) {
+      logger.text(` (cb: ${item.getContainingBlock()?.box.id() ?? '(null)'})`);
+    }
+
+    if (options.css) {
+      const css = item.style[options.css];
+      logger.text(` (${options.css}: ${css && JSON.stringify(css)})`);
+    }
+
+    if (options.bits && item.isBox()) {
+      logger.text(` (bf: ${item.stringifyBitfield()})`);
+    }
+
+    logger.text('\n');
+
+    if (item.isBlockContainer() || item.isInline()) {
+      parents.push(item);
+      if (item.isBlockContainerOfInlines()) ifcs.push(item);
+      logger.pushIndent();
+    }
+
+    while (parents.length && parents[parents.length - 1].treeFinal === i) {
+      const box = parents.pop()!;
+      if (box.isBlockContainerOfInlines()) ifcs.pop();
+      logger.popIndent();
+    }
+  }
+
+  logger.flush();
+}
+
+export class Layout {
+  tree: InlineLevel[];
+
+  constructor(tree: InlineLevel[]) {
+    this.tree = tree;
+  }
+
+  root() {
+    return this.tree[0] as BlockContainer;
   }
 }

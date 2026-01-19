@@ -26,8 +26,9 @@ function hex(r, g, b, a) {
 }
 
 export default class PaintSpy {
-  constructor() {
+  constructor(layout) {
     this.calls = [];
+    this.layout = layout;
   }
 
   edge(x, y, length, side) {
@@ -43,7 +44,7 @@ export default class PaintSpy {
 
   text(x, y, item, textStart, textEnd) {
     const fillColor = this.fillColor;
-    const text = item.ifc.sliceRenderText(item, textStart, textEnd);
+    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
     this.calls.push({t: 'text', x, y, text, fillColor});
   }
 

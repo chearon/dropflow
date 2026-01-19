@@ -1,14 +1,15 @@
 import {basename, loggableText, Logger} from './util.ts';
-import {Box, TreeNode} from './layout-box.ts';
+import {Box, TreeNode, Layout} from './layout-box.ts';
 import {Style} from './style.ts';
 import {
   ReplacedBox,
   BlockContainerOfInlines,
   IfcVacancy,
   Inline,
-  createInlineIterator,
   layoutFloatBox,
-  layoutContribution
+  layoutContribution,
+  createInlineIteratorState,
+  inlineIteratorStateNext,
 } from './layout-flow.ts';
 import LineBreak, {HardBreaker} from './text-line-break.ts';
 import {nextGraphemeBreak, previousGraphemeBreak} from './text-grapheme-break.ts';
@@ -36,10 +37,6 @@ const NON_ASCII_MASK = 0b1111_1111_1000_0000;
 
 function isNowrap(whiteSpace: WhiteSpace) {
   return whiteSpace === 'nowrap' || whiteSpace === 'pre';
-}
-
-function isWsPreserved(whiteSpace: WhiteSpace) {
-  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap';
 }
 
 export function isSpaceOrTabOrNewline(c: string) {
@@ -146,34 +143,22 @@ export class Run extends TreeNode {
     if (!isNowrap(this.style.whiteSpace)) {
       parent.bitfield |= Box.BITS.hasSoftWrap;
     }
-
-    if (!isWsPreserved(this.style.whiteSpace)) {
-      parent.bitfield |= Box.BITS.hasCollapsibleWs;
-    }
   }
 }
 
-export function collapseWhitespace(ifc: BlockContainerOfInlines) {
-  const stack: (InlineLevel | {post: Inline})[] = ifc.root.children.slice().reverse();
-  const parents: Inline[] = [ifc.root];
+export function collapseWhitespace(tree: InlineLevel[], ifc: BlockContainerOfInlines) {
   const str = new Uint16Array(ifc.text.length);
+  const parents: Inline[] = [];
   let delta = 0;
-  let stri = 0;
+  let index = 0;
   let inWhitespace = false;
+  let treeDelta = 0;
+  let w = ifc.treeStart + 2;
 
-  while (stack.length) {
-    const item = stack.pop()!;
+  for (let r = ifc.treeStart + 2; r <= ifc.treeFinal; r++) {
+    const item = tree[r];
 
-    if ('post' in item) {
-      const inline = item.post;
-      inline.textEnd -= delta;
-      parents.pop();
-    } else if (item.isInline()) {
-      item.textStart -= delta;
-      parents.push(item);
-      stack.push({post: item});
-      for (let i = item.children.length - 1; i >= 0; --i) stack.push(item.children[i]);
-    } else if (item.isRun()) {
+    if (item.isRun()) {
       const whiteSpace = item.style.whiteSpace;
       const originalStart = item.textStart;
 
@@ -186,7 +171,7 @@ export function collapseWhitespace(ifc: BlockContainerOfInlines) {
           if (inWhitespace && isWhitespace) {
             delta += 1;
           } else {
-            str[stri++] = isWhitespace ? spaceCharacter : ifc.text.charCodeAt(i);
+            str[index++] = isWhitespace ? spaceCharacter : ifc.text.charCodeAt(i);
           }
 
           inWhitespace = isWhitespace;
@@ -208,11 +193,11 @@ export function collapseWhitespace(ifc: BlockContainerOfInlines) {
                 if (inWhitespace || hasNewline) {
                   delta += 1;
                 } else {
-                  str[stri++] = spaceCharacter;
+                  str[index++] = spaceCharacter;
                 }
                 inWhitespace = true;
               } else { // newline
-                str[stri++] = lineFeedCharacter;
+                str[index++] = lineFeedCharacter;
                 inWhitespace = false;
               }
 
@@ -221,32 +206,66 @@ export function collapseWhitespace(ifc: BlockContainerOfInlines) {
 
             i = j - 1;
           } else {
-            str[stri++] = ifc.text.charCodeAt(i);
+            str[index++] = ifc.text.charCodeAt(i);
             inWhitespace = false;
           }
         }
       } else { // pre
         inWhitespace = false;
         for (let i = originalStart; i < item.textEnd; i++) {
-          str[stri++] = ifc.text.charCodeAt(i);
+          str[index++] = ifc.text.charCodeAt(i);
         }
       }
 
       item.textEnd -= delta;
 
-      if (item.length === 0) {
-        const parent = parents.at(-1)!;
-        const i = parent.children.indexOf(item);
-        if (i < 0) throw new Error('Assertion failed');
-        parent.children.splice(i, 1);
+      if (item.length) {
+        tree[w++] = item;
+      } else {
+        treeDelta++;
       }
-    } else if (item.isFormattingBox() && item.isInlineLevel()) { // inline-block, etc
-      inWhitespace = false;
+    } else if (item.isFormattingBox()) { // inline-block, float, etc
+      item.treeStart -= treeDelta;
+      if (item.isInlineLevel()) {
+        inWhitespace = false;
+      }
+      tree[w++] = item;
+      while (r + 1 <= item.treeFinal) {
+        const item = tree[++r];
+        if (item.isBox()) {
+          item.treeStart -= treeDelta;
+          item.treeFinal -= treeDelta;
+        }
+        tree[w++] = item;
+      }
+      item.treeFinal -= treeDelta;
+    } else {
+      tree[w++] = item;
+      if (item.isInline()) {
+        item.textStart -= delta;
+        item.treeStart -= treeDelta;
+        parents.push(item);
+      }
+    }
+
+    while (parents.length && r === parents.at(-1)!.treeFinal) {
+      const parent = parents.pop()!;
+      parent.textEnd -= delta;
+      parent.treeFinal -= treeDelta;
     }
   }
 
-  ifc.text = decoder.decode(str.subarray(0, stri));
-  ifc.root.textEnd = ifc.text.length;
+  const rootInline = tree[ifc.treeStart + 1];
+  if (!rootInline.isInline()) throw new Error('Assertion failed!');
+  rootInline.textEnd -= delta;
+  rootInline.treeFinal -= treeDelta;
+  ifc.treeFinal -= treeDelta;
+
+  if (treeDelta > 0) {
+    tree.length -= treeDelta;
+  }
+
+  ifc.text = decoder.decode(str.subarray(0, index));
 }
 
 export interface ShapingAttrs {
@@ -1002,7 +1021,7 @@ function baselineStep(parent: Inline, inline: Inline) {
   return 0;
 }
 
-function getLastBaseline(block: BlockLevel) {
+function getLastBaseline(layout: Layout, block: BlockLevel) {
   const stack = [{block, offset: 0}];
 
   while (stack.length) {
@@ -1015,14 +1034,22 @@ function getLastBaseline(block: BlockLevel) {
       if (linebox) return offset + linebox.blockOffset + linebox.ascender;
     } else {
       const parentOffset = offset;
+      const children: InlineLevel[] = [];
+      let i = block.treeStart + 1;
 
-      for (const child of block.children) {
+      while (i <= block.treeFinal) {
+        const child = layout.tree[i];
+        children.push(child);
+        i = child.isBox() ? i + child.treeFinal : i + 1;
+      }
+
+      for (const child of children.reverse()) {
         if (child.isBlockContainer()) {
           const containingBlock = child.getContainingBlock();
           const offset = parentOffset
             + child.getBorderArea().blockStart
-            + child.style.getBorderBlockStartWidth(containingBlock);
-          + child.style.getPaddingBlockStart(containingBlock);
+            + child.style.getBorderBlockStartWidth(containingBlock)
+            + child.style.getPaddingBlockStart(containingBlock);
 
           stack.push({block: child, offset});
         }
@@ -1031,9 +1058,9 @@ function getLastBaseline(block: BlockLevel) {
   }
 }
 
-export function inlineBlockMetrics(box: BlockLevel) {
+export function inlineBlockMetrics(layout: Layout, box: BlockLevel) {
   const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = box.getMarginsAutoIsZero();
-  const baseline = box.style.overflow === 'hidden' ? undefined : getLastBaseline(box);
+  const baseline = box.style.overflow === 'hidden' ? undefined : getLastBaseline(layout, box);
   let ascender, descender;
 
   if (baseline !== undefined) {
@@ -1053,7 +1080,11 @@ export function inlineBlockMetrics(box: BlockLevel) {
   return {ascender, descender};
 }
 
-function inlineBlockBaselineStep(parent: Inline, box: BlockLevel) {
+function inlineBlockBaselineStep(
+  layout: Layout,
+  parent: Inline,
+  box: BlockLevel
+) {
   if (box.style.overflow === 'hidden') {
     return 0;
   }
@@ -1071,19 +1102,19 @@ function inlineBlockBaselineStep(parent: Inline, box: BlockLevel) {
   }
 
   if (box.style.verticalAlign === 'middle') {
-    const {ascender, descender} = inlineBlockMetrics(box);
+    const {ascender, descender} = inlineBlockMetrics(layout, box);
     const midParent = parent.metrics.xHeight / 2;
     const midInline = (ascender - descender) / 2;
     return midParent - midInline;
   }
 
   if (box.style.verticalAlign === 'text-top') {
-    const {ascender} = inlineBlockMetrics(box);
+    const {ascender} = inlineBlockMetrics(layout, box);
     return parent.metrics.ascender - ascender;
   }
 
   if (box.style.verticalAlign === 'text-bottom') {
-    const {descender} = inlineBlockMetrics(box);
+    const {descender} = inlineBlockMetrics(layout, box);
     return descender - parent.metrics.descender;
   }
 
@@ -1131,9 +1162,9 @@ class AlignmentContext {
     this.descender = Math.max(this.descender, bottom);
   }
 
-  stampBlock(box: BlockLevel, parent: Inline) {
-    const {ascender, descender} = inlineBlockMetrics(box);
-    const baselineShift = this.baselineShift + inlineBlockBaselineStep(parent, box);
+  stampBlock(layout: Layout, box: BlockLevel, parent: Inline) {
+    const {ascender, descender} = inlineBlockMetrics(layout, box);
+    const baselineShift = this.baselineShift + inlineBlockBaselineStep(layout, parent, box);
     const top = baselineShift + ascender;
     const bottom = descender - baselineShift;
     this.ascender = Math.max(this.ascender, top);
@@ -1164,10 +1195,10 @@ class LineCandidates extends LineItemLinkedList {
   width: LineWidthTracker;
   height: LineHeightTracker;
 
-  constructor(ifc: BlockContainerOfInlines) {
+  constructor(layout: Layout, ifc: BlockContainerOfInlines) {
     super();
     this.width = new LineWidthTracker();
-    this.height = new LineHeightTracker(ifc);
+    this.height = new LineHeightTracker(layout, ifc);
   }
 
   clearContents() {
@@ -1180,6 +1211,7 @@ class LineCandidates extends LineItemLinkedList {
 const EMPTY_MAP = Object.freeze(new Map());
 
 class LineHeightTracker {
+  layout: Layout;
   ifc: BlockContainerOfInlines;
   parents: Inline[];
   contextStack: AlignmentContext[];
@@ -1188,11 +1220,14 @@ class LineHeightTracker {
   boxes: BlockLevel[];
   markedContextRoots: Inline[];
 
-  constructor(ifc: BlockContainerOfInlines) {
-    const ctx = new AlignmentContext(ifc.root.metrics);
+  constructor(layout: Layout, ifc: BlockContainerOfInlines) {
+    const inline = layout.tree[ifc.treeStart + 1];
+    if (!inline.isInline()) throw new Error('Assertion failed');
+    const ctx = new AlignmentContext(inline.metrics);
 
+    this.layout = layout;
     this.ifc = ifc;
-    this.parents = [];
+    this.parents = [inline];
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
     this.boxes = [];
@@ -1207,12 +1242,12 @@ class LineHeightTracker {
     if (box.style.verticalAlign === 'top' || box.style.verticalAlign === 'bottom') {
       this.boxes.push(box);
     } else {
-      this.contextStack.at(-1)!.stampBlock(box, parent);
+      this.contextStack.at(-1)!.stampBlock(this.layout, box, parent);
     }
   }
 
   pushInline(inline: Inline) {
-    const parent = this.parents.at(-1) || this.ifc.root;
+    const parent = this.parents.at(-1)!;
     let ctx = this.contextStack.at(-1)!;
 
     this.parents.push(inline);
@@ -1235,7 +1270,7 @@ class LineHeightTracker {
       this.contextStack.pop()!
       this.markedContextRoots.push(inline);
     } else {
-      const parent = this.parents.at(-1) || this.ifc.root;
+      const parent = this.parents.at(-1)!;
       const ctx = this.contextStack.at(-1)!;
       ctx.stepOut(parent, inline);
     }
@@ -1320,8 +1355,8 @@ class LineHeightTracker {
   }
 
   reset() {
-    const ctx = new AlignmentContext(this.ifc.root.metrics);
-    this.parents = [];
+    const ctx = new AlignmentContext(this.parents[0].metrics);
+    this.parents.splice(1, this.parents.length - 1);
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
     this.boxes = [];
@@ -1329,13 +1364,13 @@ class LineHeightTracker {
   }
 
   clearContents() {
-    let parent: Inline = this.ifc.root;
-    let inline = this.parents[0];
-    let i = 0;
+    let parent = this.parents[0];
+    let inline = this.parents.length > 1 ? this.parents[1] : undefined;
+    let i = 1;
 
     if (
       this.contextStack.length === 1 && // no vertical-align top or bottoms
-      this.parents.length <= 1 // one non-top/bottom/baseline parent or none
+      this.parents.length <= 2 // one non-top/bottom/baseline parent or none
     ) {
       const [ctx] = this.contextStack;
       ctx.reset();
@@ -1352,13 +1387,13 @@ class LineHeightTracker {
         while (inline) {
           if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
             parent = inline;
-            inline = this.parents[++i];
+            inline = ++i < this.parents.length ? this.parents[i] : undefined;
             break;
           } else {
             ctx.stepIn(parent, inline);
             ctx.stampMetrics(inline.metrics);
             parent = inline;
-            inline = this.parents[++i];
+            inline = ++i < this.parents.length ? this.parents[i] : undefined;
           }
         }
       }
@@ -1666,12 +1701,15 @@ function wordCacheGet(font: HbFont, string: string) {
 }
 
 export function sliceIfcRenderText(
+  layout: Layout,
   ifc: BlockContainerOfInlines,
   item: ShapedItem,
   start: number,
   end: number
 ) {
-  if (ifc.root.hasSoftHyphen()) {
+  const inline = layout.tree[ifc.treeStart + 1];
+  if (!inline.isInline()) throw new Error('Assertion failed');
+  if (inline.hasSoftHyphen()) {
     const mark = item.end() - 1;
     const hyphen = getHyphen(item);
     if (
@@ -1808,15 +1846,19 @@ function shapePart(
   }
 }
 
-export function createIfcShapedItems(ifc: BlockContainerOfInlines) {
+export function createIfcShapedItems(
+  layout: Layout,
+  ifc: BlockContainerOfInlines,
+  inlineRoot: Inline
+) {
   const items: ShapedItem[] = [];
   const log = ifc.loggingEnabled() ? new Logger() : null;
   const t = log ? (s: string) => log.text(s) : null;
   const g = log ? (glyphs: Int32Array) => log.glyphs(glyphs) : null;
-  const itemizeState = createItemizeState(ifc);
+  const itemizeState = createItemizeState(layout, ifc);
 
-  t?.(`Preprocess ${ifc.id}\n`);
-  t?.('='.repeat(`Preprocess ${ifc.id}`.length) + '\n');
+  t?.(`Preprocess ${ifc.id()}\n`);
+  t?.('='.repeat(`Preprocess ${ifc.id()}`.length) + '\n');
   t?.(`Full text: "${ifc.text}"\n`);
 
   log?.pushIndent();
@@ -1945,22 +1987,25 @@ export function createIfcShapedItems(ifc: BlockContainerOfInlines) {
 
   items.sort((a, b) => a.offset - b.offset);
 
-  if (ifc.root.hasSoftHyphen()) postShapeLoadHyphens(ifc, items);
+  if (inlineRoot.hasSoftHyphen()) postShapeLoadHyphens(ifc, items);
 
   return items;
 }
 
 function createMarkIterator(
+  layout: Layout,
   ifc: BlockContainerOfInlines,
   mode: 'min-content' | 'max-content' | 'normal'
 ) {
+  const inlineRoot = layout.tree[ifc.treeStart + 1];
+  if (!inlineRoot.isInline()) throw new Error('Assertion failed');
   // Inline iterator
-  const inlineIterator = createInlineIterator(ifc.root);
-  let inline = inlineIterator.next();
+  let inline = createInlineIteratorState(layout, ifc);
+  inlineIteratorStateNext(inline);
   let inlineMark = 0;
   // Break iterator
-  const breakIterator = ifc.root.hasSoftWrap()
-    ? new LineBreak(ifc.text, !ifc.root.hasSoftWrap())
+  const breakIterator = inlineRoot.hasSoftWrap()
+    ? new LineBreak(ifc.text, !inlineRoot.hasSoftWrap())
     : new HardBreaker(ifc.text);
   let linebreak: {position: number, required: boolean} | null = {position: -1, required: false};
   let breakMark = 0;
@@ -1989,7 +2034,7 @@ function createMarkIterator(
       split
     };
 
-    if (inline.done && !linebreak && itemIndex >= ifc.items.length) {
+    if (!inline.value && !linebreak && itemIndex >= ifc.items.length) {
       return {done: true};
     }
 
@@ -2001,59 +2046,59 @@ function createMarkIterator(
     }
 
     // Consume the inline break spot if we're not on a break
-    if (!inline.done && inline.value.state === 'breakspot' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
-      inline = inlineIterator.next();
+    if (inline.value?.state === 'breakspot' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
+      inlineIteratorStateNext(inline);
     }
 
     // Consume floats
-    if (!inline.done && inline.value.state === 'box' && inline.value.item.isFloat() && inlineMark === mark.position) {
+    if (inline.value?.state === 'box' && inline.value.item.isFloat() && inlineMark === mark.position) {
       mark.box = inline.value.item;
-      inline = inlineIterator.next();
+      inlineIteratorStateNext(inline);
       return {done: false, value: mark};
     }
 
-    if (!inline.done && inline.value.state === 'breakop' && inlineMark === mark.position) {
+    if (inline.value?.state === 'breakop' && inlineMark === mark.position) {
       mark.isBreak = true;
-      inline = inlineIterator.next();
+      inlineIteratorStateNext(inline);
       return {done: false, value: mark};
     }
 
     // Consume pre[-text|-break|-block], post["], or pre-post["] before a breakspot
-    if (!inline.done && inline.value.state !== 'breakspot' && inlineMark === mark.position) {
+    if (inline.value && inline.value.state !== 'breakspot' && inlineMark === mark.position) {
       if (inline.value.state === 'pre' || inline.value.state === 'post') {
         if (inline.value.state === 'pre') mark.inlinePre = inline.value.item;
         if (inline.value.state === 'post') mark.inlinePost = inline.value.item;
-        inline = inlineIterator.next();
+        inlineIteratorStateNext(inline);
       }
 
       // Consume post if we consumed pre above
-      if (mark.inlinePre && !inline.done && inline.value.state === 'post') {
+      if (mark.inlinePre && inline.value?.state === 'post') {
         mark.inlinePost = inline.value.item;
-        inline = inlineIterator.next();
+        inlineIteratorStateNext(inline);
       }
 
       // Consume text, hard break, or inline-block
-      if (!inline.done) {
+      if (inline.value) {
         if (inline.value.state === 'text') {
           inlineMark += inline.value.item.length;
           if (!inline.value.item.wrapsOverflowAnywhere(mode)) {
             graphemeBreakMark = inlineMark;
           }
-          inline = inlineIterator.next();
+          inlineIteratorStateNext(inline);
         } else if (inline.value.state === 'break') {
           mark.isBreak = true;
           mark.isBreakForced = true;
-          inline = inlineIterator.next();
+          inlineIteratorStateNext(inline);
         } else if (inline.value.state === 'box' && inline.value.item.isInlineLevel()) {
           mark.box = inline.value.item;
-          inline = inlineIterator.next();
+          inlineIteratorStateNext(inline);
         }
       }
     }
 
     if (mark.inlinePre || mark.inlinePost || mark.isBreak) return {done: false, value: mark};
 
-    if (itemIndex < ifc.items.length && itemMark === mark.position && (inline.done || inlineMark !== mark.position)) {
+    if (itemIndex < ifc.items.length && itemMark === mark.position && (!inline.value || inlineMark !== mark.position)) {
       itemIndex += 1;
 
       if (itemIndex < ifc.items.length) {
@@ -2071,7 +2116,7 @@ function createMarkIterator(
         mark.isBreakForced = linebreak.required;
         mark.isBreak = true;
       }
-      if (bk && ifc.root.hasText()) {
+      if (bk && inlineRoot.hasText()) {
         breakMark = bk.position;
         if (linebreak) {
           linebreak.position = bk.position;
@@ -2086,7 +2131,7 @@ function createMarkIterator(
     }
 
     if (graphemeBreakMark === mark.position) {
-      if (ifc.root.hasText()) {
+      if (inlineRoot.hasText()) {
         mark.isGraphemeBreak = true;
         graphemeBreakMark = nextGraphemeBreak(ifc.text, graphemeBreakMark);
       } else {
@@ -2094,8 +2139,8 @@ function createMarkIterator(
       }
     }
 
-    if (!inline.done && inlineMark === mark.position && inline.value.state === 'breakspot') {
-      inline = inlineIterator.next();
+    if (inlineMark === mark.position && inline.value?.state === 'breakspot') {
+      inlineIteratorStateNext(inline);
     }
 
     return {done: false, value: mark};
@@ -2118,13 +2163,14 @@ function createMarkIterator(
 }
 
 export function getIfcContribution(
+  layout: Layout,
   ifc: BlockContainerOfInlines,
   mode: 'min-content' | 'max-content'
 ) {
   const width = new LineWidthTracker();
   let contribution = 0;
 
-  for (const mark of createMarkIterator(ifc, mode)) {
+  for (const mark of createMarkIterator(layout, ifc, mode)) {
     const inkAdvance = mark.advance - mark.trailingWs;
     const isBreak = mark.isBreak || mark.isGraphemeBreak;
 
@@ -2134,7 +2180,7 @@ export function getIfcContribution(
     if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
     if (mark.box) {
-      width.addInk(layoutContribution(mark.box, mode));
+      width.addInk(layoutContribution(layout, mark.box, mode));
       // floats don't have breaks before/after them
       if (mode === 'min-content') {
         contribution = Math.max(contribution, width.trimmed());
@@ -2185,15 +2231,21 @@ function splitItem(ifc: BlockContainerOfInlines, itemIndex: number, offset: numb
   }
 }
 
-export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutContext) {
+export function createIfcLineboxes(
+  layout: Layout,
+  ifc: BlockContainerOfInlines,
+  ctx: LayoutContext
+) {
   const bfc = ctx.bfc!;
   /** Holds shaped items, width and height trackers for the current word */
-  const candidates = new LineCandidates(ifc);
+  const candidates = new LineCandidates(layout, ifc);
   /** Tracks the width of the line being worked on */
   const width = new LineWidthTracker();
   /** Tracks the height, ascenders and descenders of the line being worked on */
-  const height = new LineHeightTracker(ifc);
+  const height = new LineHeightTracker(layout, ifc);
   const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
+  const rootInline = layout.tree[ifc.treeStart + 1];
+  if (!rootInline.isInline()) throw new Error('Assertion failed');
   const parents: Inline[] = [];
   let line: Linebox | null = null;
   let lastBreakMark: IfcMark | undefined;
@@ -2213,8 +2265,8 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
     lineHasWord = false;
   };
 
-  for (const mark of createMarkIterator(ifc, 'normal')) {
-    const parent = parents[parents.length - 1] || ifc.root;
+  for (const mark of createMarkIterator(layout, ifc, 'normal')) {
+    const parent = parents[parents.length - 1] || rootInline;
     const item = ifc.items[mark.itemIndex];
 
     if (mark.inlinePre) {
@@ -2248,7 +2300,7 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
         const lineWidth = line ? width.forFloat() : 0;
         const lineIsEmpty = line ? !candidates.head && !line.head : true;
         const fctx = bfc.ensureFloatContext(blockOffset);
-        layoutFloatBox(mark.box, ctx);
+        layoutFloatBox(layout, mark.box, ctx);
         fctx.placeFloat(lineWidth, lineIsEmpty, mark.box);
       } else {
         // Have to place after the word
@@ -2260,7 +2312,7 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
     if (mark.inlinePost) candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
     if (mark.box?.isInlineLevel()) {
-      layoutFloatBox(mark.box, ctx);
+      layoutFloatBox(layout, mark.box, ctx);
       const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero();
       const borderArea = mark.box.getBorderArea();
       candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
@@ -2367,7 +2419,7 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
 
         for (const float of floatsInWord) {
           const fctx = bfc.ensureFloatContext(blockOffset);
-          layoutFloatBox(float, ctx);
+          layoutFloatBox(layout, float, ctx);
           fctx.placeFloat(width.forFloat(), false, float);
         }
         if (floatsInWord.length) floatsInWord = [];
@@ -2400,7 +2452,7 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
 
   for (const float of floatsInWord) {
     const fctx = bfc.ensureFloatContext(blockOffset);
-    layoutFloatBox(float, ctx);
+    layoutFloatBox(layout, float, ctx);
     fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);
   }
 
@@ -2424,7 +2476,7 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
 
   if (ifc.loggingEnabled()) {
     const log = new Logger();
-    log.text(`Paragraph ${ifc.id}:\n`);
+    log.text(`Paragraph ${ifc.id()}:\n`);
     log.pushIndent();
     for (const item of ifc.items) {
       const lead = `@${item.offset} `.padEnd(5);
@@ -2461,7 +2513,12 @@ export function createIfcLineboxes(ifc: BlockContainerOfInlines, ctx: LayoutCont
   return lines;
 }
 
-export function positionIfcItems(ifc: BlockContainerOfInlines) {
+export function positionIfcItems(
+  layout: Layout,
+  ifc: BlockContainerOfInlines
+) {
+  const rootInline = layout.tree[ifc.treeStart + 1];
+  if (!rootInline.isInline()) throw new Error('Assertion failed');
   const counts: Map<Inline, number> = new Map();
   const direction = ifc.style.direction;
   const containingBlock = ifc.getContainingBlock();
@@ -2548,7 +2605,7 @@ export function positionIfcItems(ifc: BlockContainerOfInlines) {
   }
 
   for (const linebox of ifc.lineboxes) {
-    const boxBuilder = ifc.root.hasPaintedInlines() ? new ContiguousBoxBuilder() : undefined;
+    const boxBuilder = rootInline.hasPaintedInlines() ? new ContiguousBoxBuilder() : undefined;
     const firstItem = direction === 'ltr' ? linebox.head : linebox.tail;
     let y = linebox.blockOffset + linebox.ascender;
 
@@ -2576,7 +2633,7 @@ export function positionIfcItems(ifc: BlockContainerOfInlines) {
 
         if (alignmentContext) baselineShift = alignmentContext.baselineShift;
 
-        baselineShift += baselineStep(item.inlines[i - 1] || ifc.root, inline);
+        baselineShift += baselineStep(item.inlines[i - 1] || rootInline, inline);
 
         if (item instanceof ShapedItem) {
           inlineBackgroundAdvance(item, mark, 'start');
@@ -2599,20 +2656,20 @@ export function positionIfcItems(ifc: BlockContainerOfInlines) {
         item.y = y - baselineShift;
         x += direction === 'ltr' ? width : -width;
       } else if (item.box) {
-        const parent = item.inlines.at(-1) || ifc.root;
+        const parent = item.inlines.at(-1) || rootInline;
         const {lineLeft, blockStart, lineRight} = item.box.getMarginsAutoIsZero();
         const borderArea = item.box.getBorderArea();
 
         if (item.box.style.verticalAlign === 'top') {
           item.box.setBlockPosition(linebox.blockOffset + blockStart);
         } else if (item.box.style.verticalAlign === 'bottom') {
-          const {ascender, descender} = inlineBlockMetrics(item.box);
+          const {ascender, descender} = inlineBlockMetrics(layout, item.box);
           item.box.setBlockPosition(
             linebox.blockOffset + linebox.height() - descender - ascender + blockStart
           );
         } else {
-          const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(parent, item.box);
-          const {ascender} = inlineBlockMetrics(item.box);
+          const inlineBlockBaselineShift = baselineShift + inlineBlockBaselineStep(layout, parent, item.box);
+          const {ascender} = inlineBlockMetrics(layout, item.box);
           item.box.setBlockPosition(y - inlineBlockBaselineShift - ascender + blockStart);
         }
 

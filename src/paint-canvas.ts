@@ -11,6 +11,7 @@ import type {PaintBackend} from './paint.ts';
 import type {ShapedItem} from './layout-text.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {Image} from './layout-image.ts';
+import type {Layout} from './layout-box.ts';
 
 // This is used in the public API to ensure the external context has the right
 // API (there are four known to dropflow: node-canvas, @napi-rs/canvas,
@@ -123,8 +124,9 @@ export default class CanvasPaintBackend implements PaintBackend {
   font: LoadedFontFace | undefined;
   fontSize: number;
   ctx: CanvasRenderingContext2D;
+  layout: Layout;
 
-  constructor(ctx: CanvasRenderingContext2D) {
+  constructor(ctx: CanvasRenderingContext2D, layout: Layout) {
     this.fillColor = {r: 0, g: 0, b: 0, a: 0};
     this.strokeColor = {r: 0, g: 0, b: 0, a: 0};
     this.lineWidth = 0;
@@ -132,6 +134,7 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.font = undefined;
     this.fontSize = 8;
     this.ctx = ctx;
+    this.layout = layout;
   }
 
   // TODO: pass in amount of each side that's shared with another border so they can divide
@@ -150,7 +153,7 @@ export default class CanvasPaintBackend implements PaintBackend {
   }
 
   fastText(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.ifc.sliceRenderText(item, textStart, textEnd);
+    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     this.ctx.save();
     this.ctx.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';

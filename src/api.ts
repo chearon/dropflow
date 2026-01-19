@@ -8,7 +8,7 @@ import SvgPaintBackend from './paint-svg.ts';
 import CanvasPaintBackend from './paint-canvas.ts';
 
 import paint from './paint.ts';
-import {BoxArea, prelayout, postlayout} from './layout-box.ts';
+import {BoxArea, Layout, prelayout, postlayout} from './layout-box.ts';
 import {onLoadWalkerElementForImage} from './layout-image.ts';
 import {id, uuid} from './util.ts';
 
@@ -16,7 +16,9 @@ import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
 import type {Style} from './style.ts';
 import type {Image} from './layout-image.ts';
-import type {BlockContainer} from './layout-flow.ts';
+import type {BlockContainer, InlineLevel} from './layout-flow.ts';
+
+export {log} from './layout-box.ts';
 
 export {environment} from './environment.ts';
 
@@ -28,7 +30,9 @@ export {createDeclaredStyle as style, setOriginStyle} from './style.ts';
 
 export {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync};
 
-export function generate(rootElement: HTMLElement): BlockContainer {
+export function layout(rootElement: HTMLElement): Layout {
+  const tree: InlineLevel[] = [];
+
   if (rootElement.style === getOriginStyle()) {
     throw new Error(
       'To use the hyperscript API, pass the element tree to dom() and use ' +
@@ -36,32 +40,34 @@ export function generate(rootElement: HTMLElement): BlockContainer {
     );
   }
 
-  return generateBlockContainer(rootElement);
+  generateBlockContainer(tree, rootElement);
+
+  return new Layout(tree);
 }
 
-export function layout(root: BlockContainer, width = 640, height = 480) {
-  const initialContainingBlock = new BoxArea(root, 0, 0, width, height);
+export function reflow(layout: Layout, width = 640, height = 480) {
+  const initialContainingBlock = new BoxArea(layout.root(), 0, 0, width, height);
 
-  prelayout(root, initialContainingBlock);
-  layoutBlockLevelBox(root, {});
-  postlayout(root);
+  prelayout(layout, initialContainingBlock);
+  layoutBlockLevelBox(layout, layout.root(), {});
+  postlayout(layout);
 }
 
 /**
  * Old paint target for testing, not maintained much anymore
  */
-export function paintToHtml(root: BlockContainer): string {
-  const backend = new HtmlPaintBackend();
-  paint(root, backend);
+export function paintToHtml(layout: Layout): string {
+  const backend = new HtmlPaintBackend(layout);
+  paint(layout, backend);
   return backend.s;
 }
 
-export function paintToSvg(root: BlockContainer): string {
-  const backend = new SvgPaintBackend();
-  const {width, height} = root.getContainingBlock();
+export function paintToSvg(layout: Layout): string {
+  const backend = new SvgPaintBackend(layout);
+  const {width, height} = layout.root().getContainingBlock();
   let cssFonts = '';
 
-  paint(root, backend);
+  paint(layout, backend);
 
   for (const [src, face] of backend.usedFonts) {
     cssFonts +=
@@ -81,17 +87,17 @@ export function paintToSvg(root: BlockContainer): string {
   `.trim();
 }
 
-export function paintToSvgElements(root: BlockContainer): string {
-  const backend = new SvgPaintBackend();
-  paint(root, backend);
+export function paintToSvgElements(layout: Layout): string {
+  const backend = new SvgPaintBackend(layout);
+  paint(layout, backend);
   return backend.main;
 }
 
 export {eachRegisteredFont} from './text-font.ts';
 
-export function paintToCanvas(root: BlockContainer, ctx: CanvasRenderingContext2D): void {
-  const backend = new CanvasPaintBackend(ctx);
-  paint(root, backend);
+export function paintToCanvas(layout: Layout, ctx: CanvasRenderingContext2D): void {
+  const backend = new CanvasPaintBackend(ctx, layout);
+  paint(layout, backend);
 }
 
 export async function renderToCanvasContext(
@@ -101,9 +107,9 @@ export async function renderToCanvasContext(
   height: number
 ): Promise<void> {
   await load(rootElement);
-  const root = generate(rootElement);
-  layout(root, width, height);
-  paintToCanvas(root, ctx);
+  const l = layout(rootElement);
+  reflow(l, width, height);
+  paintToCanvas(l, ctx);
 }
 
 export async function renderToCanvas(rootElement: HTMLElement, canvas: Canvas) {
@@ -206,7 +212,7 @@ export function t(text: string): TextNode {
   return new TextNode(id(), text);
 }
 
-export function staticLayoutContribution(box: BlockContainer): number {
+export function staticLayoutContribution(layout: Layout, box: BlockContainer): number {
   let intrinsicSize = 0;
 
   const definiteSize = box.getDefiniteOuterInlineSize();
@@ -224,13 +230,15 @@ export function staticLayoutContribution(box: BlockContainer): number {
     }
     // TODO: floats
   } else {
-    for (const child of box.children) {
+    for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
+      const child = layout.tree[i];
       if (child.isBlockContainer()) {
-        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(child));
-      } else {
+        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(layout, child));
+      } else if (child.isBox()) {
         // TODO:
         intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
       }
+      if (child.isBox()) i = child.treeFinal;
     }
   }
 

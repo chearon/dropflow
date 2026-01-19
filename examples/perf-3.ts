@@ -26,18 +26,18 @@ const html = flow.dom(
   flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
 );
 flow.loadSync(html);
-const blockContainer = flow.generate(html);
-flow.layout(blockContainer, 100, 20);
-flow.paintToCanvas(blockContainer, ctx);
+const layout = flow.layout(html);
+flow.reflow(layout, 100, 20);
+flow.paintToCanvas(layout, ctx);
 fs.writeFileSync(new URL('perf-3.png', import.meta.url), canvas.toBuffer());
 
 bench('altogether', () => {
   const html = flow.dom(
     flow.h('html', {style}, words[Math.floor(Math.random() * words.length)])
   );
-  const blockContainer = flow.generate(html);
+  const layout = flow.layout(html);
   flow.clearWordCache();
-  flow.layout(blockContainer, 100, 20);
+  flow.reflow(layout, 100, 20);
 }).gc('inner');
 
 bench('dom', () => {
@@ -47,14 +47,14 @@ bench('dom', () => {
   do_not_optimize(html);
 }).gc('inner');
 
-bench('generate', () => {
-  const blockContainer = flow.generate(html);
-  do_not_optimize(blockContainer);
+bench('flow.layout', () => {
+  const layout = flow.layout(html);
+  do_not_optimize(layout);
 }).gc('inner');
 
-bench('layout', () => {
+bench('flow.reflow', () => {
   flow.clearWordCache();
-  flow.layout(blockContainer, 100, 20);
+  flow.reflow(layout, 100, 20);
 }).gc('inner');
 
 await run();

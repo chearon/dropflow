@@ -148,6 +148,18 @@ describe('Hyperscript API', function () {
     expect(ifc.lineboxes).to.have.lengthOf(4);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
+
+  it('doesn\'t accumulate 2 boxes after generating twice', function () {
+    const el = flow.dom([flow.h('div'), flow.h('span'), flow.h('img')]);
+    flow.generate(el);
+    expect(el.query('div').boxes).to.have.lengthOf(1);
+    expect(el.query('span').boxes).to.have.lengthOf(1);
+    expect(el.query('img').boxes).to.have.lengthOf(1);
+    flow.generate(el);
+    expect(el.query('div').boxes).to.have.lengthOf(1);
+    expect(el.query('span').boxes).to.have.lengthOf(1);
+    expect(el.query('img').boxes).to.have.lengthOf(1);
+  });
 });
 
 describe('Parse API', function () {

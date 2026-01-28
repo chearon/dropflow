@@ -1592,7 +1592,7 @@ function mapTree(
   if (!bail) path.pop();
   const end = text.value.length;
   const box = new Inline(start, end, el.style, children, 0);
-  el.boxes.push(box);
+  el.boxes.splice(0, el.boxes.length, box);
 
   return [bail, box];
 }
@@ -1627,7 +1627,7 @@ function wrapInBlockContainer(parentEl: HTMLElement, inlines: InlineLevel[], tex
 function generateBlockBox(el: HTMLElement): BlockLevel {
   if (el.tagName === 'img') {
     const box = new ReplacedBox(el.style, el.attrs.src ?? "");
-    el.boxes.push(box);
+    el.boxes.splice(0, el.boxes.length, box);
     return box;
   } else {
     return generateBlockContainer(el);
@@ -1732,6 +1732,6 @@ export function generateBlockContainer(el: HTMLElement): BlockContainer {
     box = new BlockContainerOfBlocks(el.style, blocks, attrs);
   }
 
-  el.boxes.push(box);
+  el.boxes.splice(0, el.boxes.length, box);
   return box;
 }

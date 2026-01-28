@@ -545,8 +545,11 @@ class HTMLElement {
 
 class Box {
   isInline(): this is Inline;
-  isBlockContainer(): this is BlockContainer;
   isFormattingBox(): this is FormattingBox;
+  isBlockContainerOfInlines(): this is BlockContainerOfInlines;
+  isBlockContainerOfBlocks(): this is BlockContainerOfBlocks;
+  isReplacedBox(): this is ReplacedBox;
+  isBlockContainer(): this is BlockContainer;
   getBorderArea(): BoxArea;
   getPaddingArea(): BoxArea;
   getContentArea(): BoxArea;
@@ -556,9 +559,13 @@ class Inline extends Box;
 
 abstract class FormattingBox extends Box;
 
-class BlockContainer extends FormattingBox;
+class BlockContainerOfInlines extends FormattingBox;
+
+class BlockContainerOfBlocks extends FormattingBox;
 
 class ReplacedBox extends FormattingBox;
+
+type BlockContainer = BlockContainerOfInlines | BlockContainerOfBlocks;
 
 class BoxArea {
   x: number;

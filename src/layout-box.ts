@@ -20,7 +20,7 @@ export interface LogicalArea {
   inlineSize: number | undefined;
 }
 
-export interface RenderItemLogOptions {
+export interface TreeLogOptions {
   containingBlocks?: boolean;
   css?: keyof Style
   paragraphText?: string;
@@ -32,7 +32,7 @@ export interface PrelayoutContext {
   lastPositionedArea: BoxArea
 }
 
-export abstract class RenderItem {
+export abstract class TreeNode {
   public style: Style;
 
   constructor(style: Style) {
@@ -75,11 +75,11 @@ export abstract class RenderItem {
     return false;
   }
 
-  abstract logName(log: Logger, options?: RenderItemLogOptions): void;
+  abstract logName(log: Logger, options?: TreeLogOptions): void;
 
   abstract getLogSymbol(): string;
 
-  log(options?: RenderItemLogOptions, log?: Logger) {
+  log(options?: TreeLogOptions, log?: Logger) {
     const flush = !log;
 
     log ||= new Logger();
@@ -154,7 +154,7 @@ export abstract class RenderItem {
   }
 }
 
-export abstract class Box extends RenderItem {
+export abstract class Box extends TreeNode {
   public id: string;
   /**
    * General boolean bitfield shared by all box subclasses. The bits labeled
@@ -511,7 +511,7 @@ export abstract class Box extends RenderItem {
     }
   }
 
-  logName(log: Logger, options?: RenderItemLogOptions) {
+  logName(log: Logger, options?: TreeLogOptions) {
     log.text('Box');
   }
 

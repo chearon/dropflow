@@ -1,5 +1,5 @@
 import {basename, loggableText, Logger} from './util.ts';
-import {Box, RenderItem} from './layout-box.ts';
+import {Box, TreeNode} from './layout-box.ts';
 import {Style} from './style.ts';
 import {
   ReplacedBox,
@@ -19,7 +19,7 @@ import {createItemizeState, itemizeNext} from './text-itemize.ts';
 
 import type {LoadedFontFace} from './text-font.ts';
 import type {HbFace, HbFont} from './text-harfbuzz.ts';
-import type {RenderItemLogOptions} from './layout-box.ts';
+import type {TreeLogOptions} from './layout-box.ts';
 import type {TextAlign, WhiteSpace} from './style.ts';
 import type {BlockLevel, InlineLevel, BlockContainer, LayoutContext} from './layout-flow.ts';
 
@@ -70,7 +70,7 @@ export function prevGrapheme(text: string, index: number) {
   return graphemeStart < index ? graphemeStart : index;
 }
 
-export class Run extends RenderItem {
+export class Run extends TreeNode {
   public textStart: number;
   public textEnd: number;
 
@@ -111,7 +111,7 @@ export class Run extends RenderItem {
     return true;
   }
 
-  logName(log: Logger, options?: RenderItemLogOptions) {
+  logName(log: Logger, options?: TreeLogOptions) {
     log.text(`${this.textStart},${this.textEnd}`);
     if (options?.paragraphText) {
       log.text(` "${loggableText(options.paragraphText.slice(this.textStart, this.textEnd))}"`);

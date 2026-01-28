@@ -15,7 +15,7 @@ import {
   sliceIfcRenderText
 } from './layout-text.ts';
 import {getImage} from './layout-image.ts';
-import {Box, FormattingBox, RenderItem} from './layout-box.ts';
+import {Box, FormattingBox, TreeNode} from './layout-box.ts';
 
 import type {InlineMetrics, ShapedItem, InlineFragment} from './layout-text.ts';
 import type {BoxArea, PrelayoutContext} from './layout-box.ts';
@@ -1199,7 +1199,7 @@ export function layoutFloatBox(box: BlockLevel, ctx: LayoutContext) {
   }
 }
 
-export class Break extends RenderItem {
+export class Break extends TreeNode {
   public className = 'break';
 
   isBreak(): this is Break {

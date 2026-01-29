@@ -887,23 +887,30 @@ nl
   / '\f'
 
 A  = 'a'i / '\\' '0'? '0'? '0'? '0'? [\x41\x61] ('\r\n' / [ \t\r\n\f])? { return 'a'; }
+B  = 'b'i / '\\' '0'? '0'? '0'? '0'? [\x42\x62] ('\r\n' / [ \t\r\n\f])? / '\\b'i { return 'b'; }
 C  = 'c'i / '\\' '0'? '0'? '0'? '0'? [\x43\x63] ('\r\n' / [ \t\r\n\f])? { return 'c'; }
 D  = 'd'i / '\\' '0'? '0'? '0'? '0'? [\x44\x64] ('\r\n' / [ \t\r\n\f])? { return 'd'; }
 E  = 'e'i / '\\' '0'? '0'? '0'? '0'? [\x45\x65] ('\r\n' / [ \t\r\n\f])? { return 'e'; }
+F  = 'f'i / '\\' '0'? '0'? '0'? '0'? [\x46\x66] ('\r\n' / [ \t\r\n\f])? / '\\f'i { return 'f'; }
 G  = 'g'i / '\\' '0'? '0'? '0'? '0'? [\x47\x67] ('\r\n' / [ \t\r\n\f])? / '\\g'i { return 'g'; }
 H  = 'h'i / '\\' '0'? '0'? '0'? '0'? [\x48\x68] ('\r\n' / [ \t\r\n\f])? / '\\h'i { return 'h'; }
 I  = 'i'i / '\\' '0'? '0'? '0'? '0'? [\x49\x69] ('\r\n' / [ \t\r\n\f])? / '\\i'i { return 'i'; }
+J  = 'j'i / '\\' '0'? '0'? '0'? '0'? [\x4a\x6a] ('\r\n' / [ \t\r\n\f])? / '\\j'i { return 'j'; }
 K  = 'k'i / '\\' '0'? '0'? '0'? '0'? [\x4b\x6b] ('\r\n' / [ \t\r\n\f])? / '\\k'i { return 'k'; }
 L  = 'l'i / '\\' '0'? '0'? '0'? '0'? [\x4c\x6c] ('\r\n' / [ \t\r\n\f])? / '\\l'i { return 'l'; }
 M  = 'm'i / '\\' '0'? '0'? '0'? '0'? [\x4d\x6d] ('\r\n' / [ \t\r\n\f])? / '\\m'i { return 'm'; }
 N  = 'n'i / '\\' '0'? '0'? '0'? '0'? [\x4e\x6e] ('\r\n' / [ \t\r\n\f])? / '\\n'i { return 'n'; }
 O  = 'o'i / '\\' '0'? '0'? '0'? '0'? [\x4f\x6f] ('\r\n' / [ \t\r\n\f])? / '\\o'i { return 'o'; }
 P  = 'p'i / '\\' '0'? '0'? '0'? '0'? [\x50\x70] ('\r\n' / [ \t\r\n\f])? / '\\p'i { return 'p'; }
+Q  = 'q'i / '\\' '0'? '0'? '0'? '0'? [\x51\x71] ('\r\n' / [ \t\r\n\f])? / '\\q'i { return 'q'; }
 R  = 'r'i / '\\' '0'? '0'? '0'? '0'? [\x52\x72] ('\r\n' / [ \t\r\n\f])? / '\\r'i { return 'r'; }
 S_ = 's'i / '\\' '0'? '0'? '0'? '0'? [\x53\x73] ('\r\n' / [ \t\r\n\f])? / '\\s'i { return 's'; }
 T  = 't'i / '\\' '0'? '0'? '0'? '0'? [\x54\x74] ('\r\n' / [ \t\r\n\f])? / '\\t'i { return 't'; }
 U  = 'u'i / '\\' '0'? '0'? '0'? '0'? [\x55\x75] ('\r\n' / [ \t\r\n\f])? / '\\u'i { return 'u'; }
+V  = 'v'i / '\\' '0'? '0'? '0'? '0'? [\x56\x76] ('\r\n' / [ \t\r\n\f])? / '\\v'i { return 'v'; }
+W  = 'w'i / '\\' '0'? '0'? '0'? '0'? [\x57\x77] ('\r\n' / [ \t\r\n\f])? / '\\w'i { return 'w'; }
 X  = 'x'i / '\\' '0'? '0'? '0'? '0'? [\x58\x78] ('\r\n' / [ \t\r\n\f])? / '\\x'i { return 'x'; }
+Y  = 'y'i / '\\' '0'? '0'? '0'? '0'? [\x59\x79] ('\r\n' / [ \t\r\n\f])? / '\\y'i { return 'y'; }
 Z  = 'z'i / '\\' '0'? '0'? '0'? '0'? [\x5a\x7a] ('\r\n' / [ \t\r\n\f])? / '\\z'i { return 'z'; }
 
 // Tokens
@@ -931,6 +938,7 @@ LENGTH "length"
   / comment* value:num P T { return { value: value, unit: 'pt' }; }
   / comment* value:num P C { return { value: value, unit: 'pc' }; }
   / comment* value:num E M { return { value: value, unit: 'em' }; }
+  / comment* value:num Q { return { value: value, unit: 'Q' }; }
   / comment* '0' { return 0; }
 
 ANGLE "angle"

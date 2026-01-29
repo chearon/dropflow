@@ -1,0 +1,36 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Vite App (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",          // Change if your Vite/port is different (e.g., for playground script)
+      "webRoot": "${workspaceFolder}/src",     // <-- This line goes here (or "${workspaceFolder}" if your entry files are at root)
+      "sourceMaps": true,
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "sourceMapPathOverrides": {              // <-- This entire block goes here
+        "vite://*": "${webRoot}/*"
+      }
+    },
+    {
+      "name": "Debug Vite App (Edge)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "sourceMapPathOverrides": {
+        "vite://*": "${webRoot}/*"
+      }
+    }
+  ]
+}

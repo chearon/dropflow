@@ -771,6 +771,19 @@ describe('Painting', function () {
     ]);
   });
 
+  it('paints orthogonal flow in logical order', function () {
+    this.reflow(`
+      <div style="direction: rtl; font-size: 10px;">
+        <span style="background-color: #000;">snow</span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 600, y: 0, width: 40, height: 10, fillColor: '#000'},
+      {t: 'text', x: 600, y: 8, text: 'snow', fillColor: '#000'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

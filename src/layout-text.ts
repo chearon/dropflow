@@ -2640,7 +2640,7 @@ export function positionIfcItems(
         }
 
         if (isFirstOccurance) inlineSideAdvance(inline, 'start');
-        const offset = Math.max(item.offset, mark);
+        const offset = Math.max(item.offset, inline.textStart);
         boxBuilder?.open(inline, offset, isFirstOccurance, bgcursor, y - baselineShift);
 
         if (isFirstOccurance) {

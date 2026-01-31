@@ -1560,6 +1560,19 @@ describe('Flow', function () {
         expect(t.getContentArea().width).to.equal(500);
       });
 
+      it('calculates contribution from inequal margin sides correctly', function () {
+        this.layout(`
+          <div style="width: 200px;">
+            <div id="t" style="float: left; margin: 0 30px 0 10px;">
+              <div style="width: 50px; height: 10px;"></div>
+            </div>
+          </div>
+        `);
+
+        const t = this.get('#t');
+        expect(t.getContentArea().width).to.equal(50);
+      });
+
       it('considers margin, border, padding part of the intrinsic size', function () {
         this.layout(`
           <div style="width: 200px; font: 16px Arimo;">

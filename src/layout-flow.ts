@@ -1137,7 +1137,7 @@ export function layoutContribution(
 ) {
   const containingBlock = box.getContainingBlock();
   const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
-  const marginLineRight = box.style.getMarginLineLeft(containingBlock);
+  const marginLineRight = box.style.getMarginLineRight(containingBlock);
   const borderLineLeftWidth = box.style.getBorderLineLeftWidth(containingBlock);
   const paddingLineLeft = box.style.getPaddingLineLeft(containingBlock);
   const paddingLineRight = box.style.getPaddingLineRight(containingBlock);

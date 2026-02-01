@@ -44,6 +44,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>vertical-&zwj;align</code> | `baseline`, `middle`, `sub`, `super`, `text-top`, `text-bottom`, `%`, `px` etc, `top`, `bottom` | ✅&zwj;&nbsp;Works |
 | <code>white-&zwj;space</code> | `normal`, `nowrap`, `pre`, `pre-wrap`, `pre-line` | ✅&zwj;&nbsp;Works |
 | <code>word-&zwj;break</code><br><code>overflow-&zwj;wrap</code>,<code>word-&zwj;wrap</code> | `break-word`, `normal`<br>`anywhere`, `normal` | ✅&zwj;&nbsp;Works |
+| <code>word-&zwj;spacing</code> | `normal`, `%`, `number` | ✅&zwj;&nbsp;Works |
 
 ## Block formatting
 

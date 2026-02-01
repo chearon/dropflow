@@ -153,7 +153,6 @@ export default class CanvasPaintBackend implements PaintBackend {
   }
 
   fastText(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     this.ctx.save();
     this.ctx.direction = item.attrs.level & 1 ? 'rtl' : 'ltr';
@@ -165,7 +164,24 @@ export default class CanvasPaintBackend implements PaintBackend {
     }
     this.ctx.font = this.font?.toFontString(this.fontSize) || '';
     this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-    this.ctx.fillText(text, x, y);
+    if (item.mayHaveModifiedWordSepGlyphs(this.layout)) {
+      if (item.attrs.level & 1) {
+        const state = item.createMeasureState();
+        item.measure(textStart, 1, state);
+        x += item.measure(textEnd, 1, state).advance;
+      }
+      const words = item.createWordIterator(textStart, textEnd);
+      for (; !words.done; words.next()) {
+        const text = item.ifc.sliceRenderText(this.layout, item, words.start, words.end);
+        x += item.attrs.level & 1 ? -words.x : words.x;
+        if (item.attrs.level & 1) x -= words.w;
+        this.ctx.fillText(text, x, y);
+        if (!(item.attrs.level & 1)) x += words.w;
+      }
+    } else {
+      const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
+      this.ctx.fillText(text, x, y);
+    }
     this.ctx.restore();
   }
 
@@ -194,7 +210,14 @@ export default class CanvasPaintBackend implements PaintBackend {
     this.ctx.restore();
   }
 
-  text(x: number, y: number, item: ShapedItem, totalTextStart: number, totalTextEnd: number, isColorBoundary: boolean) {
+  text(
+    x: number,
+    y: number,
+    item: ShapedItem,
+    totalTextStart: number,
+    totalTextEnd: number,
+    isColorBoundary: boolean
+  ) {
     if (isColorBoundary) {
       const {
         startGlyphStart,

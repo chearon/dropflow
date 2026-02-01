@@ -173,6 +173,7 @@ export interface DeclaredStyleProperties {
   wordBreak?: 'break-word' | 'normal' | Inherited | Initial;
   overflowWrap?: 'anywhere' | 'break-word' | 'normal' | Inherited | Initial;
   overflow?: 'visible' | 'hidden' | Inherited | Initial;
+  wordSpacing?: 'normal' | Length | Percentage;
 }
 
 const EMPTY_ARRAY: readonly number[] = Object.freeze([]);
@@ -280,6 +281,7 @@ interface ComputedStyle {
   wordBreak: 'break-word' | 'normal';
   overflowWrap: 'anywhere' | 'break-word' | 'normal';
   overflow: 'visible' | 'hidden';
+  wordSpacing: 'normal' | number | Percentage;
 }
 
 function resolvePercent(containingBlock: BoxArea, cssVal: number | {value: number, unit: '%'}) {
@@ -359,6 +361,7 @@ export class Style {
   wordBreak: 'break-word' | 'normal';
   overflowWrap: 'anywhere' | 'break-word' | 'normal';
   overflow: 'visible' | 'hidden';
+  wordSpacing: 'normal' | number | Percentage;
 
   // This section reduces to used values as much as possible
   // Be careful accessing off of "this" since these are called in the ctor
@@ -445,6 +448,7 @@ export class Style {
     this.wordBreak = style.wordBreak;
     this.overflowWrap = style.overflowWrap;
     this.overflow = style.overflow;
+    this.wordSpacing = style.wordSpacing;
   }
 
   blockify() {
@@ -734,7 +738,8 @@ const initialPlainStyle: ComputedStyle = Object.freeze({
   zIndex: 'auto',
   wordBreak: 'normal',
   overflowWrap: 'normal',
-  overflow: 'visible'
+  overflow: 'visible',
+  wordSpacing: 'normal'
 });
 
 let originStyle = new Style(initialPlainStyle);
@@ -812,7 +817,8 @@ const inheritedStyle: InheritedStyleDefinitions = Object.freeze({
   zIndex: false,
   wordBreak: true,
   overflowWrap: true,
-  overflow: false
+  overflow: false,
+  wordSpacing: true
 });
 
 type UaDeclaredStyles = {[tagName: string]: DeclaredStyle};

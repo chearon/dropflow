@@ -95,7 +95,6 @@ export default class SvgPaintBackend implements PaintBackend {
   }
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd).trim();
     const {r, g, b, a} = this.fillColor;
     const color = `rgba(${r}, ${g}, ${b}, ${a})`;
     const style = this.style({
@@ -114,7 +113,20 @@ export default class SvgPaintBackend implements PaintBackend {
     // be the only way to get around that.
     if (this.direction === 'rtl') x += item.measure().advance;
 
-    this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
+    if (item.mayHaveModifiedWordSepGlyphs(this.layout)) {
+      const words = item.createWordIterator(textStart, textEnd);
+      if (item.attrs.level & 1) x += item.measure().advance;
+      for (; !words.done; words.next()) {
+        const text = item.ifc.sliceRenderText(this.layout, item, words.start, words.end);
+        x += item.attrs.level & 1 ? -words.x : words.x;
+        if (item.attrs.level & 1) x -= words.w;
+        this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
+        if (!(item.attrs.level & 1)) x += words.w;
+      }
+    } else {
+      const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
+      this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
+    }
     this.usedFonts.set(item.face.url.href, item.face);
   }
 

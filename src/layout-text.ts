@@ -51,6 +51,14 @@ function isNewline(c: string) {
   return c === '\n';
 }
 
+function isWordSeparator(c: string): boolean {
+  // Specs say to treat U+1361, Ethiopic Word Space, as a word separator, but
+  // digitized Ethiopic usually has spaces. Browsers don't support it either;
+  // doing so would be complicated since the ink has to be centered. Specs also
+  // say to handle Agean, Ugaritic, and Phoenician, but these are extinct.
+  return c === ' ' || c === '\u00a0';
+}
+
 function graphemeBoundaries(text: string, index: number) {
   const graphemeEnd = nextGraphemeBreak(text, index);
   const graphemeStart = previousGraphemeBreak(text, graphemeEnd);
@@ -120,6 +128,10 @@ export class Run extends TreeNode {
 
     if (!this.style.isWsCollapsible()) {
       parent.bitfield |= Run.TEXT_BITS;
+    }
+
+    if (this.style.wordSpacing !== 'normal') {
+      parent.bitfield |= Box.BITS.hasWordSpacing;
     }
 
     for (let i = this.textStart; i < this.textEnd; i++) {
@@ -561,6 +573,44 @@ export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
   descenderBox: 0
 });
 
+class WordIterator {
+  item: ShapedItem;
+  textEnd: number;
+  state: MeasureState;
+  /* out */
+  start: number;
+  end: number;
+  x: number;
+  w: number;
+  done: boolean;
+
+  constructor(item: ShapedItem, textStart: number, textEnd: number) {
+    this.item = item;
+    this.textEnd = textEnd;
+    this.state = item.createMeasureState();
+    this.start = textStart;
+    this.end = textStart;
+    this.x = 0;
+    this.w = 0;
+    this.done = false;
+    item.measure(textStart, 1, this.state);
+    this.next();
+  }
+
+  next() {
+    const s = this.item.ifc.text;
+    while (this.end < this.textEnd && isWordSeparator(s[this.end])) this.end++;
+    this.start = this.end;
+    while (this.end < this.textEnd && !isWordSeparator(s[this.end])) this.end++;
+    if (this.start < this.end) {
+      this.x = this.item.measure(this.start, 1, this.state).advance;
+      this.w = this.item.measure(this.end, 1, this.state).advance;
+    } else {
+      this.done = true;
+    }
+  }
+}
+
 export class ShapedItem implements IfcRenderItem {
   ifc: BlockContainerOfInlines;
   face: LoadedFontFace;
@@ -802,6 +852,20 @@ export class ShapedItem implements IfcRenderItem {
 
   hasCharacterInside(ci: number) {
     return ci > this.offset && ci < this.end();
+  }
+
+  createWordIterator(textStart: number, textEnd: number) {
+    return new WordIterator(this, textStart, textEnd);
+  }
+
+  mayHaveModifiedWordSepGlyphs(layout: Layout) {
+    if (this.inlines.length) {
+      return this.inlines[this.inlines.length - 1].hasWordSpacing();
+    } else {
+      const rootInline = layout.tree[this.ifc.treeStart + 1];
+      if (!rootInline.isInline()) throw new Error('Assertion failed');
+      return rootInline.hasWordSpacing();
+    }
   }
 
   // only use this in debugging or tests
@@ -1832,6 +1896,63 @@ function postShapeLoadHyphens(ifc: BlockContainerOfInlines, items: ShapedItem[])
   }
 }
 
+function postShapeAddWordSpacing(
+  layout: Layout,
+  ifc: BlockContainerOfInlines,
+  items: ShapedItem[],
+  inlineIndex: number,
+  itemIndex: number,
+  endItem: number
+) {
+  while (inlineIndex <= ifc.treeFinal && itemIndex < endItem) {
+    const box = layout.tree[inlineIndex];
+    if (box.isRun() && box.style.wordSpacing !== 'normal') {
+      while ( // Forward to the item that owns the textOffset
+        itemIndex + 1 < endItem &&
+        items[itemIndex + 1].offset <= box.textStart
+      ) itemIndex++;
+
+      while (
+        itemIndex < endItem &&
+        items[itemIndex].offset < box.textEnd
+      ) {
+        const item = items[itemIndex];
+        const {wordSpacing, fontSize} = box.style;
+        let addPx = typeof wordSpacing === 'number' ? wordSpacing
+          : wordSpacing.value / 100 * fontSize;
+
+        const addUnits = addPx * item.face.hbface.upem / fontSize;
+
+        // TODO this isn't... super great, iterating the same glyphs array
+        // multiple times if multiple inlines cover it, but this is typically
+        // extremely fast, plus inline word-spacing is probably rare. Still,
+        // if/when looking at generalizing glyph/span walking, try to improve.
+        for (let i = 0; i < item.glyphs.length; i = nextCluster(item.glyphs, i)) {
+          const cl = item.glyphs[i + G_CL];
+          if (isWordSeparator(item.ifc.text[cl])) {
+            if (cl >= box.textStart && cl < box.textEnd) {
+              item.glyphs[i + G_AX] += addUnits;
+            }
+          }
+        }
+
+        if (items[itemIndex].end() <= box.textEnd) {
+          itemIndex++;
+        } else {
+          break; // spans into next inline
+        }
+      }
+    } else if (box.isBox()) {
+      if (box.isInline() && box.hasWordSpacing()) {
+        // descend
+      } else {
+        inlineIndex = box.treeFinal; // skip
+      }
+    }
+    inlineIndex++;
+  }
+}
+
 function shapePart(
   ifc: BlockContainerOfInlines,
   offset: number,
@@ -1988,6 +2109,9 @@ export function createIfcShapedItems(
   items.sort((a, b) => a.offset - b.offset);
 
   if (inlineRoot.hasSoftHyphen()) postShapeLoadHyphens(ifc, items);
+  if (inlineRoot.hasWordSpacing()) {
+    postShapeAddWordSpacing(layout, ifc, items, ifc.treeStart + 2, 0, items.length);
+  }
 
   return items;
 }
@@ -2199,16 +2323,26 @@ export function getIfcContribution(
   return contribution;
 }
 
-function splitItem(ifc: BlockContainerOfInlines, itemIndex: number, offset: number) {
+function splitItem(
+  layout: Layout,
+  ifc: BlockContainerOfInlines,
+  itemIndex: number,
+  offset: number
+) {
   const left = ifc.items[itemIndex];
   const {needsReshape, right} = left.split(offset - left.offset);
 
+  ifc.items.splice(itemIndex + 1, 0, right);
+
   if (needsReshape) {
+    const inlineIndex = ifc.getRunIndex(layout, left.offset);
     left.reshape(true);
     right.reshape(false);
+    if (left.mayHaveModifiedWordSepGlyphs(layout)) {
+      postShapeAddWordSpacing(layout, ifc, ifc.items, inlineIndex, itemIndex, itemIndex + 2);
+    }
   }
 
-  ifc.items.splice(itemIndex + 1, 0, right);
   if (ifc.text[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
     const hyphen = getHyphen(left)?.glyphs;
     if (hyphen?.length) {
@@ -2387,7 +2521,7 @@ export function createIfcLineboxes(
         const lastBreakMarkItem = ifc.items[lastBreakMark.itemIndex];
 
         if (lastBreakMarkItem?.hasCharacterInside(lastBreakMark.position)) {
-          splitItem(ifc, lastBreakMark.itemIndex, lastBreakMark.position);
+          splitItem(layout, ifc, lastBreakMark.itemIndex, lastBreakMark.position);
           lastBreakMark.split(mark);
           candidates.unshift(ifc.items[lastBreakMark.itemIndex]);
           // Stamp the brand new line with its metrics, since the only other

@@ -154,15 +154,16 @@ export abstract class Box extends TreeNode {
     hasSoftHyphen:             1 << 10,
     hasNewlines:               1 << 11,
     hasSoftWrap:               1 << 12,
-    // 13..14: propagation bits: Inline <- Inline
-    hasPaintedInlines:         1 << 13,
-    hasSizedInline:            1 << 14,
-    // 15: propagation bits: Inline <- Break, Inline, ReplacedBox
-    hasBreakInlineOrReplaced:  1 << 15,
-    // 16..17: propagation bits: Inline <- FormattingBox
-    hasFloatOrReplaced:        1 << 16,
-    hasInlineBlocks:           1 << 17,
-    // 18..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    hasWordSpacing:            1 << 13,
+    // 14..15: propagation bits: Inline <- Inline
+    hasPaintedInlines:         1 << 14,
+    hasSizedInline:            1 << 15,
+    // 16: propagation bits: Inline <- Break, Inline, ReplacedBox
+    hasBreakInlineOrReplaced:  1 << 16,
+    // 17..18: propagation bits: Inline <- FormattingBox
+    hasFloatOrReplaced:        1 << 17,
+    hasInlineBlocks:           1 << 18,
+    // 19..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**

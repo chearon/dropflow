@@ -154,6 +154,7 @@ declaration
   / overflow_wrap_dec
   / overflow_dec
   / zoom_dec
+  / word_spacing_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -775,6 +776,11 @@ overflow_dec
 zoom_dec
   = 'zoom'i S* ':' S* zoom:(PERCENTAGE / NUMBER / default) {
     return {zoom};
+  }
+
+word_spacing_dec
+  = 'word-spacing'i S* ':' S* wordSpacing:(LENGTH / PERCENTAGE / default) {
+    return {wordSpacing};
   }
 
 width_dec

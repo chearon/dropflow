@@ -1451,6 +1451,113 @@ describe('Lines', function () {
   });
 });
 
+describe('Word Spacing', function () {
+  before(setupLayoutTests);
+
+  before(function () {
+    registerFontAsset('Ahem/Ahem.ttf');
+    registerFontAsset('Cairo/Cairo-Regular.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Ahem/Ahem.ttf');
+    unregisterFontAsset('Cairo/Cairo-Regular.ttf');
+  });
+
+  afterEach(logIfFailed);
+
+  it('changes line width with px and em units', function () {
+    this.reflow(`
+      <div style="width: 200px;">
+        <div id="t1" style="font: 10px Ahem; word-spacing: 2em;">beer stew</div>
+        <div id="t2" style="font: 10px Ahem; word-spacing: 100px;">beer&nbsp;stew</div>
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc1 = this.get('#t1');
+    expect(ifc1.lineboxes).to.have.lengthOf(1);
+    expect(ifc1.lineboxes[0].width).to.equal(110);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc2 = this.get('#t2');
+    expect(ifc2.lineboxes).to.have.lengthOf(1);
+    expect(ifc2.lineboxes[0].width).to.equal(190);
+  });
+
+  it('changes glyph advances when applied to parts of a shaped segment', function () {
+    this.reflow(`
+      <div id="t" style="font: 10px Ahem; width: 1000px;">
+        parsnip soup <span style="word-spacing: 100px;">is good for </span>the soul
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const t = this.get('#t');
+    expect(t.items[0].glyphs[0 * G_SZ + G_AX]).to.equal(0);
+    expect(t.items[0].glyphs[13 * G_SZ + G_AX]).to.equal(1000);
+    expect(t.items[0].glyphs[16 * G_SZ + G_AX]).to.equal(11000);
+    expect(t.items[0].glyphs[21 * G_SZ + G_AX]).to.equal(11000);
+    expect(t.items[0].glyphs[25 * G_SZ + G_AX]).to.equal(11000);
+    expect(t.items[0].glyphs[29 * G_SZ + G_AX]).to.equal(1000);
+  });
+
+  it('affects Arabic text', function () {
+    this.reflow(`
+      <div id="t" style="width: 300px; font: 10px Cairo; word-spacing: 5px;">
+        Carrot Soup | شوربة الجزر
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const t = this.get('#t');
+    expect(t.lineboxes).to.have.lengthOf(1);
+    expect(t.lineboxes[0].width).to.equal(100.73 + 20);
+  });
+
+  it('affects arabic text after wrapping', function () {
+    this.reflow(`
+      <div id="t" style="font: 10px Cairo; word-spacing: 20px; width: 100px;">
+        شوربة ساخنة لذيذة
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const t = this.get('#t');
+    expect(t.lineboxes).to.have.lengthOf(2);
+    expect(t.lineboxes[0].width).to.equal(72.82);
+    expect(t.items[1].glyphs[6 * G_SZ + G_AX]).to.equal(2220);
+    expect(t.lineboxes[1].width).to.be.approximately(21.96, 0.01);
+  });
+
+  it('changes line width relative to children with % unit', function () {
+    this.reflow(`
+      <div id="t" style="width: 1000px; font: 10px Ahem; word-spacing: 50%;">
+        Eat your
+        <span style="font-size: 20px;">beer pottage</span>
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc = this.get('#t');
+    expect(ifc.lineboxes).to.have.lengthOf(1);
+    expect(ifc.lineboxes[0].width).to.equal(90 + 5 + 5 + 240 + 10);
+  });
+
+  it('affects line breaking with negative values', function () {
+    this.reflow(`
+      <div id="t" style="font: 10px Ahem; width: 50px; word-spacing: -40px;">
+        beer soup
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const ifc = this.get('#t');
+    expect(ifc.lineboxes).to.have.lengthOf(1);
+    expect(ifc.lineboxes[0].width).to.equal(50);
+  });
+});
+
 describe('Vertical Align', function () {
   before(setupLayoutTests);
 

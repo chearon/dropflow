@@ -81,9 +81,9 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
   const glyphs = item.glyphs;
   let startGlyphStart = findGlyph(item, totalTextStart);
   let endGlyphEnd = findGlyph(item, totalTextEnd); // TODO findGlyphFromEnd?
-  let textStart = nextGrapheme(item.ifc.text, totalTextStart);
+  let textStart = nextGrapheme(item.block.text, totalTextStart);
   let startGlyphEnd = findGlyph(item, textStart);
-  let textEnd = Math.max(textStart, prevGrapheme(item.ifc.text, totalTextEnd));
+  let textEnd = Math.max(textStart, prevGrapheme(item.block.text, totalTextEnd));
   let endGlyphStart = findGlyph(item, textEnd);
 
   if (item.attrs.level & 1) {
@@ -172,14 +172,14 @@ export default class CanvasPaintBackend implements PaintBackend {
       }
       const words = item.createWordIterator(textStart, textEnd);
       for (; !words.done; words.next()) {
-        const text = item.ifc.sliceRenderText(this.layout, item, words.start, words.end);
+        const text = item.block.sliceRenderText(this.layout, item, words.start, words.end);
         x += item.attrs.level & 1 ? -words.x : words.x;
         if (item.attrs.level & 1) x -= words.w;
         this.ctx.fillText(text, x, y);
         if (!(item.attrs.level & 1)) x += words.w;
       }
     } else {
-      const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
+      const text = item.block.sliceRenderText(this.layout, item, textStart, textEnd);
       this.ctx.fillText(text, x, y);
     }
     this.ctx.restore();

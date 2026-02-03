@@ -492,23 +492,23 @@ interface StyleIteratorState {
   leader: InlineLevel;
   direction: 'ltr' | 'rtl';
   lastOffset: number;
-  ifc: BlockContainerOfInlines;
+  block: BlockContainerOfInlines;
 }
 
 export function createStyleIteratorState(
   layout: Layout,
-  ifc: BlockContainerOfInlines
+  block: BlockContainerOfInlines
 ): StyleIteratorState {
   return {
     layout,
-    index: ifc.treeStart + 1,
+    index: block.treeStart + 1,
     parents: [],
-    leader: ifc,
-    direction: ifc.style.direction,
-    style: ifc.style,
+    leader: block,
+    direction: block.style.direction,
+    style: block.style,
     offset: 0,
     lastOffset: 0,
-    ifc,
+    block,
     done: false
   };
 }
@@ -521,7 +521,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
   if (state.leader.isRun()) state.offset += state.leader.length;
 
   outer: while (
-    state.index <= state.ifc.treeFinal ||
+    state.index <= state.block.treeFinal ||
     state.parents.length
   ) {
     while (
@@ -547,7 +547,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
       }
     }
 
-    if (state.index <= state.ifc.treeFinal) {
+    if (state.index <= state.block.treeFinal) {
       const item = state.layout.tree[state.index++];
 
       if (item.isRun()) {
@@ -600,7 +600,7 @@ export function styleIteratorNext(state: StyleIteratorState) {
     }
   }
 
-  if (state.offset === state.ifc.text.length) state.done = true;
+  if (state.offset === state.block.text.length) state.done = true;
 }
 
 interface ShapingAttrs {
@@ -628,9 +628,9 @@ interface ItemizeState {
 
 export function createItemizeState(
   layout: Layout,
-  ifc: BlockContainerOfInlines
+  block: BlockContainerOfInlines
 ): ItemizeState {
-  const inlineRoot = layout.tree[ifc.treeStart + 1];
+  const inlineRoot = layout.tree[block.treeStart + 1];
   let newlineState;
   let inlineState;
   let emojiState;
@@ -641,19 +641,19 @@ export function createItemizeState(
   if (!inlineRoot.isInline()) throw new Error('Assertion failed');
 
   if (inlineRoot.hasNewlines()) {
-    newlineState = createNewlineIteratorState(ifc.text);
+    newlineState = createNewlineIteratorState(block.text);
   }
 
   if (inlineRoot.hasBreakOrInlineOrReplaced() || inlineRoot.hasInlineBlocks()) {
-    inlineState = createStyleIteratorState(layout, ifc);
+    inlineState = createStyleIteratorState(layout, block);
   }
 
   if (inlineRoot.hasComplexText()) {
-    const allocation = hb.allocateUint16Array(ifc.text.length);
-    const initialLevel = ifc.style.direction === 'ltr' ? 0 : 1;
+    const allocation = hb.allocateUint16Array(block.text.length);
+    const initialLevel = block.style.direction === 'ltr' ? 0 : 1;
     const array = allocation.array;
     free = allocation.destroy;
-    for (let i = 0; i < ifc.text.length; i++) array[i] = ifc.text.charCodeAt(i);
+    for (let i = 0; i < block.text.length; i++) array[i] = block.text.charCodeAt(i);
     emojiState = createEmojiIteratorState(array.byteOffset, array.length);
     bidiState = createBidiIteratorState(array.byteOffset, array.length, initialLevel);
     scriptState = createScriptIteratorState(array.byteOffset, array.length);
@@ -663,7 +663,7 @@ export function createItemizeState(
     isEmoji: emojiState?.isEmoji ?? false,
     level: bidiState?.level ?? 0,
     script: scriptState?.script ?? 'Latin',
-    style: inlineState?.style ?? ifc.style
+    style: inlineState?.style ?? block.style
   };
 
   return {
@@ -676,7 +676,7 @@ export function createItemizeState(
     bidiState,
     scriptState,
     simple: !newlineState && !inlineState && !emojiState && !bidiState && !scriptState,
-    length: ifc.text.length,
+    length: block.text.length,
     free
   };
 }

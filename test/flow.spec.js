@@ -184,9 +184,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get(0);
+      const block = this.get(0);
       expect(this.get(0).getContentArea().height).to.equal(100);
-      expect(ifc.text).to.equal(' shown ');
+      expect(block.text).to.equal(' shown ');
     });
 
     it('generates nothing for <br> with display: none', function () {
@@ -730,11 +730,11 @@ describe('Flow', function () {
       const t2 = this.get('#t2');
       expect(t2.getContentArea().height).to.equal(0);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t3');
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(51);
-      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
-      expect(ifc.lineboxes[1].inlineOffset).to.equal(51);
+      const block = this.get('#t3');
+      expect(block.lineboxes[0].blockOffset).to.equal(0);
+      expect(block.lineboxes[0].inlineOffset).to.equal(51);
+      expect(block.lineboxes[1].blockOffset).to.equal(20);
+      expect(block.lineboxes[1].inlineOffset).to.equal(51);
     });
 
     it('sets bfc height for hanging floats', function () {
@@ -792,8 +792,8 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(30);
+      const block = this.get('#t1');
+      expect(block.lineboxes[0].inlineOffset).to.equal(30);
       /** @type import('../src/layout-flow.ts').BlockContainer */
       const t2 = this.get('#t2');
       expect(t2.getContentArea().x).to.equal(10);
@@ -827,8 +827,8 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes.length).to.equal(3);
+      const block = this.get('#t');
+      expect(block.lineboxes.length).to.equal(3);
     });
 
     it('moves the first words of the paragraph below floats that crowd them', function () {
@@ -840,8 +840,8 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes[0].blockOffset).to.equal(300);
+      const block = this.get('#t');
+      expect(block.lineboxes[0].blockOffset).to.equal(300);
     });
 
     it('uses correct shelf position with 2 starting floats', function () {
@@ -866,9 +866,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      const block = this.get('#t1');
+      expect(block.lineboxes.length).to.equal(1);
+      expect(block.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').getContentArea().y).to.equal(20);
     });
 
@@ -880,9 +880,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      const block = this.get('#t1');
+      expect(block.lineboxes.length).to.equal(1);
+      expect(block.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').getContentArea().y).to.equal(20);
     });
 
@@ -894,9 +894,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
-      expect(ifc.lineboxes.length).to.equal(2);
-      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
+      const block = this.get('#t1');
+      expect(block.lineboxes.length).to.equal(2);
+      expect(block.lineboxes[1].blockOffset).to.equal(20);
       expect(this.get('#t2').getContentArea().y).to.equal(20);
     });
 
@@ -908,9 +908,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      const block = this.get('#t1');
+      expect(block.lineboxes.length).to.equal(1);
+      expect(block.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').getContentArea().y).to.equal(20);
     });
 
@@ -922,10 +922,10 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(0);
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      const block = this.get('#t1');
+      expect(block.lineboxes.length).to.equal(1);
+      expect(block.lineboxes[0].inlineOffset).to.equal(0);
+      expect(block.lineboxes[0].blockOffset).to.equal(0);
       expect(this.get('#t2').getContentArea().x).to.equal(0);
       expect(this.get('#t2').getContentArea().y).to.equal(20);
     });
@@ -985,7 +985,7 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
+      const block = this.get('#t');
     });
 
     it('doesn\'t measure trailing spaces when trying to fit a float', function () {
@@ -1011,9 +1011,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes.length).to.equal(1);
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(0);
+      const block = this.get('#t');
+      expect(block.lineboxes.length).to.equal(1);
+      expect(block.lineboxes[0].inlineOffset).to.equal(0);
     });
 
     it('doesn\'t infinite loop when multiple zero height floats don\'t fit', function () {
@@ -1094,8 +1094,8 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes[0].blockOffset).to.equal(0);
+      const block = this.get('#t');
+      expect(block.lineboxes[0].blockOffset).to.equal(0);
     });
 
     it('checks for collision with float when a new word increases line height', function () {
@@ -1109,9 +1109,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes).to.have.lengthOf(2);
-      expect(ifc.lineboxes[1].blockOffset).to.equal(20);
+      const block = this.get('#t');
+      expect(block.lineboxes).to.have.lengthOf(2);
+      expect(block.lineboxes[1].blockOffset).to.equal(20);
     });
 
     it('checks for collision with float when a new word is smaller than the line height', function () {
@@ -1125,9 +1125,9 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes).to.have.lengthOf(2);
-      expect(ifc.lineboxes[1].blockOffset).to.equal(40);
+      const block = this.get('#t');
+      expect(block.lineboxes).to.have.lengthOf(2);
+      expect(block.lineboxes[1].blockOffset).to.equal(40);
     });
 
     it('places text correctly when the float is at the end of the line', function () {
@@ -1138,8 +1138,8 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t');
-      expect(ifc.lineboxes[0].head.value.x).to.be.approximately(6.674, 0.001);
+      const block = this.get('#t');
+      expect(block.lineboxes[0].head.value.x).to.be.approximately(6.674, 0.001);
     });
 
     it('multiple layout passes don\'t cause issues with box areas', function () {
@@ -1191,14 +1191,14 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('#t1');
+      const block = this.get('#t1');
       /** @type import('../src/layout-flow.ts').BlockContainerOfBlocks */
       const left = this.get('#t2');
       /** @type import('../src/layout-flow.ts').BlockContainerOfBlocks */
       const right = this.get('#t3');
       expect(left.getBorderArea().x).to.equal(0);
       expect(right.getBorderArea().x).to.equal(75);
-      expect(ifc.lineboxes[0].inlineOffset).to.equal(25);
+      expect(block.lineboxes[0].inlineOffset).to.equal(25);
     });
 
     it('obeys rule 2', function () {
@@ -1302,10 +1302,10 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('div');
+      const block = this.get('div');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const float = this.get('#t');
-      const [lb1, lb2, lb3, lb4] = ifc.lineboxes;
+      const [lb1, lb2, lb3, lb4] = block.lineboxes;
       expect(lb1.blockOffset).to.equal(0);
       expect(lb2.blockOffset).to.equal(20);
       expect(float.getBorderArea().y).to.equal(40);
@@ -1709,21 +1709,21 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('div');
+      const block = this.get('div');
 
-      expect(ifc.fragments.get(this.get('#t1'))[0].start).to.equal(87.03125);
-      expect(ifc.fragments.get(this.get('#t1'))[0].end).to.equal(133.28125);
-      expect(ifc.items[1].x).to.equal(87.03125);
+      expect(block.fragments.get(this.get('#t1'))[0].start).to.equal(87.03125);
+      expect(block.fragments.get(this.get('#t1'))[0].end).to.equal(133.28125);
+      expect(block.items[1].x).to.equal(87.03125);
 
-      expect(ifc.fragments.get(this.get('#t2'))[0].start).to.equal(139.7265625);
-      expect(ifc.fragments.get(this.get('#t2'))[0].end).to.equal(211.7734375);
-      expect(ifc.items[3].x).to.equal(139.7265625);
+      expect(block.fragments.get(this.get('#t2'))[0].start).to.equal(139.7265625);
+      expect(block.fragments.get(this.get('#t2'))[0].end).to.equal(211.7734375);
+      expect(block.items[3].x).to.equal(139.7265625);
 
-      expect(ifc.fragments.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
-      expect(ifc.items[5].y).to.equal(13.74609375);
+      expect(block.fragments.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
+      expect(block.items[5].y).to.equal(13.74609375);
 
-      expect(ifc.fragments.get(this.get('#t4'))[0].blockOffset).to.equal(15.74609375);
-      expect(ifc.items[7].y).to.equal(15.74609375);
+      expect(block.fragments.get(this.get('#t4'))[0].blockOffset).to.equal(15.74609375);
+      expect(block.items[7].y).to.equal(15.74609375);
     });
 
     it('positions inline text and backgrounds inside other positioned spans', function () {
@@ -1743,21 +1743,21 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('div');
+      const block = this.get('div');
 
-      expect(ifc.fragments.get(this.get('#t1'))[0].start).to.equal(88.03125);
-      expect(ifc.fragments.get(this.get('#t1'))[0].end).to.equal(134.28125);
-      expect(ifc.items[1].x).to.equal(88.03125);
+      expect(block.fragments.get(this.get('#t1'))[0].start).to.equal(88.03125);
+      expect(block.fragments.get(this.get('#t1'))[0].end).to.equal(134.28125);
+      expect(block.items[1].x).to.equal(88.03125);
 
-      expect(ifc.fragments.get(this.get('#t2'))[0].start).to.equal(140.7265625);
-      expect(ifc.fragments.get(this.get('#t2'))[0].end).to.equal(212.7734375);
-      expect(ifc.items[3].x).to.equal(140.7265625);
+      expect(block.fragments.get(this.get('#t2'))[0].start).to.equal(140.7265625);
+      expect(block.fragments.get(this.get('#t2'))[0].end).to.equal(212.7734375);
+      expect(block.items[3].x).to.equal(140.7265625);
 
-      expect(ifc.fragments.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);
-      expect(ifc.items[5].y).to.equal(14.74609375);
+      expect(block.fragments.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);
+      expect(block.items[5].y).to.equal(14.74609375);
 
-      expect(ifc.fragments.get(this.get('#t4'))[0].blockOffset).to.equal(16.74609375);
-      expect(ifc.items[8].y).to.equal(16.74609375);
+      expect(block.fragments.get(this.get('#t4'))[0].blockOffset).to.equal(16.74609375);
+      expect(block.items[8].y).to.equal(16.74609375);
     });
 
     it('positions floats', function () {
@@ -1945,16 +1945,16 @@ describe('Flow', function () {
         </div>
       `);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('div');
-      expect(ifc.items[4].x).to.equal(122.236328125);
-      expect(ifc.items[4].y).to.equal(25);
+      const block = this.get('div');
+      expect(block.items[4].x).to.equal(122.236328125);
+      expect(block.items[4].y).to.equal(25);
     });
 
     it('correctly positions text after unsized images without content', function () {
       this.reflow('<div style="font-size: 10px;">no<img>oo');
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get('div');
-      expect(ifc.items[1].x).to.equal(11.123046875);
+      const block = this.get('div');
+      expect(block.items[1].x).to.equal(11.123046875);
     });
 
     it('floats images', function () {
@@ -1964,18 +1964,18 @@ describe('Flow', function () {
         <br>underdog!
       `);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get();
-      expect(ifc.items[0].x).to.equal(120);
-      expect(ifc.items[0].y).to.equal(66.546875);
-      expect(ifc.items[1].x).to.equal(0);
+      const block = this.get();
+      expect(block.items[0].x).to.equal(120);
+      expect(block.items[0].y).to.equal(66.546875);
+      expect(block.items[1].x).to.equal(0);
     });
 
     it('displays images inline', function () {
       this.reflow(`<img src="${adaUrl}" style="width: 100px; height: 100px; margin: 10px;">dog`);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get();
-      expect(ifc.items[0].x).to.equal(120);
-      expect(ifc.items[0].y).to.equal(120);
+      const block = this.get();
+      expect(block.items[0].x).to.equal(120);
+      expect(block.items[0].y).to.equal(120);
     });
 
     it('displays images inline-block', function () {
@@ -1986,9 +1986,9 @@ describe('Flow', function () {
         >dog
       `);
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const ifc = this.get();
-      expect(ifc.items[0].x).to.equal(120);
-      expect(ifc.items[0].y).to.equal(120);
+      const block = this.get();
+      expect(block.items[0].x).to.equal(120);
+      expect(block.items[0].y).to.equal(120);
     });
 
     it('applies border, margin, and padding', function () {

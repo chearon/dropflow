@@ -67,7 +67,7 @@ export default class HtmlPaintBackend implements PaintBackend {
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
     const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, item.face);
-    const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
+    const text = item.block.sliceRenderText(this.layout, item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const style = this.style({
       position: 'absolute',

@@ -26,7 +26,7 @@ export interface PaintBackend {
 }
 
 function getTextOffsetsForUncollapsedGlyphs(item: ShapedItem) {
-  const s = item.ifc.text;
+  const s = item.block.text;
   const glyphs = item.glyphs;
   let glyphStart = 0;
   let glyphEnd = glyphs.length - G_SZ;
@@ -207,10 +207,10 @@ function snap(ox: number, oy: number, ow: number, oh: number) {
 
 function paintInlineBackground(
   fragment: InlineFragment,
-  ifc: BlockContainerOfInlines,
+  block: BlockContainerOfInlines,
   b: PaintBackend
 ) {
-  const direction = ifc.style.direction;
+  const direction = block.style.direction;
   const inline = fragment.inline;
   const bgc = inline.style.backgroundColor;
   const clip = inline.style.backgroundClip;
@@ -311,10 +311,10 @@ function paintInline(
   layout: Layout,
   inlineIndex: number,
   layerRoot: LayerRoot,
-  ifc: BlockContainerOfInlines,
+  block: BlockContainerOfInlines,
   b: PaintBackend
 ) {
-  const items = ifc.items;
+  const items = block.items;
   const fragments: InlineFragment[] = [];
   let fragmentIndex = 0;
   const inlineRoot = layout.tree[inlineIndex];
@@ -351,7 +351,7 @@ function paintInline(
       fragmentIndex < fragments.length &&
       fragments[fragmentIndex].textOffset === mark
     ) {
-      paintInlineBackground(fragments[fragmentIndex++], ifc, b);
+      paintInlineBackground(fragments[fragmentIndex++], block, b);
     }
 
     // Inlines, inline-block, images
@@ -360,7 +360,7 @@ function paintInline(
       if (box.isInline()) {
         if (!box.isLayerRoot() || box === inlineRoot) {
           inlineIndex++;
-          const inlineFragments = ifc.fragments.get(box);
+          const inlineFragments = block.fragments.get(box);
           if (inlineFragments) {
             for (const fragment of inlineFragments) {
               fragments.push(fragment);
@@ -537,14 +537,14 @@ class BlockLayerRoot extends LayerRoot {
 
 class InlineLayerRoot extends LayerRoot {
   box: Inline;
-  ifc: BlockContainerOfInlines;
+  block: BlockContainerOfInlines;
   index: number;
 
-  constructor(box: Inline, index: number, parents: Box[], ifc: BlockContainerOfInlines) {
+  constructor(box: Inline, index: number, parents: Box[], block: BlockContainerOfInlines) {
     super(box, parents);
     this.box = box;
     this.index = index;
-    this.ifc = ifc;
+    this.block = block;
   }
 
   isInlineLayerRoot(): this is InlineLayerRoot {
@@ -668,7 +668,7 @@ function paintInlineLayerRoot(layout: Layout, root: InlineLayerRoot, b: PaintBac
   for (const r of root.floats) paintLayerRoot(layout, r, b);
 
   if (root.box.hasForeground() || root.box.hasForegroundInLayerRoot()) {
-    paintInline(layout, root.index, root, root.ifc, b);
+    paintInline(layout, root.index, root, root.block, b);
   }
 
   for (const r of root.positionedRoots) paintLayerRoot(layout, r, b);

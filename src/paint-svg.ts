@@ -117,14 +117,14 @@ export default class SvgPaintBackend implements PaintBackend {
       const words = item.createWordIterator(textStart, textEnd);
       if (item.attrs.level & 1) x += item.measure().advance;
       for (; !words.done; words.next()) {
-        const text = item.ifc.sliceRenderText(this.layout, item, words.start, words.end);
+        const text = item.block.sliceRenderText(this.layout, item, words.start, words.end);
         x += item.attrs.level & 1 ? -words.x : words.x;
         if (item.attrs.level & 1) x -= words.w;
         this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
         if (!(item.attrs.level & 1)) x += words.w;
       }
     } else {
-      const text = item.ifc.sliceRenderText(this.layout, item, textStart, textEnd);
+      const text = item.block.sliceRenderText(this.layout, item, textStart, textEnd);
       this.main += `<text x="${x}" y="${y}" style="${encode(style)}" fill="${color}" ${clipPath}>${encode(text)}</text>`;
     }
     this.usedFonts.set(item.face.url.href, item.face);

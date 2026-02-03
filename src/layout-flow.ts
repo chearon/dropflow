@@ -1539,7 +1539,7 @@ type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
 
 interface InlineIteratorState {
   value: InlineIteratorValue | null;
-  ifc: BlockContainerOfInlines;
+  block: BlockContainerOfInlines;
   layout: Layout;
   index: number;
   minlevel: number;
@@ -1551,15 +1551,15 @@ interface InlineIteratorState {
 
 export function createInlineIteratorState(
   layout: Layout,
-  ifc: BlockContainerOfInlines
+  block: BlockContainerOfInlines
 ): InlineIteratorState {
   return {
     /* out */
     value: null,
     /* private */
-    ifc,
+    block,
     layout,
-    index: ifc.treeStart + 2,
+    index: block.treeStart + 2,
     buffered: [],
     minlevel: 0,
     parents: [],
@@ -1570,7 +1570,7 @@ export function createInlineIteratorState(
 
 export function inlineIteratorStateNext(state: InlineIteratorState) {
   if (!state.buffered.length) {
-    while (state.index <= state.ifc.treeFinal || state.parents.length) {
+    while (state.index <= state.block.treeFinal || state.parents.length) {
       while (
         state.parents.length &&
         state.index - 1 === state.parents.at(-1)!.treeFinal
@@ -1583,7 +1583,7 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
         }
       }
 
-      if (state.index <= state.ifc.treeFinal) {
+      if (state.index <= state.block.treeFinal) {
         const item = state.layout.tree[state.index++];
 
         if (item.isInline()) {
@@ -1656,15 +1656,15 @@ interface GenerateBcContext {
 
 function finishIfc(
   tree: InlineLevel[],
-  ifc: BlockContainerOfInlines,
+  block: BlockContainerOfInlines,
   ctx: GenerateBcContext
 ) {
-  ifc.treeFinal = tree.length - 1;
-  const inlineRoot = tree[ifc.treeStart + 1];
+  block.treeFinal = tree.length - 1;
+  const inlineRoot = tree[block.treeStart + 1];
   if (!inlineRoot.isInline()) throw new Error('Assertion failed');
   inlineRoot.treeFinal = tree.length - 1;
-  inlineRoot.textEnd = ifc.text.length;
-  if (ctx.hasCollapsibleWs) collapseWhitespace(tree, ifc);
+  inlineRoot.textEnd = block.text.length;
+  if (ctx.hasCollapsibleWs) collapseWhitespace(tree, block);
 }
 
 function preBcBlockChild(
@@ -1699,9 +1699,9 @@ function preBcBlockChild(
     }
 
     if (ctx.ifcIndex > -1) {
-      const ifc = tree[ctx.ifcIndex];
-      if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
-      finishIfc(tree, ifc, ctx);
+      const block = tree[ctx.ifcIndex];
+      if (!block.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+      finishIfc(tree, block, ctx);
       ctx.ifcIndex = -1;
       ctx.hasCollapsibleWs = false;
     }
@@ -1735,19 +1735,19 @@ function preBcInlineChild(tree: InlineLevel[], ctx: GenerateBcContext) {
     }
   }
 
-  const ifc = tree[ctx.ifcIndex];
-  if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
-  return ifc;
+  const block = tree[ctx.ifcIndex];
+  if (!block.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+  return block;
 }
 
 function appendToIfc(
   tree: InlineLevel[],
-  ifc: BlockContainerOfInlines,
+  block: BlockContainerOfInlines,
   run: TextNode
 ) {
-  const start = ifc.text.length;
+  const start = block.text.length;
   const end = start + run.text.length;
-  ifc.text += run.text;
+  block.text += run.text;
   tree.push(new Run(start, end, run.style));
 }
 
@@ -1760,12 +1760,12 @@ function mapTree(
   level: number
 ): boolean {
   const box = new Inline(el.style, 0);
-  const ifc = preBcInlineChild(tree, ctx);
+  const block = preBcInlineChild(tree, ctx);
 
-  if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+  if (!block.isBlockContainerOfInlines()) throw new Error('Assertion failed');
   tree.push(box);
   box.treeStart = tree.length - 1;
-  box.textStart = ifc.text.length;
+  box.textStart = block.text.length;
 
   if (level >= path.length) path[level] = 0;
   let bail = false;
@@ -1796,7 +1796,7 @@ function mapTree(
         }
       }
     } else if (childEl instanceof TextNode) {
-      appendToIfc(tree, ifc, childEl);
+      appendToIfc(tree, block, childEl);
       ctx.hasCollapsibleWs ||= childEl.style.isWsCollapsible();
     }
 
@@ -1804,7 +1804,7 @@ function mapTree(
   }
 
   if (!bail) path.pop();
-  box.textEnd = ifc.text.length;
+  box.textEnd = block.text.length;
   box.treeFinal = tree.length - 1;
   el.boxes.splice(0, el.boxes.length, box);
 
@@ -1906,9 +1906,9 @@ export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
         }
       }
     } else { // TextNode
-      const ifc = preBcInlineChild(tree, ctx);
+      const block = preBcInlineChild(tree, ctx);
       ctx.hasCollapsibleWs ||= child.style.isWsCollapsible();
-      appendToIfc(tree, ifc, child);
+      appendToIfc(tree, block, child);
     }
   }
 
@@ -1918,9 +1918,9 @@ export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
   const box = tree[ctx.treeStart];
   if (!box.isBlockContainer()) throw new Error('Assertion failed');
   if (ctx.ifcIndex > -1) {
-    const ifc = tree[ctx.ifcIndex];
-    if (!ifc.isBlockContainerOfInlines()) throw new Error('Assertion failed');
-    finishIfc(tree, ifc, ctx);
+    const block = tree[ctx.ifcIndex];
+    if (!block.isBlockContainerOfInlines()) throw new Error('Assertion failed');
+    finishIfc(tree, block, ctx);
   }
   box.treeFinal = tree.length - 1;
   el.boxes.splice(0, el.boxes.length, box);

@@ -114,7 +114,7 @@ type BorderStyle = 'none' | 'hidden' | 'dotted' | 'dashed' | 'solid'
 
 type BoxSizing = 'border-box' | 'content-box' | 'padding-box';
 
-export type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center';
+export type TextAlign = 'start' | 'end' | 'left' | 'right' | 'center' | 'justify';
 
 type Float = 'left' | 'right' | 'none';
 

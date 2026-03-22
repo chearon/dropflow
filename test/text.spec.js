@@ -1169,6 +1169,64 @@ describe('Lines', function () {
     expect(ifc2.items[0].x).to.equal(30);
   });
 
+  describe('Justify', function () {
+    it('adds space between words to fill the line', function () {
+      this.reflow(`
+        <div id="t" style="text-align: justify; font: 10px Ahem; width: 150px;">
+          The Scioto River flows
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+      const block = this.get('#t');
+      expect(block.items.length).to.equal(2);
+      expect(block.items[0].offset).to.equal(0);
+      expect(block.items[1].offset).to.equal(12);
+
+      expect(block.items[0].glyphs[0 * G_SZ + G_AX]).to.equal(0);
+      expect(block.items[0].glyphs[4 * G_SZ + G_AX]).to.equal(6000);
+      expect(block.items[1].glyphs[5 * G_SZ + G_AX]).to.equal(1000);
+      expect(block.items[1].glyphs[11 * G_SZ + G_AX]).to.equal(0);
+    });
+
+    it('positions a replaced element as the only occupant of a line correctly', function () {
+      this.reflow(`
+        <div style="text-align: justify; font: 10px Ahem; width: 200px;">
+          <img id="t" style="width: 180px; height: 10px;">
+          and Ada
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow.ts').ReplacedBox */
+      const box = this.get('#t');
+      expect(box.getContentArea().x).to.equal(0);
+    });
+
+    it('positions an inline-block at the end of a line correctly', function () {
+      this.reflow(`
+        <div style="text-align: justify; font: 10px Ahem; width: 100px;">
+          wades <div id="t" style="display: inline-block;">in</div> it
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow.ts').ReplacedBox */
+      const box = this.get('#t');
+      expect(box.getContentArea().x).to.equal(80);
+    });
+
+    it('aligns overflowing words aligned according to direction', function () {
+      this.reflow(`
+        <div id="t" style="direction: rtl; text-align: justify; font: 10px Ahem; width: 150px;">
+          Itissuperhotoutside right now
+        </div>
+      `);
+
+      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+      const block = this.get('#t');
+      expect(block.items[0].x).to.equal(-40);
+    });
+  });
+
   describe('Whitespace', function () {
     it('skips whitespace at the beginning of the line if it\'s collapsible', function () {
       this.reflow(`

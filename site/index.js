@@ -79,7 +79,7 @@ const state = EditorState.create({
   <div style="background-color: #a91; float: right; padding: 0.5em; margin-left: 0.5em;">
     To the right!
   </div>
-  <p>
+  <p style="text-align: justify;">
     To the left and right are examples of <strong>floats</strong>.
     <span style="color: #efa;">Floats are placed as they are encountered
     in text, so text that comes after them won't collide with them.</span>

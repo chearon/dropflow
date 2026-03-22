@@ -739,7 +739,7 @@ background_clip_dec
   }
 
 text_align_dec
-  = 'text-align'i S* ':' S* textAlign:('start' / 'end' / 'left' / 'right' / 'center' / default) {
+  = 'text-align'i S* ':' S* textAlign:('start' / 'end' / 'left' / 'right' / 'center' / 'justify' / default) {
     return {textAlign};
   }
 

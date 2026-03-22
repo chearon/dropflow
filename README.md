@@ -39,6 +39,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>line-&zwj;height</code> | `normal`, `px`, `em`, `%`, `number` | ✅&zwj;&nbsp;Works |
 | <code>tab-&zwj;size</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>text-&zwj;align</code> | `start`, `end`, `left`, `right`, `center` | ✅&zwj;&nbsp;Works |
+| <code>text-&zwj;align</code> | `justify` | ✅&zwj;&nbsp;Works |
 | <code>text-&zwj;decoration</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>unicode-&zwj;bidi</code> | | 🚧&zwj;&nbsp;Planned |
 | <code>vertical-&zwj;align</code> | `baseline`, `middle`, `sub`, `super`, `text-top`, `text-bottom`, `%`, `px` etc, `top`, `bottom` | ✅&zwj;&nbsp;Works |

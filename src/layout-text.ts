@@ -822,30 +822,6 @@ export class ShapedItem implements IfcRenderItem {
     return {advance: advance * toPx, trailingWs: trailingWs * toPx};
   }
 
-  collapseWhitespace(at: 'start' | 'end') {
-    if (!this.attrs.style.isWsCollapsible()) return true;
-
-    if (at === 'start') {
-      let index = 0;
-      do {
-        if (!isink(this.block.text[this.glyphs[index + G_CL]])) {
-          this.glyphs[index + G_AX] = 0;
-        } else {
-          return true;
-        }
-      } while ((index = nextCluster(this.glyphs, index)) < this.glyphs.length);
-    } else {
-      let index = this.glyphs.length - G_SZ;
-      do {
-        if (!isink(this.block.text[this.glyphs[index + G_CL]])) {
-          this.glyphs[index + G_AX] = 0;
-        } else {
-          return true;
-        }
-      } while ((index = prevCluster(this.glyphs, index)) >= 0);
-    }
-  }
-
   end() {
     return this.offset + this.length;
   }
@@ -859,13 +835,15 @@ export class ShapedItem implements IfcRenderItem {
   }
 
   mayHaveModifiedWordSepGlyphs(layout: Layout) {
+    let parent;
     if (this.inlines.length) {
-      return this.inlines[this.inlines.length - 1].hasWordSpacing();
+      parent = this.inlines[this.inlines.length - 1];
     } else {
-      const rootInline = layout.tree[this.block.treeStart + 1];
-      if (!rootInline.isInline()) throw new Error('Assertion failed');
-      return rootInline.hasWordSpacing();
+      parent = layout.tree[this.block.treeStart + 1];
+      if (!parent.isInline()) throw new Error('Assertion failed');
     }
+
+    return parent.hasWordSpacing() || parent.style.textAlign === 'justify';
   }
 
   // only use this in debugging or tests
@@ -1517,26 +1495,6 @@ export class Linebox extends LineItemLinkedList {
     return this.ascender + this.descender;
   }
 
-  trimStart() {
-    for (let n = this.head; n; n = n.next) {
-      if (n.value instanceof ShapedShim) {
-        if (n.value.box) return;
-      } else if (n.value.collapseWhitespace('start')) {
-        return;
-      }
-    }
-  }
-
-  trimEnd() {
-    for (let n = this.tail; n; n = n.previous) {
-      if (n.value instanceof ShapedShim) {
-        if (n.value.box) return;
-      } else if (n.value.collapseWhitespace('end')) {
-        return;
-      }
-    }
-  }
-
   reorderRange(start: LineItem | null, length: number) {
     const ret = new LineItemLinkedList();
     let minLevel = Infinity;
@@ -1604,7 +1562,13 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  postprocess(width: LineWidthTracker, height: LineHeightTracker, vacancy: IfcVacancy, textAlign: TextAlign) {
+  postprocess(
+    width: LineWidthTracker,
+    height: LineHeightTracker,
+    vacancy: IfcVacancy,
+    textAlign: TextAlign,
+    lastLine: boolean
+  ) {
     const dir = this.block.style.direction;
     const w = width.trimmed();
     const {ascender, descender} = height.align();
@@ -1613,8 +1577,7 @@ export class Linebox extends LineItemLinkedList {
     if (height.contextRoots.size) this.contextRoots = new Map(height.contextRoots);
     this.blockOffset = vacancy.blockOffset;
     this.reorder();
-    this.trimStart();
-    this.trimEnd();
+    transformLineboxWhitespace(this, lastLine, vacancy);
     this.ascender = ascender;
     this.descender = descender;
     this.inlineOffset = dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
@@ -1624,6 +1587,99 @@ export class Linebox extends LineItemLinkedList {
         this.inlineOffset += vacancy.inlineSize - w;
       } else if (textAlign === 'center') {
         this.inlineOffset += (vacancy.inlineSize - w) / 2;
+      }
+    }
+  }
+}
+
+function transformLineboxWhitespace(
+  linebox: Linebox,
+  lastLine: boolean,
+  vacancy: IfcVacancy
+) {
+  let firstInkItem: LineItem | null = null;
+  let firstInkIndex = 0;
+  let lastInkItem: LineItem | null = null;
+  let lastInkIndex = linebox.tail?.value instanceof ShapedItem ? linebox.tail.value.glyphs.length - G_SZ : 0;
+
+  outer: for (let n = linebox.head; n; n = n.next) {
+    const item = n.value;
+    if (item instanceof ShapedShim) {
+      if (item.box) {
+        firstInkItem = n;
+        break;
+      } else continue;
+    }
+    if (!item.attrs.style.isWsCollapsible()) break;
+    let index = 0;
+    do {
+      if (isink(item.block.text[item.glyphs[index + G_CL]])) {
+        firstInkItem = n;
+        firstInkIndex = index;
+        break outer;
+      } else {
+        item.glyphs[index + G_AX] = 0;
+      }
+    } while ((index += G_SZ) < item.glyphs.length);
+  }
+
+  outer: for (let n = linebox.tail; n; n = n.previous) {
+    const item = n.value;
+    if (item instanceof ShapedShim) {
+      if (item.box) {
+        lastInkItem = n;
+        break;
+      } else continue;
+    }
+    if (!item.attrs.style.isWsCollapsible()) break;
+    let index = item.glyphs.length - G_SZ;
+    do {
+      if (isink(item.block.text[item.glyphs[index + G_CL]])) {
+        lastInkItem = n;
+        lastInkIndex = index;
+        break outer;
+      } else {
+        item.glyphs[index + G_AX] = 0;
+      }
+    } while ((index -= G_SZ) >= 0);
+  }
+
+  if (linebox.block.style.textAlign === 'justify' && !lastLine) {
+    let litem = firstInkItem;
+    let n = 0;
+    // first pass: count spaces
+    while (litem) {
+      const item = litem.value;
+      if (item instanceof ShapedItem) {
+        const end = litem === lastInkItem ? lastInkIndex : item.glyphs.length;
+        let i = litem === firstInkItem ? firstInkIndex : 0;
+        while (i < end) {
+          if (isWordSeparator(item.block.text[item.glyphs[i + G_CL]])) n++
+          i += G_SZ;
+        }
+      }
+      if (litem === lastInkItem) break;
+      litem = litem.next;
+    }
+    // 2nd pass: expand!
+    const extraPx = (vacancy.inlineSize - linebox.width) / n;
+    if (extraPx > 0) {
+      litem = firstInkItem;
+      while (litem) {
+        const item = litem.value;
+        if (item instanceof ShapedItem) {
+          const end = litem === lastInkItem ? lastInkIndex : item.glyphs.length;
+          const extraUnits = extraPx * item.face.hbface.upem / item.attrs.style.fontSize;
+          let i = litem === firstInkItem ? firstInkIndex : 0;
+          while (i < end) {
+            if (isWordSeparator(item.block.text[item.glyphs[i + G_CL]])) {
+              item.glyphs[i + G_AX] += extraUnits;
+            }
+            i += G_SZ;
+          }
+        }
+        if (litem === lastInkItem) break;
+        litem = litem.next;
       }
     }
   }
@@ -2388,8 +2444,8 @@ export function createIfcLineboxes(
   let blockOffset = bfc.cbBlockStart;
   let lineHasWord = false;
 
-  const finishLine = (line: Linebox) => {
-    line.postprocess(width, height, vacancy, block.style.getTextAlign());
+  const finishLine = (line: Linebox, lastLine: boolean) => {
+    line.postprocess(width, height, vacancy, block.style.getTextAlign(), lastLine);
     const blockSize = line.height();
     width.reset();
     height.reset();
@@ -2529,7 +2585,7 @@ export function createIfcLineboxes(
           candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
         }
 
-        finishLine(lastLine);
+        finishLine(lastLine, false);
       }
 
       if (!line.hasContent() /* line was just added */) {
@@ -2559,7 +2615,7 @@ export function createIfcLineboxes(
         if (floatsInWord.length) floatsInWord = [];
 
         if (mark.isBreakForced) {
-          finishLine(line);
+          finishLine(line, false);
           lines.push(line = new Linebox(mark.position, block));
         }
       }
@@ -2596,14 +2652,14 @@ export function createIfcLineboxes(
     line.addCandidates(candidates, block.text.length);
     // There could have been floats after the paragraph's final line break
     bfc.getLocalVacancyForLine(bfc, blockOffset, line.height(), vacancy);
-    finishLine(line);
+    finishLine(line, true);
   } else if (candidates.width.hasContent()) {
     // We never hit a break opportunity because there is no non-whitespace
     // text and no inline-blocks, but there is some content on spans (border,
     // padding, or margin). Add everything.
     lines.push(line = new Linebox(0, block));
     line.addCandidates(candidates, block.text.length);
-    finishLine(line);
+    finishLine(line, true);
   } else {
     bfc.fctx?.consumeMisfits();
   }

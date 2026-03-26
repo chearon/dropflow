@@ -2482,7 +2482,7 @@ export function createIfcLineboxes(
   const bfc = ctx.bfc!;
 
   for (const mark of createMarkIterator(layout, block, 'normal')) {
-    const parent = ifc.parents[ifc.parents.length - 1] || ifc.rootInline;
+    const parent = ifc.parents.length > 0 ? ifc.parents[ifc.parents.length - 1] : ifc.rootInline;
     const item = block.items[mark.itemIndex];
 
     if (mark.inlinePre) {

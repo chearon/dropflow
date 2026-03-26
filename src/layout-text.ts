@@ -21,8 +21,14 @@ import {createItemizeState, itemizeNext} from './text-itemize.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {HbFace, HbFont} from './text-harfbuzz.ts';
 import type {TreeLogOptions} from './layout-box.ts';
-import type {TextAlign, WhiteSpace} from './style.ts';
-import type {BlockLevel, InlineLevel, BlockContainer, LayoutContext} from './layout-flow.ts';
+import type {WhiteSpace} from './style.ts';
+import type {
+  BlockLevel,
+  InlineLevel,
+  BlockContainer,
+  LayoutContext,
+  BlockFormattingContext
+} from './layout-flow.ts';
 
 const lineFeedCharacter = 0x000a;
 const formFeedCharacter = 0x000c;
@@ -1562,31 +1568,28 @@ export class Linebox extends LineItemLinkedList {
     }
   }
 
-  postprocess(
-    width: LineWidthTracker,
-    height: LineHeightTracker,
-    vacancy: IfcVacancy,
-    textAlign: TextAlign,
-    lastLine: boolean
-  ) {
+  postprocess(ifc: InlineFormattingContext, lastLine: boolean) {
     const dir = this.block.style.direction;
-    const w = width.trimmed();
-    const {ascender, descender} = height.align();
+    const w = ifc.width.trimmed();
+    const {ascender, descender} = ifc.height.align();
+    const textAlign = ifc.block.style.getTextAlign();
 
     this.width = w;
-    if (height.contextRoots.size) this.contextRoots = new Map(height.contextRoots);
-    this.blockOffset = vacancy.blockOffset;
+    if (ifc.height.contextRoots.size) {
+      this.contextRoots = new Map(ifc.height.contextRoots);
+    }
+    this.blockOffset = ifc.vacancy.blockOffset;
     this.reorder();
-    transformLineboxWhitespace(this, lastLine, vacancy);
+    transformLineboxWhitespace(this, lastLine, ifc.vacancy);
     this.ascender = ascender;
     this.descender = descender;
-    this.inlineOffset = dir === 'ltr' ? vacancy.leftOffset : vacancy.rightOffset;
+    this.inlineOffset = dir === 'ltr' ? ifc.vacancy.leftOffset : ifc.vacancy.rightOffset;
 
-    if (w < vacancy.inlineSize) {
+    if (w < ifc.vacancy.inlineSize) {
       if (textAlign === 'right' && dir === 'ltr' || textAlign === 'left' && dir === 'rtl') {
-        this.inlineOffset += vacancy.inlineSize - w;
+        this.inlineOffset += ifc.vacancy.inlineSize - w;
       } else if (textAlign === 'center') {
-        this.inlineOffset += (vacancy.inlineSize - w) / 2;
+        this.inlineOffset += (ifc.vacancy.inlineSize - w) / 2;
       }
     }
   }
@@ -2379,27 +2382,22 @@ export function getIfcContribution(
   return contribution;
 }
 
-function splitItem(
-  layout: Layout,
-  block: BlockContainerOfInlines,
-  itemIndex: number,
-  offset: number
-) {
-  const left = block.items[itemIndex];
-  const {needsReshape, right} = left.split(offset - left.offset);
+function splitItem(layout: Layout, ifc: InlineFormattingContext, mark: IfcMark) {
+  const left = ifc.block.items[mark.itemIndex];
+  const {needsReshape, right} = left.split(mark.position - left.offset);
 
-  block.items.splice(itemIndex + 1, 0, right);
+  ifc.block.items.splice(mark.itemIndex + 1, 0, right);
 
   if (needsReshape) {
-    const inlineIndex = block.getRunIndex(layout, left.offset);
+    const inlineIndex = ifc.block.getRunIndex(layout, left.offset);
     left.reshape(true);
     right.reshape(false);
     if (left.mayHaveModifiedWordSepGlyphs(layout)) {
-      postShapeAddWordSpacing(layout, block, block.items, inlineIndex, itemIndex, itemIndex + 2);
+      postShapeAddWordSpacing(layout, ifc.block, ifc.block.items, inlineIndex, mark.itemIndex, mark.itemIndex + 2);
     }
   }
 
-  if (block.text[offset - 1] === '\u00ad' /* softHyphenCharacter */) {
+  if (ifc.block.text[mark.position - 1] === '\u00ad' /* softHyphenCharacter */) {
     const hyphen = getHyphen(left)?.glyphs;
     if (hyphen?.length) {
       const glyphs = new Int32Array(left.glyphs.length + hyphen.length);
@@ -2407,17 +2405,71 @@ function splitItem(
         glyphs.set(hyphen, 0);
         glyphs.set(left.glyphs, hyphen.length);
         for (let i = G_CL; i < hyphen.length; i += G_SZ) {
-          glyphs[i] = offset - 1;
+          glyphs[i] = mark.position - 1;
         }
       } else {
         glyphs.set(left.glyphs, 0);
         glyphs.set(hyphen, left.glyphs.length);
         for (let i = left.glyphs.length + G_CL; i < glyphs.length; i += G_SZ) {
-          glyphs[i] = offset - 1;
+          glyphs[i] = mark.position - 1;
         }
       }
       left.glyphs = glyphs;
     }
+  }
+}
+
+class InlineFormattingContext {
+  block: BlockContainerOfInlines;
+  bfc: BlockFormattingContext;
+  /** Holds shaped items, width and height trackers for the current word */
+  candidates: LineCandidates;
+  /** Tracks the width of the line being worked on */
+  width: LineWidthTracker;
+  /** Tracks the height, ascenders and descenders of the line being worked on */
+  height: LineHeightTracker;
+  vacancy: IfcVacancy;
+  rootInline: Inline;
+  parents: Inline[];
+  line: Linebox | null;
+  lastBreakMark: IfcMark | null;
+  lines: Linebox[];
+  floatsInWord: BlockLevel[];
+  blockOffset: number;
+  lineHasWord: boolean;
+
+  constructor(
+    layout: Layout,
+    block: BlockContainerOfInlines,
+    ctx: LayoutContext
+  ) {
+    this.block = block;
+    this.bfc = ctx.bfc!;
+    this.candidates = new LineCandidates(layout, block);
+    this.width = new LineWidthTracker();
+    this.height = new LineHeightTracker(layout, block);
+    this.vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
+    const rootInline = layout.tree[block.treeStart + 1];
+    if (!rootInline.isInline()) throw new Error('Assertion failed');
+    this.rootInline = rootInline;
+    this.parents = [];
+    this.line = null;
+    this.lastBreakMark = null;
+    this.lines = [];
+    this.floatsInWord = [];
+    this.blockOffset = this.bfc.cbBlockStart;
+    this.lineHasWord = false;
+  }
+
+  finishLine(line: Linebox, lastLine: boolean) {
+    line.postprocess(this, lastLine);
+    const blockSize = line.height();
+    this.width.reset();
+    this.height.reset();
+    this.bfc.fctx?.postLine(line, true);
+    this.blockOffset += blockSize;
+    this.bfc.getLocalVacancyForLine(this.bfc, this.blockOffset, blockSize, this.vacancy);
+    this.lineHasWord = false;
   }
 }
 
@@ -2426,91 +2478,65 @@ export function createIfcLineboxes(
   block: BlockContainerOfInlines,
   ctx: LayoutContext
 ) {
+  const ifc = new InlineFormattingContext(layout, block, ctx);
   const bfc = ctx.bfc!;
-  /** Holds shaped items, width and height trackers for the current word */
-  const candidates = new LineCandidates(layout, block);
-  /** Tracks the width of the line being worked on */
-  const width = new LineWidthTracker();
-  /** Tracks the height, ascenders and descenders of the line being worked on */
-  const height = new LineHeightTracker(layout, block);
-  const vacancy = new IfcVacancy(0, 0, 0, 0, 0, 0);
-  const rootInline = layout.tree[block.treeStart + 1];
-  if (!rootInline.isInline()) throw new Error('Assertion failed');
-  const parents: Inline[] = [];
-  let line: Linebox | null = null;
-  let lastBreakMark: IfcMark | undefined;
-  const lines = [];
-  let floatsInWord = [];
-  let blockOffset = bfc.cbBlockStart;
-  let lineHasWord = false;
-
-  const finishLine = (line: Linebox, lastLine: boolean) => {
-    line.postprocess(width, height, vacancy, block.style.getTextAlign(), lastLine);
-    const blockSize = line.height();
-    width.reset();
-    height.reset();
-    bfc.fctx?.postLine(line, true);
-    blockOffset += blockSize;
-    bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
-    lineHasWord = false;
-  };
 
   for (const mark of createMarkIterator(layout, block, 'normal')) {
-    const parent = parents[parents.length - 1] || rootInline;
+    const parent = ifc.parents[ifc.parents.length - 1] || ifc.rootInline;
     const item = block.items[mark.itemIndex];
 
     if (mark.inlinePre) {
-      candidates.height.pushInline(mark.inlinePre);
+      ifc.candidates.height.pushInline(mark.inlinePre);
       if (
         item &&
         item.offset <= mark.inlinePre.textStart &&
         item.end() > mark.inlinePre.textStart
       ) {
-        candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.face));
+        ifc.candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.face));
       }
-      parents.push(mark.inlinePre);
+      ifc.parents.push(mark.inlinePre);
     }
 
     const wsCollapsible = parent.style.isWsCollapsible();
     const nowrap = isNowrap(parent.style.whiteSpace);
     const inkAdvance = mark.advance - mark.trailingWs;
 
-    if (inkAdvance) candidates.width.addInk(inkAdvance);
-    if (mark.trailingWs) candidates.width.addWs(mark.trailingWs, !!wsCollapsible);
+    if (inkAdvance) ifc.candidates.width.addInk(inkAdvance);
+    if (mark.trailingWs) ifc.candidates.width.addWs(mark.trailingWs, !!wsCollapsible);
 
-    const wouldHaveContent = width.hasContent() || candidates.width.hasContent();
+    const wouldHaveContent = ifc.width.hasContent() || ifc.candidates.width.hasContent();
 
     if (mark.box?.isFloat()) {
       if (
         // No text content yet on the hypothetical line
         !wouldHaveContent ||
         // No text between the last break and the float
-        lastBreakMark && lastBreakMark.position === mark.position
+        ifc.lastBreakMark && ifc.lastBreakMark.position === mark.position
       ) {
-        const lineWidth = line ? width.forFloat() : 0;
-        const lineIsEmpty = line ? !candidates.head && !line.head : true;
-        const fctx = bfc.ensureFloatContext(blockOffset);
+        const lineWidth = ifc.line ? ifc.width.forFloat() : 0;
+        const lineIsEmpty = ifc.line ? !ifc.candidates.head && !ifc.line.head : true;
+        const fctx = bfc.ensureFloatContext(ifc.blockOffset);
         layoutFloatBox(layout, mark.box, ctx);
         fctx.placeFloat(lineWidth, lineIsEmpty, mark.box);
       } else {
         // Have to place after the word
-        floatsInWord.push(mark.box);
+        ifc.floatsInWord.push(mark.box);
       }
     }
 
-    if (mark.inlinePre) candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
-    if (mark.inlinePost) candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
+    if (mark.inlinePre) ifc.candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
+    if (mark.inlinePost) ifc.candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
 
     if (mark.box?.isInlineLevel()) {
       layoutFloatBox(layout, mark.box, ctx);
       const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero();
       const borderArea = mark.box.getBorderArea();
-      candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
-      candidates.height.stampBlock(mark.box, parent);
+      ifc.candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
+      ifc.candidates.height.stampBlock(mark.box, parent);
     }
 
     if (mark.inlinePre && (mark.inlinePost || mark.isBreakForced) || mark.box?.isInlineLevel()) {
-      const [left, right] = [item, block.items[mark.itemIndex + 1]];
+      const [left, right] = [item, ifc.block.items[mark.itemIndex + 1]];
       let level: number = 0;
       // Treat the empty span as an Other Neutral (ON) according to UAX29. I
       // think that's what browsers are doing.
@@ -2523,9 +2549,9 @@ export function createIfcLineboxes(
       // If there are no left or right, there is no text, so level=0 is OK
       const style = mark.inlinePre?.style || (mark.box as Box).style;
       const attrs = {level, isEmoji: false, script: 'Latn', style};
-      const shiv = new ShapedShim(mark.position, parents.slice(), attrs, mark.box || undefined);
-      candidates.push(shiv);
-      for (const p of parents) p.nshaped += 1;
+      const shiv = new ShapedShim(mark.position, ifc.parents.slice(), attrs, mark.box || undefined);
+      ifc.candidates.push(shiv);
+      for (const p of ifc.parents) p.nshaped += 1;
     }
 
     // Either a Unicode soft wrap, before/after an inline-block, or cluster
@@ -2540,24 +2566,24 @@ export function createIfcLineboxes(
         // A <br> or preserved \n always creates a new line
         mark.isBreakForced ||
         // The end of the paragraph always ensures there's a line
-        mark.position === block.text.length
+        mark.position === ifc.block.text.length
       )
     ) {
-      if (!line) {
-        lines.push(line = new Linebox(0, block));
+      if (!ifc.line) {
+        ifc.lines.push(ifc.line = new Linebox(0, ifc.block));
         bfc.fctx?.preTextContent();
       }
 
-      const blockSize = height.totalWith(candidates.height);
-      bfc.getLocalVacancyForLine(bfc, blockOffset, blockSize, vacancy);
+      const blockSize = ifc.height.totalWith(ifc.candidates.height);
+      bfc.getLocalVacancyForLine(bfc, ifc.blockOffset, blockSize, ifc.vacancy);
 
-      if (block.text[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
+      if (ifc.block.text[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
         const glyphs = getHyphen(item)?.glyphs;
         const {face: {hbface: {upem}}, attrs: {style: {fontSize}}} = item;
         if (glyphs?.length) {
           let w = 0;
           for (let i = 0; i < glyphs.length; i += G_SZ) w += glyphs[i + G_AX];
-          candidates.width.addHyphen(w / upem * fontSize);
+          ifc.candidates.width.addHyphen(w / upem * fontSize);
         }
       }
 
@@ -2565,67 +2591,67 @@ export function createIfcLineboxes(
       // This is for soft wraps. Hard wraps are followed again later.
       if (
         // The line has non-whitespace text or inline-blocks
-        line.hasContent() &&
+        ifc.line.hasContent() &&
         // The word being added isn't just whitespace
-        candidates.width.hasContent() &&
+        ifc.candidates.width.hasContent() &&
         // The line would overflow if we added the word
-        !vacancy.fits(width.forWord() + candidates.width.asWord())
+        !ifc.vacancy.fits(ifc.width.forWord() + ifc.candidates.width.asWord())
       ) {
-        const lastLine = line;
-        if (!lastBreakMark) throw new Error('Assertion failed');
-        lines.push(line = new Linebox(lastBreakMark.position, block));
-        const lastBreakMarkItem = block.items[lastBreakMark.itemIndex];
+        const lastLine = ifc.line;
+        if (!ifc.lastBreakMark) throw new Error('Assertion failed');
+        ifc.lines.push(ifc.line = new Linebox(ifc.lastBreakMark.position, ifc.block));
+        const lastBreakMarkItem = ifc.block.items[ifc.lastBreakMark.itemIndex];
 
-        if (lastBreakMarkItem?.hasCharacterInside(lastBreakMark.position)) {
-          splitItem(layout, block, lastBreakMark.itemIndex, lastBreakMark.position);
-          lastBreakMark.split(mark);
-          candidates.unshift(block.items[lastBreakMark.itemIndex]);
+        if (lastBreakMarkItem?.hasCharacterInside(ifc.lastBreakMark.position)) {
+          splitItem(layout, ifc, ifc.lastBreakMark);
+          ifc.lastBreakMark.split(mark);
+          ifc.candidates.unshift(ifc.block.items[ifc.lastBreakMark.itemIndex]);
           // Stamp the brand new line with its metrics, since the only other
           // place this happens is mark.itemStart
-          candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
+          ifc.candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
         }
 
-        finishLine(lastLine, false);
+        ifc.finishLine(lastLine, false);
       }
 
-      if (!line.hasContent() /* line was just added */) {
-        if (candidates.width.forFloat() > vacancy.inlineSize && bfc.fctx) {
-          const newVacancy = bfc.fctx.findLinePosition(blockOffset, blockSize, candidates.width.forFloat());
-          blockOffset = newVacancy.blockOffset;
-          bfc.fctx?.dropShelf(blockOffset);
+      if (!ifc.line.hasContent() /* line was just added */) {
+        if (ifc.candidates.width.forFloat() > ifc.vacancy.inlineSize && bfc.fctx) {
+          const newVacancy = bfc.fctx.findLinePosition(ifc.blockOffset, blockSize, ifc.candidates.width.forFloat());
+          ifc.blockOffset = newVacancy.blockOffset;
+          bfc.fctx?.dropShelf(ifc.blockOffset);
         }
       }
 
       // Add at each normal wrapping opportunity. Inside overflow-wrap
       // segments, we add each character while the line doesn't have a word.
-      if (mark.isBreak || !lineHasWord) {
-        if (mark.isBreak) lineHasWord = true;
-        line.addCandidates(candidates, mark.position);
-        width.concat(candidates.width);
-        height.concat(candidates.height);
+      if (mark.isBreak || !ifc.lineHasWord) {
+        if (mark.isBreak) ifc.lineHasWord = true;
+        ifc.line.addCandidates(ifc.candidates, mark.position);
+        ifc.width.concat(ifc.candidates.width);
+        ifc.height.concat(ifc.candidates.height);
 
-        candidates.clearContents();
-        lastBreakMark = mark;
+        ifc.candidates.clearContents();
+        ifc.lastBreakMark = mark;
 
-        for (const float of floatsInWord) {
-          const fctx = bfc.ensureFloatContext(blockOffset);
+        for (const float of ifc.floatsInWord) {
+          const fctx = bfc.ensureFloatContext(ifc.blockOffset);
           layoutFloatBox(layout, float, ctx);
-          fctx.placeFloat(width.forFloat(), false, float);
+          fctx.placeFloat(ifc.width.forFloat(), false, float);
         }
-        if (floatsInWord.length) floatsInWord = [];
+        if (ifc.floatsInWord.length) ifc.floatsInWord = [];
 
         if (mark.isBreakForced) {
-          finishLine(line, false);
-          lines.push(line = new Linebox(mark.position, block));
+          ifc.finishLine(ifc.line, false);
+          ifc.lines.push(ifc.line = new Linebox(mark.position, block));
         }
       }
     }
 
     if (mark.isItemStart) {
-      item.inlines = parents.slice();
-      for (const p of parents) p.nshaped += 1;
-      candidates.push(item);
-      candidates.height.stampMetrics(getMetrics(parent.style, item.face));
+      item.inlines = ifc.parents.slice();
+      for (const p of ifc.parents) p.nshaped += 1;
+      ifc.candidates.push(item);
+      ifc.candidates.height.stampMetrics(getMetrics(parent.style, item.face));
     }
 
     // Handle a span that starts inside a shaped item
@@ -2635,40 +2661,40 @@ export function createIfcLineboxes(
     }
 
     if (mark.inlinePost) {
-      parents.pop();
-      candidates.height.popInline();
+      ifc.parents.pop();
+      ifc.candidates.height.popInline();
     }
   }
 
-  for (const float of floatsInWord) {
-    const fctx = bfc.ensureFloatContext(blockOffset);
+  for (const float of ifc.floatsInWord) {
+    const fctx = bfc.ensureFloatContext(ifc.blockOffset);
     layoutFloatBox(layout, float, ctx);
-    fctx.placeFloat(line ? width.forFloat() : 0, line ? !line.head : true, float);
+    fctx.placeFloat(ifc.line ? ifc.width.forFloat() : 0, ifc.line ? !ifc.line.head : true, float);
   }
 
-  if (line) {
+  if (ifc.line) {
     // If the IFC consists of only whitespace and inline-blocks or replaced
     // elements, the whitespace is added here
-    line.addCandidates(candidates, block.text.length);
+    ifc.line.addCandidates(ifc.candidates, ifc.block.text.length);
     // There could have been floats after the paragraph's final line break
-    bfc.getLocalVacancyForLine(bfc, blockOffset, line.height(), vacancy);
-    finishLine(line, true);
-  } else if (candidates.width.hasContent()) {
+    bfc.getLocalVacancyForLine(bfc, ifc.blockOffset, ifc.line.height(), ifc.vacancy);
+    ifc.finishLine(ifc.line, true);
+  } else if (ifc.candidates.width.hasContent()) {
     // We never hit a break opportunity because there is no non-whitespace
     // text and no inline-blocks, but there is some content on spans (border,
     // padding, or margin). Add everything.
-    lines.push(line = new Linebox(0, block));
-    line.addCandidates(candidates, block.text.length);
-    finishLine(line, true);
+    ifc.lines.push(ifc.line = new Linebox(0, ifc.block));
+    ifc.line.addCandidates(ifc.candidates, ifc.block.text.length);
+    ifc.finishLine(ifc.line, true);
   } else {
     bfc.fctx?.consumeMisfits();
   }
 
-  if (block.loggingEnabled()) {
+  if (ifc.block.loggingEnabled()) {
     const log = new Logger();
-    log.text(`Paragraph ${block.id()}:\n`);
+    log.text(`Paragraph ${ifc.block.id()}:\n`);
     log.pushIndent();
-    for (const item of block.items) {
+    for (const item of ifc.block.items) {
       const lead = `@${item.offset} `.padEnd(5);
       log.text(lead);
       log.pushIndent(' '.repeat(lead.length));
@@ -2679,7 +2705,7 @@ export function createIfcLineboxes(
       log.text('\n');
       log.popIndent();
     }
-    for (const [i, line] of lines.entries()) {
+    for (const [i, line] of ifc.lines.entries()) {
       const W = line.width.toFixed(2);
       const A = line.ascender.toFixed(2);
       const D = line.descender.toFixed(2);
@@ -2700,7 +2726,7 @@ export function createIfcLineboxes(
     log.flush();
   }
 
-  return lines;
+  return ifc.lines;
 }
 
 export function positionIfcItems(

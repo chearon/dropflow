@@ -10,7 +10,6 @@ import {
   getIfcContribution,
   createIfcShapedItems,
   createIfcLineboxes,
-  positionIfcItems,
   sliceIfcRenderText,
   collapseWhitespace
 } from './layout-text.ts';
@@ -830,16 +829,18 @@ export class BlockContainerOfInlines extends BlockContainerBase {
   text: string;
   buffer: AllocatedUint16Array;
   items: ShapedItem[];
-  lineboxes: Linebox[];
-  fragments: Map<Inline, InlineFragment[]>;
+  fragments: InlineFragment[];
+  lastBaseline: number;
+  intrinsicISize: number;
 
   constructor(style: Style, attrs: number) {
     super(style, attrs);
     this.text = '';
     this.buffer = EmptyBuffer;
     this.items = [];
-    this.lineboxes = [];
-    this.fragments = new Map();
+    this.fragments = [];
+    this.lastBaseline = 0;
+    this.intrinsicISize = 0;
   }
 
   prelayoutPostorder(layout: Layout, ctx: PrelayoutContext) {
@@ -849,7 +850,7 @@ export class BlockContainerOfInlines extends BlockContainerBase {
       this.buffer.destroy();
       this.buffer = createIfcBuffer(this.text);
       this.items = createIfcShapedItems(layout, this, inline);
-      this.fragments.clear();
+      this.fragments = [];
     }
   }
 
@@ -908,14 +909,11 @@ export class BlockContainerOfInlines extends BlockContainerBase {
       }
     }
 
-    for (const [inline, fragments] of this.fragments) {
-      const {dx, dy} = inlineShifts.get(inline)!;
-
-      for (const fragment of fragments) {
-        fragment.blockOffset += contentArea.y + dy;
-        fragment.start += contentArea.x + dx;
-        fragment.end += contentArea.x + dx;
-      }
+    for (const fragment of this.fragments) {
+      const {dx, dy} = inlineShifts.get(fragment.inline)!;
+      fragment.blockOffset += contentArea.y + dy;
+      fragment.left += contentArea.x + dx;
+      fragment.right += contentArea.x + dx;
     }
   }
 
@@ -956,6 +954,7 @@ export class BlockContainerOfInlines extends BlockContainerBase {
         let ml = i;
         let mr = i;
 
+        // TODO this is wrong!
         while (mr < r && !layout.tree[mr].isRun() && !layout.tree[mr].isInline()) mr++;
         while (ml > l && !layout.tree[ml].isRun() && !layout.tree[ml].isInline()) ml--;
 
@@ -977,15 +976,6 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     return sliceIfcRenderText(layout, this, item, start, end);
   }
 
-  getLineboxHeight() {
-    if (this.lineboxes.length) {
-      const line = this.lineboxes.at(-1)!;
-      return line.blockOffset + line.height();
-    } else {
-      return 0;
-    }
-  }
-
   shouldLayoutContent(layout: Layout) {
     const inline = layout.tree[this.treeStart + 1];
     if (!inline.isInline()) throw new Error('Assertion failed');
@@ -998,10 +988,12 @@ export class BlockContainerOfInlines extends BlockContainerBase {
   doTextLayout(layout: Layout, ctx: LayoutContext) {
     const blockSize = this.style.getBlockSize(this.getContainingBlock());
     if (this.shouldLayoutContent(layout)) {
-      this.lineboxes = createIfcLineboxes(layout, this, ctx);
-      positionIfcItems(layout, this);
+      const ifc = createIfcLineboxes(layout, this, ctx);
+      if (blockSize === 'auto' && ifc.lines.length) {
+        const line = ifc.lines[ifc.lines.length - 1];
+        this.setBlockSize( line.blockOffset + line.height());
+      }
     }
-    if (blockSize === 'auto') this.setBlockSize(this.getLineboxHeight());
   }
 }
 
@@ -1384,23 +1376,22 @@ export class Inline extends Box {
     return this.style.hasLineRightGap(this.getContainingBlock());
   }
 
-  getInlineSideSize(side: 'pre' | 'post') {
+  getInlineStartSize() {
     const direction = this.getDirectionAsParticipant();
     const containingBlock = this.getContainingBlock();
-    if (
-      direction === 'ltr' && side === 'pre' ||
-      direction === 'rtl' && side === 'post'
-    ) {
-      const marginLineLeft = this.style.getMarginLineLeft(containingBlock);
-      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-        + this.style.getBorderLineLeftWidth(containingBlock)
-        + this.style.getPaddingLineLeft(containingBlock);
-    } else {
-      const marginLineRight = this.style.getMarginLineRight(containingBlock);
-      return (marginLineRight === 'auto' ? 0 : marginLineRight)
-        + this.style.getBorderLineRightWidth(containingBlock)
-        + this.style.getPaddingLineRight(containingBlock);
-    }
+    const marginStart = this.style.getMarginInlineStart(containingBlock, direction);
+    return (marginStart === 'auto' ? 0 : marginStart)
+      + this.style.getBorderInlineStartWidth(containingBlock, direction)
+      + this.style.getPaddingInlineStart(containingBlock, direction);
+  }
+
+  getInlineEndSize() {
+    const direction = this.getDirectionAsParticipant();
+    const containingBlock = this.getContainingBlock();
+    const marginEnd = this.style.getMarginInlineEnd(containingBlock, direction);
+    return (marginEnd === 'auto' ? 0 : marginEnd)
+      + this.style.getBorderInlineEndWidth(containingBlock, direction)
+      + this.style.getPaddingInlineEnd(containingBlock, direction);
   }
 
   isInline(): this is Inline {
@@ -1463,9 +1454,12 @@ export class ReplacedBox extends FormattingBox {
   }
 
   getLogSymbol() {
-    return "◼️";
+    if (this.isFloat()) {
+      return '●';
+    } else {
+      return '◼️';
+    }
   }
-
   hasBackground() {
     return this.style.hasPaint();
   }
@@ -1530,7 +1524,7 @@ export class ReplacedBox extends FormattingBox {
 export type InlineLevel = Inline | Run | Break | BlockContainer | ReplacedBox;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
-  | {state: 'text', item: Run}
+  | {state: 'text', item: Run, treeIndex: number}
   | {state: 'box', item: BlockLevel}
   | {state: 'break'}
   | {state: 'breakop'};
@@ -1593,7 +1587,8 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
           state.emitBreakspot = state.minlevel !== state.parents.length;
           state.minlevel = state.parents.length;
           if (item.isRun()) {
-            state.buffered.push({state: 'text', item});
+            const treeIndex = state.index - 1;
+            state.buffered.push({state: 'text', item, treeIndex});
           } else if (item.isBreak()) {
             state.buffered.push({state: 'break'});
           } else {

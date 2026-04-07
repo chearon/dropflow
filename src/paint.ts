@@ -219,7 +219,8 @@ function paintInlineBackground(
   const {a: ra} = borderRightColor;
   const {a: ba} = borderBottomColor;
   const {a: la} = borderLeftColor;
-  const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = fragment;
+  const {left: start, right: end, blockOffset, naturalStart, naturalEnd} = fragment;
+  const {ascender, descender} = inline.metrics;
   const containingBlock = inline.getContainingBlock();
   const paddingTop = inline.style.getPaddingBlockStart(containingBlock);
   const paddingRight = inline.style.getPaddingLineRight(containingBlock);
@@ -315,7 +316,6 @@ function paintInline(
   b: PaintBackend
 ) {
   const items = block.items;
-  const fragments: InlineFragment[] = [];
   let fragmentIndex = 0;
   const inlineRoot = layout.tree[inlineIndex];
   if (!inlineRoot.isInline()) throw new Error('Assertion failed');
@@ -338,7 +338,7 @@ function paintInline(
   while (
     itemIndex < itemEnd ||
     inlineIndex < inlineEnd ||
-    fragmentIndex < fragments.length
+    fragmentIndex < block.fragments.length
   ) {
     // paint lastMark..mark
     if (itemIndex < itemEnd) {
@@ -348,10 +348,10 @@ function paintInline(
 
     // Fragmented backgrounds from an inline already seen
     while (
-      fragmentIndex < fragments.length &&
-      fragments[fragmentIndex].textOffset === mark
+      fragmentIndex < block.fragments.length &&
+      block.fragments[fragmentIndex].textOffset === mark
     ) {
-      paintInlineBackground(fragments[fragmentIndex++], block, b);
+      paintInlineBackground(block.fragments[fragmentIndex++], block, b);
     }
 
     // Inlines, inline-block, images
@@ -360,13 +360,6 @@ function paintInline(
       if (box.isInline()) {
         if (!box.isLayerRoot() || box === inlineRoot) {
           inlineIndex++;
-          const inlineFragments = block.fragments.get(box);
-          if (inlineFragments) {
-            for (const fragment of inlineFragments) {
-              fragments.push(fragment);
-            }
-            break;
-          }
         } else {
           inlineIndex = box.treeFinal + 1;
           while (
@@ -395,7 +388,7 @@ function paintInline(
 
     lastMark = mark;
     mark = Math.min(
-      fragmentIndex < fragments.length ? fragments[fragmentIndex].textOffset : Infinity,
+      fragmentIndex < block.fragments.length ? block.fragments[fragmentIndex].textOffset : Infinity,
       itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
       inlineMark,
       inlineRoot.textEnd

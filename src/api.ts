@@ -225,9 +225,7 @@ export function staticLayoutContribution(layout: Layout, box: BlockContainer): n
   }
 
   if (box.isBlockContainerOfInlines()) {
-    for (const line of box.lineboxes) {
-      intrinsicSize = Math.max(intrinsicSize, line.width);
-    }
+    intrinsicSize = Math.max(intrinsicSize, box.intrinsicISize);
     // TODO: floats
   } else {
     for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {

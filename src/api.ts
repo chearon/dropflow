@@ -212,53 +212,6 @@ export function t(text: string): TextNode {
   return new TextNode(id(), text);
 }
 
-export function staticLayoutContribution(layout: Layout, box: BlockContainer): number {
-  let intrinsicSize = 0;
-
-  const containingBlock = box.getContainingBlock();
-  const definiteSize = box.getDefiniteOuterInlineSize(containingBlock);
-  if (definiteSize !== undefined) {
-    const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
-    const marginLineRight = box.style.getMarginLineRight(containingBlock);
-    return definiteSize + (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-      + (marginLineRight === 'auto' ? 0 : marginLineRight)
-  }
-
-  if (box.isBlockContainerOfInlines()) {
-    for (const line of box.lineboxes) {
-      intrinsicSize = Math.max(intrinsicSize, line.width);
-    }
-    // TODO: floats
-  } else {
-    for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
-      const child = layout.tree[i];
-      if (child.isBlockContainer()) {
-        intrinsicSize = Math.max(intrinsicSize, staticLayoutContribution(layout, child));
-      } else if (child.isBox()) {
-        // TODO:
-        intrinsicSize = Math.max(intrinsicSize, child.getBorderArea().inlineSize);
-      }
-      if (child.isBox()) i = child.treeFinal;
-    }
-  }
-
-  const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
-  const marginLineRight = box.style.getMarginLineRight(containingBlock);
-  const borderLineLeftWidth = box.style.getBorderLineLeftWidth(containingBlock);
-  const paddingLineLeft = box.style.getPaddingLineLeft(containingBlock);
-  const paddingLineRight = box.style.getPaddingLineRight(containingBlock);
-  const borderLineRightWidth = box.style.getBorderLineRightWidth(containingBlock);
-
-  intrinsicSize += (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-    + borderLineLeftWidth
-    + paddingLineLeft
-    + paddingLineRight
-    + borderLineRightWidth
-    + (marginLineRight === 'auto' ? 0 : marginLineRight);
-
-  return intrinsicSize;
-}
-
 type LoadableResource = FontFace | Image;
 
 export interface LoadWalkerContext {

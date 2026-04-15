@@ -709,18 +709,6 @@ environment.wasmLocator = function () {
 };
 ```
 
-## Other
-
-### `staticLayoutContribution`
-
-```ts
-function staticLayoutContribution(box: BlockContainer): number;
-```
-
-Returns the inline size in CSS pixels taken up by the layout, not including empty space after lines or the effect of any `width` properties. `layout` must be called before this.
-
-The intended usage is this: after laying out text into a desired size, use `staticLayoutContribution` to get the size without any remaining empty space at the end of the lines, then `layout` again into that size to get a tightly fitting layout.
-
 # HarfBuzz
 
 Glyph layout is performed by [HarfBuzz](https://github.com/harfbuzz/harfbuzz) compiled to WebAssembly. This allows for a level of correctness that isn't possible by using the `measureText` API to position spans of text. If you color the "V" in the text "AV" differently in Google Sheets, you will notice kerning is lost, and the letters appear further apart than they should be. That's because two `measureText` and `fillText` calls were made on the letters, so contextual glyph advances were lost. Dropflow uses HarfBuzz on more coarse shaping boundaries (not when color is changed) so that the font is more correctly supported. 

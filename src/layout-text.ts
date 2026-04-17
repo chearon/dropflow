@@ -1,5 +1,5 @@
 import {basename, loggableText, Logger} from './util.ts';
-import {Box, TreeNode, Layout} from './layout-box.ts';
+import {Box, BoxArea, TreeNode, Layout} from './layout-box.ts';
 import {Style} from './style.ts';
 import {
   ReplacedBox,
@@ -1107,21 +1107,21 @@ function getLastBaseline(layout: Layout, block: BlockLevel) {
 }
 
 export function inlineBlockMetrics(layout: Layout, box: BlockLevel) {
-  const {blockStart: marginBlockStart, blockEnd: marginBlockEnd} = box.getMarginsAutoIsZero();
+  const containingBlock = box.getContainingBlock();
+  const margins = box.getMarginsAutoIsZero(containingBlock);
   const baseline = box.style.overflow === 'hidden' ? undefined : getLastBaseline(layout, box);
   let ascender, descender;
 
   if (baseline !== undefined) {
-    const containingBlock = box.getContainingBlock();
     const paddingBlockStart = box.style.getPaddingBlockStart(containingBlock);
     const paddingBlockEnd = box.style.getPaddingBlockEnd(containingBlock);
     const borderBlockStart = box.style.getBorderBlockStartWidth(containingBlock);
     const borderBlockEnd = box.style.getBorderBlockEndWidth(containingBlock);
     const blockSize = box.getContentArea().blockSize;
-    ascender = marginBlockStart + borderBlockStart + paddingBlockStart + baseline;
-    descender = (blockSize - baseline) + paddingBlockEnd + borderBlockEnd + marginBlockEnd;
+    ascender = margins.blockStart + borderBlockStart + paddingBlockStart + baseline;
+    descender = (blockSize - baseline) + paddingBlockEnd + borderBlockEnd + margins.blockEnd;
   } else {
-    ascender = marginBlockStart + box.getBorderArea().blockSize + marginBlockEnd;
+    ascender = margins.blockStart + box.getBorderArea().blockSize + margins.blockEnd;
     descender = 0;
   }
 
@@ -1362,7 +1362,8 @@ class LineHeightTracker {
     for (const box of this.boxes) {
       if (box.style.verticalAlign === 'bottom') {
         const blockSize = box.getBorderArea().blockSize;
-        const {blockStart, blockEnd} = box.getMarginsAutoIsZero();
+        const containingBlock = box.getContainingBlock();
+        const {blockStart, blockEnd} = box.getMarginsAutoIsZero(containingBlock);
         bottomsHeight = Math.max(bottomsHeight, blockStart + blockSize + blockEnd);
       }
     }
@@ -1391,7 +1392,7 @@ class LineHeightTracker {
       }
       for (const box of this.boxes) {
         const blockSize = box.getBorderArea().blockSize;
-        const {blockStart, blockEnd} = box.getMarginsAutoIsZero();
+        const {blockStart, blockEnd} = box.getMarginsAutoIsZero(box.getContainingBlock());
         height = Math.max(height, blockStart + blockSize + blockEnd);
       }
       return height;
@@ -2346,6 +2347,7 @@ export function getIfcContribution(
   mode: 'min-content' | 'max-content'
 ) {
   const width = new LineWidthTracker();
+  const containingBlock = block.getContentArea();
   let contribution = 0;
 
   for (const mark of createMarkIterator(layout, block, mode)) {
@@ -2354,8 +2356,8 @@ export function getIfcContribution(
 
     if (inkAdvance) width.addInk(inkAdvance);
     if (mark.trailingWs) width.addWs(mark.trailingWs, true /* TODO */);
-    if (mark.inlinePre) width.addInk(mark.inlinePre.getInlineSideSize('pre'));
-    if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize('post'));
+    if (mark.inlinePre) width.addInk(mark.inlinePre.getInlineSideSize(containingBlock, 'pre'));
+    if (mark.inlinePost) width.addInk(mark.inlinePost.getInlineSideSize(containingBlock, 'post'));
 
     if (mark.box) {
       width.addInk(layoutContribution(layout, mark.box, mode));
@@ -2425,6 +2427,8 @@ class InlineFormattingContext {
   height: LineHeightTracker;
   vacancy: IfcVacancy;
   rootInline: Inline;
+  containingBlock: BoxArea;
+  /** Parents according to the mark's current position */
   parents: Inline[];
   line: Linebox | null;
   lastBreakMark: IfcMark | null;
@@ -2447,6 +2451,7 @@ class InlineFormattingContext {
     const rootInline = layout.tree[block.treeStart + 1];
     if (!rootInline.isInline()) throw new Error('Assertion failed');
     this.rootInline = rootInline;
+    this.containingBlock = rootInline.getContainingBlock();
     this.parents = [];
     this.line = null;
     this.lastBreakMark = null;
@@ -2474,6 +2479,7 @@ export function createIfcLineboxes(
   ctx: LayoutContext
 ) {
   const ifc = new InlineFormattingContext(layout, block, ctx);
+  const containingBlock = ifc.containingBlock;
   const bfc = ctx.bfc!;
 
   for (const mark of createMarkIterator(layout, block, 'normal')) {
@@ -2519,12 +2525,12 @@ export function createIfcLineboxes(
       }
     }
 
-    if (mark.inlinePre) ifc.candidates.width.addInk(mark.inlinePre.getInlineSideSize('pre'));
-    if (mark.inlinePost) ifc.candidates.width.addInk(mark.inlinePost.getInlineSideSize('post'));
+    if (mark.inlinePre) ifc.candidates.width.addInk(mark.inlinePre.getInlineSideSize(containingBlock, 'pre'));
+    if (mark.inlinePost) ifc.candidates.width.addInk(mark.inlinePost.getInlineSideSize(containingBlock, 'post'));
 
     if (mark.box?.isInlineLevel()) {
       layoutFloatBox(layout, mark.box, ctx);
-      const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero();
+      const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero(containingBlock);
       const borderArea = mark.box.getBorderArea();
       ifc.candidates.width.addInk(lineLeft + borderArea.inlineSize + lineRight);
       ifc.candidates.height.stampBlock(mark.box, parent);
@@ -2886,7 +2892,7 @@ export function positionIfcItems(
         x += direction === 'ltr' ? width : -width;
       } else if (item.box) {
         const parent = item.inlines.at(-1) || rootInline;
-        const {lineLeft, blockStart, lineRight} = item.box.getMarginsAutoIsZero();
+        const {lineLeft, blockStart, lineRight} = item.box.getMarginsAutoIsZero(containingBlock);
         const borderArea = item.box.getBorderArea();
 
         if (item.box.style.verticalAlign === 'top') {

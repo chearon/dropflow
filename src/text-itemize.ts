@@ -529,8 +529,9 @@ export function styleIteratorNext(state: StyleIteratorState) {
       state.parents[state.parents.length - 1].treeFinal === state.index - 1
     ) {
       const parent = state.parents.pop()!;
+      const containingBlock = parent.getContainingBlock();
 
-      if (state.direction === 'ltr' ? parent.hasLineRightGap() : parent.hasLineLeftGap()) {
+      if (state.direction === 'ltr' ? parent.hasLineRightGap(containingBlock) : parent.hasLineLeftGap(containingBlock)) {
         if (state.offset !== state.lastOffset) {
           state.leader = parent;
           break outer;
@@ -574,7 +575,8 @@ export function styleIteratorNext(state: StyleIteratorState) {
           }
         }
 
-        if (state.direction === 'ltr' ? item.hasLineLeftGap() : item.hasLineRightGap()) {
+        const containingBlock = item.getContainingBlock();
+        if (state.direction === 'ltr' ? item.hasLineLeftGap(containingBlock) : item.hasLineRightGap(containingBlock)) {
           if (state.offset !== state.lastOffset) {
             state.leader = item;
             break;

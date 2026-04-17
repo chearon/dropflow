@@ -54,6 +54,15 @@ function logIfFailed() {
   }
 }
 
+/**
+ * @param {import('../src/layout-box.ts').Box} box
+ * @param {'start' | 'end'} side
+ */
+function getInlineSideSize(box, side) {
+  const containingBlock = box.getContainingBlock();
+  return box.getInlineSideSize(containingBlock, side);
+}
+
 describe('Whitespace collapsing', function () {
   before(setupLayoutTests);
 
@@ -588,20 +597,20 @@ describe('Lines', function () {
 
     const a1 = block.lineboxes[0].head.next; // A
     expect(a1.value.inlines).to.have.lengthOf(1);
-    expect(a1.value.inlines[0].getInlineSideSize('pre')).to.equal(5);
-    expect(a1.value.inlines[0].getInlineSideSize('post')).to.equal(5);
+    expect(getInlineSideSize(a1.value.inlines[0], 'pre')).to.equal(5);
+    expect(getInlineSideSize(a1.value.inlines[0], 'post')).to.equal(5);
     expect(a1.value.inlines[0].nshaped).to.equal(1);
 
     const a2 = a1.next.next; // A
     expect(a2.value.inlines).to.have.lengthOf(1);
-    expect(a2.value.inlines[0].getInlineSideSize('pre')).to.equal(10);
-    expect(a2.value.inlines[0].getInlineSideSize('post')).to.equal(10);
+    expect(getInlineSideSize(a2.value.inlines[0], 'pre')).to.equal(10);
+    expect(getInlineSideSize(a2.value.inlines[0], 'post')).to.equal(10);
     expect(a2.value.inlines[0].nshaped).to.equal(1);
 
     const a3 = a2.next.next; // A
     expect(a3.value.inlines).to.have.lengthOf(1);
-    expect(a3.value.inlines[0].getInlineSideSize('pre')).to.equal(1);
-    expect(a3.value.inlines[0].getInlineSideSize('post')).to.equal(1);
+    expect(getInlineSideSize(a3.value.inlines[0], 'pre')).to.equal(1);
+    expect(getInlineSideSize(a3.value.inlines[0], 'post')).to.equal(1);
     expect(a3.value.inlines[0].nshaped).to.equal(1);
   });
 
@@ -620,20 +629,20 @@ describe('Lines', function () {
     let n = block.lineboxes[1].head.next; // 10px shiv
     expect(n.value.inlines).to.have.lengthOf(1);
     expect(n.value.inlines[0].nshaped).to.equal(1);
-    expect(n.value.inlines[0].getInlineSideSize('pre')).to.equal(10);
-    expect(n.value.inlines[0].getInlineSideSize('post')).to.equal(10);
+    expect(getInlineSideSize(n.value.inlines[0], 'pre')).to.equal(10);
+    expect(getInlineSideSize(n.value.inlines[0], 'post')).to.equal(10);
 
     n = n.next; // 11px shiv
     expect(n.value.inlines).to.have.lengthOf(1);
     expect(n.value.inlines[0].nshaped).to.equal(1);
-    expect(n.value.inlines[0].getInlineSideSize('pre')).to.equal(11);
-    expect(n.value.inlines[0].getInlineSideSize('post')).to.equal(0);
+    expect(getInlineSideSize(n.value.inlines[0], 'pre')).to.equal(11);
+    expect(getInlineSideSize(n.value.inlines[0], 'post')).to.equal(0);
 
     n = block.lineboxes[2].head; // 10px "wrap"
     expect(n.value.inlines).to.have.lengthOf(1);
     expect(n.value.inlines[0].nshaped).to.equal(1);
-    expect(n.value.inlines[0].getInlineSideSize('pre')).to.equal(10);
-    expect(n.value.inlines[0].getInlineSideSize('post')).to.equal(0);
+    expect(getInlineSideSize(n.value.inlines[0], 'pre')).to.equal(10);
+    expect(getInlineSideSize(n.value.inlines[0], 'post')).to.equal(0);
   });
 
   it('assigns the right number of shaped items with non-shaping-boundary spans', function () {
@@ -689,8 +698,8 @@ describe('Lines', function () {
     expect(n.next).to.equal(null);
     n = block.lineboxes[1].head; // Shiv ""
     expect(n.value.inlines).to.have.lengthOf(2);
-    expect(n.value.inlines[0].getInlineSideSize('pre')).to.equal(70);
-    expect(n.value.inlines[1].getInlineSideSize('pre')).to.equal(0);
+    expect(getInlineSideSize(n.value.inlines[0], 'pre')).to.equal(70);
+    expect(getInlineSideSize(n.value.inlines[1], 'pre')).to.equal(0);
     n = n.next // "hey"
     expect(n.value.inlines).to.have.lengthOf(1);
   });
@@ -735,13 +744,13 @@ describe('Lines', function () {
     let n = block.lineboxes[0].head; // ' Give_me_the_next_span '
     expect(n.value.text()).to.equal(' Give_me_the_next_span ');
     n = n.next; // Shiv ''
-    expect(n.value.inlines[0].getInlineSideSize('pre')).to.equal(300);
-    expect(n.value.inlines[0].getInlineSideSize('post')).to.equal(0);
+    expect(getInlineSideSize(n.value.inlines[0], 'pre')).to.equal(300);
+    expect(getInlineSideSize(n.value.inlines[0], 'post')).to.equal(0);
     expect(n.next).to.be.null;
 
     n = block.lineboxes[1].head; // 'not me'
     expect(n.value.text()).to.equal('not me ');
-    expect(n.value.inlines[0].getInlineSideSize('pre')).to.equal(150);
+    expect(getInlineSideSize(n.value.inlines[0], 'pre')).to.equal(150);
   });
 
   it('calculates line height with the correct shaped item/inline pairings', function () {

@@ -243,8 +243,7 @@ export abstract class Box extends TreeNode {
    * as defined by the style. This is the first layout step, and block
    * containers must have been laid out for percentages to work.
    */
-  fillAreas() {
-    const containingBlock = this.getContainingBlock();
+  fillAreas(containingBlock: BoxArea) {
     if (this.style.hasBorderArea()) {
       const borderBlockStartWidth = this.style.getBorderBlockStartWidth(containingBlock);
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
@@ -266,9 +265,8 @@ export abstract class Box extends TreeNode {
     this.getBorderArea().blockStart = position;
   }
 
-  setBlockSize(size: number) {
+  setBlockSize(containingBlock: BoxArea, size: number) {
     this.getContentArea().blockSize = size;
-    const containingBlock = this.getContainingBlock();
 
     if (this.style.hasPaddingArea()) {
       const paddingBlockStart = this.style.getPaddingBlockStart(containingBlock);
@@ -292,9 +290,8 @@ export abstract class Box extends TreeNode {
     this.getBorderArea().lineLeft = lineLeft;
   }
 
-  setInlineOuterSize(size: number) {
+  setInlineOuterSize(containingBlock: BoxArea, size: number) {
     this.getBorderArea().inlineSize = size;
-    const containingBlock = this.getContainingBlock();
 
     if (this.style.hasBorderArea()) {
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
@@ -314,12 +311,12 @@ export abstract class Box extends TreeNode {
     }
   }
 
-  getWritingModeAsParticipant() {
-    return this.getContainingBlock().box.style.writingMode;
+  getWritingModeAsParticipant(containingBlock: BoxArea) {
+    return containingBlock.box.style.writingMode;
   }
 
-  getDirectionAsParticipant() {
-    return this.getContainingBlock().box.style.direction;
+  getDirectionAsParticipant(containingBlock: BoxArea) {
+    return containingBlock.box.style.direction;
   }
 
   propagate(parent: Box) {
@@ -423,8 +420,9 @@ export abstract class Box extends TreeNode {
     // and use normal inline areas instead, with fragmentation
     const borderArea = this.getBorderArea();
     if (this.style.position === 'relative') {
-      borderArea.x += this.getRelativeHorizontalShift();
-      borderArea.y += this.getRelativeVerticalShift();
+      const containingBlock = this.getContainingBlock();
+      borderArea.x += this.getRelativeHorizontalShift(containingBlock);
+      borderArea.y += this.getRelativeVerticalShift(containingBlock);
     }
 
     borderArea.absolutify();
@@ -439,8 +437,8 @@ export abstract class Box extends TreeNode {
     if (this.style.hasPaddingArea()) this.getContentArea().snapPixels();
   }
 
-  getRelativeVerticalShift() {
-    const height = this.getContainingBlock().height;
+  getRelativeVerticalShift(containingBlock: BoxArea) {
+    const height = containingBlock.height;
     let {top, bottom} = this.style;
 
     if (top !== 'auto') {
@@ -454,8 +452,7 @@ export abstract class Box extends TreeNode {
     }
   }
 
-  getRelativeHorizontalShift() {
-    const containingBlock = this.getContainingBlock();
+  getRelativeHorizontalShift(containingBlock: BoxArea) {
     const direction = containingBlock.getEstablishedDirection();
     const width = containingBlock.width;
     let {right, left} = this.style;
@@ -509,8 +506,7 @@ export abstract class FormattingBox extends Box {
     if (inlineSize !== 'auto') return inlineSize;
   }
 
-  getDefiniteOuterInlineSize() {
-    const containingBlock = this.getContainingBlock();
+  getDefiniteOuterInlineSize(containingBlock: BoxArea) {
     const inlineSize = this.getDefiniteInnerInlineSize(containingBlock);
     if (inlineSize !== undefined) {
       const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
@@ -526,13 +522,12 @@ export abstract class FormattingBox extends Box {
     }
   }
 
-  getDefiniteInnerBlockSize() {
-    const blockSize = this.style.getBlockSize(this.getContainingBlock());
+  getDefiniteInnerBlockSize(containingBlock: BoxArea) {
+    const blockSize = this.style.getBlockSize(containingBlock);
     if (blockSize !== 'auto') return blockSize;
   }
 
-  getMarginsAutoIsZero() {
-    const containingBlock = this.getContainingBlock();
+  getMarginsAutoIsZero(containingBlock: BoxArea) {
     let marginLineLeft = this.style.getMarginLineLeft(containingBlock);
     let marginLineRight = this.style.getMarginLineRight(containingBlock);
     let marginBlockStart = this.style.getMarginBlockStart(containingBlock);
@@ -642,9 +637,11 @@ export class BoxArea {
   inlineSizeForPotentiallyOrthogonal(box: FormattingBox) {
     if (!this.parent) return this.inlineSize; // root area
     if (!this.box.isBlockContainer()) return this.inlineSize; // cannot be orthogonal
+    const cb1 = this.box.getContainingBlock();
+    const cb2 = box.getContainingBlock();
     if (
-      (this.box.getWritingModeAsParticipant() === 'horizontal-tb') !==
-      (box.getWritingModeAsParticipant() === 'horizontal-tb')
+      (this.box.getWritingModeAsParticipant(cb1) === 'horizontal-tb') !==
+      (box.getWritingModeAsParticipant(cb2) === 'horizontal-tb')
     ) {
       return this.blockSize;
     } else {

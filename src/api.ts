@@ -215,9 +215,9 @@ export function t(text: string): TextNode {
 export function staticLayoutContribution(layout: Layout, box: BlockContainer): number {
   let intrinsicSize = 0;
 
-  const definiteSize = box.getDefiniteOuterInlineSize();
+  const containingBlock = box.getContainingBlock();
+  const definiteSize = box.getDefiniteOuterInlineSize(containingBlock);
   if (definiteSize !== undefined) {
-    const containingBlock = box.getContainingBlock();
     const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
     const marginLineRight = box.style.getMarginLineRight(containingBlock);
     return definiteSize + (marginLineLeft === 'auto' ? 0 : marginLineLeft)
@@ -242,7 +242,6 @@ export function staticLayoutContribution(layout: Layout, box: BlockContainer): n
     }
   }
 
-  const containingBlock = box.getContainingBlock();
   const marginLineLeft = box.style.getMarginLineLeft(containingBlock);
   const marginLineRight = box.style.getMarginLineRight(containingBlock);
   const borderLineLeftWidth = box.style.getBorderLineLeftWidth(containingBlock);

@@ -1463,7 +1463,6 @@ export class Linebox extends LineItemLinkedList {
   blockOffset: number;
   inlineOffset: number;
   width: number;
-  contextRoots: Map<Inline, AlignmentContext>;
 
   constructor(start: number, block: BlockContainerOfInlines) {
     super();
@@ -1474,7 +1473,6 @@ export class Linebox extends LineItemLinkedList {
     this.blockOffset = 0;
     this.inlineOffset = 0;
     this.width = 0;
-    this.contextRoots = EMPTY_MAP;
   }
 
   addCandidates(candidates: LineCandidates, endOffset: number) {
@@ -1575,9 +1573,6 @@ export class Linebox extends LineItemLinkedList {
     const textAlign = ifc.block.style.getTextAlign();
 
     this.width = w;
-    if (ifc.height.contextRoots.size) {
-      this.contextRoots = new Map(ifc.height.contextRoots);
-    }
     this.blockOffset = ifc.vacancy.blockOffset;
     this.reorder();
     transformLineboxWhitespace(this, lastLine, ifc.vacancy);
@@ -2843,13 +2838,31 @@ export function positionIfcItems(
         const isFirstOccurance = count === undefined;
         const isOrthogonal = (item.attrs.level & 1 ? 'rtl' : 'ltr') !== direction;
         const mark = isOrthogonal ? inline.textEnd : inline.textStart;
-        const alignmentContext = linebox.contextRoots.get(inline);
 
         bgcursor = x;
 
-        if (alignmentContext) baselineShift = alignmentContext.baselineShift;
-
-        baselineShift += baselineStep(item.inlines[i - 1] || rootInline, inline);
+        if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
+          let ascender = inline.metrics.ascenderBox;
+          let descender = -inline.metrics.descenderBox;
+          let baseline = 0;
+          for (let j = i + 1; j < item.inlines.length; j++) {
+            if (
+              item.inlines[j].style.verticalAlign === 'top' ||
+              item.inlines[j].style.verticalAlign === 'bottom'
+            ) break;
+            baseline += baselineStep(item.inlines[j - 1], item.inlines[j]);
+            ascender = Math.max(ascender, baseline + item.inlines[j].metrics.ascenderBox);
+            descender = Math.min(descender, baseline - item.inlines[j].metrics.descenderBox);
+          }
+          if (inline.style.verticalAlign === 'top') {
+            baselineShift = linebox.ascender - ascender;
+          } else {
+            baselineShift = -descender - linebox.descender;
+          }
+        } else {
+          const parent = i === 0 ? rootInline : item.inlines[i - 1];
+          baselineShift += baselineStep(parent, inline);
+        }
 
         if (item instanceof ShapedItem) {
           inlineBackgroundAdvance(item, mark, 'start');

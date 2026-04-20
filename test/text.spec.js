@@ -1007,6 +1007,7 @@ describe('Lines', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t');
     expect(block.lineboxes.length).to.equal(5);
+    expect(block.items.length).to.equal(5);
   });
 
   it('breaks ligatures with internal break opportunities', function () {

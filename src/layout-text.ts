@@ -2328,7 +2328,7 @@ function createMarkIterator(
   function split(this: IfcMark, mark: IfcMark) {
     itemIndex += 1;
     this.itemIndex += 1;
-    mark.itemIndex += 1;
+    if (mark !== this) mark.itemIndex += 1;
 
     const item = block.items[this.itemIndex];
 
@@ -2379,7 +2379,12 @@ export function getIfcContribution(
   return contribution;
 }
 
-function splitItem(layout: Layout, ifc: InlineFormattingContext, mark: IfcMark) {
+function splitItem(
+  layout: Layout,
+  ifc: InlineFormattingContext,
+  parent: Inline,
+  mark: IfcMark
+) {
   const left = ifc.block.items[mark.itemIndex];
   const {needsReshape, right} = left.split(mark.position - left.offset);
 
@@ -2414,6 +2419,11 @@ function splitItem(layout: Layout, ifc: InlineFormattingContext, mark: IfcMark) 
       left.glyphs = glyphs;
     }
   }
+
+  ifc.candidates.unshift(right);
+  // Stamp the brand new line with its metrics, since the only other
+  // place this happens is mark.itemStart
+  ifc.candidates.height.stampMetrics(getMetrics(parent.style, right.face));
 }
 
 class InlineFormattingContext {
@@ -2560,7 +2570,7 @@ export function createIfcLineboxes(
     const isBreak = mark.isBreak || mark.isGraphemeBreak;
 
     if (
-      // Is an opportunity for soft wrapping
+      // Is an opportunity for wrapping
       isBreak && (
         // There is content on the hypothetical line and CSS allows wrapping
         wouldHaveContent && !nowrap ||
@@ -2604,12 +2614,8 @@ export function createIfcLineboxes(
         const lastBreakMarkItem = ifc.block.items[ifc.lastBreakMark.itemIndex];
 
         if (lastBreakMarkItem?.hasCharacterInside(ifc.lastBreakMark.position)) {
-          splitItem(layout, ifc, ifc.lastBreakMark);
+          splitItem(layout, ifc, parent, ifc.lastBreakMark);
           ifc.lastBreakMark.split(mark);
-          ifc.candidates.unshift(ifc.block.items[ifc.lastBreakMark.itemIndex]);
-          // Stamp the brand new line with its metrics, since the only other
-          // place this happens is mark.itemStart
-          ifc.candidates.height.stampMetrics(getMetrics(parent.style, lastBreakMarkItem.face));
         }
 
         ifc.finishLine(lastLine, false);
@@ -2642,6 +2648,10 @@ export function createIfcLineboxes(
         if (ifc.floatsInWord.length) ifc.floatsInWord = [];
 
         if (mark.isBreakForced) {
+          if (item?.hasCharacterInside(mark.position)) {
+            splitItem(layout, ifc, parent, mark);
+            ifc.lastBreakMark.split(mark);
+          }
           ifc.finishLine(ifc.line, false);
           ifc.lines.push(ifc.line = new Linebox(mark.position, block));
         }

@@ -2484,7 +2484,7 @@ export function createIfcLineboxes(
 
   for (const mark of createMarkIterator(layout, block, 'normal')) {
     const parent = ifc.parents.length > 0 ? ifc.parents[ifc.parents.length - 1] : ifc.rootInline;
-    const item = block.items[mark.itemIndex];
+    const item = mark.itemIndex in block.items ? block.items[mark.itemIndex] : undefined;
 
     if (mark.inlinePre) {
       ifc.candidates.height.pushInline(mark.inlinePre);
@@ -2579,8 +2579,8 @@ export function createIfcLineboxes(
       bfc.getLocalVacancyForLine(bfc, ifc.blockOffset, blockSize, ifc.vacancy);
 
       if (ifc.block.text[mark.position - 1] === '\u00ad' && !mark.isBreakForced) {
-        const glyphs = getHyphen(item)?.glyphs;
-        const {face: {hbface: {upem}}, attrs: {style: {fontSize}}} = item;
+        const glyphs = getHyphen(item!)?.glyphs;
+        const {face: {hbface: {upem}}, attrs: {style: {fontSize}}} = item!;
         if (glyphs?.length) {
           let w = 0;
           for (let i = 0; i < glyphs.length; i += G_SZ) w += glyphs[i + G_AX];
@@ -2649,10 +2649,10 @@ export function createIfcLineboxes(
     }
 
     if (mark.isItemStart) {
-      item.inlines = ifc.parents.slice();
+      item!.inlines = ifc.parents.slice();
       for (const p of ifc.parents) p.nshaped += 1;
-      ifc.candidates.push(item);
-      ifc.candidates.height.stampMetrics(getMetrics(parent.style, item.face));
+      ifc.candidates.push(item!);
+      ifc.candidates.height.stampMetrics(getMetrics(parent.style, item!.face));
     }
 
     // Handle a span that starts inside a shaped item

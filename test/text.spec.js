@@ -1140,8 +1140,6 @@ describe('Lines', function () {
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
-    // “ ” “אחד ” “שתיים” “ ” “three” “ ”
-    // TODO: why are the 1st and 3rd spaces shaped individually?
     expect(block.items.length).to.equal(2);
     expect(block.items[0].x).to.equal(0);
     expect(block.items[1].x).to.be.approximately(15.789, 0.001);
@@ -1157,7 +1155,6 @@ describe('Lines', function () {
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
-    // “ ” “אחד ” “שתיים” “ ” “three” “ ”
     expect(block.lineboxes.length).to.equal(2);
   });
 

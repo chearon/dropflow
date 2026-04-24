@@ -2318,4 +2318,20 @@ describe('Inline Blocks', function () {
     const t2 = this.get('#t2');
     expect(t2.getBorderArea().y).to.equal(0);
   });
+
+  it('includes empty spans against the inline-block on the line', function () {
+    this.reflow(`
+      <div style="width: 0;">
+        line1
+        <span>
+          <span style="padding: 10px;"></span>
+          <div id="t" style="display: inline-block;"></div>
+        </span>
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainer */
+    const t = this.get('#t');
+    expect(t.getBorderArea().x).to.equal(10);
+  });
 });

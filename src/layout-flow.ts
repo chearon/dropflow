@@ -1556,10 +1556,10 @@ interface InlineIteratorState {
   layout: Layout;
   index: number;
   minlevel: number;
-  inlineEnd: number;
+  breakspotIndex: number;
   buffered: InlineIteratorBuffered[];
-  emitBreakspot: boolean;
   parents: Inline[];
+  isInlineBlock: boolean;
 }
 
 export function createInlineIteratorState(
@@ -1576,66 +1576,70 @@ export function createInlineIteratorState(
     buffered: [],
     minlevel: 0,
     parents: [],
-    inlineEnd: 0,
-    emitBreakspot: false,
+    breakspotIndex: 0,
+    isInlineBlock: false
   };
 }
 
 export function inlineIteratorStateNext(state: InlineIteratorState) {
   if (!state.buffered.length) {
-    while (state.index <= state.block.treeFinal || state.parents.length) {
+    let foundAtomic = false;
+
+    state.breakspotIndex = 0;
+    state.isInlineBlock = false;
+
+    while (state.index <= state.block.treeFinal && !foundAtomic) {
+      const item = state.layout.tree[state.index];
+
+      if (item.isInline()) {
+        state.parents.push(item);
+        state.buffered.push({state: 'pre', item});
+      } else {
+        foundAtomic = true;
+        state.minlevel = state.parents.length;
+
+        if (item.isRun()) {
+          state.buffered.push({state: 'text', item});
+        } else if (item.isBreak()) {
+          state.buffered.push({state: 'break'});
+        } else {
+          if (item.isFloat()) {
+            state.buffered.push({state: 'box', item});
+          } else {
+            state.buffered.push({state: 'box', item});
+            state.isInlineBlock = true;
+          }
+          state.index = item.treeFinal;
+        }
+      }
+
       while (
         state.parents.length &&
-        state.index - 1 === state.parents.at(-1)!.treeFinal
+        state.index === state.parents.at(-1)!.treeFinal
       ) {
         const parent = state.parents.pop()!;
         state.buffered.push({state: 'post', item: parent});
         if (state.parents.length <= state.minlevel) {
-          state.inlineEnd = state.buffered.length;
+          if (!foundAtomic) state.breakspotIndex = state.buffered.length;
           state.minlevel = state.parents.length;
         }
       }
 
-      if (state.index <= state.block.treeFinal) {
-        const item = state.layout.tree[state.index++];
+      state.index++;
+    }
 
-        if (item.isInline()) {
-          state.parents.push(item);
-          state.buffered.push({state: 'pre', item});
-        } else {
-          state.emitBreakspot = state.minlevel !== state.parents.length;
-          state.minlevel = state.parents.length;
-          if (item.isRun()) {
-            state.buffered.push({state: 'text', item});
-          } else if (item.isBreak()) {
-            state.buffered.push({state: 'break'});
-          } else {
-            if (item.isFloat()) {
-              state.emitBreakspot = true;
-              state.buffered.push({state: 'box', item});
-            } else {
-              state.buffered.push(
-                {state: 'breakop'},
-                {state: 'box', item},
-                {state: 'breakop'}
-              );
-            }
-            state.index = item.treeFinal + 1;
-          }
-          break;
-        }
-      }
+    if (foundAtomic && state.isInlineBlock) {
+      state.buffered.push({state: 'breakop'});
     }
   }
 
   if (state.buffered.length) {
-    if (state.inlineEnd === 0 && state.emitBreakspot) {
-      state.emitBreakspot = false;
-      state.value = {state: 'breakspot'};
+    if (state.breakspotIndex === 0) {
+      state.value = {state: state.isInlineBlock ? 'breakop' : 'breakspot'} ;
     } else {
-      if (state.inlineEnd > 0) state.inlineEnd -= 1;
       state.value = state.buffered.shift()!;
     }
+    state.breakspotIndex -= 1;
   } else {
     state.value = null;
   }

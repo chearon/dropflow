@@ -1707,29 +1707,29 @@ describe('Flow', function () {
       this.reflow(`
         <div style="width: 400px;">
           Hemingway
-          <span id="t1" style="position: relative; right: 1px; background-color: gray;">sleeps</span>
-          <span id="t2" style="position: relative; left: 1px; background-color: gray;">peacefully</span>
+          <span style="position: relative; right: 1px; background-color: gray;">sleeps</span>
+          <span style="position: relative; left: 1px; background-color: gray;">peacefully</span>
           next to
-          <span id="t3" style="position: relative; bottom: 1px; background-color: gray;">the</span>
-          <span id="t4" style="position: relative; top: 1px; background-color: gray;">keyboard</span>
+          <span style="position: relative; bottom: 1px; background-color: gray;">the</span>
+          <span style="position: relative; top: 1px; background-color: gray;">keyboard</span>
         </div>
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const block = this.get('div');
 
-      expect(block.fragments.get(this.get('#t1'))[0].start).to.equal(87.03125);
-      expect(block.fragments.get(this.get('#t1'))[0].end).to.equal(133.28125);
+      expect(block.fragments[0].left).to.equal(87.03125);
+      expect(block.fragments[0].right).to.equal(133.28125);
       expect(block.items[1].x).to.equal(87.03125);
 
-      expect(block.fragments.get(this.get('#t2'))[0].start).to.equal(139.7265625);
-      expect(block.fragments.get(this.get('#t2'))[0].end).to.equal(211.7734375);
+      expect(block.fragments[1].left).to.equal(139.7265625);
+      expect(block.fragments[1].right).to.equal(211.7734375);
       expect(block.items[3].x).to.equal(139.7265625);
 
-      expect(block.fragments.get(this.get('#t3'))[0].blockOffset).to.equal(13.74609375);
+      expect(block.fragments[2].blockOffset).to.equal(13.74609375);
       expect(block.items[5].y).to.equal(13.74609375);
 
-      expect(block.fragments.get(this.get('#t4'))[0].blockOffset).to.equal(15.74609375);
+      expect(block.fragments[3].blockOffset).to.equal(15.74609375);
       expect(block.items[7].y).to.equal(15.74609375);
     });
 
@@ -1738,13 +1738,13 @@ describe('Flow', function () {
         <div style="width: 400px;">
           Hemingway
           <span style="position: relative; left: 1px;">
-            <span id="t1" style="position: relative; right: 1px; background-color: gray;">sleeps</span>
-            <span id="t2" style="position: relative; left: 1px; background-color: gray;">peacefully</span>
+            <span style="position: relative; right: 1px; background-color: gray;">sleeps</span>
+            <span style="position: relative; left: 1px; background-color: gray;">peacefully</span>
           </span>
           next to
           <span style="position: relative; top: 1px;">
-            <span id="t3" style="position: relative; bottom: 1px; background-color: gray;">the</span>
-            <span id="t4" style="position: relative; top: 1px; background-color: gray;">keyboard</span>
+            <span style="position: relative; bottom: 1px; background-color: gray;">the</span>
+            <span style="position: relative; top: 1px; background-color: gray;">keyboard</span>
           </span>
         </div>
       `);
@@ -1752,18 +1752,18 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const block = this.get('div');
 
-      expect(block.fragments.get(this.get('#t1'))[0].start).to.equal(88.03125);
-      expect(block.fragments.get(this.get('#t1'))[0].end).to.equal(134.28125);
+      expect(block.fragments[0].left).to.equal(88.03125);
+      expect(block.fragments[0].right).to.equal(134.28125);
       expect(block.items[1].x).to.equal(88.03125);
 
-      expect(block.fragments.get(this.get('#t2'))[0].start).to.equal(140.7265625);
-      expect(block.fragments.get(this.get('#t2'))[0].end).to.equal(212.7734375);
+      expect(block.fragments[1].left).to.equal(140.7265625);
+      expect(block.fragments[1].right).to.equal(212.7734375);
       expect(block.items[3].x).to.equal(140.7265625);
 
-      expect(block.fragments.get(this.get('#t3'))[0].blockOffset).to.equal(14.74609375);
+      expect(block.fragments[2].blockOffset).to.equal(14.74609375);
       expect(block.items[5].y).to.equal(14.74609375);
 
-      expect(block.fragments.get(this.get('#t4'))[0].blockOffset).to.equal(16.74609375);
+      expect(block.fragments[3].blockOffset).to.equal(16.74609375);
       expect(block.items[8].y).to.equal(16.74609375);
     });
 

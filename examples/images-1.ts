@@ -40,7 +40,7 @@ const rootElement = flow.dom(
   flow.h('html', {style: rootStyle, attrs: {'x-dropflow-log': 'true'}}, [
     flow.h('img', {
       style: image1Style,
-      attrs: {src: 'https://chearon.github.io/dropflow/assets/images/frogmage.gif'}
+      attrs: {id: 'img', src: 'file:///Users/caleb/Code/dropflow/assets/images/frogmage.gif'}
     }),
     flow.h('p', `
       Dropflow now supports images! These are loaded by calling flow.load()
@@ -57,7 +57,7 @@ const rootElement = flow.dom(
       of Ada Lovelace, the well-tempered Great Pyrenees mix as an inline image: `,
       flow.h('img', {
         style: image2Style,
-        attrs: {src: 'https://chearon.github.io/dropflow/assets/images/ada.png'}
+        attrs: {src: 'file:///Users/caleb/Code/dropflow/assets/images/ada.png'}
       }),
       ' after'
     ]),
@@ -66,11 +66,10 @@ const rootElement = flow.dom(
     `),
     flow.h('img', {
       style: image3Style,
-      attrs: {src: 'https://chearon.github.io/dropflow/assets/images/tiramisu.jpeg'}
+      attrs: {src: 'file:///Users/caleb/Code/dropflow/assets/images/tiramisu.jpeg'}
     })
   ])
 );
-
 
 // Normal layout, logging
 await flow.load(rootElement);

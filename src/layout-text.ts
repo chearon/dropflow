@@ -2015,11 +2015,18 @@ function shapePart(
   face: LoadedFontFace,
   attrs: ShapingAttrs
 ) {
-  if (face.spaceMayParticipateInShaping(attrs.script)) {
-    return shapePartWithoutWordCache(block, offset, length, face.hbfont, attrs);
-  } else {
-    return shapePartWithWordCache(block, offset, length, face.hbfont, attrs);
+  if (!face.spaceMayParticipateInShaping(attrs.script)) {
+    const t = block.text;
+    const end = offset + length;
+    if (
+      (offset === 0 || t[offset] === ' ' || t[offset - 1] === ' ') &&
+      (end === t.length || t[end] === ' ' || t[end - 1] === ' ')
+    ) {
+      return shapePartWithWordCache(block, offset, length, face.hbfont, attrs);
+    }
   }
+
+  return shapePartWithoutWordCache(block, offset, length, face.hbfont, attrs);
 }
 
 export function createIfcShapedItems(

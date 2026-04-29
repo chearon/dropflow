@@ -1084,7 +1084,7 @@ describe('Lines', function () {
     expect(inline.lineboxes[1].head.value.offset).to.equal(12);
   });
 
-  it('adds a soft hyphen to RTL text if one fits after a &shy', function () {
+  it('adds a soft hyphen to Arabic and keeps medial form', function () {
     this.reflow(`
       <div id="t" style="direction: rtl; font: 24px Cairo; width: 51px;">
         دامي&shy;دى
@@ -1092,7 +1092,9 @@ describe('Lines', function () {
     `);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const inline = this.get('div');
-    expect(inline.lineboxes[0].head.value.glyphs[0 * G_SZ + G_ID]).to.equal(672);
+    expect(inline.lineboxes[0].head.value.glyphs[0 * G_SZ + G_ID]).to.equal(672); // hyphen
+    expect(inline.lineboxes[0].head.value.glyphs[1 * G_SZ + G_ID]).to.equal(697); // shy
+    expect(inline.lineboxes[0].head.value.glyphs[2 * G_SZ + G_ID]).to.equal(441); // yeh, medial
     expect(inline.lineboxes[1].head.value.offset).to.equal(6);
   });
 

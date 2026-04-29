@@ -15,18 +15,26 @@ const LogicalMaps = Object.freeze({
     marginBlockEnd: 'marginBottom',
     marginLineLeft: 'marginLeft',
     marginLineRight: 'marginRight',
+    marginInlineStart: Object.freeze({ltr: 'marginLeft', rtl: 'marginRight'}),
+    marginInlineEnd: Object.freeze({ltr: 'marginRight', rtl: 'marginLeft'}),
     paddingBlockStart: 'paddingTop',
     paddingBlockEnd: 'paddingBottom',
     paddingLineLeft: 'paddingLeft',
     paddingLineRight: 'paddingRight',
+    paddingInlineStart: Object.freeze({ltr: 'paddingLeft', rtl: 'paddingRight'}),
+    paddingInlineEnd: Object.freeze({ltr: 'paddingRight', rtl: 'paddingLeft'}),
     borderBlockStartWidth: 'borderTopWidth',
     borderBlockEndWidth: 'borderBottomWidth',
     borderLineLeftWidth: 'borderLeftWidth',
     borderLineRightWidth: 'borderRightWidth',
+    borderInlineStartWidth: Object.freeze({ltr: 'borderLeftWidth', rtl: 'borderRightWidth'}),
+    borderInlineEndWidth: Object.freeze({ltr: 'borderRightWidth', rtl: 'borderLeftWidth'}),
     borderBlockStartStyle: 'borderTopStyle',
     borderBlockEndStyle: 'borderBottomStyle',
     borderLineLeftStyle: 'borderLeftStyle',
     borderLineRightStyle: 'borderRightStyle',
+    borderInlineStartStyle: Object.freeze({ltr: 'borderLeftStyle', rtl: 'borderRightStyle'}),
+    borderInlineEndStyle: Object.freeze({ltr: 'borderRightStyle', rtl: 'borderLeftStyle'}),
     blockSize: 'height',
     inlineSize: 'width'
   }),
@@ -35,18 +43,26 @@ const LogicalMaps = Object.freeze({
     marginBlockEnd: 'marginRight',
     marginLineLeft: 'marginTop',
     marginLineRight: 'marginBottom',
+    marginInlineStart: Object.freeze({ltr: 'marginTop', rtl: 'marginBottom'}),
+    marginInlineEnd: Object.freeze({ltr: 'marginBottom', rtl: 'marginTop'}),
     paddingBlockStart: 'paddingLeft',
     paddingBlockEnd: 'paddingRight',
     paddingLineLeft: 'paddingTop',
     paddingLineRight: 'paddingBottom',
+    paddingInlineStart: Object.freeze({ltr: 'paddingTop', rtl: 'paddingBottom'}),
+    paddingInlineEnd: Object.freeze({ltr: 'paddingBottom', rtl: 'paddingTop'}),
     borderBlockStartWidth: 'borderLeftWidth',
     borderBlockEndWidth: 'borderRightWidth',
     borderLineLeftWidth: 'borderTopWidth',
     borderLineRightWidth: 'borderBottomWidth',
+    borderInlineStartWidth: Object.freeze({ltr: 'borderTopWidth', rtl: 'borderBottomWidth'}),
+    borderInlineEndWidth: Object.freeze({ltr: 'borderBottomWidth', rtl: 'borderTopWidth'}),
     borderBlockStartStyle: 'borderLeftStyle',
     borderBlockEndStyle: 'borderRightStyle',
     borderLineLeftStyle: 'borderTopStyle',
     borderLineRightStyle: 'borderBottomStyle',
+    borderInlineStartStyle: Object.freeze({ltr: 'borderTopStyle', rtl: 'borderBottomStyle'}),
+    borderInlineEndStyle: Object.freeze({ltr: 'borderBottomStyle', rtl: 'borderTopStyle'}),
     blockSize: 'width',
     inlineSize: 'height'
   }),
@@ -55,18 +71,26 @@ const LogicalMaps = Object.freeze({
     marginBlockEnd: 'marginLeft',
     marginLineLeft: 'marginTop',
     marginLineRight: 'marginBottom',
+    marginInlineStart: Object.freeze({ltr: 'marginTop', rtl: 'marginBottom'}),
+    marginInlineEnd: Object.freeze({ltr: 'marginBottom', rtl: 'marginTop'}),
     paddingBlockStart: 'paddingRight',
     paddingBlockEnd: 'paddingLeft',
     paddingLineLeft: 'paddingTop',
     paddingLineRight: 'paddingBottom',
+    paddingInlineStart: Object.freeze({ltr: 'paddingTop', rtl: 'paddingBottom'}),
+    paddingInlineEnd: Object.freeze({ltr: 'paddingBottom', rtl: 'paddingTop'}),
     borderBlockStartWidth: 'borderRightWidth',
     borderBlockEndWidth: 'borderLeftWidth',
     borderLineLeftWidth: 'borderTopWidth',
     borderLineRightWidth: 'borderBottomWidth',
+    borderInlineStartWidth: Object.freeze({ltr: 'borderTopWidth', rtl: 'borderBottomWidth'}),
+    borderInlineEndWidth: Object.freeze({ltr: 'borderBottomWidth', rtl: 'borderTopWidth'}),
     borderBlockStartStyle: 'borderRightStyle',
     borderBlockEndStyle: 'borderLeftStyle',
     borderLineLeftStyle: 'borderTopStyle',
     borderLineRightStyle: 'borderBottomStyle',
+    borderInlineStartStyle: Object.freeze({ltr: 'borderTopStyle', rtl: 'borderBottomStyle'}),
+    borderInlineEndStyle: Object.freeze({ltr: 'borderBottomStyle', rtl: 'borderTopStyle'}),
     blockSize: 'width',
     inlineSize: 'height'
   })
@@ -540,9 +564,23 @@ export class Style {
     return resolvePercent(containingBlock, cssVal);
   }
 
+  getMarginInlineStart(containingBlock: BoxArea, direction: Direction) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const cssVal = this[LogicalMaps[writingMode].marginInlineStart[direction]];
+    if (cssVal === 'auto') return cssVal;
+    return resolvePercent(containingBlock, cssVal);
+  }
+
   getMarginLineRight(containingBlock: BoxArea) {
     const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].marginLineRight];
+    if (cssVal === 'auto') return cssVal;
+    return resolvePercent(containingBlock, cssVal);
+  }
+
+  getMarginInlineEnd(containingBlock: BoxArea, direction: Direction) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const cssVal = this[LogicalMaps[writingMode].marginInlineEnd[direction]];
     if (cssVal === 'auto') return cssVal;
     return resolvePercent(containingBlock, cssVal);
   }
@@ -565,9 +603,21 @@ export class Style {
     return resolvePercent(containingBlock, cssVal);
   }
 
+  getPaddingInlineStart(containingBlock: BoxArea, direction: Direction) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const cssVal = this[LogicalMaps[writingMode].paddingInlineStart[direction]];
+    return resolvePercent(containingBlock, cssVal);
+  }
+
   getPaddingLineRight(containingBlock: BoxArea) {
     const writingMode = containingBlock.box.style.writingMode;
     const cssVal = this[LogicalMaps[writingMode].paddingLineRight];
+    return resolvePercent(containingBlock, cssVal);
+  }
+
+  getPaddingInlineEnd(containingBlock: BoxArea, direction: Direction) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const cssVal = this[LogicalMaps[writingMode].paddingInlineEnd[direction]];
     return resolvePercent(containingBlock, cssVal);
   }
 
@@ -595,11 +645,27 @@ export class Style {
     return resolvePercent(containingBlock, cssWidthVal);
   }
 
+  getBorderInlineStartWidth(containingBlock: BoxArea, direction: Direction) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const cssStyleVal = this[LogicalMaps[writingMode].borderInlineStartStyle[direction]];
+    if (cssStyleVal === 'none') return 0;
+    const cssWidthVal = this[LogicalMaps[writingMode].borderInlineStartWidth[direction]];
+    return resolvePercent(containingBlock, cssWidthVal);
+  }
+
   getBorderLineRightWidth(containingBlock: BoxArea) {
     const writingMode = containingBlock.box.style.writingMode;
     const cssStyleVal = this[LogicalMaps[writingMode].borderLineRightStyle];
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[writingMode].borderLineRightWidth];
+    return resolvePercent(containingBlock, cssWidthVal);
+  }
+
+  getBorderInlineEndWidth(containingBlock: BoxArea, direction: Direction) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const cssStyleVal = this[LogicalMaps[writingMode].borderInlineEndStyle[direction]];
+    if (cssStyleVal === 'none') return 0;
+    const cssWidthVal = this[LogicalMaps[writingMode].borderInlineEndWidth[direction]];
     return resolvePercent(containingBlock, cssWidthVal);
   }
 

@@ -10,7 +10,6 @@ import {
   getIfcContribution,
   createIfcShapedItems,
   createIfcLineboxes,
-  positionIfcItems,
   sliceIfcRenderText,
   collapseWhitespace
 } from './layout-text.ts';
@@ -832,16 +831,14 @@ export class BlockContainerOfInlines extends BlockContainerBase {
   text: string;
   buffer: AllocatedUint16Array;
   items: ShapedItem[];
-  lineboxes: Linebox[];
-  fragments: Map<Inline, InlineFragment[]>;
+  fragments: InlineFragment[];
 
   constructor(style: Style, attrs: number) {
     super(style, attrs);
     this.text = '';
     this.buffer = EmptyBuffer;
     this.items = [];
-    this.lineboxes = [];
-    this.fragments = new Map();
+    this.fragments = [];
   }
 
   prelayoutPostorder(layout: Layout, ctx: PrelayoutContext) {
@@ -851,12 +848,12 @@ export class BlockContainerOfInlines extends BlockContainerBase {
       this.buffer.destroy();
       this.buffer = createIfcBuffer(this.text);
       this.items = createIfcShapedItems(layout, this, inline);
-      this.fragments.clear();
+      this.fragments = [];
     }
   }
 
   positionItemsPostlayout(layout: Layout) {
-    const inlineShifts: Map<Inline, {dx: number; dy: number}> = new Map();
+    const inlineShifts: Map<number, {dx: number; dy: number}> = new Map();
     const parents: Inline[] = [];
     const contentArea = this.getContentArea();
     const rootInline = layout.tree[this.treeStart + 1];
@@ -876,7 +873,7 @@ export class BlockContainerOfInlines extends BlockContainerBase {
           dy += box.getRelativeVerticalShift(containingBlock);
         }
 
-        inlineShifts.set(box, {dx, dy});
+        inlineShifts.set(box.treeStart, {dx, dy});
         parents.push(box);
       } else {
         if (box.isBox()) i = box.treeFinal;
@@ -912,14 +909,11 @@ export class BlockContainerOfInlines extends BlockContainerBase {
       }
     }
 
-    for (const [inline, fragments] of this.fragments) {
-      const {dx, dy} = inlineShifts.get(inline)!;
-
-      for (const fragment of fragments) {
-        fragment.blockOffset += contentArea.y + dy;
-        fragment.start += contentArea.x + dx;
-        fragment.end += contentArea.x + dx;
-      }
+    for (const fragment of this.fragments) {
+      const {dx, dy} = inlineShifts.get(fragment.treeIndex)!;
+      fragment.blockOffset += contentArea.y + dy;
+      fragment.left += contentArea.x + dx;
+      fragment.right += contentArea.x + dx;
     }
   }
 
@@ -955,15 +949,6 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     return sliceIfcRenderText(layout, this, item, start, end);
   }
 
-  getLineboxHeight() {
-    if (this.lineboxes.length) {
-      const line = this.lineboxes.at(-1)!;
-      return line.blockOffset + line.height();
-    } else {
-      return 0;
-    }
-  }
-
   shouldLayoutContent(layout: Layout) {
     const inline = layout.tree[this.treeStart + 1];
     if (!inline.isInline()) throw new Error('Assertion failed');
@@ -977,11 +962,10 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     const containingBlock = this.getContainingBlock();
     const blockSize = this.style.getBlockSize(containingBlock);
     if (this.shouldLayoutContent(layout)) {
-      this.lineboxes = createIfcLineboxes(layout, this, ctx);
-      positionIfcItems(layout, this);
-    }
-    if (blockSize === 'auto') {
-      this.setBlockSize(containingBlock, this.getLineboxHeight());
+      const ifc = createIfcLineboxes(layout, this, ctx);
+      if (blockSize === 'auto') {
+        this.setBlockSize(containingBlock, ifc.blockOffset - ifc.bfc.cbBlockStart);
+      }
     }
   }
 }
@@ -1276,7 +1260,6 @@ export class Break extends TreeNode {
 }
 
 export class Inline extends Box {
-  public nshaped: number;
   public metrics: InlineMetrics;
   public textStart: number;
   public textEnd: number;
@@ -1287,13 +1270,11 @@ export class Inline extends Box {
     this.textEnd = 0;
     this.treeStart = 0;
     this.treeFinal = 0;
-    this.nshaped = 0;
     this.metrics = EmptyInlineMetrics;
   }
 
   prelayoutPreorder(ctx: PrelayoutContext) {
     super.prelayoutPreorder(ctx);
-    this.nshaped = 0;
     this.metrics = getFontMetrics(this);
   }
 
@@ -1372,22 +1353,20 @@ export class Inline extends Box {
     return this.style.hasLineRightGap(containingBlock);
   }
 
-  getInlineSideSize(containingBlock: BoxArea, side: 'pre' | 'post') {
+  getInlineStartSize(containingBlock: BoxArea) {
     const direction = this.getDirectionAsParticipant(containingBlock);
-    if (
-      direction === 'ltr' && side === 'pre' ||
-      direction === 'rtl' && side === 'post'
-    ) {
-      const marginLineLeft = this.style.getMarginLineLeft(containingBlock);
-      return (marginLineLeft === 'auto' ? 0 : marginLineLeft)
-        + this.style.getBorderLineLeftWidth(containingBlock)
-        + this.style.getPaddingLineLeft(containingBlock);
-    } else {
-      const marginLineRight = this.style.getMarginLineRight(containingBlock);
-      return (marginLineRight === 'auto' ? 0 : marginLineRight)
-        + this.style.getBorderLineRightWidth(containingBlock)
-        + this.style.getPaddingLineRight(containingBlock);
-    }
+    const marginStart = this.style.getMarginInlineStart(containingBlock, direction);
+    return (marginStart === 'auto' ? 0 : marginStart)
+      + this.style.getBorderInlineStartWidth(containingBlock, direction)
+      + this.style.getPaddingInlineStart(containingBlock, direction);
+  }
+
+  getInlineEndSize(containingBlock: BoxArea) {
+    const direction = this.getDirectionAsParticipant(containingBlock);
+    const marginEnd = this.style.getMarginInlineEnd(containingBlock, direction);
+    return (marginEnd === 'auto' ? 0 : marginEnd)
+      + this.style.getBorderInlineEndWidth(containingBlock, direction)
+      + this.style.getPaddingInlineEnd(containingBlock, direction);
   }
 
   isInline(): this is Inline {
@@ -1521,9 +1500,9 @@ export class ReplacedBox extends FormattingBox {
 export type InlineLevel = Inline | Run | Break | BlockContainer | ReplacedBox;
 
 type InlineIteratorBuffered = {state: 'pre' | 'post', item: Inline}
-  | {state: 'text', item: Run}
+  | {state: 'text', item: Run, index: number}
   | {state: 'box', item: BlockLevel}
-  | {state: 'break'}
+  | {state: 'break', index: number}
   | {state: 'breakop'};
 
 type InlineIteratorValue = InlineIteratorBuffered | {state: 'breakspot'};
@@ -1566,6 +1545,9 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
     state.breakspotIndex = 0;
     state.isInlineBlock = false;
 
+    // This body of this loop consumes (pre | post)* atomic? post*,
+    // where atomic is a <br>, an inline-block, or a float, and pre/post
+    // are sides of an inline.
     while (state.index <= state.block.treeFinal && !foundAtomic) {
       const item = state.layout.tree[state.index];
 
@@ -1577,9 +1559,9 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
         state.minlevel = state.parents.length;
 
         if (item.isRun()) {
-          state.buffered.push({state: 'text', item});
+          state.buffered.push({state: 'text', item, index: state.index});
         } else if (item.isBreak()) {
-          state.buffered.push({state: 'break'});
+          state.buffered.push({state: 'break', index: state.index});
         } else {
           if (item.isFloat()) {
             state.buffered.push({state: 'box', item});

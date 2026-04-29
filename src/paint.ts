@@ -206,12 +206,14 @@ function snap(ox: number, oy: number, ow: number, oh: number) {
 }
 
 function paintInlineBackground(
+  layout: Layout,
   fragment: InlineFragment,
   block: BlockContainerOfInlines,
   b: PaintBackend
 ) {
   const direction = block.style.direction;
-  const inline = fragment.inline;
+  const inline = layout.tree[fragment.treeIndex];
+  if (!inline.isInline()) throw new Error('Assertion failed');
   const bgc = inline.style.backgroundColor;
   const clip = inline.style.backgroundClip;
   const {borderTopColor, borderRightColor, borderBottomColor, borderLeftColor} = inline.style;
@@ -219,7 +221,8 @@ function paintInlineBackground(
   const {a: ra} = borderRightColor;
   const {a: ba} = borderBottomColor;
   const {a: la} = borderLeftColor;
-  const {start, end, blockOffset, ascender, descender, naturalStart, naturalEnd} = fragment;
+  const {left: start, right: end, blockOffset, naturalStart, naturalEnd} = fragment;
+  const {ascender, descender} = inline.metrics;
   const containingBlock = inline.getContainingBlock();
   const paddingTop = inline.style.getPaddingBlockStart(containingBlock);
   const paddingRight = inline.style.getPaddingLineRight(containingBlock);
@@ -315,8 +318,7 @@ function paintInline(
   b: PaintBackend
 ) {
   const items = block.items;
-  const fragments: InlineFragment[] = [];
-  let fragmentIndex = 0;
+  const fragments = block.fragments;
   const inlineRoot = layout.tree[inlineIndex];
   if (!inlineRoot.isInline()) throw new Error('Assertion failed');
   const inlineEnd = inlineRoot.treeFinal + 1;
@@ -326,19 +328,35 @@ function paintInline(
   let mark = inlineRoot.textStart;
   let itemIndex = 0; // common case, adjusted below if necessary
   let itemEnd = items.length; // common case, adjusted below
+  let fragmentIndex = 0; // common case
+  let fragmentEnd = fragments.length; // common case
 
-  if (items.length > 0 && inlineRoot.textStart !== items[0].offset) {
-    itemIndex = binarySearchOf(items, inlineRoot.textStart, item => item.end());
-    if (items[itemIndex].end() === inlineRoot.textStart) itemIndex += 1;
+  // Narrow itemIndex..itemEnd if we're painting a subset of the block
+  if (items.length > 0) {
+    if (inlineRoot.textStart !== items[0].offset) {
+      itemIndex = binarySearchOf(items, inlineRoot.textStart, item => item.end());
+      if (items[itemIndex].end() === inlineRoot.textStart) itemIndex += 1;
+    }
+    if (inlineRoot.textEnd !== items[itemEnd - 1].end()) {
+      itemEnd = binarySearchOf(items, inlineRoot.textEnd, item => item.end()) + 1;
+    }
   }
-  if (items.length > 0 && inlineRoot.textEnd !== items[itemEnd - 1].end()) {
-    itemEnd = binarySearchOf(items, inlineRoot.textEnd, item => item.end()) + 1;
-  }
+
+  // Narrow fragmentIndex..fragmentEnd if we're painting a subset of the block
+  // Can't use bsearch since inlines are repeated
+  while (
+    fragmentIndex < fragments.length &&
+    fragments[fragmentIndex].treeIndex < inlineRoot.treeStart
+  ) fragmentIndex++;
+  while (
+    fragmentEnd > fragmentIndex &&
+    fragments[fragmentEnd - 1].treeIndex > inlineRoot.treeFinal
+  ) fragmentEnd--;
 
   while (
     itemIndex < itemEnd ||
     inlineIndex < inlineEnd ||
-    fragmentIndex < fragments.length
+    fragmentIndex < fragmentEnd
   ) {
     // paint lastMark..mark
     if (itemIndex < itemEnd) {
@@ -346,33 +364,22 @@ function paintInline(
       if (mark === items[itemIndex].end()) itemIndex++;
     }
 
-    // Fragmented backgrounds from an inline already seen
-    while (
-      fragmentIndex < fragments.length &&
-      fragments[fragmentIndex].textOffset === mark
-    ) {
-      paintInlineBackground(fragments[fragmentIndex++], block, b);
-    }
-
     // Inlines, inline-block, images
-    while (inlineIndex < inlineEnd && mark === inlineMark) {
+    if (inlineIndex < inlineEnd && mark === inlineMark) {
       const box = layout.tree[inlineIndex];
       if (box.isInline()) {
         if (!box.isLayerRoot() || box === inlineRoot) {
           inlineIndex++;
-          const inlineFragments = block.fragments.get(box);
-          if (inlineFragments) {
-            for (const fragment of inlineFragments) {
-              fragments.push(fragment);
-            }
-            break;
-          }
         } else {
           inlineIndex = box.treeFinal + 1;
           while (
             itemIndex < itemEnd &&
             items[itemIndex].end() <= box.textEnd
           ) itemIndex++;
+          while (
+            fragmentIndex < fragmentEnd &&
+            fragments[fragmentIndex].treeIndex <= box.treeFinal
+          ) fragmentIndex++;
         }
       } else if (box.isFormattingBox()) {
         if (!box.isLayerRoot()) {
@@ -393,9 +400,18 @@ function paintInline(
       }
     }
 
+    // Fragmented backgrounds from an inline already seen
+    while (
+      fragmentIndex < fragmentEnd &&
+      fragments[fragmentIndex].textOffset === mark &&
+      fragments[fragmentIndex].treeIndex < inlineIndex
+    ) {
+      paintInlineBackground(layout, fragments[fragmentIndex++], block, b);
+    }
+
     lastMark = mark;
     mark = Math.min(
-      fragmentIndex < fragments.length ? fragments[fragmentIndex].textOffset : Infinity,
+      fragmentIndex < fragmentEnd ? fragments[fragmentIndex].textOffset : Infinity,
       itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
       inlineMark,
       inlineRoot.textEnd

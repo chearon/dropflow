@@ -642,22 +642,27 @@ describe('Lines', function () {
     expect(block.items.length).to.equal(1);
   });
 
-  it('updates item inlines/count when wrapping', function () {
+  it('fragments backgrounds into the right lines', function () {
     this.reflow(`
       <div style="width: 100px; font: Arimo;">
-        <span><span>One span </span><span>Two spans</span></span>
+        <span style="background-color: #fff;"><!--
+        --><span style="background-color: #ccc;">One span </span>
+        <span style="background-color: #ddd;">Two spans</span></span>
       </div>
     `);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.items).to.have.lengthOf(2);
-    expect(block.items[0].inlines).to.have.lengthOf(2);
-    expect(block.items[0].inlines[0].textEnd).to.equal(19);
-    expect(block.items[0].inlines[1].textEnd).to.equal(10);
-    expect(block.items[1].inlines).to.have.lengthOf(2);
-    expect(block.items[1].inlines[0].textEnd).to.equal(19);
-    expect(block.items[1].inlines[1].textEnd).to.equal(19);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 69, height: 18, fillColor: '#fff'},
+      {t: 'rect', x: 0, y: 0, width: 69, height: 18, fillColor: '#ccc'},
+      {t: 'text', x: 0, y: 14.74609375, text: 'One span', fillColor: '#000'},
+      {t: 'rect', x: 0, y: 19, width: 76, height: 18, fillColor: '#fff'},
+      {t: 'rect', x: 0, y: 19, width: 76, height: 18, fillColor: '#ddd'},
+      {t: 'text', x: 0, y: 33.14453125, text: 'Two spans', fillColor: '#000'}
+    ]);
   });
 
   it('considers padding-right on a break as belonging to the left word', function () {
@@ -694,9 +699,11 @@ describe('Lines', function () {
       </div>
     `);
 
-    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-    const inline = this.get('div');
-    expect(inline.lineboxes).to.have.lengthOf(2);
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 14.74609375, text: 'Word', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33.14453125, text: 'x ', fillColor: '#000'},
+      {t: 'text', x: 42.4453125, y: 33.14453125, text: 'x', fillColor: '#000'}
+    ]);
   });
 
   it('adds span start padding to previous line when before a break', function () {
@@ -2314,18 +2321,15 @@ describe('Inline Blocks', function () {
 
   it('paints backgrounds behind inline-block correctly', function () {
     this.reflow(`
-      <div id="t1" style="font: 16px/20px Cairo; width: 100px;">
-        1<span id="t2" style="background-color: veronicayellow;"><span style="display: inline-block;">different ifc!</span></span>2
+      <div id="t" style="font: 16px/20px Cairo; width: 100px;">
+        1<span style="background-color: veronicayellow;"><span style="display: inline-block;">different ifc!</span></span>2
       </div>
     `);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-    const block = this.get('#t1');
-    /** @type import('../src/layout-flow.ts').Inline */
-    const span = this.get('#t2');
-    const fragment = block.fragments.get(span);
-    expect(fragment[0].start).to.equal(8.96);
-    expect(fragment[0].end).to.equal(90.44800000000001);
+    const block = this.get('#t');
+    expect(block.fragments[0].left).to.equal(8.96);
+    expect(block.fragments[0].right).to.equal(90.44800000000001);
   });
 
   it('occupies the right amount of space for floats', function () {
@@ -2397,13 +2401,13 @@ describe('Inline Blocks', function () {
         line1
         <span>
           <span style="padding: 10px;"></span>
-          <div id="t" style="display: inline-block;"></div>
+          <div id="t" style="display: inline-block; width: 10px; height: 10px;"></div>
         </span>
       </div>
     `);
 
     /** @type import('../src/layout-flow.ts').BlockContainer */
     const t = this.get('#t');
-    expect(t.getBorderArea().x).to.equal(10);
+    expect(t.getBorderArea().x).to.equal(20);
   });
 });

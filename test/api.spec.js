@@ -5,6 +5,8 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import {mock} from './util.js';
 import {clearImageCache, Image} from '../src/layout-image.ts';
+import paint from '../src/paint.ts';
+import PaintSpy from './paint-spy.js';
 import fs from 'node:fs';
 
 const url = filename => new URL(import.meta.resolve(`#assets/${filename}`));
@@ -114,16 +116,19 @@ describe('Hyperscript API', function () {
     const layout = flow.layout(tree);
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     flow.reflow(layout, 100);
+    const b = new PaintSpy(layout);
+    paint(layout, b);
+
+    expect(b.getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13.466796875, text: 'Chapter 1', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33.466796875, text: 'The quick brown fox', fillColor: '#000'},
+      {t: 'text', x: 0, y: 53.466796875, text: 'jumps over the lazy', fillColor: '#000'},
+      {t: 'text', x: 0, y: 73.466796875, text: 'dog', fillColor: '#000'},
+      {t: 'text', x: 0, y: 93.466796875, text: 'The end', fillColor: '#000'}
+    ]);
+
     const [block] = tree.query('#t').boxes;
-    expect(block.lineboxes).to.have.lengthOf(4);
-    expect(block.lineboxes[0].blockOffset).to.equal(0);
-    expect(block.lineboxes[1].startOffset).to.equal(20);
-    expect(block.lineboxes[1].blockOffset).to.equal(20);
-    expect(block.lineboxes[2].startOffset).to.equal(40);
-    expect(block.lineboxes[2].blockOffset).to.equal(40);
-    expect(block.lineboxes[3].startOffset).to.equal(43);
-    expect(block.lineboxes[3].blockOffset).to.equal(60);
-    expect(block.getLineboxHeight()).to.equal(80);
+    expect(block.getContentArea().height).to.equal(80);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 
@@ -132,7 +137,7 @@ describe('Hyperscript API', function () {
     const tree = flow.dom([
       flow.h('div', {style}, [
         flow.h('div', 'Chapter 1'),
-        flow.h('div', {attrs: {id: 't'}}, [
+        flow.h('div', [
           'The quick brown fox jumps over the lazy dog',
           flow.h('br'),
           'The end'
@@ -144,8 +149,15 @@ describe('Hyperscript API', function () {
     registerFontAsset('Arimo/Arimo-Regular.ttf');
     flow.reflow(layout, 100);
     flow.reflow(layout, 100);
-    const [block] = tree.query('#t').boxes;
-    expect(block.lineboxes).to.have.lengthOf(4);
+    const b = new PaintSpy(layout);
+    paint(layout, b);
+    expect(b.getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13.466796875, text: 'Chapter 1', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33.466796875, text: 'The quick brown fox', fillColor: '#000'},
+      {t: 'text', x: 0, y: 53.466796875, text: 'jumps over the lazy', fillColor: '#000'},
+      {t: 'text', x: 0, y: 73.466796875, text: 'dog', fillColor: '#000'},
+      {t: 'text', x: 0, y: 93.466796875, text: 'The end', fillColor: '#000'}
+    ]);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });
 

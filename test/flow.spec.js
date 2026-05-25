@@ -3,6 +3,8 @@ import * as flow from 'dropflow';
 import parse from 'dropflow/parse.js';
 import {registerFontAsset, unregisterFontAsset} from '../assets/register.ts';
 import {Logger} from '../src/util.ts';
+import PaintSpy from './paint-spy.js';
+import paint from '../src/paint.ts';
 
 const log = new Logger();
 const adaUrl = new URL(import.meta.resolve('#assets/images/ada.png'));
@@ -38,6 +40,12 @@ describe('Flow', function () {
           return ret;
         }
       };
+    };
+
+    this.paint = function () {
+      const b = new PaintSpy(this.layout);
+      paint(this.layout, b);
+      return b;
     };
   });
 
@@ -719,7 +727,7 @@ describe('Flow', function () {
             <div style="width: 51px; height: 25px; float: left;"></div>
             <div style="width: 50px; height: 25px; float: right;"></div>
           </div>
-          <div id="t3" style="margin-top: -15px;">The text</div>
+          <div style="margin-top: -15px;">The text</div>
         </div>
       `);
 
@@ -729,12 +737,11 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow.ts').BlockContainer */
       const t2 = this.get('#t2');
       expect(t2.getContentArea().height).to.equal(0);
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t3');
-      expect(block.lineboxes[0].blockOffset).to.equal(0);
-      expect(block.lineboxes[0].inlineOffset).to.equal(51);
-      expect(block.lineboxes[1].blockOffset).to.equal(20);
-      expect(block.lineboxes[1].inlineOffset).to.equal(51);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 51, y: 1.546875, text: 'The', fillColor: '#000'},
+        {t: 'text', x: 51, y: 21.546875, text: 'text', fillColor: '#000'}
+      ]);
     });
 
     it('sets bfc height for hanging floats', function () {
@@ -785,17 +792,15 @@ describe('Flow', function () {
 
     it('uses the margin around floats', function () {
       this.reflow(`
-        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 500px;">
-          <div id="t2" style="float: left; width: 10px; height: 10px; margin: 10px;"></div>
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 500px;">
+          <div id="t" style="float: left; width: 10px; height: 10px; margin: 10px;"></div>
           I'm floating!
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t1');
-      expect(block.lineboxes[0].inlineOffset).to.equal(30);
+      expect(this.paint().drewText('I\'m floating!').x).to.equal(30);
       /** @type import('../src/layout-flow.ts').BlockContainer */
-      const t2 = this.get('#t2');
+      const t2 = this.get('#t');
       expect(t2.getContentArea().x).to.equal(10);
       expect(t2.getContentArea().y).to.equal(10);
     });
@@ -821,27 +826,31 @@ describe('Flow', function () {
     it('floats floats with text', function () {
       this.reflow(`
         <div style="font: 16px/20px Arimo; display: flow-root; width: 100px;">
-          <div id="t" style="float: left; width: 50px;">wow such text</div>
+          <div style="float: left; width: 50px;">wow such text</div>
           wow more text that wraps
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes.length).to.equal(3);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 15.546875, text: 'wow', fillColor: '#000'},
+        {t: 'text', x: 0, y: 35.546875, text: 'such', fillColor: '#000'},
+        {t: 'text', x: 0, y: 55.546875, text: 'text', fillColor: '#000'},
+        {t: 'text', x: 50, y: 15.546875, text: 'wow', fillColor: '#000'},
+        {t: 'text', x: 50, y: 35.546875, text: 'more', fillColor: '#000'},
+        {t: 'text', x: 50, y: 55.546875, text: 'text', fillColor: '#000'},
+        {t: 'text', x: 0, y: 75.546875, text: 'that wraps', fillColor: '#000'}
+      ]);
     });
 
     it('moves the first words of the paragraph below floats that crowd them', function () {
       this.reflow(`
-        <div id="t" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
           <div style="float: left; width: 300px; height: 300px;"></div>
           beneath, not against!
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes[0].blockOffset).to.equal(300);
+      expect(this.paint().drewText('beneath, not against!').y).to.equal(315.546875);
     });
 
     it('uses correct shelf position with 2 starting floats', function () {
@@ -859,75 +868,74 @@ describe('Flow', function () {
 
     it('places floats on soft breaks correctly', function () {
       this.reflow(`
-        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
           mefirst!
-          <div id="t2" style="float: left; width: 300px; height: 300px;"></div>
+          <div id="t" style="float: left; width: 300px; height: 300px;"></div>
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t1');
-      expect(block.lineboxes.length).to.equal(1);
-      expect(block.lineboxes[0].blockOffset).to.equal(0);
-      expect(this.get('#t2').getContentArea().y).to.equal(20);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 15.546875, text: 'mefirst!', fillColor: '#000'}
+      ]);
+
+      expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
     it('places floats at word end correctly', function () {
       this.reflow(`
-        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
-          mefirst!<div id="t2" style="float: left; width: 300px; height: 300px;"></div>
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          mefirst!<div id="t" style="float: left; width: 300px; height: 300px;"></div>
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t1');
-      expect(block.lineboxes.length).to.equal(1);
-      expect(block.lineboxes[0].blockOffset).to.equal(0);
-      expect(this.get('#t2').getContentArea().y).to.equal(20);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 15.546875, text: 'mefirst!', fillColor: '#000'}
+      ]);
+
+      expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
     it('places floats after start-of-line collapsible whitespace correctly', function () {
       this.reflow(`
         <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
-          <br> <div id="t2" style="float: left; width: 300px; height: 300px;"></div>
+          T<br> <div id="t" style="float: left; width: 300px; height: 300px;"></div>
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t1');
-      expect(block.lineboxes.length).to.equal(2);
-      expect(block.lineboxes[1].blockOffset).to.equal(20);
-      expect(this.get('#t2').getContentArea().y).to.equal(20);
+      expect(this.paint().drewText('T').y).to.equal(15.546875);
+      expect(this.get('#t').getContentArea().x).to.equal(0);
+      expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
     it('places mid-word floats correctly', function () {
       this.reflow(`
-        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
-          rightin<div id="t2" style="float: left; width: 300px; height: 300px;"></div>themiddle
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          rightin<div id="t" style="float: left; width: 300px; height: 300px;"></div>themiddle
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t1');
-      expect(block.lineboxes.length).to.equal(1);
-      expect(block.lineboxes[0].blockOffset).to.equal(0);
-      expect(this.get('#t2').getContentArea().y).to.equal(20);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 15.546875, text: 'rightin', fillColor: '#000'},
+        {t: 'text', x: 43.578125, y: 15.546875, text: 'themiddle', fillColor: '#000'}
+      ]);
+      expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
     it('places mid-nowrap floats correctly', function () {
       this.reflow(`
-        <div id="t1" style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
-          right <span style="white-space: nowrap;">in the <div id="t2" style="float: left; width: 300px; height: 300px;"></div> middle
+        <div style="font: 16px/20px Arimo; display: flow-root; width: 300px;">
+          right <span style="white-space: nowrap;">in the <div id="t" style="float: left; width: 300px; height: 300px;"></div> middle
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t1');
-      expect(block.lineboxes.length).to.equal(1);
-      expect(block.lineboxes[0].inlineOffset).to.equal(0);
-      expect(block.lineboxes[0].blockOffset).to.equal(0);
-      expect(this.get('#t2').getContentArea().x).to.equal(0);
-      expect(this.get('#t2').getContentArea().y).to.equal(20);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 15.546875, text: 'right ', fillColor: '#000'},
+        {t: 'text', x: 35.5703125, y: 15.546875, text: 'in the ', fillColor: '#000'},
+        {t: 'text', x: 79.15625, y: 15.546875, text: 'middle', fillColor: '#000'}
+      ]);
+
+      expect(this.get('#t').getContentArea().x).to.equal(0);
+      expect(this.get('#t').getContentArea().y).to.equal(20);
     });
 
     it('perfectly fits floats that sum to container width', function () {
@@ -999,21 +1007,22 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const block = this.get('#t');
       expect(block.getContentArea().height).to.equal(25);
-      expect(block.lineboxes.length).to.equal(1);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 125, y: 14.74609375, text: 'xx', fillColor: '#000'}
+      ]);
     });
 
     it('doesn\'t shorten lineboxes if float is zero height', function () {
       this.reflow(`
-        <div id="t" style="display: flow-root; width: 300px;">
+        <div style="display: flow-root; width: 300px;">
           <div style="width: 100px; float: left;"></div>
           Where am I?
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes.length).to.equal(1);
-      expect(block.lineboxes[0].inlineOffset).to.equal(0);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 14.74609375, text: 'Where am I?', fillColor: '#000'}
+      ]);
     });
 
     it('doesn\'t infinite loop when multiple zero height floats don\'t fit', function () {
@@ -1088,19 +1097,19 @@ describe('Flow', function () {
 
     it('ignores leading spacing on words for the very first line when there\'s a float', function () {
       this.reflow(`
-        <div id="t" style="font: 24px Arimo; width: 64px;">
+        <div style="font: 24px Arimo; width: 64px;">
           <div style="width: 10px; height: 10px; float: right;"></div>dope
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes[0].blockOffset).to.equal(0);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 22.119140625, text: 'dope', fillColor: '#000'}
+      ]);
     });
 
     it('checks for collision with float when a new word increases line height', function () {
       this.reflow(`
-        <div id="t" style="font: 12px Arimo; width: 100px;">
+        <div style="font: 12px Arimo; width: 100px;">
           <div style="width: 1px; height: 20px; float: right;"></div>
           <div style="width: 50px; height: 20px; float: right; clear: right;"></div>
           <span style="line-height: 20px;">howdy</span>
@@ -1108,10 +1117,10 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes).to.have.lengthOf(2);
-      expect(block.lineboxes[1].blockOffset).to.equal(20);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 14.16015625, text: 'howdy', fillColor: '#000'},
+        {t: 'text', x: 0, y: 44.16015625, text: 'partner', fillColor: '#000'}
+      ]);
     });
 
     it('checks for collision with float when a new word is smaller than the line height', function () {
@@ -1124,22 +1133,20 @@ describe('Flow', function () {
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes).to.have.lengthOf(2);
-      expect(block.lineboxes[1].blockOffset).to.equal(40);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 24.16015625, text: 'howdy', fillColor: '#000'},
+        {t: 'text', x: 0, y: 54.16015625, text: 'partner', fillColor: '#000'}
+      ]);
     });
 
     it('places text correctly when the float is at the end of the line', function () {
       this.reflow(`
-        <div id="t" style="font: 12px Arimo;">
+        <div style="font: 12px Arimo;">
           1<div style="float: left;">2</div>
         </div>
       `);
 
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('#t');
-      expect(block.lineboxes[0].head.value.x).to.be.approximately(6.674, 0.001);
+      expect(this.paint().drewText('1').x).to.equal(6.673828125);
     });
 
     it('multiple layout passes don\'t cause issues with box areas', function () {
@@ -1198,7 +1205,7 @@ describe('Flow', function () {
       const right = this.get('#t3');
       expect(left.getBorderArea().x).to.equal(0);
       expect(right.getBorderArea().x).to.equal(75);
-      expect(block.lineboxes[0].inlineOffset).to.equal(25);
+      expect(this.paint().drewText('hey!').x).to.equal(25);
     });
 
     it('obeys rule 2', function () {
@@ -1302,15 +1309,15 @@ describe('Flow', function () {
       `);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
-      const block = this.get('div');
-      /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const float = this.get('#t');
-      const [lb1, lb2, lb3, lb4] = block.lineboxes;
-      expect(lb1.blockOffset).to.equal(0);
-      expect(lb2.blockOffset).to.equal(20);
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 15.546875, text: 'Floats have a bad', fillColor: '#000'},
+        {t: 'text', x: 0, y: 35.546875, text: 'reputation ', fillColor: '#000'},
+        {t: 'text', x: 75.609375, y: 35.546875, text: 'because they', fillColor: '#000'},
+        {t: 'text', x: 0, y: 60.546875, text: 'used to be used for higher-', fillColor: '#000'},
+        {t: 'text', x: 0, y: 80.546875, text: 'level layout!', fillColor: '#000'}
+      ]);
       expect(float.getBorderArea().y).to.equal(40);
-      expect(lb3.blockOffset).to.equal(45);
-      expect(lb4.blockOffset).to.equal(65);
     });
 
     it('obeys rule 8', function () {

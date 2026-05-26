@@ -2740,7 +2740,6 @@ export function createIfcLineboxes(
       log.text('Right floats');
       log.text(`${bfc.fctx.rightFloats.repr()}\n`);
     }
-    log.pushIndent();
     log.flush();
   }
 

@@ -1476,7 +1476,11 @@ export class ReplacedBox extends FormattingBox {
   }
 
   getLogSymbol() {
-    return "◼️";
+    if (this.isFloat()) {
+      return '●';
+    } else {
+      return '◼️';
+    }
   }
 
   hasBackground() {

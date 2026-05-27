@@ -1901,7 +1901,12 @@ describe('Flow', function () {
     it('multiplies vertical-align', function () {
       this.reflow('<div style="font-size: 0;">1<span style="zoom: 2; vertical-align: 100px;">2');
       expect(this.get('div').getContentArea().height).to.equal(200);
-    })
+    });
+
+    it('multiplies word-spacing', function () {
+      this.reflow('<div style="zoom: 2; word-spacing: 10px; float: left;">a b</div>');
+      expect(this.get('div').getContentArea().width).to.equal(64);
+    });
 
     it('treats 0 as 100%', function () {
       this.reflow('<div style="zoom: 0; margin-left: 1px;"></div>');

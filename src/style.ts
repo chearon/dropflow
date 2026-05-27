@@ -448,7 +448,7 @@ export class Style {
     this.wordBreak = style.wordBreak;
     this.overflowWrap = style.overflowWrap;
     this.overflow = style.overflow;
-    this.wordSpacing = style.wordSpacing;
+    this.wordSpacing = this.usedMaybeLength(style.wordSpacing);
   }
 
   blockify() {

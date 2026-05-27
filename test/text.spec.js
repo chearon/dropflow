@@ -1664,6 +1664,20 @@ describe('Word Spacing', function () {
     const block = this.get('#t');
     expect(block.items[0].measure().advance).to.equal(50);
   });
+
+  it('re-adds spaces when it needs to reshape', function () {
+    this.reflow(`
+      <div style="word-spacing: 10px; width: 260px;">
+        كلمة
+        <span style="display: inline-block; word-spacing: 100px;">كلمة كلمة</span>
+        كل&shy;مة
+      </div>
+    `);
+
+    /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
+    const [,, item] = this.get('div').items;
+    expect(item.measure().advance).to.equal(35.408);
+  });
 });
 
 describe('Vertical Align', function () {

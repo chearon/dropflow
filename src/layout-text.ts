@@ -2398,10 +2398,11 @@ function splitItem(
   ifc.block.items.splice(mark.itemIndex + 1, 0, right);
 
   if (needsReshape) {
-    const inlineIndex = ifc.block.getRunIndex(layout, left.offset);
     left.reshape(true);
     right.reshape(false);
     if (left.mayHaveModifiedWordSepGlyphs(layout)) {
+      const inlineIndex = ifc.block.getRunIndex(layout, left.offset);
+      if (inlineIndex === undefined) throw new Error('Assertion failed');
       postShapeAddWordSpacing(layout, ifc.block, ifc.block.items, inlineIndex, mark.itemIndex, mark.itemIndex + 2);
     }
   }

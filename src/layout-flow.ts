@@ -937,38 +937,12 @@ export class BlockContainerOfInlines extends BlockContainerBase {
   }
 
   getRunIndex(layout: Layout, ci: number) {
-    let l = this.treeStart, r = this.treeFinal;
-
-    while (true) {
-      const i = Math.floor((l + r) / 2);
-
-      if (layout.tree[i].isRun()) {
-        if (ci < layout.tree[i].textStart) {
-          r = i - 1;
-        } else if (ci >= layout.tree[i].textEnd) {
-          l = i + 1;
-        } else {
-          return i;
-        }
-      } else if (layout.tree[i].isInline()) {
-        if (ci < layout.tree[i].textStart) {
-          r = i - 1;
-        } else {
-          l = i + 1;
-        }
-      } else { // inline-block, float, or image. pick a side.
-        let ml = i;
-        let mr = i;
-
-        while (mr < r && !layout.tree[mr].isRun() && !layout.tree[mr].isInline()) mr++;
-        while (ml > l && !layout.tree[ml].isRun() && !layout.tree[ml].isInline()) ml--;
-
-        const item = layout.tree[mr];
-        if ((item.isRun() || item.isInline()) && ci < item.textStart) {
-          r = ml;
-        } else {
-          l = mr;
-        }
+    for (let i = this.treeStart + 2; i <= this.treeFinal; i++) {
+      const item = layout.tree[i];
+      if (item.isFormattingBox()) {
+        i = item.treeFinal;
+      } else if (item.isRun() && ci >= item.textStart && ci < item.textEnd) {
+        return i;
       }
     }
   }

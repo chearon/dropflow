@@ -1268,8 +1268,6 @@ export class Inline extends Box {
     super(style, attrs);
     this.textStart = 0;
     this.textEnd = 0;
-    this.treeStart = 0;
-    this.treeFinal = 0;
     this.metrics = EmptyInlineMetrics;
   }
 

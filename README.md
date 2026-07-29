@@ -78,7 +78,7 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | <code>margin</code> | `em`, `px`, `%`, `cm` etc, `auto` | ✅&zwj;&nbsp;Works |
 | <code>max-height</code>, <code>max-width</code>,<br><code>min-height</code>, <code>min-width</code> | `em`, `px`, `%`, `cm` etc, `auto` | 🚧&zwj;&nbsp;Planned |
 | <code>padding</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works |
-| <code>position</code> | `absolute` | 🚧&zwj;&nbsp;Planned |
+| <code>position</code> | `absolute` | ✅&zwj;&nbsp;Works |
 | <code>position</code> | `fixed` | 🚧&zwj;&nbsp;Planned |
 | <code>position</code> | `relative` | ✅&zwj;&nbsp;Works |
 | <code>transform</code> | | 🚧&zwj;&nbsp;Planned |

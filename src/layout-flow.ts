@@ -17,7 +17,7 @@ import {getImage} from './layout-image.ts';
 import {Box, FormattingBox, TreeNode, Layout} from './layout-box.ts';
 
 import type {InlineMetrics, ShapedItem, InlineFragment} from './layout-text.ts';
-import type {BoxArea, PrelayoutContext} from './layout-box.ts';
+import type {BoxArea, PrelayoutContext, StaticPosition} from './layout-box.ts';
 import type {AllocatedUint16Array} from './text-harfbuzz.ts';
 
 function assumePx(v: any): asserts v is number {
@@ -813,7 +813,6 @@ export abstract class BlockContainerBase extends FormattingBox {
     super.propagate(parent);
 
     if (this.isInlineLevel()) {
-      // TODO: and not absolutely positioned
       parent.bitfield |= Box.BITS.hasInlineBlocks;
     }
   }
@@ -1067,6 +1066,24 @@ function doBlockBoxModelForBlockBox(layout: Layout, box: BlockContainer) {
   }
 }
 
+/**
+ * An inline formatting context with nothing to lay out still has to answer for
+ * the absolutely positioned boxes inside it, which would have started at its
+ * content edge (CSS 2.2 § 10.3.7, § 10.6.4).
+ */
+function setStaticPositionsWithoutLines(layout: Layout, box: BlockContainerOfInlines) {
+  const contentArea = box.getContentArea();
+  const ltr = box.style.direction === 'ltr';
+
+  for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
+    const item = layout.tree[i];
+    if (item.isFormattingBox() && item.isAbsolute()) {
+      layout.setStaticPosition(item, contentArea, 0, ltr ? 0 : contentArea.inlineSize);
+      i = item.treeFinal;
+    }
+  }
+}
+
 function layoutBlockBoxInner(
   layout: Layout,
   box: BlockContainer,
@@ -1086,7 +1103,11 @@ function layoutBlockBoxInner(
   // Child flow is now possible
 
   if (box.isBlockContainerOfInlines()) {
-    if (containingBfc) {
+    if (!box.shouldLayoutContent(layout)) {
+      // No lines will be built, so the boxes taken out of this flow would all
+      // have started at the content edge
+      setStaticPositionsWithoutLines(layout, box);
+    } else if (containingBfc) {
       // text layout happens in bfc.boxStart
     } else {
       box.doTextLayout(layout, cctx);
@@ -1237,6 +1258,221 @@ export function layoutFloatBox(
   } else {
     // replaced boxes have no layout. they were sized by doInline/Block above
   }
+}
+
+/**
+ * Absolutely positioned boxes are laid out after the flow they were taken out
+ * of, because their containing block - the padding area of the nearest
+ * positioned ancestor, or the initial containing block - only has a size once
+ * that ancestor is done. Tree order means an ancestor is always resolved before
+ * a box it contains.
+ */
+export function layoutAbsolutes(layout: Layout, ctx: LayoutContext) {
+  for (let i = 1; i < layout.tree.length; i++) {
+    const item = layout.tree[i];
+    if (item.isFormattingBox() && item.isAbsolute()) {
+      layoutAbsoluteBox(layout, item, ctx);
+    }
+  }
+}
+
+function getShrinkToFitInlineSize(
+  layout: Layout,
+  box: BlockLevel,
+  available: number
+) {
+  const minContent = layoutContribution(layout, box, 'min-content');
+  const maxContent = layoutContribution(layout, box, 'max-content');
+  return Math.max(minContent, Math.min(maxContent, available));
+}
+
+// § 10.3.7
+function doInlineBoxModelForAbsoluteBox(
+  layout: Layout,
+  box: BlockLevel,
+  staticPosition: StaticPosition | undefined
+) {
+  const containingBlock = box.getContainingBlock();
+  const cInlineSize = containingBlock.inlineSizeForPotentiallyOrthogonal(box);
+  const ltr = box.getDirectionAsParticipant(containingBlock) === 'ltr';
+  const insetLineLeft = box.style.getInsetLineLeft(containingBlock);
+  const insetLineRight = box.style.getInsetLineRight(containingBlock);
+  const styleMarginLineLeft = box.style.getMarginLineLeft(containingBlock);
+  const styleMarginLineRight = box.style.getMarginLineRight(containingBlock);
+  const definiteInlineSize = box.getDefiniteOuterInlineSize(containingBlock);
+  let marginLineLeft = styleMarginLineLeft === 'auto' ? 0 : styleMarginLineLeft;
+  let marginLineRight = styleMarginLineRight === 'auto' ? 0 : styleMarginLineRight;
+  let sizedFromInsets = false;
+  let inlineSize;
+
+  if (definiteInlineSize !== undefined) {
+    inlineSize = definiteInlineSize;
+  } else if (box.isReplacedBox()) {
+    inlineSize = box.getIntrinsicIsize();
+  } else if (insetLineLeft !== 'auto' && insetLineRight !== 'auto') {
+    // Paragraph 3: both insets are given, so the size is what they leave behind
+    // and auto margins are zero
+    inlineSize = Math.max(0, cInlineSize
+      - insetLineLeft
+      - insetLineRight
+      - marginLineLeft
+      - marginLineRight);
+    sizedFromInsets = true;
+  } else {
+    // Paragraphs 1 and 5: shrink-to-fit over the space the insets leave behind
+    const available = cInlineSize
+      - (insetLineLeft === 'auto' ? 0 : insetLineLeft)
+      - (insetLineRight === 'auto' ? 0 : insetLineRight);
+    inlineSize = getShrinkToFitInlineSize(layout, box, available)
+      - marginLineLeft
+      - marginLineRight;
+  }
+
+  if (!sizedFromInsets && insetLineLeft !== 'auto' && insetLineRight !== 'auto') {
+    // Paragraph 2: the equation is solvable, so what is left over goes to the
+    // margins that are auto
+    const rest = cInlineSize - insetLineLeft - insetLineRight - inlineSize;
+
+    if (styleMarginLineLeft === 'auto' && styleMarginLineRight === 'auto') {
+      if (rest < 0) {
+        // Equal margins would be negative, so the line-start one is dropped
+        marginLineLeft = ltr ? 0 : rest;
+        marginLineRight = ltr ? rest : 0;
+      } else {
+        marginLineLeft = marginLineRight = rest / 2;
+      }
+    } else if (styleMarginLineLeft === 'auto') {
+      marginLineLeft = rest - marginLineRight;
+    } else if (styleMarginLineRight === 'auto') {
+      marginLineRight = rest - marginLineLeft;
+    }
+    // Otherwise the values are over-constrained. The line-right inset is the
+    // one ignored in ltr and the line-left one in rtl, which is what falls out
+    // of positioning against the retained side below
+  }
+
+  box.setInlineOuterSize(containingBlock, inlineSize);
+
+  if (insetLineLeft !== 'auto' && (insetLineRight === 'auto' || ltr)) {
+    box.setInlinePosition(insetLineLeft + marginLineLeft);
+  } else if (insetLineRight !== 'auto') {
+    box.setInlinePosition(cInlineSize - insetLineRight - marginLineRight - inlineSize);
+  } else if (staticPosition) {
+    // Paragraphs 1 and 4: both insets are auto, so the box stays where it would
+    // have been. In rtl it is the line-right margin edge that was recorded
+    staticPosition.needsLineLeft = true;
+    box.setInlinePosition(ltr ? marginLineLeft : -(inlineSize + marginLineRight));
+  } else {
+    box.setInlinePosition(marginLineLeft);
+  }
+}
+
+// § 10.6.4
+interface AbsoluteBlockAxis {
+  usesContentBlockSize: boolean;
+  blockSize: number | undefined;
+  insetBlockStart: number | 'auto';
+  insetBlockEnd: number | 'auto';
+  cBlockSize: number;
+}
+
+function doBlockBoxModelForAbsoluteBox(box: BlockLevel): AbsoluteBlockAxis {
+  const containingBlock = box.getContainingBlock();
+  const cBlockSize = containingBlock.blockSizeForPotentiallyOrthogonal(box);
+  const insetBlockStart = box.style.getInsetBlockStart(containingBlock);
+  const insetBlockEnd = box.style.getInsetBlockEnd(containingBlock);
+  const marginBlockStart = box.style.getMarginBlockStart(containingBlock);
+  const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
+  let blockSize = box.getDefiniteInnerBlockSize(containingBlock);
+  let usesContentBlockSize = blockSize === undefined;
+
+  if (
+    blockSize === undefined &&
+    insetBlockStart !== 'auto' &&
+    insetBlockEnd !== 'auto'
+  ) {
+    // Paragraph 5: an auto size is what the two insets leave behind
+    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(containingBlock);
+    const paddingBlockStart = box.style.getPaddingBlockStart(containingBlock);
+    const paddingBlockEnd = box.style.getPaddingBlockEnd(containingBlock);
+    const borderBlockEndWidth = box.style.getBorderBlockEndWidth(containingBlock);
+
+    blockSize = Math.max(0, cBlockSize
+      - insetBlockStart
+      - insetBlockEnd
+      - (marginBlockStart === 'auto' ? 0 : marginBlockStart)
+      - (marginBlockEnd === 'auto' ? 0 : marginBlockEnd)
+      - borderBlockStartWidth
+      - paddingBlockStart
+      - paddingBlockEnd
+      - borderBlockEndWidth);
+    usesContentBlockSize = false;
+  }
+
+  if (blockSize !== undefined) box.setBlockSize(containingBlock, blockSize);
+
+  return {usesContentBlockSize, blockSize, insetBlockStart, insetBlockEnd, cBlockSize};
+}
+
+function setBlockPositionForAbsoluteBox(
+  box: BlockLevel,
+  axis: AbsoluteBlockAxis,
+  staticPosition: StaticPosition | undefined
+) {
+  const containingBlock = box.getContainingBlock();
+  const {insetBlockStart, insetBlockEnd, cBlockSize} = axis;
+  const outerBlockSize = box.getBorderArea().blockSize;
+  const styleMarginBlockStart = box.style.getMarginBlockStart(containingBlock);
+  const styleMarginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
+  let marginBlockStart = styleMarginBlockStart === 'auto' ? 0 : styleMarginBlockStart;
+  let marginBlockEnd = styleMarginBlockEnd === 'auto' ? 0 : styleMarginBlockEnd;
+
+  if (insetBlockStart !== 'auto' && insetBlockEnd !== 'auto') {
+    const rest = cBlockSize - insetBlockStart - insetBlockEnd - outerBlockSize;
+
+    if (styleMarginBlockStart === 'auto' && styleMarginBlockEnd === 'auto') {
+      // Paragraph 6: equal margins center the box, negative values included
+      marginBlockStart = marginBlockEnd = rest / 2;
+    } else if (styleMarginBlockStart === 'auto') {
+      marginBlockStart = rest - marginBlockEnd;
+    } else if (styleMarginBlockEnd === 'auto') {
+      marginBlockEnd = rest - marginBlockStart;
+    }
+    // Otherwise over-constrained, and the block-end inset is the one ignored
+  }
+
+  if (insetBlockStart !== 'auto') {
+    box.setBlockPosition(insetBlockStart + marginBlockStart);
+  } else if (insetBlockEnd !== 'auto') {
+    box.setBlockPosition(cBlockSize - insetBlockEnd - marginBlockEnd - outerBlockSize);
+  } else {
+    // Both insets are auto, so the box stays where it would have been
+    if (staticPosition) staticPosition.needsBlock = true;
+    box.setBlockPosition(marginBlockStart);
+  }
+}
+
+function layoutAbsoluteBox(layout: Layout, box: BlockLevel, ctx: LayoutContext) {
+  const cctx: LayoutContext = {...ctx, bfc: undefined};
+  const containingBlock = box.getContainingBlock();
+  const staticPosition = layout.staticPositions.get(box);
+
+  box.fillAreas(containingBlock);
+  doInlineBoxModelForAbsoluteBox(layout, box, staticPosition);
+  const axis = doBlockBoxModelForAbsoluteBox(box);
+
+  if (box.isBlockContainer()) {
+    layoutBlockBoxInner(layout, box, cctx);
+    // The formatting context sizes an auto block size from the content, which is
+    // only the used value when an inset on that axis is auto
+    if (!axis.usesContentBlockSize && axis.blockSize !== undefined) {
+      box.setBlockSize(containingBlock, axis.blockSize);
+    }
+  } else if (axis.usesContentBlockSize) {
+    box.setBlockSize(containingBlock, box.getDefiniteInnerBlockSize());
+  }
+
+  setBlockPositionForAbsoluteBox(box, axis, staticPosition);
 }
 
 export class Break extends TreeNode {
@@ -1830,6 +2066,7 @@ export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
   // generatesBreak, etc
   if (
     el.style.float !== 'none' ||
+    el.style.position === 'absolute' ||
     el.style.overflow === 'hidden' ||
     el.style.display.inner === 'flow-root' ||
     el.parent && writingModeInlineAxis(el) !== writingModeInlineAxis(el.parent)

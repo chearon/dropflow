@@ -2030,8 +2030,9 @@ function createMarkIterator(
       inlineIteratorStateNext(inline);
     }
 
-    // Consume floats
-    if (inline.value?.state === 'box' && inline.value.item.isFloat() && inlineMark === mark.position) {
+    // Consume out-of-flow boxes: floats, which the line has to flow around, and
+    // absolutely positioned boxes, which only need the line they landed on
+    if (inline.value?.state === 'box' && inline.value.item.isOutOfFlow() && inlineMark === mark.position) {
       mark.box = inline.value.item;
       inlineIteratorStateNext(inline);
       return {done: false, value: mark};
@@ -2918,6 +2919,20 @@ export function createIfcLineboxes(
         // Have to place after the word
         ifc.floatsInWord.push(mark.box);
       }
+    }
+
+    if (mark.box?.isAbsolute()) {
+      // The box is out of flow, so it contributes nothing to the line, but the
+      // line is where it would have been if it were in flow, which is the
+      // position it uses when its insets are auto (CSS 2.2 § 10.3.7, § 10.6.4)
+      const contentArea = ifc.block.getContentArea();
+      const ltr = ifc.block.style.direction === 'ltr';
+      layout.setStaticPosition(
+        mark.box,
+        contentArea,
+        ifc.vacancy.blockOffset,
+        ltr ? 0 : contentArea.inlineSize
+      );
     }
 
     if (mark.inlinePost) {

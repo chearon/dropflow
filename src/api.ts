@@ -2,7 +2,7 @@ import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.ts';
 import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.ts';
 import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.ts';
-import {generateBlockContainer, layoutBlockLevelBox} from './layout-flow.ts';
+import {generateBlockContainer, layoutBlockLevelBox, layoutAbsolutes} from './layout-flow.ts';
 import HtmlPaintBackend from './paint-html.ts';
 import SvgPaintBackend from './paint-svg.ts';
 import CanvasPaintBackend from './paint-canvas.ts';
@@ -52,6 +52,7 @@ export function reflow(layout: Layout, width = 640, height = 480) {
 
   prelayout(layout, initialContainingBlock);
   layoutBlockLevelBox(layout, layout.root(), {});
+  layoutAbsolutes(layout, {});
   postlayout(layout);
 }
 

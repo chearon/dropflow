@@ -9,6 +9,7 @@ import CanvasPaintBackend from './paint-canvas.ts';
 
 import paint from './paint.ts';
 import {BoxArea, Layout, prelayout, postlayout} from './layout-box.ts';
+import type {Box, StaticPosition} from './layout-box.ts';
 import {onLoadWalkerElementForImage} from './layout-image.ts';
 import {id, uuid} from './util.ts';
 
@@ -50,10 +51,13 @@ export function layout(rootElement: HTMLElement): Layout {
 export function reflow(layout: Layout, width = 640, height = 480) {
   const initialContainingBlock = new BoxArea(layout.root(), 0, 0, width, height);
 
+  // Only alive for the length of this reflow, so nothing is retained on the Layout
+  const staticPositions = new Map<Box, StaticPosition>();
+
   prelayout(layout, initialContainingBlock);
-  layoutBlockLevelBox(layout, layout.root(), {});
-  layoutAbsolutes(layout, {});
-  postlayout(layout);
+  layoutBlockLevelBox(layout, layout.root(), {staticPositions});
+  layoutAbsolutes(layout, {staticPositions});
+  postlayout(layout, staticPositions);
 }
 
 /**

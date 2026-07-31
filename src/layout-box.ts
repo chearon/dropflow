@@ -419,9 +419,6 @@ export abstract class Box extends TreeNode {
     // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
     // and use normal inline areas instead, with fragmentation
     const borderArea = this.getBorderArea();
-    if (this.style.position === 'absolute') {
-      shiftToStaticPosition(layout, this);
-    }
     if (this.style.position === 'relative') {
       const containingBlock = this.getContainingBlock();
       borderArea.x += this.getRelativeHorizontalShift(containingBlock);
@@ -743,15 +740,22 @@ export class BoxArea {
  * parent, not of its containing block. Both of those are ancestors, so both are
  * already absolute when postlayout reaches this box, and the offset can be
  * mapped through physical coordinates.
+ *
+ * `area` is the content area of the in-flow parent, which is the nearest block
+ * container ancestor: the only boxes that can sit between them are inlines.
  */
-function shiftToStaticPosition(layout: Layout, box: Box) {
-  const staticPosition = layout.staticPositions.get(box);
-  if (!staticPosition) return;
-  const {area, blockOffset, inlineOffset, needsBlock, needsLineLeft} = staticPosition;
-  if (!needsBlock && !needsLineLeft) return;
+function shiftToStaticPosition(box: Box, staticPosition: StaticPosition, area: BoxArea) {
+  const [blockOffset, inlineOffset] = staticPosition;
   const borderArea = box.getBorderArea();
   const containingBlock = borderArea.parent;
   if (!containingBlock) throw new Error('Assertion failed');
+  // Layout only leaves room for the static position when it had no inset to
+  // position against, which is the same question the box model asked
+  const needsBlock = box.style.getInsetBlockStart(containingBlock) === 'auto' &&
+    box.style.getInsetBlockEnd(containingBlock) === 'auto';
+  const needsLineLeft = box.style.getInsetLineLeft(containingBlock) === 'auto' &&
+    box.style.getInsetLineRight(containingBlock) === 'auto';
+  if (!needsBlock && !needsLineLeft) return;
   const parentWritingMode = area.getEstablishedWritingMode();
   let x, y;
 
@@ -837,11 +841,26 @@ export function prelayout(layout: Layout, icb: BoxArea) {
   }
 }
 
-export function postlayout(layout: Layout) {
+export function postlayout(layout: Layout, staticPositions: Map<Box, StaticPosition>) {
   const parents: (BlockContainer | Inline)[] = [];
 
   for (let i = 0; i < layout.tree.length; i++) {
     const item = layout.tree[i];
+
+    if (item.isFormattingBox() && item.isAbsolute()) {
+      // The offset was recorded in the axes of the in-flow parent, which the
+      // preorder walk has already absolutified
+      const staticPosition = staticPositions.get(item);
+      if (staticPosition) {
+        let inflowParent;
+        for (let j = parents.length - 1; j >= 0 && !inflowParent; j--) {
+          if (parents[j].isBlockContainer()) inflowParent = parents[j];
+        }
+        if (!inflowParent) throw new Error('Assertion failed');
+        shiftToStaticPosition(item, staticPosition, inflowParent.getContentArea());
+      }
+    }
+
     item.postlayoutPreorder(layout);
     if (item.isBlockContainer() || item.isInline()) {
       parents.push(item);
@@ -903,37 +922,23 @@ export function log(layout: Layout, logger?: Logger, options?: TreeLogOptions) {
 
 /**
  * Where an absolutely positioned box would have been if it were in flow, in the
- * logical axes of `area`, which is the content area of its in-flow parent. Only
- * used when an inset on that axis is `auto` (CSS 2.2 § 10.3.7, § 10.6.4).
+ * logical axes of the content area of its in-flow parent. Only used when both
+ * insets on that axis are `auto` (CSS 2.2 § 10.3.7, § 10.6.4).
+ *
+ * Only needed between line building and postlayout, so it is not stored on the
+ * `Layout`: it rides along on the layout context and is gone once `reflow`
+ * returns.
  */
-export interface StaticPosition {
-  area: BoxArea;
-  blockOffset: number;
-  inlineOffset: number;
-  needsBlock: boolean;
-  needsLineLeft: boolean;
-}
+export type StaticPosition = [blockOffset: number, inlineOffset: number];
 
 export class Layout {
   tree: InlineLevel[];
-  staticPositions: Map<Box, StaticPosition>;
 
   constructor(tree: InlineLevel[]) {
     this.tree = tree;
-    this.staticPositions = new Map();
   }
 
   root() {
     return this.tree[0] as BlockContainer;
-  }
-
-  setStaticPosition(box: Box, area: BoxArea, blockOffset: number, inlineOffset: number) {
-    this.staticPositions.set(box, {
-      area,
-      blockOffset,
-      inlineOffset,
-      needsBlock: false,
-      needsLineLeft: false
-    });
   }
 }

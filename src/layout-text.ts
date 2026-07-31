@@ -2927,12 +2927,10 @@ export function createIfcLineboxes(
       // position it uses when its insets are auto (CSS 2.2 § 10.3.7, § 10.6.4)
       const contentArea = ifc.block.getContentArea();
       const ltr = ifc.block.style.direction === 'ltr';
-      layout.setStaticPosition(
-        mark.box,
-        contentArea,
+      ctx.staticPositions.set(mark.box, [
         ifc.vacancy.blockOffset,
         ltr ? 0 : contentArea.inlineSize
-      );
+      ]);
     }
 
     if (mark.inlinePost) {

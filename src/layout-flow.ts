@@ -56,6 +56,12 @@ export interface LayoutContext {
    * and inline-blocks.
    */
   isDecorating: boolean;
+  /**
+   * Where the out-of-flow boxes seen so far would have been in flow, for the
+   * ones that need it. Read by the absolute layout pass and by postlayout, then
+   * dropped.
+   */
+  staticPositions: Map<Box, StaticPosition>;
 }
 
 class MarginCollapseCollection {
@@ -1092,14 +1098,18 @@ function doBlockBoxModelForBlockBox(layout: Layout, box: BlockContainer) {
  * the absolutely positioned boxes inside it, which would have started at its
  * content edge (CSS 2.2 § 10.3.7, § 10.6.4).
  */
-function setStaticPositionsWithoutLines(layout: Layout, box: BlockContainerOfInlines) {
+function setStaticPositionsWithoutLines(
+  layout: Layout,
+  box: BlockContainerOfInlines,
+  ctx: LayoutContext
+) {
   const contentArea = box.getContentArea();
   const ltr = box.style.direction === 'ltr';
 
   for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
     const item = layout.tree[i];
     if (item.isFormattingBox() && item.isAbsolute()) {
-      layout.setStaticPosition(item, contentArea, 0, ltr ? 0 : contentArea.inlineSize);
+      ctx.staticPositions.set(item, [0, ltr ? 0 : contentArea.inlineSize]);
       i = item.treeFinal;
     }
   }
@@ -1139,7 +1149,7 @@ function layoutBlockBoxInner(
     if (!box.shouldLayoutContent(layout)) {
       // No lines will be built, so the boxes taken out of this flow would all
       // have started at the content edge
-      setStaticPositionsWithoutLines(layout, box);
+      setStaticPositionsWithoutLines(layout, box, cctx);
     } else if (containingBfc) {
       // text layout happens in bfc.boxStart
     } else {
@@ -1393,7 +1403,6 @@ function doInlineBoxModelForAbsoluteBox(
   } else if (staticPosition) {
     // Paragraphs 1 and 4: both insets are auto, so the box stays where it would
     // have been. In rtl it is the line-right margin edge that was recorded
-    staticPosition.needsLineLeft = true;
     box.setInlinePosition(ltr ? marginLineLeft : -(inlineSize + marginLineRight));
   } else {
     box.setInlinePosition(marginLineLeft);
@@ -1447,11 +1456,7 @@ function doBlockBoxModelForAbsoluteBox(box: BlockLevel): AbsoluteBlockAxis {
   return {usesContentBlockSize, blockSize, insetBlockStart, insetBlockEnd, cBlockSize};
 }
 
-function setBlockPositionForAbsoluteBox(
-  box: BlockLevel,
-  axis: AbsoluteBlockAxis,
-  staticPosition: StaticPosition | undefined
-) {
+function setBlockPositionForAbsoluteBox(box: BlockLevel, axis: AbsoluteBlockAxis) {
   const containingBlock = box.getContainingBlock();
   const {insetBlockStart, insetBlockEnd, cBlockSize} = axis;
   const outerBlockSize = box.getBorderArea().blockSize;
@@ -1479,8 +1484,8 @@ function setBlockPositionForAbsoluteBox(
   } else if (insetBlockEnd !== 'auto') {
     box.setBlockPosition(cBlockSize - insetBlockEnd - marginBlockEnd - outerBlockSize);
   } else {
-    // Both insets are auto, so the box stays where it would have been
-    if (staticPosition) staticPosition.needsBlock = true;
+    // Both insets are auto, so the box stays where it would have been. Postlayout
+    // shifts it there once the in-flow parent has absolute coordinates
     box.setBlockPosition(marginBlockStart);
   }
 }
@@ -1488,7 +1493,7 @@ function setBlockPositionForAbsoluteBox(
 function layoutAbsoluteBox(layout: Layout, box: BlockLevel, ctx: LayoutContext) {
   const cctx: LayoutContext = {...ctx, bfc: undefined};
   const containingBlock = box.getContainingBlock();
-  const staticPosition = layout.staticPositions.get(box);
+  const staticPosition = ctx.staticPositions.get(box);
 
   box.fillAreas(containingBlock);
   doInlineBoxModelForAbsoluteBox(layout, box, staticPosition);
@@ -1505,7 +1510,7 @@ function layoutAbsoluteBox(layout: Layout, box: BlockLevel, ctx: LayoutContext) 
     box.setBlockSize(containingBlock, box.getDefiniteInnerBlockSize());
   }
 
-  setBlockPositionForAbsoluteBox(box, axis, staticPosition);
+  setBlockPositionForAbsoluteBox(box, axis);
 }
 
 export class Break extends TreeNode {

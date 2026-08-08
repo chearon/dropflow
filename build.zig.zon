@@ -1,7 +1,7 @@
-// builds with zig 0.14
 .{
     .name = .dropflow,
     .fingerprint = 0x3980e406d4452ad3,
+    .minimum_zig_version = "0.14.1",
     .version = "0.0.0",
     .paths = .{""},
     .dependencies = .{

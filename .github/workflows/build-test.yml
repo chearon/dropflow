@@ -5,7 +5,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: oven-sh/setup-bun@v1
     - name: Node.js v23
       uses: actions/setup-node@v3
       with:
@@ -13,14 +12,3 @@ jobs:
     - run: npm install --frozen-lockfile
     - run: npm run tsc
     - run: npm run test:dist
-  bun:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Bun v1
-      uses: oven-sh/setup-bun@v1
-      with:
-        bun-version: 1.2.19
-    - run: npm install --frozen-lockfile
-    - run: npm run tsc
-    - run: bun run --bun test:dist

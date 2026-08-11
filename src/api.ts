@@ -278,7 +278,7 @@ export function loadSync(root: HTMLElement): LoadableResource[] {
 export const objectStore = new Map<string, ArrayBufferLike>();
 
 export function createObjectURL(buffer: ArrayBufferLike): string {
-  let url = 'blob:dropflow.local/' + uuid();
+  let url = 'blob:dropflowdata:' + uuid();
   objectStore.set(url, buffer);
   return url;
 }

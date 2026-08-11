@@ -5,6 +5,7 @@ import {registerFontAsset, unregisterFontAsset} from '../assets/register.ts';
 import {Logger} from '../src/util.ts';
 import PaintSpy from './paint-spy.js';
 import paint from '../src/paint.ts';
+import fs from 'node:fs';
 
 const log = new Logger();
 const adaUrl = new URL(import.meta.resolve('#assets/images/ada.png'));
@@ -2029,6 +2030,17 @@ describe('Flow', function () {
       expect(this.get('img').getContentArea().y).to.equal(0);
       expect(this.get('img').getContentArea().width).to.equal(369);
       expect(this.get('img').getContentArea().height).to.equal(376);
+    });
+
+    it('loads nodejs object urls', async function () {
+      const buffer = fs.readFileSync(adaUrl);
+      const url = URL.createObjectURL(new Blob([buffer]));
+      const rootElement = parse(`<img src="${adaUrl}" style="display: block;">`);
+      await flow.load(rootElement);
+      const layout = flow.layout(rootElement);
+      flow.reflow(layout, 1000, 500);
+      expect(layout.tree[1].getContentArea().width).to.equal(369);
+      URL.revokeObjectURL(url);
     });
   });
 });

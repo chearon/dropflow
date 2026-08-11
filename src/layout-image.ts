@@ -180,7 +180,9 @@ export class Image {
   }
 
   tryObjectUrl(url: URL) {
-    if (url.protocol === 'blob:') return objectStore.get(url.href);
+    if (url.protocol === 'blob:' && url.pathname.startsWith('dropflowdata:')) {
+      return objectStore.get(url.href);
+    }
   }
 
   async load() {

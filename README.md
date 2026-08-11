@@ -421,7 +421,9 @@ function createObjectURL(buffer: ArrayBufferLike): string;
 function revokeObjectURL(url: string): void;
 ```
 
-These functions can be used to send image buffers to `<img src>`. Since there is no associated document (unlike the browser), memory is retained between `createObjectURL` and `revokeObjectURL`.
+These functions can be used to send image buffers to `<img src>`. You can also use Node's [object URL API](https://nodejs.org/api/url.html#urlcreateobjecturlblob), however, it is asynchronous by design, meaning you must use [`await flow.load()`](#load). Dropflow's object URL API can be combined with `flow.loadSync()`.
+
+Since there is no associated document (unlike the browser), memory is retained between `createObjectURL` and `revokeObjectURL`.
 
 ## Create a layout
 

@@ -35,6 +35,11 @@ if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
 if (environment.createDecodedImage === defaultEnvironment.createDecodedImage) {
   environment.createDecodedImage = async (image) => {
     const img = new Image();
+    // @ts-expect-error this will throw an exception if SharedArrayBuffer is
+    // used. That's a feature. SharedArrayBuffer is not allowed in most of the
+    // web APIs, and the only use case I can think of is if you have image data
+    // embedded in WASM memory for some reason. If you're here because of a rare
+    // use case like that, just override createDecodedImage to create a copy.
     const blob = new Blob([image.buffer!])
     img.src = URL.createObjectURL(blob);
     await img.decode();

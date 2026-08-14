@@ -340,6 +340,41 @@ describe('Absolute positioning', function () {
     expect(this.border('#t').y).to.equal(0);
   });
 
+  it('does not wrap a box among block-level content in an inline', function () {
+    this.reflow(`<div id="p" style="font: 16px/20px Arimo; width: 300px;"><div
+      id="t" style="position: absolute;">:D</div></div>`);
+    const p = this.get('#p');
+    expect(this.layout.tree[p.treeStart + 1]).to.equal(this.get('#t'));
+  });
+
+  it('is positioned by the block formatting context among blocks', function () {
+    this.reflow(`<div style="position: relative; width: 200px; font: 16px/20px Arimo;"><div
+      style="height: 15px;"></div><div id="t" style="position: absolute; margin: 4px 6px;
+      width: 20px; height: 20px;"></div></div>`);
+    expect(this.border('#t')).to.deep.equal({x: 6, y: 19, width: 20, height: 20});
+  });
+
+  it('does not collapse its margins with the ones around it', function () {
+    this.reflow(`<div id="p" style="font: 16px/20px Arimo; width: 200px;"><div
+      id="a" style="height: 10px; margin-bottom: 20px;"></div><div id="t"
+      style="position: absolute; margin: 100px; width: 5px; height: 5px;"></div><div
+      id="b" style="height: 10px; margin-top: 30px;"></div></div>`);
+    // The siblings collapse to 30 as if the positioned box were not there
+    expect(this.border('#b').y).to.equal(40);
+    expect(this.border('#p').height).to.equal(50);
+  });
+
+  it('takes a static position from a static parent that already ended', function () {
+    this.reflow(`<div style="position: relative; width: 200px; height: 150px;
+      font: 16px/20px Arimo;"><div style="padding: 5px;"><div
+      style="position: relative;">x</div></div><div id="t" style="position: absolute;
+      width: 10px; height: 10px;"></div></div>`);
+    // The in-flow parent is the outer box, not the padded box that ended on the
+    // same tree index as the positioned box inside it
+    expect(this.border('#t').x).to.equal(0);
+    expect(this.border('#t').y).to.equal(30);
+  });
+
   it('uses the intrinsic size of a positioned replaced box', function () {
     this.reflow(`
       <div style="font: 16px/20px Arimo; width: 300px; height: 200px; position: relative;">

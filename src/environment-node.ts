@@ -11,7 +11,7 @@ if (environment.wasmLocator === defaultEnvironment.wasmLocator) {
 if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
   environment.resolveUrl = async function (url) {
     if (url.protocol === 'file:') {
-      return fs.readFileSync(url).buffer;
+      return fs.readFileSync(url);
     } else {
       return fetch(url).then(res => {
         if (!res.ok) throw new Error(res.statusText);
@@ -24,7 +24,7 @@ if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
 if (environment.resolveUrlSync === defaultEnvironment.resolveUrlSync) {
   environment.resolveUrlSync = function (url) {
     if (url.protocol === 'file:') {
-      return fs.readFileSync(url).buffer;
+      return fs.readFileSync(url);
     } else {
       throw new Error(`Cannot load synchronously: ${url}`);
     }

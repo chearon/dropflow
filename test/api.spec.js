@@ -356,7 +356,7 @@ describe('Load API', function () {
 describe('createObjectURL', function () {
   it('creates and loads an object URL for an image', function () {
     const buffer = fs.readFileSync(new URL(import.meta.resolve('#assets/images/frogmage.gif')));
-    const url = flow.createObjectURL(buffer.buffer);
+    const url = flow.createObjectURL(buffer);
     const style = flow.style({display: {outer: 'block', inner: 'flow'}});
     const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
     flow.loadSync(doc);

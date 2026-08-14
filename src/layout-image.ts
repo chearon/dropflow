@@ -1,8 +1,10 @@
 import {environment} from './environment.ts';
 import {HTMLElement} from './dom.ts';
 import {objectStore} from './api.ts';
+import {toTypedArray} from './util.ts';
 
 import type {LoadWalkerContext} from './api.ts';
+import type {BufferSource} from './util.ts';
 
 // JPEG markers always start with 0xFF
 const JPEG_SOI = 0xffd8;  // Start of Image
@@ -27,8 +29,8 @@ function compareArrays(a: Uint8Array, b: Uint8Array, length: number): boolean {
   return true;
 }
 
-function parseJpegDimensions(buffer: ArrayBufferLike) {
-  const view = new DataView(buffer);
+function parseJpegDimensions(buffer: Uint8Array) {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.length);
 
   // Check for JPEG signature
   if (view.getUint16(0) !== JPEG_SOI) {
@@ -62,9 +64,9 @@ function parseJpegDimensions(buffer: ArrayBufferLike) {
   throw new Error('No JPEG dimensions found');
 }
 
-function parsePngDimensions(buffer: ArrayBufferLike) {
-  const view = new DataView(buffer);
-  const signature = new Uint8Array(buffer, 0, 8);
+function parsePngDimensions(buffer: Uint8Array) {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.length);
+  const signature = buffer.slice(0, 8);
 
   if (!compareArrays(signature, PNG_SIGNATURE, 8)) {
     throw new Error('Not a valid PNG file');
@@ -83,9 +85,9 @@ function parsePngDimensions(buffer: ArrayBufferLike) {
   return {width, height};
 }
 
-function parseGifDimensions(buffer: ArrayBufferLike) {
-  const view = new DataView(buffer);
-  const signature = new Uint8Array(buffer, 0, 6);
+function parseGifDimensions(buffer: Uint8Array) {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.length);
+  const signature = buffer.slice(0, 6);
 
   if (!compareArrays(signature, GIF87a, 6) && !compareArrays(signature, GIF89a, 6)) {
     throw new Error('Not a valid GIF file');
@@ -98,8 +100,8 @@ function parseGifDimensions(buffer: ArrayBufferLike) {
   return {width, height};
 }
 
-function parseBmpDimensions(buffer: ArrayBufferLike) {
-  const view = new DataView(buffer);
+function parseBmpDimensions(buffer: Uint8Array) {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.length);
 
   if (view.getUint16(0) !== BMP_SIGNATURE) {
     throw new Error('Not a valid BMP file');
@@ -112,9 +114,9 @@ function parseBmpDimensions(buffer: ArrayBufferLike) {
   return {width, height};
 }
 
-function parseImageDimensions(buffer: ArrayBufferLike) {
+function parseImageDimensions(buffer: Uint8Array) {
   // Try to detect format from first bytes
-  const view = new DataView(buffer);
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.length);
   const firstBytes = view.getUint16(0);
 
   try {
@@ -123,7 +125,7 @@ function parseImageDimensions(buffer: ArrayBufferLike) {
     } else if (firstBytes === BMP_SIGNATURE) {
       return parseBmpDimensions(buffer);
     } else {
-      const signature = new Uint8Array(buffer, 0, 8);
+      const signature = buffer.slice(0, 8);
       if (compareArrays(signature, PNG_SIGNATURE, 8)) {
         return parsePngDimensions(buffer);
       } else if (compareArrays(signature, GIF87a, 6) || compareArrays(signature, GIF89a, 6)) {
@@ -142,16 +144,16 @@ function parseImageDimensions(buffer: ArrayBufferLike) {
 
 export class Image {
   src: string;
-  buffer: ArrayBufferLike | undefined;
+  buffer: Uint8Array | undefined;
   width: number;
   height: number;
   status: 'unloaded' | 'loading' | 'loaded' | 'error';
   reason: unknown;
   decoded: unknown;
 
-  constructor(src: string, buffer?: ArrayBufferLike) {
+  constructor(src: string, source?: BufferSource) {
     this.src = src;
-    this.buffer = buffer;
+    this.buffer = source ? toTypedArray(source) : undefined;
     this.width = 0;
     this.height = 0;
     this.status = 'unloaded';
@@ -164,7 +166,7 @@ export class Image {
     environment.destroyDecodedImage(this.decoded);
   }
 
-  #onBuffer(buffer: ArrayBufferLike) {
+  #onBuffer(buffer: Uint8Array) {
     const {width, height} = parseImageDimensions(buffer);
     this.width = width;
     this.height = height;
@@ -189,7 +191,8 @@ export class Image {
     if (this.status === 'unloaded') {
       try {
         const url = new URL(this.src);
-        this.buffer = this.tryObjectUrl(url) || await environment.resolveUrl(url);
+        const source = this.tryObjectUrl(url) || await environment.resolveUrl(url);
+        this.buffer = toTypedArray(source);
         this.#onBuffer(this.buffer);
         this.onLoaded();
         this.decoded = await environment.createDecodedImage(this);
@@ -203,7 +206,8 @@ export class Image {
     if (this.status === 'unloaded') {
       try {
         const url = new URL(this.src);
-        this.buffer = this.tryObjectUrl(url) || environment.resolveUrlSync(url);
+        const source = this.tryObjectUrl(url) || environment.resolveUrlSync(url);
+        this.buffer = toTypedArray(source);
         this.#onBuffer(this.buffer);
         this.onLoaded();
       } catch (e) {

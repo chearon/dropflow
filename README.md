@@ -200,7 +200,7 @@ The first step in a dropflow program is to register fonts to be selected by the 
 
 `file:///` URLs will `load()` synchronously on the backend via `readFileSync`. To get synchronous behavior without having promises swallow errors, you can use the `loadSync` method.
 
-`ArrayBuffers` are loaded immediately in the constructor, just like in the browser.
+Buffers passed to the constructor cause the font to load synchronously, just like in the browser.
 
 ```ts
 const fonts: FontFaceSet;
@@ -213,8 +213,10 @@ class FontFaceSet {
   clear(): void;
 }
 
+type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
+
 class FontFace {
-  constructor(family: string, source: URL | ArrayBuffer, descriptors?: FontFaceDescriptors);
+  constructor(family: string, source: URL | BufferSource, descriptors?: FontFaceDescriptors);
   load(): Promise<FontFace>;
   loaded: Promise<FontFace>;
 }
@@ -275,7 +277,9 @@ Since dropflow cannot use system fonts, this is similar to having fallback fonts
 ### `createFaceFromTables`
 
 ```ts
-function createFaceFromTables(source: URL | ArrayBufferLike): Promise<FontFace>;
+type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
+
+function createFaceFromTables(source: URL | BufferSource): Promise<FontFace>;
 ```
 
 This can be used if you want a font to be described (family, weight, etc) by its internal metadata. It also reads language information from the font, which will rank it more optimally in the fallback list for a run of text. It will also result in a more appropriate CJK font being chosen for CJK text when the language is known.
@@ -285,10 +289,10 @@ A `Promise` is returned if the `URL` is a non-`file://` URL, otherwise, a `FontF
 This function partly exists to keep behavior that dropflow used to have, since it did not used to support specifying custom font metadata for font selection (it _only_ read metadata from inside the font). The test suite also takes advantage of the fallback list being properly ordered by language for its convenience. In most cases, it is fine to use the `FontFace` constructor instead.
 
 ```ts
-function createFaceFromTablesSync(source: URL | ArrayBufferLike): FontFace;
+function createFaceFromTablesSync(source: URL | BufferSource): FontFace;
 ```
 
-If the `source` is an ArrayBuffer or a file:// URL in Node/Bun, this can be used to load synchronously and get synchronous exceptions.
+If the `source` is a `BufferSource` or a file:// URL in Node/Bun, this can be used to load synchronously and get synchronous exceptions.
 
 ### Differences with the CSS Font Loading API
 
@@ -417,7 +421,9 @@ If the document contains images, painting to canvas will throw an error. The can
 ### `createObjectURL` and `revokeObjectURL`
 
 ```ts
-function createObjectURL(buffer: ArrayBufferLike): string;
+type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
+
+function createObjectURL(buffer: BufferSource): string;
 function revokeObjectURL(url: string): void;
 ```
 
@@ -596,6 +602,8 @@ If you want to use `@napi-rs/canvas` or `skia-canvas`, you'll need just a few li
 There are 6 hooks you can override, documented below. They have default implementations based on whether dropflow was built for the browser or node ("browser" export condition or "default") but may not be sufficient for your use case.
 
 ```ts
+type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
+
 const environment: Environment;
 
 export interface Environment {
@@ -629,13 +637,13 @@ export interface Environment {
    * Must return a promise of a buffer for the given URL. This used for fonts
    * and will be used for images.
    */
-  resolveUrl(url: URL): Promise<ArrayBufferLike>;
+  resolveUrl(url: URL): Promise<BufferSource>;
   /**
    * Same as `resolveUrl`, but synchronous if it's a file:// URL. This should
    * throw if URL is not a file:// URL, which would mean the user called
    * loadSync on a document with asynchronous-only URLs.
    */
-  resolveUrlSync(url: URL): ArrayBufferLike;
+  resolveUrlSync(url: URL): BufferSource;
   /**
    * During `flow.load` this will get called for paint backends that need to
    * decode images first, asynchronously (canvas). The result will be stored on

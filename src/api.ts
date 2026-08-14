@@ -12,6 +12,8 @@ import {BoxArea, Layout, prelayout, postlayout} from './layout-box.ts';
 import {onLoadWalkerElementForImage} from './layout-image.ts';
 import {id, uuid} from './util.ts';
 
+import type {BufferSource} from "./util.ts";
+
 import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
 import type {Style} from './style.ts';
@@ -275,9 +277,9 @@ export function loadSync(root: HTMLElement): LoadableResource[] {
   return resources;
 }
 
-export const objectStore = new Map<string, ArrayBufferLike>();
+export const objectStore = new Map<string, BufferSource>();
 
-export function createObjectURL(buffer: ArrayBufferLike): string {
+export function createObjectURL(buffer: BufferSource): string {
   let url = 'blob:dropflowdata:' + uuid();
   objectStore.set(url, buffer);
   return url;

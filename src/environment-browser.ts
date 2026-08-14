@@ -35,7 +35,8 @@ if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
 if (environment.createDecodedImage === defaultEnvironment.createDecodedImage) {
   environment.createDecodedImage = async (image) => {
     const img = new Image();
-    img.src = URL.createObjectURL(new Blob([image.buffer as ArrayBuffer]));
+    const blob = new Blob([image.buffer!])
+    img.src = URL.createObjectURL(blob);
     await img.decode();
     return img;
   };

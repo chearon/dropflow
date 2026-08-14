@@ -216,3 +216,13 @@ export class Deferred<T> {
     });
   }
 }
+
+export type BufferSource = ArrayBufferView<ArrayBufferLike> | ArrayBufferLike;
+
+export function toTypedArray(buf: BufferSource) {
+  if (buf instanceof ArrayBuffer || buf instanceof SharedArrayBuffer) {
+    return new Uint8Array(buf);
+  } else {
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+}

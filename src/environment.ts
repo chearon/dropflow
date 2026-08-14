@@ -1,5 +1,6 @@
 import type {LoadedFontFace} from "./text-font.ts";
 import type {Image} from "./layout-image.ts";
+import type {BufferSource} from "./util.ts";
 
 // !!! NOTE !!! if you change anything below, change the readme too
 export interface Environment {
@@ -33,13 +34,13 @@ export interface Environment {
    * Must return a promise of a buffer for the given URL. This used for fonts
    * and will be used for images.
    */
-  resolveUrl(url: URL): Promise<ArrayBufferLike>;
+  resolveUrl(url: URL): Promise<BufferSource>;
   /**
    * Same as `resolveUrl`, but synchronous if it's a file:// URL. This should
    * throw if URL is not a file:// URL, which would mean the user called
    * loadSync on a document with asynchronous-only URLs.
    */
-  resolveUrlSync(url: URL): ArrayBufferLike;
+  resolveUrlSync(url: URL): BufferSource;
   /**
    * During `flow.load` this will get called for paint backends that need to
    * decode images first, asynchronously (canvas). The result will be stored on

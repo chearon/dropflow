@@ -4,12 +4,13 @@ import wasm from './wasm.ts';
 import {HbSet, hb_tag, HB_OT_TAG_GSUB, HB_OT_TAG_GPOS, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX} from './text-harfbuzz.ts';
 import {environment} from './environment.ts';
 import {nameToCode, tagToCode} from '../gen/script-names.ts';
-import {Deferred} from './util.ts';
+import {Deferred, toTypedArray} from './util.ts';
 
 import type {HbFace, HbFont} from './text-harfbuzz.ts';
 import type {Style, FontWeight, FontStyle, FontVariant, FontStretch} from './style.ts';
 import type {LoadWalkerContext} from './api.ts';
 import type {HTMLElement, TextNode} from './dom.ts';
+import type {BufferSource} from './util.ts';
 
 // See FcStrContainsIgnoreCase in fcstr.c
 function strContainsIgnoreCase(s1: string, s2: string) {
@@ -120,7 +121,7 @@ const NonKerningSpaceFeatures = 1 << 2;
 let uniqueFamily = 1;
 
 export class LoadedFontFace {
-  data: ArrayBufferLike;
+  data: Uint8Array;
   allocated: boolean;
   hbface: HbFace;
   hbfont: HbFont;
@@ -149,7 +150,7 @@ export class LoadedFontFace {
   nonDefaultSubSpaceFeatures: Uint32Array;
   onDestroy?: () => void;
 
-  _createHb(data: ArrayBufferLike, url?: URL) {
+  _createHb(data: Uint8Array, url?: URL) {
     const blob = hb.createBlob(new Uint8Array(data));
     if (blob.countFaces() !== 1) {
       blob.destroy();
@@ -170,7 +171,7 @@ export class LoadedFontFace {
     return new URL(`anon://${family}-${desc.weight}-${desc.style}`);
   }
 
-  constructor(data: ArrayBufferLike, face?: FontFace, url?: URL) {
+  constructor(data: Uint8Array, face?: FontFace, url?: URL) {
     this.data = data;
     this.allocated = true;
 
@@ -712,7 +713,7 @@ export class FontFace {
 
   constructor(
     family: string,
-    source: URL | ArrayBufferLike,
+    source: URL | BufferSource,
     descriptors?: FontFaceDescriptors
   ) {
     this.family = family;
@@ -770,7 +771,8 @@ export class FontFace {
     return !this._unicodeRange || this._unicodeRange.has(unicode);
   }
 
-  #loadData(data: ArrayBufferLike, url?: URL) {
+  #loadData(source: BufferSource, url?: URL) {
+    const data = toTypedArray(source);
     let face: LoadedFontFace | undefined;
 
     try {
@@ -802,12 +804,12 @@ export class FontFace {
 
     if (result instanceof Promise) {
       result.then(
-        (data: ArrayBufferLike) => this.#loadData(data, url),
+        source => this.#loadData(toTypedArray(source), url),
         (error: Error) => this.#onError(error)
       );
     } else if (result) {
       // #sync = true
-      this.#loadData(result, url);
+      this.#loadData(toTypedArray(result), url);
     }
     return this.#status.promise;
   }
@@ -829,7 +831,7 @@ export class FontFace {
 
 export const fonts = new FontFaceSet();
 
-function createFaceFromTablesImpl(source: ArrayBufferLike, url?: URL): FontFace {
+function createFaceFromTablesImpl(source: Uint8Array, url?: URL): FontFace {
   const loaded = new LoadedFontFace(source, undefined, url);
   let face: FontFace | undefined;
 
@@ -865,15 +867,15 @@ function createFaceFromTablesImpl(source: ArrayBufferLike, url?: URL): FontFace 
 // care what the description is. Plus I didn't want to delete all this work!
 export function createFaceFromTables(source: URL): FontFace | Promise<FontFace> {
   const res = environment.resolveUrl(source);
-  return res.then(buf => createFaceFromTablesImpl(buf, source));
+  return res.then(buf => createFaceFromTablesImpl(toTypedArray(buf), source));
 }
 
-export function createFaceFromTablesSync(source: URL | ArrayBufferLike): FontFace {
+export function createFaceFromTablesSync(source: URL | BufferSource): FontFace {
   if (source instanceof URL) {
     const res = environment.resolveUrlSync(source);
-    return createFaceFromTablesImpl(res, source);
+    return createFaceFromTablesImpl(toTypedArray(res), source);
   } else {
-    return createFaceFromTablesImpl(source);
+    return createFaceFromTablesImpl(toTypedArray(source));
   }
 }
 

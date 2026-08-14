@@ -1298,8 +1298,9 @@ function doInlineBoxModelForAbsoluteBox(
   let marginLineLeft = styleMarginLineLeft === 'auto' ? 0 : styleMarginLineLeft;
   let marginLineRight = styleMarginLineRight === 'auto' ? 0 : styleMarginLineRight;
   let sizedFromInsets = false;
+  let overConstrained = false;
   let inlineSize;
-  let lineLeft = insetLineLeft === 'auto' ? 0 : insetLineLeft;
+  let lineLeft;
 
   // solve:
   // left = px  , width = auto, right = px
@@ -1349,34 +1350,36 @@ function doInlineBoxModelForAbsoluteBox(
       marginLineRight = rest - marginLineLeft;
     }
 
-    // Otherwise the values are over-constrained. The line-right inset is the
-    // one ignored in ltr and the line-left one in rtl, which is what falls out
-    // of positioning against the retained side below
-    if (styleMarginLineLeft !== 'auto' && styleMarginLineRight !== 'auto' && !ltr) {
-      lineLeft = cInlineSize - insetLineRight - marginLineRight - inlineSize;
-    } else {
-      lineLeft += marginLineLeft;
-    }
+    // Otherwise the values are over-constrained
+    overConstrained = styleMarginLineLeft !== 'auto' && styleMarginLineRight !== 'auto';
   }
 
-  // solve:
-  // left = auto, width = auto, right = auto
-  // left = auto, width = px  , right = auto
   if (insetLineLeft === 'auto' && insetLineRight === 'auto') {
-    lineLeft = box.getBorderArea().lineLeft; // against static cb
+    // solve:
+    // left = auto, width = auto, right = auto
+    // left = auto, width = px  , right = auto
+    lineLeft = box.getBorderArea().lineLeft; // against the static cb
     let area = staticContainingBlock;
     while (area && area !== containingBlock) {
       lineLeft += containingBlock.getLineLeftOfAreaAgainstSelf(area);
       area = area.parent;
     }
     if (!ltr) lineLeft -= inlineSize;
-  }
-
-  // solve:
-  // left = auto, width = auto, right = px
-  // left = auto, width = px  , right = px
-  if (insetLineLeft === 'auto' && insetLineRight !== 'auto') {
+  } else if (insetLineLeft !== 'auto' && (insetLineRight === 'auto' || ltr || !overConstrained)) {
+    // solve:
+    // left = px  , width = auto, right = auto
+    // left = px  , width = px  , right = auto
+    // left = px  , width = auto, right = px
+    // left = px  , width = px  , right = px  , unless over-constrained in rtl
+    lineLeft = insetLineLeft + marginLineLeft;
+  } else if (insetLineRight !== 'auto') {
+    // solve:
+    // left = auto, width = auto, right = px
+    // left = auto, width = px  , right = px
+    // left = px  , width = px  , right = px  , over-constrained in rtl
     lineLeft = cInlineSize - insetLineRight - marginLineRight - inlineSize;
+  } else {
+    throw new Error('Assertion failed');
   }
 
   box.setInlineOuterSize(containingBlock, inlineSize);

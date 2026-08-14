@@ -163,7 +163,10 @@ export abstract class Box extends TreeNode {
     // 17..18: propagation bits: Inline <- FormattingBox
     hasFloatOrReplaced:        1 << 17,
     hasInlineBlocks:           1 << 18,
-    // 19..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    // 19: the only bit that also propagates out of an Inline, up to the
+    // containing block: Inline, FormattingBox <- Inline, FormattingBox
+    hasAbsoluteInCb:           1 << 19,
+    // 20..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**
@@ -415,6 +418,10 @@ export abstract class Box extends TreeNode {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }
 
+  hasAbsoluteInCb() {
+    return Boolean(this.bitfield & Box.BITS.hasAbsoluteInCb);
+  }
+
   postlayoutPreorder(layout: Layout) {
     // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
     // and use normal inline areas instead, with fragmentation
@@ -568,10 +575,18 @@ export abstract class FormattingBox extends Box {
     if (this.isFloat()) {
       parent.bitfield |= Box.BITS.hasFloatOrReplaced;
     }
+
+    if (this.isAbsolute() || this.hasAbsoluteInCb() && !this.isPositioned()) {
+      parent.bitfield |= Box.BITS.hasAbsoluteInCb;
+    }
   }
 
   isInlineLevel() {
     return this.style.display.outer === 'inline';
+  }
+
+  isAbsoluteContainingBlock() {
+    return (this.isPositioned() || this.treeStart === 0) && this.hasAbsoluteInCb();
   }
 }
 
@@ -610,6 +625,10 @@ export class BoxArea {
     return this.box.style.direction;
   }
 
+  getWritingModeAsParticipant() {
+    return this.parent ? this.parent.getEstablishedWritingMode() : 'horizontal-tb';
+  }
+
   get x() {
     return this.lineLeft;
   }
@@ -632,6 +651,30 @@ export class BoxArea {
 
   get height() {
     return this.blockSize;
+  }
+
+  getBlockEndInset() {
+    if (!this.parent) return 0;
+    if (
+      (this.getWritingModeAsParticipant() === 'horizontal-tb') !==
+      (this.parent.getWritingModeAsParticipant() === 'horizontal-tb')
+    ) {
+      return this.parent.inlineSize - this.blockStart - this.blockSize;
+    } else {
+      return this.parent.blockSize - this.blockStart - this.blockSize;
+    }
+  }
+
+  getLineRightInset() {
+    if (!this.parent) return 0;
+    if (
+      (this.getWritingModeAsParticipant() === 'horizontal-tb') !==
+      (this.parent.getWritingModeAsParticipant() === 'horizontal-tb')
+    ) {
+      return this.parent.blockSize - this.lineLeft - this.inlineSize;
+    } else {
+      return this.parent.inlineSize - this.lineLeft - this.inlineSize;
+    }
   }
 
   setParent(p: BoxArea) {
@@ -666,6 +709,40 @@ export class BoxArea {
     } else {
       return this.inlineSize;
     }
+  }
+
+  getLineLeftOfAreaAgainstSelf(area: BoxArea) {
+    const thisCb = this.box.getContainingBlock();
+    const thisWm = this.box.getWritingModeAsParticipant(thisCb);
+    const areaCb = area.box.getContainingBlock();
+    const areaWm = area.box.getWritingModeAsParticipant(areaCb);
+
+    if (thisWm === 'horizontal-tb') {
+      if (areaWm === 'vertical-rl') return area.getBlockEndInset();
+      if (areaWm === 'vertical-lr') return area.blockStart;
+    } else { // 'vertical-rl', 'vertical-lr'
+      if (areaWm === 'horizontal-tb') return area.blockStart;
+    }
+
+    return area.lineLeft;
+  }
+
+  getBlockStartOfAreaAgainstSelf(area: BoxArea) {
+    const thisWm = this.getEstablishedWritingMode();
+    const areaCb = area.box.getContainingBlock();
+    const areaWm = area.box.getWritingModeAsParticipant(areaCb);
+
+    if (thisWm === 'horizontal-tb') {
+      if (areaWm !== 'horizontal-tb') return area.lineLeft;
+    } else if (thisWm === 'vertical-rl') {
+      if (areaWm === 'horizontal-tb') return area.getLineRightInset();
+      if (areaWm === 'vertical-lr') return area.getBlockEndInset();
+    } else { // 'vertical-lr'
+      if (areaWm === 'horizontal-tb') return area.lineLeft;
+      if (areaWm === 'vertical-rl') return area.getBlockEndInset();
+    }
+
+    return area.blockStart;
   }
 
   absolutify() {
@@ -734,56 +811,6 @@ export class BoxArea {
   }
 }
 
-/**
- * An absolutely positioned box whose insets are `auto` on an axis sits at the
- * position it would have had in flow, which is known in the axes of its in-flow
- * parent, not of its containing block. Both of those are ancestors, so both are
- * already absolute when postlayout reaches this box, and the offset can be
- * mapped through physical coordinates.
- *
- * `area` is the content area of the in-flow parent, which is the nearest block
- * container ancestor: the only boxes that can sit between them are inlines.
- */
-function shiftToStaticPosition(box: Box, staticPosition: StaticPosition, area: BoxArea) {
-  const [blockOffset, inlineOffset] = staticPosition;
-  const borderArea = box.getBorderArea();
-  const containingBlock = borderArea.parent;
-  if (!containingBlock) throw new Error('Assertion failed');
-  // Layout only leaves room for the static position when it had no inset to
-  // position against, which is the same question the box model asked
-  const needsBlock = box.style.getInsetBlockStart(containingBlock) === 'auto' &&
-    box.style.getInsetBlockEnd(containingBlock) === 'auto';
-  const needsLineLeft = box.style.getInsetLineLeft(containingBlock) === 'auto' &&
-    box.style.getInsetLineRight(containingBlock) === 'auto';
-  if (!needsBlock && !needsLineLeft) return;
-  const parentWritingMode = area.getEstablishedWritingMode();
-  let x, y;
-
-  if (parentWritingMode === 'vertical-lr') {
-    x = area.x + blockOffset;
-    y = area.y + inlineOffset;
-  } else if (parentWritingMode === 'vertical-rl') {
-    x = area.x + area.width - blockOffset;
-    y = area.y + inlineOffset;
-  } else { // 'horizontal-tb'
-    x = area.x + inlineOffset;
-    y = area.y + blockOffset;
-  }
-
-  const writingMode = containingBlock.getEstablishedWritingMode();
-
-  if (writingMode === 'vertical-lr') {
-    if (needsBlock) borderArea.blockStart += x - containingBlock.x;
-    if (needsLineLeft) borderArea.lineLeft += y - containingBlock.y;
-  } else if (writingMode === 'vertical-rl') {
-    if (needsBlock) borderArea.blockStart += containingBlock.x + containingBlock.width - x;
-    if (needsLineLeft) borderArea.lineLeft += y - containingBlock.y;
-  } else { // 'horizontal-tb'
-    if (needsBlock) borderArea.blockStart += y - containingBlock.y;
-    if (needsLineLeft) borderArea.lineLeft += x - containingBlock.x;
-  }
-}
-
 export function prelayout(layout: Layout, icb: BoxArea) {
   const parents: (BlockContainer | Inline)[] = [];
   const ifcs: BlockContainerOfInlines[] = [];
@@ -841,26 +868,11 @@ export function prelayout(layout: Layout, icb: BoxArea) {
   }
 }
 
-export function postlayout(layout: Layout, staticPositions: Map<Box, StaticPosition>) {
+export function postlayout(layout: Layout) {
   const parents: (BlockContainer | Inline)[] = [];
 
   for (let i = 0; i < layout.tree.length; i++) {
     const item = layout.tree[i];
-
-    if (item.isFormattingBox() && item.isAbsolute()) {
-      // The offset was recorded in the axes of the in-flow parent, which the
-      // preorder walk has already absolutified
-      const staticPosition = staticPositions.get(item);
-      if (staticPosition) {
-        let inflowParent;
-        for (let j = parents.length - 1; j >= 0 && !inflowParent; j--) {
-          if (parents[j].isBlockContainer()) inflowParent = parents[j];
-        }
-        if (!inflowParent) throw new Error('Assertion failed');
-        shiftToStaticPosition(item, staticPosition, inflowParent.getContentArea());
-      }
-    }
-
     item.postlayoutPreorder(layout);
     if (item.isBlockContainer() || item.isInline()) {
       parents.push(item);
@@ -919,17 +931,6 @@ export function log(layout: Layout, logger?: Logger, options?: TreeLogOptions) {
 
   logger.flush();
 }
-
-/**
- * Where an absolutely positioned box would have been if it were in flow, in the
- * logical axes of the content area of its in-flow parent. Only used when both
- * insets on that axis are `auto` (CSS 2.2 § 10.3.7, § 10.6.4).
- *
- * Only needed between line building and postlayout, so it is not stored on the
- * `Layout`: it rides along on the layout context and is gone once `reflow`
- * returns.
- */
-export type StaticPosition = [blockOffset: number, inlineOffset: number];
 
 export class Layout {
   tree: InlineLevel[];

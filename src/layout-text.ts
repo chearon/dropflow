@@ -6,6 +6,7 @@ import {
   IfcVacancy,
   Inline,
   layoutFloatBox,
+  layoutStaticBox,
   layoutContribution,
   createInlineIteratorState,
   inlineIteratorStateNext,
@@ -2926,11 +2927,11 @@ export function createIfcLineboxes(
       // line is where it would have been if it were in flow, which is the
       // position it uses when its insets are auto (CSS 2.2 § 10.3.7, § 10.6.4)
       const contentArea = ifc.block.getContentArea();
+      const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero(containingBlock);
       const ltr = ifc.block.style.direction === 'ltr';
-      ctx.staticPositions.set(mark.box, [
-        ifc.vacancy.blockOffset,
-        ltr ? 0 : contentArea.inlineSize
-      ]);
+      layoutStaticBox(mark.box);
+      mark.box.setBlockPosition(ifc.vacancy.blockOffset);
+      mark.box.setInlinePosition(ltr ? lineLeft : contentArea.inlineSize - lineRight);
     }
 
     if (mark.inlinePost) {

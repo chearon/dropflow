@@ -3,12 +3,15 @@ on: workflow_call
 jobs:
   node:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24, 26]
     steps:
     - uses: actions/checkout@v4
     - name: Node.js v23
       uses: actions/setup-node@v3
       with:
-        node-version: 23
+        node-version: ${{ matrix.version }}
     - run: npm install --frozen-lockfile
     - run: npm run tsc
     - run: npm run test:dist

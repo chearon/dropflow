@@ -2298,6 +2298,7 @@ class InlineFormattingContext {
   lineHasWord: boolean;
   /** True when we should append the line */
   lineIsDirty: boolean;
+  lineHasAbsolutes: boolean;
   /** Inlines to be fragmented; shared across finishLine calls */
   inlines: Inline[];
 
@@ -2324,6 +2325,7 @@ class InlineFormattingContext {
     this.blockOffset = this.bfc.cbBlockStart;
     this.lineHasWord = false;
     this.lineIsDirty = false;
+    this.lineHasAbsolutes = false;
     this.inlines = [];
   }
 }
@@ -2564,9 +2566,10 @@ function positionPhysicalLineItems(
         }
       } else {
         const box = layout.tree[item.treeIndex];
-        if (box.isFormattingBox() && !box.isOutOfFlow()) {
+        if (box.isFormattingBox() && !box.isFloat()) {
           const {lineLeft} = box.getMarginsAutoIsZero(containingBlock);
           box.setInlinePosition(x + lineLeft);
+          if (box.isAbsolute()) box.setBlockPosition(line.blockOffset);
         }
       }
       x += item.inlineSpace + item.endSpace;
@@ -2580,9 +2583,10 @@ function positionPhysicalLineItems(
         ifc.block.items[item.itemIndex].x = x;
       } else {
         const box = layout.tree[item.treeIndex];
-        if (box.isFormattingBox() && !box.isOutOfFlow()) {
+        if (box.isFormattingBox() && !box.isFloat()) {
           const {lineLeft} = box.getMarginsAutoIsZero(containingBlock);
           box.setInlinePosition(x - lineLeft);
+          if (box.isAbsolute()) box.setBlockPosition(line.blockOffset);
         }
       }
       x -= item.endSpace;
@@ -2943,15 +2947,10 @@ export function createIfcLineboxes(
     }
 
     if (mark.box?.isAbsolute()) {
-      // The box is out of flow, so it contributes nothing to the line, but the
-      // line is where it would have been if it were in flow, which is the
-      // position it uses when its insets are auto (CSS 2.2 § 10.3.7, § 10.6.4)
-      const contentArea = ifc.block.getContentArea();
-      const {lineLeft, lineRight} = mark.box.getMarginsAutoIsZero(containingBlock);
-      const ltr = ifc.block.style.direction === 'ltr';
+      // Rides the line with no width, to learn its static position (§ 10.3.7)
       layoutStaticBox(mark.box);
-      mark.box.setBlockPosition(ifc.vacancy.blockOffset);
-      mark.box.setInlinePosition(ltr ? lineLeft : contentArea.inlineSize - lineRight);
+      ifc.candidates.addBox(mark.box.treeStart, mark.box.treeFinal, 0);
+      ifc.lineHasAbsolutes = true;
     }
 
     if (mark.inlinePost) {
@@ -3094,12 +3093,17 @@ export function createIfcLineboxes(
     // There could have been floats after the paragraph's final line break
     bfc.getLocalVacancyForLine(bfc, ifc.blockOffset, ifc.line.height(), ifc.vacancy);
     finishLine(ctx, ifc, true);
-  } else if (ifc.candidates.width.hasContent()) {
+  } else if (ifc.candidates.width.hasContent() || ifc.lineHasAbsolutes) {
     // We never hit a break opportunity because there is no non-whitespace
     // text and no inline-blocks, but there is some content on spans (border,
-    // padding, or margin). Add everything.
+    // padding, or margin), or an absolute still needs a static position.
+    // Add everything.
+    const forAbsolutesOnly = !ifc.candidates.width.hasContent();
+    const blockOffset = ifc.blockOffset;
     ifc.line.concat(ifc.candidates);
     finishLine(ctx, ifc, true);
+    // Not a line box, so it adds no height
+    if (forAbsolutesOnly) ifc.blockOffset = blockOffset;
   } else {
     bfc.fctx?.consumeMisfits();
   }

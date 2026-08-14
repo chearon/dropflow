@@ -163,7 +163,10 @@ export abstract class Box extends TreeNode {
     // 17..18: propagation bits: Inline <- FormattingBox
     hasFloatOrReplaced:        1 << 17,
     hasInlineBlocks:           1 << 18,
-    // 19..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    // 19: the only bit that also propagates out of an Inline, up to the
+    // containing block: Inline, FormattingBox <- Inline, FormattingBox
+    hasAbsoluteInCb:           1 << 19,
+    // 20..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
   };
 
   /**
@@ -415,6 +418,10 @@ export abstract class Box extends TreeNode {
     return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
   }
 
+  hasAbsoluteInCb() {
+    return Boolean(this.bitfield & Box.BITS.hasAbsoluteInCb);
+  }
+
   postlayoutPreorder(layout: Layout) {
     // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
     // and use normal inline areas instead, with fragmentation
@@ -555,7 +562,11 @@ export abstract class FormattingBox extends Box {
   }
 
   isOutOfFlow() {
-    return this.style.float !== 'none'; // TODO: or position === 'absolute'
+    return this.style.float !== 'none' || this.style.position === 'absolute';
+  }
+
+  isAbsolute() {
+    return this.style.position === 'absolute';
   }
 
   propagate(parent: Box) {
@@ -564,10 +575,18 @@ export abstract class FormattingBox extends Box {
     if (this.isFloat()) {
       parent.bitfield |= Box.BITS.hasFloatOrReplaced;
     }
+
+    if (this.isAbsolute() || this.hasAbsoluteInCb() && !this.isPositioned()) {
+      parent.bitfield |= Box.BITS.hasAbsoluteInCb;
+    }
   }
 
   isInlineLevel() {
     return this.style.display.outer === 'inline';
+  }
+
+  isAbsoluteContainingBlock() {
+    return (this.isPositioned() || this.treeStart === 0) && this.hasAbsoluteInCb();
   }
 }
 
@@ -606,6 +625,10 @@ export class BoxArea {
     return this.box.style.direction;
   }
 
+  getWritingModeAsParticipant() {
+    return this.parent ? this.parent.getEstablishedWritingMode() : 'horizontal-tb';
+  }
+
   get x() {
     return this.lineLeft;
   }
@@ -630,8 +653,47 @@ export class BoxArea {
     return this.blockSize;
   }
 
+  getBlockEndInset() {
+    if (!this.parent) return 0;
+    if (
+      (this.getWritingModeAsParticipant() === 'horizontal-tb') !==
+      (this.parent.getWritingModeAsParticipant() === 'horizontal-tb')
+    ) {
+      return this.parent.inlineSize - this.blockStart - this.blockSize;
+    } else {
+      return this.parent.blockSize - this.blockStart - this.blockSize;
+    }
+  }
+
+  getLineRightInset() {
+    if (!this.parent) return 0;
+    if (
+      (this.getWritingModeAsParticipant() === 'horizontal-tb') !==
+      (this.parent.getWritingModeAsParticipant() === 'horizontal-tb')
+    ) {
+      return this.parent.blockSize - this.lineLeft - this.inlineSize;
+    } else {
+      return this.parent.inlineSize - this.lineLeft - this.inlineSize;
+    }
+  }
+
   setParent(p: BoxArea) {
     this.parent = p;
+  }
+
+  blockSizeForPotentiallyOrthogonal(box: FormattingBox) {
+    if (!this.parent) return this.blockSize; // root area
+    if (!this.box.isBlockContainer()) return this.blockSize; // cannot be orthogonal
+    const cb1 = this.box.getContainingBlock();
+    const cb2 = box.getContainingBlock();
+    if (
+      (this.box.getWritingModeAsParticipant(cb1) === 'horizontal-tb') !==
+      (box.getWritingModeAsParticipant(cb2) === 'horizontal-tb')
+    ) {
+      return this.inlineSize;
+    } else {
+      return this.blockSize;
+    }
   }
 
   inlineSizeForPotentiallyOrthogonal(box: FormattingBox) {
@@ -647,6 +709,39 @@ export class BoxArea {
     } else {
       return this.inlineSize;
     }
+  }
+
+  getLineLeftOfAreaAgainstSelf(area: BoxArea) {
+    const thisWm = this.getEstablishedWritingMode();
+    const areaCb = area.box.getContainingBlock();
+    const areaWm = area.box.getWritingModeAsParticipant(areaCb);
+
+    if (thisWm === 'horizontal-tb') {
+      if (areaWm === 'vertical-rl') return area.getBlockEndInset();
+      if (areaWm === 'vertical-lr') return area.blockStart;
+    } else { // 'vertical-rl', 'vertical-lr'
+      if (areaWm === 'horizontal-tb') return area.blockStart;
+    }
+
+    return area.lineLeft;
+  }
+
+  getBlockStartOfAreaAgainstSelf(area: BoxArea) {
+    const thisWm = this.getEstablishedWritingMode();
+    const areaCb = area.box.getContainingBlock();
+    const areaWm = area.box.getWritingModeAsParticipant(areaCb);
+
+    if (thisWm === 'horizontal-tb') {
+      if (areaWm !== 'horizontal-tb') return area.lineLeft;
+    } else if (thisWm === 'vertical-rl') {
+      if (areaWm === 'horizontal-tb') return area.getLineRightInset();
+      if (areaWm === 'vertical-lr') return area.getBlockEndInset();
+    } else { // 'vertical-lr'
+      if (areaWm === 'horizontal-tb') return area.lineLeft;
+      if (areaWm === 'vertical-rl') return area.getBlockEndInset();
+    }
+
+    return area.blockStart;
   }
 
   absolutify() {

@@ -82,7 +82,7 @@ const EMPTY_MAP = new Map();
 export class BlockFormattingContext {
   public inlineSize: number;
   public fctx?: FloatContext;
-  public stack: (BlockContainer | {post: BlockContainer})[];
+  public stack: (BlockContainer | {post: BlockContainer} | {abs: BlockLevel})[];
   public cbBlockStart: number;
   public cbLineLeft: number;
   public cbLineRight: number;
@@ -111,7 +111,7 @@ export class BlockFormattingContext {
     this.hypotheticals = EMPTY_MAP;
   }
 
-  collapseStart(layout: Layout, box: BlockLevel) {
+  collapseStart(layout: Layout, box: BlockLevel, ctx: LayoutContext) {
     const containingBlock = box.getContainingBlock();
     const marginBlockStart = box.style.getMarginBlockStart(containingBlock);
     let floatBottom = 0;
@@ -137,7 +137,7 @@ export class BlockFormattingContext {
     if (adjoinsPrevious) {
       this.margin.collection.add(marginBlockStart);
     } else {
-      this.positionBlockContainers();
+      this.positionBlockContainers(layout, ctx);
       const c = floatBottom - this.cbBlockStart;
       this.margin = {level: this.level, collection: new MarginCollapseCollection(c)};
       if (box.canCollapseThrough(layout)) this.margin.clearanceAtLevel = this.level;
@@ -151,7 +151,7 @@ export class BlockFormattingContext {
     const borderBlockStartWidth = box.style.getBorderBlockStartWidth(containingBlock);
     const adjoinsNext = paddingBlockStart === 0 && borderBlockStartWidth === 0;
 
-    this.collapseStart(layout, box);
+    this.collapseStart(layout, box, ctx);
 
     this.last = 'start';
     this.level += 1;
@@ -172,12 +172,12 @@ export class BlockFormattingContext {
     }
 
     if (!adjoinsNext) {
-      this.positionBlockContainers();
+      this.positionBlockContainers(layout, ctx);
       this.margin = {level: this.level, collection: new MarginCollapseCollection()};
     }
   }
 
-  boxEnd(layout: Layout, box: BlockContainer) {
+  boxEnd(layout: Layout, box: BlockContainer, ctx: LayoutContext) {
     const containingBlock = box.getContainingBlock();
     const {lineLeft, lineRight} = box.getContainingBlockToContent(containingBlock);
     const paddingBlockEnd = box.style.getPaddingBlockEnd(containingBlock);
@@ -206,7 +206,7 @@ export class BlockFormattingContext {
     this.cbLineRight -= lineRight;
 
     if (!adjoins) {
-      this.positionBlockContainers();
+      this.positionBlockContainers(layout, ctx);
       this.margin = {level: this.level, collection: new MarginCollapseCollection()};
     }
 
@@ -225,13 +225,18 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
-  boxAtomic(layout: Layout, box: BlockLevel) {
+  boxOutOfFlow(box: BlockLevel) {
+    layoutStaticBox(box);
+    this.stack.push({abs: box});
+  }
+
+  boxAtomic(layout: Layout, box: BlockLevel, ctx: LayoutContext) {
     const containingBlock = box.getContainingBlock();
     const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
     assumePx(marginBlockEnd);
-    this.collapseStart(layout, box);
+    this.collapseStart(layout, box, ctx);
     this.fctx?.boxStart();
-    this.positionBlockContainers();
+    this.positionBlockContainers(layout, ctx);
     box.setBlockPosition(this.cbBlockStart);
     this.margin.collection = new MarginCollapseCollection();
     this.margin.collection.add(marginBlockEnd);
@@ -264,14 +269,21 @@ export class BlockFormattingContext {
     return this.fctx || (this.fctx = new FloatContext(this, blockOffset));
   }
 
-  finalize(box: BlockContainer) {
+  finalize(layout: Layout, box: BlockContainer, ctx: LayoutContext) {
     if (!box.isBfcRoot()) throw new Error('This is for bfc roots only');
     const containingBlock = box.getContainingBlock();
     const blockSize = box.style.getBlockSize(containingBlock);
+    let insetBlockStart: number | 'auto' = 'auto';
+    let insetBlockEnd: number | 'auto' = 'auto';
 
-    this.positionBlockContainers();
+    this.positionBlockContainers(layout, ctx);
 
-    if (blockSize === 'auto') {
+    if (box.isAbsolute()) {
+      insetBlockStart = box.style.getInsetBlockStart(containingBlock);
+      insetBlockEnd = box.style.getInsetBlockEnd(containingBlock);
+    }
+
+    if (blockSize === 'auto' && !(insetBlockStart !== 'auto' && insetBlockEnd !== 'auto')) {
       let lineboxHeight = 0;
       if (box.isBlockContainerOfInlines()) {
         lineboxHeight = box.getContentArea().blockSize;
@@ -279,9 +291,11 @@ export class BlockFormattingContext {
       const blockSize = Math.max(lineboxHeight, this.cbBlockStart, this.fctx?.getBothBottom() ?? 0);
       box.setBlockSize(containingBlock, blockSize);
     }
+
+    finalizeBlockContainer(layout, box, ctx);
   }
 
-  positionBlockContainers() {
+  positionBlockContainers(layout: Layout, ctx: LayoutContext) {
     const sizeStack = this.sizeStack;
     const offsetStack = this.offsetStack;
     const margin = this.margin.collection.get();
@@ -292,6 +306,18 @@ export class BlockFormattingContext {
     this.cbBlockStart += margin;
 
     for (const item of this.stack) {
+      if ('abs' in item) {
+        // Out of flow: it takes a static position but no space, and its margins
+        // collapse with nothing
+        const level = sizeStack.length - 1;
+        const atMarginLevel = passedMarginLevel || this.margin.level === level;
+        const containingBlock = item.abs.getContainingBlock();
+        const {lineLeft} = item.abs.getMarginsAutoIsZero(containingBlock);
+        item.abs.setBlockPosition(sizeStack[level] + (atMarginLevel ? 0 : margin));
+        item.abs.setInlinePosition(lineLeft);
+        continue;
+      }
+
       const box = 'post' in item ? item.post : item;
 
       if ('post' in item) {
@@ -304,6 +330,8 @@ export class BlockFormattingContext {
         if (sBlockSize === 'auto' && box.isBlockContainerOfBlocks() && !box.isBfcRoot()) {
           box.setBlockSize(containingBlock, childSize);
         }
+
+        if (!box.isBfcRoot()) finalizeBlockContainer(layout, box, ctx);
 
         const blockSize = box.getBorderArea().blockSize;
 
@@ -813,7 +841,6 @@ export abstract class BlockContainerBase extends FormattingBox {
     super.propagate(parent);
 
     if (this.isInlineLevel()) {
-      // TODO: and not absolutely positioned
       parent.bitfield |= Box.BITS.hasInlineBlocks;
     }
   }
@@ -955,7 +982,8 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     return inline.hasText()
       || inline.hasSizedInline()
       || inline.hasFloatOrReplaced()
-      || inline.hasInlineBlocks();
+      || inline.hasInlineBlocks()
+      || inline.hasAbsoluteInCb();
   }
 
   doTextLayout(layout: Layout, ctx: LayoutContext) {
@@ -1095,13 +1123,17 @@ function layoutBlockBoxInner(
     for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
       const child = layout.tree[i];
       if (!child.isFormattingBox()) throw new Error('Assertion failed');
-      layoutBlockLevelBox(layout, child, cctx);
+      if (child.isAbsolute()) {
+        cctx.bfc!.boxOutOfFlow(child);
+      } else {
+        layoutBlockLevelBox(layout, child, cctx);
+      }
       i = child.treeFinal;
     }
   }
 
   if (establishedBfc) {
-    establishedBfc.finalize(box);
+    establishedBfc.finalize(layout, box, ctx);
     if (establishedBfc.fctx) {
       if (box.loggingEnabled()) {
         console.log('Left floats');
@@ -1113,7 +1145,7 @@ function layoutBlockBoxInner(
     }
   }
 
-  containingBfc?.boxEnd(layout, box);
+  containingBfc?.boxEnd(layout, box, ctx);
 }
 
 function layoutBlockBox(
@@ -1137,7 +1169,7 @@ function layoutReplacedBox(
   box.fillAreas(containingBlock);
   doInlineBoxModelForBlockBox(box);
   box.setBlockSize(containingBlock, box.getDefiniteInnerBlockSize());
-  ctx.bfc!.boxAtomic(layout, box);
+  ctx.bfc!.boxAtomic(layout, box, ctx);
 }
 
 export function layoutBlockLevelBox(
@@ -1239,6 +1271,246 @@ export function layoutFloatBox(
   }
 }
 
+function getShrinkToFitInlineSize(
+  layout: Layout,
+  box: BlockLevel,
+  available: number
+) {
+  const minContent = layoutContribution(layout, box, 'min-content');
+  const maxContent = layoutContribution(layout, box, 'max-content');
+  return Math.max(minContent, Math.min(maxContent, available));
+}
+
+// § 10.3.7
+function doInlineBoxModelForAbsoluteBox(
+  layout: Layout,
+  staticContainingBlock: BoxArea | null,
+  box: BlockLevel
+) {
+  const containingBlock = box.getContainingBlock();
+  const cInlineSize = containingBlock.inlineSizeForPotentiallyOrthogonal(box);
+  const ltr = box.getDirectionAsParticipant(containingBlock) === 'ltr';
+  const insetLineLeft = box.style.getInsetLineLeft(containingBlock);
+  const insetLineRight = box.style.getInsetLineRight(containingBlock);
+  const styleMarginLineLeft = box.style.getMarginLineLeft(containingBlock);
+  const styleMarginLineRight = box.style.getMarginLineRight(containingBlock);
+  const definiteInlineSize = box.getDefiniteOuterInlineSize(containingBlock);
+  let marginLineLeft = styleMarginLineLeft === 'auto' ? 0 : styleMarginLineLeft;
+  let marginLineRight = styleMarginLineRight === 'auto' ? 0 : styleMarginLineRight;
+  let sizedFromInsets = false;
+  let overConstrained = false;
+  let inlineSize;
+  let lineLeft;
+
+  // solve:
+  // left = px  , width = auto, right = px
+  // left = px  , width = auto, right = auto
+  // left = px  , width = px  , right = auto
+  if (definiteInlineSize !== undefined) {
+    inlineSize = definiteInlineSize;
+  } else if (box.isReplacedBox()) {
+    inlineSize = box.getIntrinsicIsize();
+  } else if (insetLineLeft !== 'auto' && insetLineRight !== 'auto') {
+    // Paragraph 3: both insets are given, so the size is what they leave behind
+    // and auto margins are zero
+    inlineSize = Math.max(0, cInlineSize
+      - insetLineLeft
+      - insetLineRight
+      - marginLineLeft
+      - marginLineRight);
+    sizedFromInsets = true;
+  } else {
+    // Paragraphs 1 and 5: shrink-to-fit over the space the insets leave behind
+    const available = cInlineSize
+      - (insetLineLeft === 'auto' ? 0 : insetLineLeft)
+      - (insetLineRight === 'auto' ? 0 : insetLineRight);
+    inlineSize = getShrinkToFitInlineSize(layout, box, available)
+      - marginLineLeft
+      - marginLineRight;
+  }
+
+  // solve:
+  // left = px  , width = px  , right = px
+  if (!sizedFromInsets && insetLineLeft !== 'auto' && insetLineRight !== 'auto') {
+    // Paragraph 2: the equation is solvable, so what is left over goes to the
+    // margins that are auto
+    const rest = cInlineSize - insetLineLeft - insetLineRight - inlineSize;
+
+    if (styleMarginLineLeft === 'auto' && styleMarginLineRight === 'auto') {
+      if (rest < 0) {
+        // Equal margins would be negative, so the line-start one is dropped
+        marginLineLeft = ltr ? 0 : rest;
+        marginLineRight = ltr ? rest : 0;
+      } else {
+        marginLineLeft = marginLineRight = rest / 2;
+      }
+    } else if (styleMarginLineLeft === 'auto') {
+      marginLineLeft = rest - marginLineRight;
+    } else if (styleMarginLineRight === 'auto') {
+      marginLineRight = rest - marginLineLeft;
+    }
+
+    // Otherwise the values are over-constrained
+    overConstrained = styleMarginLineLeft !== 'auto' && styleMarginLineRight !== 'auto';
+  }
+
+  if (insetLineLeft === 'auto' && insetLineRight === 'auto') {
+    // solve:
+    // left = auto, width = auto, right = auto
+    // left = auto, width = px  , right = auto
+    lineLeft = box.getBorderArea().lineLeft; // against the static cb
+    let area = staticContainingBlock;
+    while (area && area !== containingBlock) {
+      lineLeft += containingBlock.getLineLeftOfAreaAgainstSelf(area);
+      area = area.parent;
+    }
+    if (!ltr) lineLeft -= inlineSize;
+  } else if (insetLineLeft !== 'auto' && (insetLineRight === 'auto' || ltr || !overConstrained)) {
+    // solve:
+    // left = px  , width = auto, right = auto
+    // left = px  , width = px  , right = auto
+    // left = px  , width = auto, right = px
+    // left = px  , width = px  , right = px  , unless over-constrained in rtl
+    lineLeft = insetLineLeft + marginLineLeft;
+  } else if (insetLineRight !== 'auto') {
+    // solve:
+    // left = auto, width = auto, right = px
+    // left = auto, width = px  , right = px
+    // left = px  , width = px  , right = px  , over-constrained in rtl
+    lineLeft = cInlineSize - insetLineRight - marginLineRight - inlineSize;
+  } else {
+    throw new Error('Assertion failed');
+  }
+
+  box.setInlineOuterSize(containingBlock, inlineSize);
+  box.setInlinePosition(lineLeft);
+}
+
+// § 10.6.4
+function doBlockBoxModelForAbsoluteBox(
+  staticContainingBlock: BoxArea | null,
+  box: BlockLevel
+) {
+  const containingBlock = box.getContainingBlock();
+  const borderArea = box.getBorderArea();
+  const cBlockSize = containingBlock.blockSizeForPotentiallyOrthogonal(box);
+  const insetBlockStart = box.style.getInsetBlockStart(containingBlock);
+  const insetBlockEnd = box.style.getInsetBlockEnd(containingBlock);
+  const marginBlockStart = box.style.getMarginBlockStart(containingBlock);
+  const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
+  let blockSize = box.getDefiniteInnerBlockSize(containingBlock);
+
+  if (
+    blockSize === undefined &&
+    insetBlockStart !== 'auto' &&
+    insetBlockEnd !== 'auto'
+  ) {
+    // Paragraph 5: an auto size is what the two insets leave behind
+    const borderBlockStartWidth = box.style.getBorderBlockStartWidth(containingBlock);
+    const paddingBlockStart = box.style.getPaddingBlockStart(containingBlock);
+    const paddingBlockEnd = box.style.getPaddingBlockEnd(containingBlock);
+    const borderBlockEndWidth = box.style.getBorderBlockEndWidth(containingBlock);
+
+    blockSize = Math.max(0, cBlockSize
+      - insetBlockStart
+      - insetBlockEnd
+      - (marginBlockStart === 'auto' ? 0 : marginBlockStart)
+      - (marginBlockEnd === 'auto' ? 0 : marginBlockEnd)
+      - borderBlockStartWidth
+      - paddingBlockStart
+      - paddingBlockEnd
+      - borderBlockEndWidth);
+  }
+
+  if (blockSize !== undefined) {
+    box.setBlockSize(containingBlock, blockSize);
+  }
+
+  const outerBlockSize = borderArea.blockSize;
+  let usedMarginBlockStart = marginBlockStart === 'auto' ? 0 : marginBlockStart;
+  let usedMarginBlockEnd = marginBlockEnd === 'auto' ? 0 : marginBlockEnd;
+
+  if (insetBlockStart !== 'auto' && insetBlockEnd !== 'auto') {
+    const rest = cBlockSize - insetBlockStart - insetBlockEnd - outerBlockSize;
+
+    if (marginBlockStart === 'auto' && marginBlockEnd === 'auto') {
+      // Paragraph 6: equal margins center the box, negative values included
+      usedMarginBlockStart = usedMarginBlockEnd = rest / 2;
+    } else if (marginBlockStart === 'auto') {
+      usedMarginBlockStart = rest - usedMarginBlockEnd;
+    } else if (marginBlockEnd === 'auto') {
+      usedMarginBlockEnd = rest - marginBlockStart;
+    }
+    // Otherwise over-constrained, and the block-end inset is the one ignored
+  }
+
+  if (insetBlockStart !== 'auto') {
+    box.setBlockPosition(insetBlockStart + usedMarginBlockStart);
+  } else if (insetBlockEnd !== 'auto') {
+    box.setBlockPosition(cBlockSize - insetBlockEnd - usedMarginBlockEnd - outerBlockSize);
+  } else {
+    let blockStart = borderArea.blockStart + usedMarginBlockStart;
+    let area = staticContainingBlock;
+    while (area && area !== containingBlock) {
+      blockStart += containingBlock.getBlockStartOfAreaAgainstSelf(area);
+      area = area.parent;
+    }
+    box.setBlockPosition(blockStart);
+  }
+}
+
+function layoutAbsoluteBox(
+  layout: Layout,
+  staticContainingBlock: BoxArea | null,
+  box: BlockLevel,
+  ctx: LayoutContext
+) {
+  const cctx: LayoutContext = {...ctx, bfc: undefined};
+
+  // NB: fillAreas was called in layoutStaticBox
+  doInlineBoxModelForAbsoluteBox(layout, staticContainingBlock, box);
+  doBlockBoxModelForAbsoluteBox(staticContainingBlock, box);
+
+  // A replaced box has no inner layout: the box model above sized it
+  if (box.isBlockContainer()) layoutBlockBoxInner(layout, box, cctx);
+}
+
+function finalizeBlockContainer(
+  layout: Layout,
+  box: BlockContainer,
+  ctx: LayoutContext
+) {
+  if (box.isAbsoluteContainingBlock()) {
+    const staticParents: FormattingBox[] = [];
+
+    for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
+      const item = layout.tree[i];
+
+      if (item.isFormattingBox()) {
+        if (!item.isPositioned()) staticParents.push(item);
+        if (item.isAbsolute()) {
+          const staticParent = staticParents[staticParents.length - 1];
+          const staticContainingBlock = staticParent?.getContentArea() ?? null;
+          layoutAbsoluteBox(layout, staticContainingBlock, item, ctx);
+        }
+      }
+
+      // A positioned descendant finalizes its own absolutes
+      if (item.isBox() && item.isPositioned()) i = item.treeFinal;
+
+      while (
+        staticParents.length &&
+        i >= staticParents[staticParents.length - 1].treeFinal
+      ) staticParents.pop();
+    }
+  }
+}
+
+export function layoutStaticBox(box: FormattingBox) {
+  const containingBlock = box.getContainingBlock();
+  box.fillAreas(containingBlock);
+}
+
 export class Break extends TreeNode {
   public className = 'break';
 
@@ -1296,6 +1568,8 @@ export class Inline extends Box {
 
       // Bits that propagate to Inline propagate again if the parent is Inline
       parent.bitfield |= (this.bitfield & Box.PROPAGATES_TO_INLINE_BITS);
+    } else if (parent.isFormattingBox()) {
+      if (this.hasAbsoluteInCb()) parent.bitfield |= Box.BITS.hasAbsoluteInCb;
     }
   }
 
@@ -1561,12 +1835,8 @@ export function inlineIteratorStateNext(state: InlineIteratorState) {
         } else if (item.isBreak()) {
           state.buffered.push({state: 'break', index: state.index});
         } else {
-          if (item.isFloat()) {
-            state.buffered.push({state: 'box', item});
-          } else {
-            state.buffered.push({state: 'box', item});
-            state.isInlineBlock = true;
-          }
+          state.buffered.push({state: 'box', item});
+          if (!item.isOutOfFlow()) state.isInlineBlock = true;
           state.index = item.treeFinal;
         }
       }
@@ -1830,6 +2100,7 @@ export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
   // generatesBreak, etc
   if (
     el.style.float !== 'none' ||
+    el.style.position === 'absolute' ||
     el.style.overflow === 'hidden' ||
     el.style.display.inner === 'flow-root' ||
     el.parent && writingModeInlineAxis(el) !== writingModeInlineAxis(el.parent)
@@ -1862,7 +2133,15 @@ export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
         preBcInlineChild(tree, ctx);
         tree.push(new Break(child.style));
       } else if (child.style.display.outer === 'block') {
-        if (child.style.isOutOfFlow()) {
+        if (child.style.position === 'absolute') {
+          // Joins whichever formatting context is open: the BFC positions it
+          // among blocks, the IFC on the line it would have been on
+          if (ctx.ifcIndex > -1) {
+            preBcInlineChild(tree, ctx);
+          } else {
+            preBcBlockChild(tree, ctx);
+          }
+        } else if (child.style.isOutOfFlow()) {
           preBcInlineChild(tree, ctx);
         } else {
           preBcBlockChild(tree, ctx);

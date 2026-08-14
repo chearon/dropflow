@@ -35,6 +35,10 @@ const LogicalMaps = Object.freeze({
     borderLineRightStyle: 'borderRightStyle',
     borderInlineStartStyle: Object.freeze({ltr: 'borderLeftStyle', rtl: 'borderRightStyle'}),
     borderInlineEndStyle: Object.freeze({ltr: 'borderRightStyle', rtl: 'borderLeftStyle'}),
+    insetBlockStart: 'top',
+    insetBlockEnd: 'bottom',
+    insetLineLeft: 'left',
+    insetLineRight: 'right',
     blockSize: 'height',
     inlineSize: 'width'
   }),
@@ -63,6 +67,10 @@ const LogicalMaps = Object.freeze({
     borderLineRightStyle: 'borderBottomStyle',
     borderInlineStartStyle: Object.freeze({ltr: 'borderTopStyle', rtl: 'borderBottomStyle'}),
     borderInlineEndStyle: Object.freeze({ltr: 'borderBottomStyle', rtl: 'borderTopStyle'}),
+    insetBlockStart: 'left',
+    insetBlockEnd: 'right',
+    insetLineLeft: 'top',
+    insetLineRight: 'bottom',
     blockSize: 'width',
     inlineSize: 'height'
   }),
@@ -91,6 +99,10 @@ const LogicalMaps = Object.freeze({
     borderLineRightStyle: 'borderBottomStyle',
     borderInlineStartStyle: Object.freeze({ltr: 'borderTopStyle', rtl: 'borderBottomStyle'}),
     borderInlineEndStyle: Object.freeze({ltr: 'borderBottomStyle', rtl: 'borderTopStyle'}),
+    insetBlockStart: 'right',
+    insetBlockEnd: 'left',
+    insetLineLeft: 'top',
+    insetLineRight: 'bottom',
     blockSize: 'width',
     inlineSize: 'height'
   })
@@ -503,7 +515,7 @@ export class Style {
   }
 
   isOutOfFlow() {
-    return this.float !== 'none'; // TODO: or this.position === 'absolute'
+    return this.float !== 'none' || this.position === 'absolute';
   }
 
   isWsCollapsible() {
@@ -667,6 +679,44 @@ export class Style {
     if (cssStyleVal === 'none') return 0;
     const cssWidthVal = this[LogicalMaps[writingMode].borderInlineEndWidth[direction]];
     return resolvePercent(containingBlock, cssWidthVal);
+  }
+
+  /**
+   * `top`, `right`, `bottom` and `left` are physical, but layout is logical, so
+   * they get mapped like the rest of the box model. Percentages on the line
+   * axis resolve against the containing block's inline size and percentages on
+   * the block axis against its block size (CSS 2.2 § 10.3.7, § 10.6.4).
+   */
+  private getInset(
+    key: 'insetBlockStart' | 'insetBlockEnd' | 'insetLineLeft' | 'insetLineRight',
+    containingBlock: BoxArea
+  ) {
+    const writingMode = containingBlock.box.style.writingMode;
+    const map = LogicalMaps[writingMode];
+    const cssVal = this[map[key]];
+    if (cssVal === 'auto') return cssVal;
+    if (typeof cssVal === 'object') {
+      const isBlockAxis = key === 'insetBlockStart' || key === 'insetBlockEnd';
+      const size = containingBlock[isBlockAxis ? map.blockSize : map.inlineSize];
+      return cssVal.value / 100 * size;
+    }
+    return cssVal;
+  }
+
+  getInsetBlockStart(containingBlock: BoxArea) {
+    return this.getInset('insetBlockStart', containingBlock);
+  }
+
+  getInsetBlockEnd(containingBlock: BoxArea) {
+    return this.getInset('insetBlockEnd', containingBlock);
+  }
+
+  getInsetLineLeft(containingBlock: BoxArea) {
+    return this.getInset('insetLineLeft', containingBlock);
+  }
+
+  getInsetLineRight(containingBlock: BoxArea) {
+    return this.getInset('insetLineRight', containingBlock);
   }
 
   getBlockSize(containingBlock: BoxArea) {
@@ -1097,9 +1147,10 @@ function computeStyle(parentStyle: Style, cascadedStyle: DeclaredStyle) {
 
   const style = new Style(computed, parentStyle, cascadedStyle);
 
-  // Blockify floats (TODO: abspos too) (CSS Display §2.7). This drives what
+  // Blockify floats and absolutely positioned boxes (CSS Display §2.7). This
+  // drives what
   // type of box is created (-> not an inline), but otherwise has no effect.
-  if (computed.float !== 'none') style.blockify();
+  if (computed.float !== 'none' || computed.position === 'absolute') style.blockify();
 
   return style;
 }

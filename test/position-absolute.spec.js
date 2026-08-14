@@ -246,6 +246,36 @@ describe('Absolute positioning', function () {
     expect(this.border('#t').y).to.equal(40);
   });
 
+  it('uses the position on the line, not the start of it', function () {
+    this.reflow(`
+      <div style="font: 16px/20px Arimo; width: 300px; position: relative;">hello <span
+        id="t" style="position: absolute;">__</span><span id="ref"
+        style="display: inline-block; width: 0; height: 0;"></span>is there anybody out there?</div>
+    `);
+    // The zero-width inline-block is in flow at the same point on the line
+    expect(this.border('#t').x).to.equal(this.border('#ref').x);
+    expect(this.border('#t').x).to.be.greaterThan(30);
+  });
+
+  it('follows text-align on the line it appears on', function () {
+    this.reflow(`
+      <div style="font: 16px/20px Arimo; width: 300px; position: relative; text-align: center;">aaa<span
+        id="t" style="position: absolute;">_</span><span id="ref"
+        style="display: inline-block; width: 0; height: 0;"></span></div>
+    `);
+    expect(this.border('#t').x).to.equal(this.border('#ref').x);
+    expect(this.border('#t').x).to.be.greaterThan(150);
+  });
+
+  it('moves to the line the box ends up on after a soft wrap', function () {
+    this.reflow(`
+      <div style="font: 16px/20px Arimo; width: 60px; position: relative;">aaa bbb <span
+        id="t" style="position: absolute; width: 5px; height: 5px;"></span>ccc</div>
+    `);
+    // "ccc" does not fit on the first line, and the box goes with it
+    expect(this.border('#t').y).to.equal(20);
+  });
+
   it('takes the static position from the line-right edge in rtl', function () {
     this.reflow(`
       <div style="font: 16px/20px Arimo; width: 200px; position: relative; direction: rtl;">

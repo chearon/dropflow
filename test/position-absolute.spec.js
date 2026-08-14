@@ -296,6 +296,20 @@ describe('Absolute positioning', function () {
     expect(this.border('#t').y).to.equal(6);
   });
 
+  it('maps a fully auto static position through a vertical-rl containing block', function () {
+    this.reflow(`
+      <div style="font: 16px/20px Arimo; writing-mode: vertical-rl; width: 200px; height: 150px;
+                  position: relative;">
+        <div style="width: 30px;">a</div>
+        <div id="t" style="position: absolute; width: 10px; height: 10px;"></div>
+      </div>
+    `);
+    // Both insets are auto on both axes, so the containing block's own
+    // writing mode is what maps the offset, not the one it participates in
+    expect(this.border('#t').x).to.equal(200 - 30 - 10);
+    expect(this.border('#t').y).to.equal(0);
+  });
+
   it('uses the intrinsic size of a positioned replaced box', function () {
     this.reflow(`
       <div style="font: 16px/20px Arimo; width: 300px; height: 200px; position: relative;">

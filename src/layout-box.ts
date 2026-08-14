@@ -712,8 +712,7 @@ export class BoxArea {
   }
 
   getLineLeftOfAreaAgainstSelf(area: BoxArea) {
-    const thisCb = this.box.getContainingBlock();
-    const thisWm = this.box.getWritingModeAsParticipant(thisCb);
+    const thisWm = this.getEstablishedWritingMode();
     const areaCb = area.box.getContainingBlock();
     const areaWm = area.box.getWritingModeAsParticipant(areaCb);
 

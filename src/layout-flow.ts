@@ -82,7 +82,7 @@ const EMPTY_MAP = new Map();
 export class BlockFormattingContext {
   public inlineSize: number;
   public fctx?: FloatContext;
-  public stack: (BlockContainer | {post: BlockContainer})[];
+  public stack: (BlockContainer | {post: BlockContainer} | {abs: BlockLevel})[];
   public cbBlockStart: number;
   public cbLineLeft: number;
   public cbLineRight: number;
@@ -225,6 +225,11 @@ export class BlockFormattingContext {
     this.last = 'end';
   }
 
+  boxOutOfFlow(box: BlockLevel) {
+    layoutStaticBox(box);
+    this.stack.push({abs: box});
+  }
+
   boxAtomic(layout: Layout, box: BlockLevel, ctx: LayoutContext) {
     const containingBlock = box.getContainingBlock();
     const marginBlockEnd = box.style.getMarginBlockEnd(containingBlock);
@@ -301,6 +306,18 @@ export class BlockFormattingContext {
     this.cbBlockStart += margin;
 
     for (const item of this.stack) {
+      if ('abs' in item) {
+        // Out of flow: it takes a static position but no space, and its margins
+        // collapse with nothing
+        const level = sizeStack.length - 1;
+        const atMarginLevel = passedMarginLevel || this.margin.level === level;
+        const containingBlock = item.abs.getContainingBlock();
+        const {lineLeft} = item.abs.getMarginsAutoIsZero(containingBlock);
+        item.abs.setBlockPosition(sizeStack[level] + (atMarginLevel ? 0 : margin));
+        item.abs.setInlinePosition(lineLeft);
+        continue;
+      }
+
       const box = 'post' in item ? item.post : item;
 
       if ('post' in item) {
@@ -1106,7 +1123,11 @@ function layoutBlockBoxInner(
     for (let i = box.treeStart + 1; i <= box.treeFinal; i++) {
       const child = layout.tree[i];
       if (!child.isFormattingBox()) throw new Error('Assertion failed');
-      layoutBlockLevelBox(layout, child, cctx);
+      if (child.isAbsolute()) {
+        cctx.bfc!.boxOutOfFlow(child);
+      } else {
+        layoutBlockLevelBox(layout, child, cctx);
+      }
       i = child.treeFinal;
     }
   }
@@ -2109,7 +2130,15 @@ export function generateBlockContainer(tree: InlineLevel[], el: HTMLElement) {
         preBcInlineChild(tree, ctx);
         tree.push(new Break(child.style));
       } else if (child.style.display.outer === 'block') {
-        if (child.style.isOutOfFlow()) {
+        if (child.style.position === 'absolute') {
+          // Joins whichever formatting context is open: the BFC positions it
+          // among blocks, the IFC on the line it would have been on
+          if (ctx.ifcIndex > -1) {
+            preBcInlineChild(tree, ctx);
+          } else {
+            preBcBlockChild(tree, ctx);
+          }
+        } else if (child.style.isOutOfFlow()) {
           preBcInlineChild(tree, ctx);
         } else {
           preBcBlockChild(tree, ctx);

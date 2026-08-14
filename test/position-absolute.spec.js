@@ -156,6 +156,17 @@ describe('Absolute positioning', function () {
     expect(this.border('#t').y).to.equal(0);
   });
 
+  it('adds the line-left margin when the size came from both insets', function () {
+    this.reflow(`
+      <div style="font: 16px/20px Arimo; width: 300px; height: 200px; position: relative;">
+        <div id="t" style="position: absolute; top: 0; left: 10px; right: 30px;
+                           margin-left: 5px; height: 10px;"></div>
+      </div>
+    `);
+    expect(this.border('#t').x).to.equal(15);
+    expect(this.border('#t').width).to.equal(300 - 10 - 30 - 5);
+  });
+
   it('ignores the line-right inset when over-constrained in ltr', function () {
     this.reflow(`
       <div style="font: 16px/20px Arimo; width: 200px; height: 100px; position: relative;">

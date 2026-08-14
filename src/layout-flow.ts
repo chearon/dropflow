@@ -1471,8 +1471,7 @@ function finalizeBlockContainer(
         }
       }
 
-      // A positioned descendant is the containing block for the absolutes
-      // inside it, so it finalizes them itself
+      // A positioned descendant finalizes its own absolutes
       if (item.isBox() && item.isPositioned()) i = item.treeFinal;
 
       while (

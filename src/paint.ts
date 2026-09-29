@@ -349,8 +349,10 @@ function paintInline(
     fragments[fragmentIndex].treeIndex < inlineRoot.treeStart
   ) fragmentIndex++;
   while (
-    fragmentEnd > fragmentIndex &&
-    fragments[fragmentEnd - 1].treeIndex > inlineRoot.treeFinal
+    fragmentEnd > fragmentIndex && (
+      fragments[fragmentEnd - 1].treeIndex < inlineRoot.treeStart ||
+      fragments[fragmentEnd - 1].treeIndex > inlineRoot.treeFinal
+    )
   ) fragmentEnd--;
 
   while (

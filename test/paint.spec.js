@@ -784,6 +784,25 @@ describe('Painting', function () {
     ]);
   });
 
+  it('doesn\'t loop infinitely painting a subset of an ifc', function () {
+    this.reflow(`
+      <span style="background-color: blue;">
+        <br>Adele hides
+        <br><span style="position: relative; border-bottom: 1px solid blue;">Hemingway hunts</span>
+        <br>Ada rests
+      </span>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 16, width: 176, height: 16, fillColor: '#00f'},
+      {t: 'text', x: 0, y: 28.8, text: 'Adele hides', fillColor: '#000'},
+      {t: 'rect', x: 0, y: 32, width: 240, height: 16, fillColor: '#00f'},
+      {t: 'text', x: 0, y: 60.8, text: 'Ada rests', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 48.5, length: 240, side: 'bottom', strokeColor: '#00f', lineWidth: 1},
+      {t: 'text', x: 0, y: 44.8, text: 'Hemingway hunts', fillColor: '#000'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

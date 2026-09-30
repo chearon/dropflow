@@ -2,10 +2,8 @@ import {binarySearch, Logger} from './util.ts';
 import {HTMLElement, TextNode} from './dom.ts';
 import {createStyle, Style, EMPTY_STYLE} from './style.ts';
 import {
-  EmptyInlineMetrics,
   Linebox,
   Run,
-  getFontMetrics,
   createIfcBuffer,
   getIfcContribution,
   createIfcShapedItems,
@@ -16,7 +14,7 @@ import {
 import {getImage} from './layout-image.ts';
 import {Box, FormattingBox, TreeNode, Layout} from './layout-box.ts';
 
-import type {InlineMetrics, ShapedItem, InlineFragment} from './layout-text.ts';
+import type {ShapedItem, InlineFragment} from './layout-text.ts';
 import type {BoxArea, PrelayoutContext} from './layout-box.ts';
 import type {AllocatedUint16Array} from './text-harfbuzz.ts';
 
@@ -1260,7 +1258,6 @@ export class Break extends TreeNode {
 }
 
 export class Inline extends Box {
-  public metrics: InlineMetrics;
   public textStart: number;
   public textEnd: number;
 
@@ -1268,12 +1265,6 @@ export class Inline extends Box {
     super(style, attrs);
     this.textStart = 0;
     this.textEnd = 0;
-    this.metrics = EmptyInlineMetrics;
-  }
-
-  prelayoutPreorder(ctx: PrelayoutContext) {
-    super.prelayoutPreorder(ctx);
-    this.metrics = getFontMetrics(this);
   }
 
   propagate(parent: Box) {

@@ -293,12 +293,6 @@ export interface ShapingAttrs {
 
 const hyphenCache = new Map<string, {glyphs: Int32Array; codepoint: string}>();
 
-export function getFontMetrics(inline: Inline) {
-  const strutCascade = getLangCascade(inline.style, 'en');
-  const [strutFace] = strutCascade;
-  return getMetrics(inline.style, strutFace);
-}
-
 const {G_ID, G_CL, G_AX, G_FL, G_SZ} = hb;
 
 const HyphenCodepointsToTry = '\u2010\u002d'; // HYPHEN, HYPHEN MINUS
@@ -385,14 +379,12 @@ export function langForScript(script: string) {
 
 const metricsCache = new WeakMap<Style, WeakMap<HbFace, InlineMetrics>>();
 
-// exported because used by html painter
 export function getMetrics(style: Style, face: LoadedFontFace): InlineMetrics {
   let metrics = metricsCache.get(style)?.get(face.hbface);
   if (metrics) return metrics;
-  const fontSize = style.fontSize;
   // now do CSS2 §10.8.1
   const {ascender, xHeight, descender, lineGap} = face.hbfont.getMetrics('ltr'); // TODO vertical text
-  const toPx = 1 / face.hbface.upem * fontSize;
+  const toPx = 1 / face.hbface.upem * style.fontSize;
   const pxHeight = (ascender - descender) * toPx;
   const lineHeight = style.lineHeight === 'normal' ? pxHeight + lineGap * toPx : style.lineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
@@ -402,9 +394,9 @@ export function getMetrics(style: Style, face: LoadedFontFace): InlineMetrics {
   metrics = {
     ascenderBox: halfLeading + ascenderPx,
     ascender: ascenderPx,
-    superscript: 0.34 * fontSize, // magic numbers come from Searchfox.
+    superscript: 0.34 * style.fontSize, // magic numbers come from Searchfox.
     xHeight: xHeight * toPx,
-    subscript: 0.20 * fontSize,   // all browsers use them instead of metrics
+    subscript: 0.20 * style.fontSize,   // all browsers use them instead of metrics
     descender: descenderPx,
     descenderBox: halfLeading + descenderPx
   };
@@ -1075,29 +1067,30 @@ function baselineStep(parent: Inline, inline: Inline) {
   }
 
   if (inline.style.verticalAlign === 'super') {
-    return parent.metrics.superscript;
+    return parent.style.metrics.superscript;
   }
 
   if (inline.style.verticalAlign === 'sub') {
-    return -parent.metrics.subscript;
+    return -parent.style.metrics.subscript;
   }
 
   if (inline.style.verticalAlign === 'middle') {
-    const midParent = parent.metrics.xHeight / 2;
-    const midInline = (inline.metrics.ascender - inline.metrics.descender) / 2;
+    const midParent = parent.style.metrics.xHeight / 2;
+    const midInline = (inline.style.metrics.ascender - inline.style.metrics.descender) / 2;
     return midParent - midInline;
   }
 
   if (inline.style.verticalAlign === 'text-top') {
-    return parent.metrics.ascender - inline.metrics.ascenderBox;
+    return parent.style.metrics.ascender - inline.style.metrics.ascenderBox;
   }
 
   if (inline.style.verticalAlign === 'text-bottom') {
-    return inline.metrics.descenderBox - parent.metrics.descender;
+    return inline.style.metrics.descenderBox - parent.style.metrics.descender;
   }
 
   if (typeof inline.style.verticalAlign === 'object') {
-    return (inline.metrics.ascenderBox + inline.metrics.descenderBox) * inline.style.verticalAlign.value / 100;
+    const lineboxHeight = inline.style.metrics.ascenderBox + inline.style.metrics.descenderBox;
+    return lineboxHeight * inline.style.verticalAlign.value / 100;
   }
 
   if (typeof inline.style.verticalAlign === 'number') {
@@ -1186,37 +1179,34 @@ function inlineBlockBaselineStep(
   }
 
   if (box.style.verticalAlign === 'super') {
-    return parent.metrics.superscript;
+    return parent.style.metrics.superscript;
   }
 
   if (box.style.verticalAlign === 'sub') {
-    return -parent.metrics.subscript;
+    return -parent.style.metrics.subscript;
   }
 
   if (box.style.verticalAlign === 'middle') {
     const {ascender, descender} = inlineBlockMetrics(layout, box);
-    const midParent = parent.metrics.xHeight / 2;
+    const midParent = parent.style.metrics.xHeight / 2;
     const midInline = (ascender - descender) / 2;
     return midParent - midInline;
   }
 
   if (box.style.verticalAlign === 'text-top') {
     const {ascender} = inlineBlockMetrics(layout, box);
-    return parent.metrics.ascender - ascender;
+    return parent.style.metrics.ascender - ascender;
   }
 
   if (box.style.verticalAlign === 'text-bottom') {
     const {descender} = inlineBlockMetrics(layout, box);
-    return descender - parent.metrics.descender;
+    return descender - parent.style.metrics.descender;
   }
 
   if (typeof box.style.verticalAlign === 'object') {
     const lineHeight = box.style.lineHeight;
     if (lineHeight === 'normal') {
-      // TODO: is there a better/faster way to do this? currently struts only
-      // exist if there is a paragraph, but I think spec is saying do this
-      const [strutFace] = getLangCascade(box.style, 'en');
-      const metrics = getMetrics(box.style, strutFace);
+      const metrics = box.style.metrics;
       return (metrics.ascenderBox + metrics.descenderBox) * box.style.verticalAlign.value / 100;
     } else {
       return lineHeight * box.style.verticalAlign.value / 100;
@@ -1315,7 +1305,7 @@ class LineHeightTracker {
   constructor(layout: Layout, block: BlockContainerOfInlines) {
     const inline = layout.tree[block.treeStart + 1];
     if (!inline.isInline()) throw new Error('Assertion failed');
-    const ctx = new AlignmentContext(inline.metrics);
+    const ctx = new AlignmentContext(inline.style.metrics);
 
     this.layout = layout;
     this.block = block;
@@ -1346,12 +1336,12 @@ class LineHeightTracker {
 
     if (inline.style.verticalAlign === 'top' || inline.style.verticalAlign === 'bottom') {
       if (this.contextRoots === EMPTY_MAP) this.contextRoots = new Map();
-      ctx = new AlignmentContext(inline.metrics);
+      ctx = new AlignmentContext(inline.style.metrics);
       this.contextStack.push(ctx);
       this.contextRoots.set(inline, ctx);
     } else {
       ctx.stepIn(parent, inline);
-      ctx.stampMetrics(inline.metrics);
+      ctx.stampMetrics(inline.style.metrics);
     }
   }
 
@@ -1448,7 +1438,7 @@ class LineHeightTracker {
   }
 
   reset() {
-    const ctx = new AlignmentContext(this.parents[0].metrics);
+    const ctx = new AlignmentContext(this.parents[0].style.metrics);
     this.parents.splice(1, this.parents.length - 1);
     this.contextStack = [ctx];
     this.contextRoots = EMPTY_MAP;
@@ -1467,11 +1457,11 @@ class LineHeightTracker {
     ) {
       const [ctx] = this.contextStack;
       ctx.reset();
-      ctx.stampMetrics(parent.metrics);
+      ctx.stampMetrics(parent.style.metrics);
 
       if (inline) {
         ctx.stepIn(parent, inline);
-        ctx.stampMetrics(inline.metrics);
+        ctx.stampMetrics(inline.style.metrics);
       }
     } else { // slow path - this is the normative algorithm
       for (const ctx of this.contextStack) {
@@ -1484,7 +1474,7 @@ class LineHeightTracker {
             break;
           } else {
             ctx.stepIn(parent, inline);
-            ctx.stampMetrics(inline.metrics);
+            ctx.stampMetrics(inline.style.metrics);
             parent = inline;
             inline = ++i < this.parents.length ? this.parents[i] : undefined;
           }
@@ -2423,8 +2413,8 @@ function baselineRegroup(
   line: Linebox,
 ) {
   const parents = [inline];
-  let ascender = inline.metrics.ascenderBox;
-  let descender = -inline.metrics.descenderBox;
+  let ascender = inline.style.metrics.ascenderBox;
+  let descender = -inline.style.metrics.descenderBox;
   let baseline = 0;
 
   for (let treeIndex = inline.treeStart + 1; treeIndex <= inline.treeFinal; treeIndex++) {
@@ -2437,8 +2427,8 @@ function baselineRegroup(
         baseline += baselineStep(parents[parents.length - 1], thing);
       }
       parents.push(thing);
-      ascender = Math.max(ascender, baseline + thing.metrics.ascenderBox);
-      descender = Math.min(descender, baseline - thing.metrics.descenderBox);
+      ascender = Math.max(ascender, baseline + thing.style.metrics.ascenderBox);
+      descender = Math.min(descender, baseline - thing.style.metrics.descenderBox);
     } else if (thing.isBox()) {
       treeIndex = thing.treeFinal;
     }

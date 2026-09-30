@@ -1,4 +1,4 @@
-import {getMetrics, ShapedItem} from './layout-text.ts';
+import {ShapedItem} from './layout-text.ts';
 
 import type {Color} from './style.ts';
 import type {PaintBackend} from './paint.ts';
@@ -66,7 +66,7 @@ export default class HtmlPaintBackend implements PaintBackend {
   }
 
   text(x: number, y: number, item: ShapedItem, textStart: number, textEnd: number) {
-    const {ascenderBox, descenderBox} = getMetrics(item.attrs.style, item.face);
+    const {ascenderBox, descenderBox} = item.attrs.style.metrics;
     const text = item.block.sliceRenderText(this.layout, item, textStart, textEnd);
     const {r, g, b, a} = this.fillColor;
     const style = this.style({

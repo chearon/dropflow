@@ -236,6 +236,8 @@ export abstract class Box extends TreeNode {
     } else {
       this.getBorderArea().setParent(ctx.lastBlockContainerArea);
     }
+
+    this.style.fillMetrics();
   }
 
   /**

@@ -1,5 +1,9 @@
 import {HTMLElement, TextNode} from './dom.ts';
 import {BoxArea} from './layout-box.ts';
+import {getLangCascade} from './text-font.ts';
+import {EmptyInlineMetrics, getMetrics} from './layout-text.ts';
+
+import type {InlineMetrics} from './layout-text.ts';
 
 export const inherited = Symbol('inherited');
 
@@ -328,6 +332,7 @@ export class Style {
   id: number;
   computed: ComputedStyle;
   blockified: boolean;
+  metrics: InlineMetrics;
   // Cache related
   parentId: number;
   cascadeId: number;
@@ -417,6 +422,7 @@ export class Style {
     this.id = ++id;
     this.computed = style;
     this.blockified = false;
+    this.metrics = EmptyInlineMetrics;
     this.parentId = parent ? parent.id : 0;
     this.cascadeId = cascadedStyle ? cascadedStyle.id : 0;
     this.nextInCache = null;
@@ -745,6 +751,12 @@ export class Style {
     }
 
     return true;
+  }
+
+  fillMetrics() {
+    const [face] = getLangCascade(this, 'en');
+    // If there are no fonts, metrics stay empty
+    if (face) this.metrics = getMetrics(this, face);
   }
 }
 

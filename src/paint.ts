@@ -222,7 +222,7 @@ function paintInlineBackground(
   const {a: ba} = borderBottomColor;
   const {a: la} = borderLeftColor;
   const {left: start, right: end, blockOffset, naturalStart, naturalEnd} = fragment;
-  const {ascender, descender} = inline.metrics;
+  const {ascender, descender} = inline.style.metrics;
   const containingBlock = inline.getContainingBlock();
   const paddingTop = inline.style.getPaddingBlockStart(containingBlock);
   const paddingRight = inline.style.getPaddingLineRight(containingBlock);

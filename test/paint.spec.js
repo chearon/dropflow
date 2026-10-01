@@ -682,7 +682,7 @@ describe('Painting', function () {
     registerFontAsset('NotoSansArabic/NotoSansArabic-Regular.ttf');
     this.reflow('<div style="font: 10px Noto Sans Arabic;">والمهارة</div>');
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 13.74, text: 'والمهارة', fillColor: '#000'}
+      {t: 'text', x: 0, y: 14, text: 'والمهارة', fillColor: '#000'}
     ]);
     unregisterFontAsset('NotoSansArabic/NotoSansArabic-Regular.ttf');
   });
@@ -710,10 +710,10 @@ describe('Painting', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 12.8, text: 'Get a ', fillColor: '#000'},
-      {t: 'text', x: 160, y: 12.8, text: ' blanket', fillColor: '#000'},
+      {t: 'text', x: 0, y: 13, text: 'Get a ', fillColor: '#000'},
+      {t: 'text', x: 160, y: 13, text: ' blanket', fillColor: '#000'},
       {t: 'rect', x: 96, y: 0, width: 64, height: 16, fillColor: '#fca'},
-      {t: 'text', x: 96, y: 12.8, text: 'wool', fillColor: '#000'}
+      {t: 'text', x: 96, y: 13, text: 'wool', fillColor: '#000'}
     ]);
   });
 
@@ -726,10 +726,10 @@ describe('Painting', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 12.8, text: 'Get a ', fillColor: '#000'},
-      {t: 'text', x: 96, y: 12.8, text: 'pendleton ', fillColor: '#000'},
+      {t: 'text', x: 0, y: 13, text: 'Get a ', fillColor: '#000'},
+      {t: 'text', x: 96, y: 13, text: 'pendleton ', fillColor: '#000'},
       {t: 'rect', x: 256, y: 0, width: 112, height: 16, fillColor: '#fca'},
-      {t: 'text', x: 256, y: 12.8, text: 'blanket', fillColor: '#000'}
+      {t: 'text', x: 256, y: 13, text: 'blanket', fillColor: '#000'}
     ]);
   });
 
@@ -748,9 +748,9 @@ describe('Painting', function () {
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'rect', x: 0, y: 16, width: 106, height: 16, fillColor: '#f00'},
       {t: 'rect', x: 0, y: 16, width: 32, height: 16, fillColor: '#0f0'},
-      {t: 'text', x: 0, y: 28.8, text: ':)', fillColor: '#000'},
+      {t: 'text', x: 0, y: 29, text: ':)', fillColor: '#000'},
       {t: 'edge', x: 37, y: 16, length: 16, side: 'right', strokeColor: '#00f', lineWidth: 10},
-      {t: 'text', x: 42, y: 28.8, text: 'oof!', fillColor: '#000'}
+      {t: 'text', x: 42, y: 29, text: 'oof!', fillColor: '#000'}
     ]);
   });
 
@@ -763,11 +763,11 @@ describe('Painting', function () {
 
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'rect', x: 0, y: 0, width: 128, height: 16, fillColor: '#000'},
-      {t: 'text', x: 0, y: 12.8, text: 'pyranees', fillColor: '#fff'},
+      {t: 'text', x: 0, y: 13, text: 'pyranees', fillColor: '#fff'},
       {t: 'rect', x: 0, y: 16, width: 80, height: 16, fillColor: '#000'},
-      {t: 'text', x: 0, y: 28.8, text: 'husky', fillColor: '#fff'},
+      {t: 'text', x: 0, y: 29, text: 'husky', fillColor: '#fff'},
       {t: 'rect', x: 0, y: 32, width: 128, height: 16, fillColor: '#000'},
-      {t: 'text', x: 0, y: 44.8, text: 'shepherd', fillColor: '#fff'}
+      {t: 'text', x: 0, y: 45, text: 'shepherd', fillColor: '#fff'}
     ]);
   });
 
@@ -795,11 +795,11 @@ describe('Painting', function () {
 
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'rect', x: 0, y: 16, width: 176, height: 16, fillColor: '#00f'},
-      {t: 'text', x: 0, y: 28.8, text: 'Adele hides', fillColor: '#000'},
+      {t: 'text', x: 0, y: 29, text: 'Adele hides', fillColor: '#000'},
       {t: 'rect', x: 0, y: 32, width: 240, height: 16, fillColor: '#00f'},
-      {t: 'text', x: 0, y: 60.8, text: 'Ada rests', fillColor: '#000'},
+      {t: 'text', x: 0, y: 61, text: 'Ada rests', fillColor: '#000'},
       {t: 'edge', x: 0, y: 48.5, length: 240, side: 'bottom', strokeColor: '#00f', lineWidth: 1},
-      {t: 'text', x: 0, y: 44.8, text: 'Hemingway hunts', fillColor: '#000'}
+      {t: 'text', x: 0, y: 45, text: 'Hemingway hunts', fillColor: '#000'}
     ]);
   });
 
@@ -843,9 +843,9 @@ describe('Painting', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 8.159999999999998, text: '2', fillColor: '#000'},
-        {t: 'rect', x: 11, y: 0, width: 10, height: 10, fillColor: '#321'},
-        {t: 'text', x: 10.5, y: 8.159999999999998, text: '3', fillColor: '#000'},
+        {t: 'text', x: 0, y: 8, text: '2', fillColor: '#000'},
+        {t: 'rect', x: 11, y: -0, width: 10, height: 10, fillColor: '#321'},
+        {t: 'text', x: 10.5, y: 8, text: '3', fillColor: '#000'},
       ]);
     });
 
@@ -865,8 +865,8 @@ describe('Painting', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'rect', x: 1, y: 0, width: 30, height: 10, fillColor: '#321'},
-        {t: 'text', x: 0.5, y: 8.159999999999998, text: 'abc', fillColor: '#000'},
+        {t: 'rect', x: 1, y: -0, width: 30, height: 10, fillColor: '#321'},
+        {t: 'text', x: 0.5, y: 8, text: 'abc', fillColor: '#000'},
       ]);
     });
 
@@ -882,7 +882,7 @@ describe('Painting', function () {
         {t: 'edge', side: 'right', x: 32.5, y: -1, length: 12, lineWidth: 1, strokeColor: '#fad'},
         {t: 'edge', side: 'bottom', x: 0, y: 10.5, length: 33, lineWidth: 1, strokeColor: '#fad'},
         {t: 'edge', side: 'left', x: 0.5, y: -1, length: 12, lineWidth: 1, strokeColor: '#fad'},
-        {t: 'text', x: 1, y: 8.24, text: 'fad', fillColor: '#000'},
+        {t: 'text', x: 1, y: 8, text: 'fad', fillColor: '#000'},
       ]);
     });
 

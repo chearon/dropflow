@@ -924,6 +924,15 @@ export class BlockContainerOfInlines extends BlockContainerBase {
     }
   }
 
+  postlayoutPostorder() {
+    super.postlayoutPostorder();
+    // The baseline needs to be rounded mainly so that text decorations, which
+    // compute relative to the baseline, show up in consistent positions against
+    // the glyphs. Both Firefox and Chrome do this, even underneath `transform`!
+    for (const item of this.items) item.y = Math.round(item.y);
+    for (const frag of this.fragments) frag.blockOffset = Math.round(frag.blockOffset);
+  }
+
   isBlockContainerOfInlines(): this is BlockContainerOfInlines {
     return true;
   }

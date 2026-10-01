@@ -120,11 +120,11 @@ describe('Hyperscript API', function () {
     paint(layout, b);
 
     expect(b.getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 13.466796875, text: 'Chapter 1', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.466796875, text: 'The quick brown fox', fillColor: '#000'},
-      {t: 'text', x: 0, y: 53.466796875, text: 'jumps over the lazy', fillColor: '#000'},
-      {t: 'text', x: 0, y: 73.466796875, text: 'dog', fillColor: '#000'},
-      {t: 'text', x: 0, y: 93.466796875, text: 'The end', fillColor: '#000'}
+      {t: 'text', x: 0, y: 13, text: 'Chapter 1', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'The quick brown fox', fillColor: '#000'},
+      {t: 'text', x: 0, y: 53, text: 'jumps over the lazy', fillColor: '#000'},
+      {t: 'text', x: 0, y: 73, text: 'dog', fillColor: '#000'},
+      {t: 'text', x: 0, y: 93, text: 'The end', fillColor: '#000'}
     ]);
 
     const [block] = tree.query('#t').boxes;
@@ -152,11 +152,11 @@ describe('Hyperscript API', function () {
     const b = new PaintSpy(layout);
     paint(layout, b);
     expect(b.getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 13.466796875, text: 'Chapter 1', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.466796875, text: 'The quick brown fox', fillColor: '#000'},
-      {t: 'text', x: 0, y: 53.466796875, text: 'jumps over the lazy', fillColor: '#000'},
-      {t: 'text', x: 0, y: 73.466796875, text: 'dog', fillColor: '#000'},
-      {t: 'text', x: 0, y: 93.466796875, text: 'The end', fillColor: '#000'}
+      {t: 'text', x: 0, y: 13, text: 'Chapter 1', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'The quick brown fox', fillColor: '#000'},
+      {t: 'text', x: 0, y: 53, text: 'jumps over the lazy', fillColor: '#000'},
+      {t: 'text', x: 0, y: 73, text: 'dog', fillColor: '#000'},
+      {t: 'text', x: 0, y: 93, text: 'The end', fillColor: '#000'}
     ]);
     unregisterFontAsset('Arimo/Arimo-Regular.ttf');
   });

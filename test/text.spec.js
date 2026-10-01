@@ -458,7 +458,7 @@ describe('Shaping', function () {
       `);
       const [call] = this.paint().getCalls();
       expect(call.t).to.equal('text');
-      expect(call.y).to.equal(20.848);
+      expect(call.y).to.equal(21);
       expect(this.get().getBorderArea().height).to.equal(30);
     });
   });
@@ -494,10 +494,10 @@ describe('Lines', function () {
   it('always puts one word per line at minimum', function () {
     this.reflow('<div style="width: 0;">eat lots of peaches</div>');
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'eat', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'lots', fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'of', fillColor: '#000'},
-      {t: 'text',x: 0, y: 69.94140625, text: 'peaches', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'eat', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'lots', fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'of', fillColor: '#000'},
+      {t: 'text',x: 0, y: 70, text: 'peaches', fillColor: '#000'}
     ]);
   });
 
@@ -511,8 +511,8 @@ describe('Lines', function () {
     const block = this.get('div');
     expect(block.items).to.have.lengthOf(3);
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.84375, text: 'Lorem ipsum', fillColor: '#000'},
-      {t: 'text', x: 0, y: 34.521484375, text: 'lorem ipsum', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Lorem ipsum', fillColor: '#000'},
+      {t: 'text', x: 0, y: 35, text: 'lorem ipsum', fillColor: '#000'}
     ]);
   });
 
@@ -526,8 +526,8 @@ describe('Lines', function () {
     const block = this.get('div');
     expect(block.items).to.have.lengthOf(2);
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.84375, text: 'Lorem ipsum', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.59375, text: 'lorem ipsum', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Lorem ipsum', fillColor: '#000'},
+      {t: 'text', x: 0, y: 34, text: 'lorem ipsum', fillColor: '#000'}
     ]);
   });
 
@@ -551,8 +551,8 @@ describe('Lines', function () {
     const block = this.get('div');
     expect(block.items).to.have.lengthOf(2);
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'אני אוהב', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'אותך', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'אני אוהב', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'אותך', fillColor: '#000'}
     ]);
   });
 
@@ -563,8 +563,8 @@ describe('Lines', function () {
       <div style="width: 35px; font: 16px Roboto;">aa aa</div>
     `);
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.84375, text: 'aa', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.59375, text: 'aa', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'aa', fillColor: '#000'},
+      {t: 'text', x: 0, y: 34, text: 'aa', fillColor: '#000'}
     ]);
   });
 
@@ -576,9 +576,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.84375, text: 'lorem', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.59375, text: 'ipsum', fillColor: '#000'},
-      {t: 'text', x: 0, y: 52.34375, text: 'lorem', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'lorem', fillColor: '#000'},
+      {t: 'text', x: 0, y: 34, text: 'ipsum', fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'lorem', fillColor: '#000'}
     ]);
   });
 
@@ -598,15 +598,15 @@ describe('Lines', function () {
     expect(block.items).to.have.lengthOf(7);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 5, y: 14.74609375, text: 'A', fillColor: '#000'},
-      {t: 'text', x: 20.671875, y: 14.74609375, text: ' ', fillColor: '#000'},
-      {t: 'edge', x: 25, y: -5, length: 31, side: 'top', strokeColor: '#00f', lineWidth: 10},
-      {t: 'edge', x: 51, y: -10, length: 38, side: 'right', strokeColor: '#00f', lineWidth: 10},
+      {t: 'text', x: 5, y: 15, text: 'A', fillColor: '#000'},
+      {t: 'text', x: 20.671875, y: 15, text: ' ', fillColor: '#000'},
+      {t: 'edge', x: 25, y: -4, length: 31, side: 'top', strokeColor: '#00f', lineWidth: 10},
+      {t: 'edge', x: 51, y: -9, length: 37, side: 'right', strokeColor: '#00f', lineWidth: 10},
       {t: 'edge', x: 25, y: 23, length: 31, side: 'bottom', strokeColor: '#00f', lineWidth: 10},
-      {t: 'edge', x: 30, y: -10, length: 38, side: 'left', strokeColor: '#00f', lineWidth: 10},
-      {t: 'text', x: 35.1171875, y: 14.74609375, text: 'A', fillColor: '#000'},
-      {t: 'text', x: 55.7890625, y: 14.74609375, text: ' ', fillColor: '#000'},
-      {t: 'text', x: 61.234375, y: 14.74609375, text: 'A', fillColor: '#000'}
+      {t: 'edge', x: 30, y: -9, length: 37, side: 'left', strokeColor: '#00f', lineWidth: 10},
+      {t: 'text', x: 35.1171875, y: 15, text: 'A', fillColor: '#000'},
+      {t: 'text', x: 55.7890625, y: 15, text: ' ', fillColor: '#000'},
+      {t: 'text', x: 61.234375, y: 15, text: 'A', fillColor: '#000'}
     ]);
   });
 
@@ -621,21 +621,21 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: "It's", fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'a', fillColor: '#000'},
-      {t: 'rect', x: 9, y: 9, width: 20, height: 38, fillColor: '#333'},
-      {t: 'rect', x: 29, y: 19, width: 11, height: 18, fillColor: '#666'},
-      {t: 'rect', x: 0, y: 37, width: 49, height: 18, fillColor: '#999'},
-      {t: 'text', x: 10, y: 51.54296875, text: 'wrap!', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: "It's", fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'a', fillColor: '#000'},
+      {t: 'rect', x: 9, y: 9, width: 20, height: 37, fillColor: '#333'},
+      {t: 'rect', x: 29, y: 19, width: 11, height: 17, fillColor: '#666'},
+      {t: 'rect', x: 0, y: 38, width: 49, height: 17, fillColor: '#999'},
+      {t: 'text', x: 10, y: 52, text: 'wrap!', fillColor: '#000'}
     ]);
   });
 
   it('starts spans in the middle of text without breaking shaping boundaries', function () {
     this.reflow('<span>One <span style="color: #abc;">Two</span> Spans</span>');
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'One ', fillColor: '#000'},
-      {t: 'text', x: 34.6875, y: 14.74609375, text: 'Two', fillColor: '#abc'},
-      {t: 'text', x: 64.03125, y: 14.74609375, text: ' Spans', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'One ', fillColor: '#000'},
+      {t: 'text', x: 34.6875, y: 15, text: 'Two', fillColor: '#abc'},
+      {t: 'text', x: 64.03125, y: 15, text: ' Spans', fillColor: '#000'}
     ]);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get();
@@ -656,12 +656,12 @@ describe('Lines', function () {
     expect(block.items).to.have.lengthOf(2);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'rect', x: 0, y: 0, width: 69, height: 18, fillColor: '#fff'},
-      {t: 'rect', x: 0, y: 0, width: 69, height: 18, fillColor: '#ccc'},
-      {t: 'text', x: 0, y: 14.74609375, text: 'One span', fillColor: '#000'},
-      {t: 'rect', x: 0, y: 19, width: 76, height: 18, fillColor: '#fff'},
-      {t: 'rect', x: 0, y: 19, width: 76, height: 18, fillColor: '#ddd'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'Two spans', fillColor: '#000'}
+      {t: 'rect', x: 0, y: 1, width: 69, height: 17, fillColor: '#fff'},
+      {t: 'rect', x: 0, y: 1, width: 69, height: 17, fillColor: '#ccc'},
+      {t: 'text', x: 0, y: 15, text: 'One span', fillColor: '#000'},
+      {t: 'rect', x: 0, y: 19, width: 76, height: 17, fillColor: '#fff'},
+      {t: 'rect', x: 0, y: 19, width: 76, height: 17, fillColor: '#ddd'},
+      {t: 'text', x: 0, y: 33, text: 'Two spans', fillColor: '#000'}
     ]);
   });
 
@@ -673,9 +673,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Word', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'fits', fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'padding', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Word', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'fits', fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'padding', fillColor: '#000'}
     ]);
   });
 
@@ -687,8 +687,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Word', fillColor: '#000'},
-      {t: 'text', x: 70, y: 33.14453125, text: 'hey', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Word', fillColor: '#000'},
+      {t: 'text', x: 70, y: 33, text: 'hey', fillColor: '#000'}
     ]);
   });
 
@@ -700,9 +700,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Word', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'x ', fillColor: '#000'},
-      {t: 'text', x: 42.4453125, y: 33.14453125, text: 'x', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Word', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'x ', fillColor: '#000'},
+      {t: 'text', x: 42.4453125, y: 33, text: 'x', fillColor: '#000'}
     ]);
   });
 
@@ -714,8 +714,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Hey', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'wrap', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Hey', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'wrap', fillColor: '#000'}
     ]);
   });
 
@@ -729,8 +729,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Give_me_the_next_span', fillColor: '#000'},
-      {t: 'text', x: 150, y: 33.14453125, text: 'not me', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Give_me_the_next_span', fillColor: '#000'},
+      {t: 'text', x: 150, y: 33, text: 'not me', fillColor: '#000'}
     ]);
   });
 
@@ -744,9 +744,9 @@ describe('Lines', function () {
     expect(block.getContentArea().height).to.equal(80);
     expect(this.paint().getCalls()).to.deep.equal([
       // Noto Sans ascender = 1069/1000 descender = 293/1000
-      {t: 'text', x: 0, y: 22.208, text: 'אוטו', fillColor: '#000'},
+      {t: 'text', x: 0, y: 22, text: 'אוטו', fillColor: '#000'},
       // Cairo ascender = 1303/1000 descender = 571/1000
-      {t: 'text', x: 0, y: 61.855999999999995, text: 'Car', fillColor: '#000'}
+      {t: 'text', x: 0, y: 62, text: 'Car', fillColor: '#000'}
     ]);
   });
 
@@ -818,9 +818,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'rect', x: 0, y: 0, width: 10, height: 18, fillColor: '#008000'},
-      {t: 'rect', x: 0, y: 19, width: 14, height: 18, fillColor: '#008000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'f', fillColor: '#000'}
+      {t: 'rect', x: 0, y: 1, width: 10, height: 17, fillColor: '#008000'},
+      {t: 'rect', x: 0, y: 19, width: 14, height: 17, fillColor: '#008000'},
+      {t: 'text', x: 0, y: 33, text: 'f', fillColor: '#000'}
     ]);
   });
 
@@ -914,8 +914,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 15.546875, text: 'A simple', fillColor: '#000'},
-      {t: 'text', x: 0, y: 35.546875, text: 'test', fillColor: '#000'}
+      {t: 'text', x: 0, y: 16, text: 'A simple', fillColor: '#000'},
+      {t: 'text', x: 0, y: 36, text: 'test', fillColor: '#000'}
     ]);
   });
 
@@ -929,9 +929,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'I like', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: "tests that aren't hard to think about", fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'because easy', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'I like', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: "tests that aren't hard to think about", fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'because easy', fillColor: '#000'}
     ]);
   });
 
@@ -945,10 +945,10 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'I like', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: "tests that aren't", fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'hard to think about', fillColor: '#000'},
-      {t: 'text', x: 0, y: 69.94140625, text: 'because easy', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'I like', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: "tests that aren't", fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'hard to think about', fillColor: '#000'},
+      {t: 'text', x: 0, y: 70, text: 'because easy', fillColor: '#000'}
     ]);
   });
 
@@ -962,12 +962,12 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'I like', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'tests that ', fillColor: '#000'},
-      {t: 'text', x: 69.3671875, y: 33.14453125, text: "aren't", fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'hard', fillColor: '#000'},
-      {t: 'text', x: 32.0234375, y: 51.54296875, text: ' to think about', fillColor: '#000'},
-      {t: 'text', x: 0, y: 69.94140625, text: 'because easy', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'I like', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'tests that ', fillColor: '#000'},
+      {t: 'text', x: 69.3671875, y: 33, text: "aren't", fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'hard', fillColor: '#000'},
+      {t: 'text', x: 32.0234375, y: 52, text: ' to think about', fillColor: '#000'},
+      {t: 'text', x: 0, y: 70, text: 'because easy', fillColor: '#000'}
     ]);
   });
 
@@ -982,7 +982,7 @@ describe('Lines', function () {
       {
         t: 'text',
         x: 0,
-        y: 14.74609375,
+        y: 15,
         text: "I like tests that aren't hard to think about because easy",
         fillColor: '#000'
       }
@@ -999,10 +999,10 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 33.14453125, text: '      second line', fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: '      third line', fillColor: '#000'},
-      {t: 'text', x: 0, y: 69.94140625, text: '      fourth line', fillColor: '#000'},
-      {t: 'text', x: 0, y: 88.33984375, text: '      ', fillColor: '#000'}
+      {t: 'text', x: 0, y: 33, text: '      second line', fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: '      third line', fillColor: '#000'},
+      {t: 'text', x: 0, y: 70, text: '      fourth line', fillColor: '#000'},
+      {t: 'text', x: 0, y: 88, text: '      ', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1018,8 +1018,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 16.848, text: 'Affable waf\u200b', fillColor: '#000'},
-      {t: 'text', x: 0, y: 39.248, text: 'fle', fillColor: '#000'}
+      {t: 'text', x: 0, y: 17, text: 'Affable waf\u200b', fillColor: '#000'},
+      {t: 'text', x: 0, y: 39, text: 'fle', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1038,7 +1038,7 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 16.848, text: 'Affable waf\u200bfle', fillColor: '#000'}
+      {t: 'text', x: 0, y: 17, text: 'Affable waf\u200bfle', fillColor: '#000'}
     ]);
   });
 
@@ -1050,8 +1050,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 16.848, text: 'Affable', fillColor: '#000'},
-      {t: 'text', x: 0, y: 39.248, text: 'waf\u200bfle', fillColor: '#000'}
+      {t: 'text', x: 0, y: 17, text: 'Affable', fillColor: '#000'},
+      {t: 'text', x: 0, y: 39, text: 'waf\u200bfle', fillColor: '#000'}
     ]);
   });
 
@@ -1064,10 +1064,10 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 20.2734375, text: 'Ligature', fillColor: '#000'},
-      {t: 'text', x: 0, y: 46.4296875, text: 'symbols', fillColor: '#000'},
-      {t: 'text', x: 0, y: 72.5859375, text: 'daily calendar calendar align left align center', fillColor: '#000'},
-      {t: 'text', x: 0, y: 98.7421875, text: 'align right', fillColor: '#000'}
+      {t: 'text', x: 0, y: 20, text: 'Ligature', fillColor: '#000'},
+      {t: 'text', x: 0, y: 46, text: 'symbols', fillColor: '#000'},
+      {t: 'text', x: 0, y: 73, text: 'daily calendar calendar align left align center', fillColor: '#000'},
+      {t: 'text', x: 0, y: 99, text: 'align right', fillColor: '#000'}
     ]);
   });
 
@@ -1084,9 +1084,9 @@ describe('Lines', function () {
     expect(block.items[0].glyphs.at(-G_SZ + G_ID)).to.equal(2623);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Characters com‐', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'bine to create', fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'words', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Characters com‐', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'bine to create', fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'words', fillColor: '#000'}
     ]);
   });
 
@@ -1098,9 +1098,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'Characters', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'com\u00adbine to', fillColor: '#000'},
-      {t: 'text', x: 0, y: 51.54296875, text: 'create words', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'Characters', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'com\u00adbine to', fillColor: '#000'},
+      {t: 'text', x: 0, y: 52, text: 'create words', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1117,8 +1117,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0.02400000000000091, y: 31.272000000000002, text: 'دامي-', fillColor: '#000'},
-      {t: 'text', x: 16.656, y: 76.248, text: 'دى', fillColor: '#000'}
+      {t: 'text', x: 0.02400000000000091, y: 31, text: 'دامي-', fillColor: '#000'},
+      {t: 'text', x: 16.656, y: 76, text: 'دى', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1137,9 +1137,9 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 21.546875, text: 'Scarves', fillColor: '#000'},
-      {t: 'text', x: 0, y: 53.546875, text: 'of', fillColor: '#000'},
-      {t: 'text', x: 0, y: 85.546875, text: 'red', fillColor: '#000'}
+      {t: 'text', x: 0, y: 22, text: 'Scarves', fillColor: '#000'},
+      {t: 'text', x: 0, y: 54, text: 'of', fillColor: '#000'},
+      {t: 'text', x: 0, y: 86, text: 'red', fillColor: '#000'}
     ]);
   });
 
@@ -1151,7 +1151,7 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 30.640625, y: 14.74609375, text: 'whereami', fillColor: '#000'}
+      {t: 'text', x: 30.640625, y: 15, text: 'whereami', fillColor: '#000'}
     ]);
   });
 
@@ -1163,7 +1163,7 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 65.584, y: 20.848, text: 'أسف', fillColor: '#000'}
+      {t: 'text', x: 65.584, y: 21, text: 'أسف', fillColor: '#000'}
     ]);
   });
 
@@ -1175,8 +1175,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'left ', fillColor: '#000'},
-      {t: 'text', x: 15.7890625, y: 14.74609375, text: 'right', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'left ', fillColor: '#000'},
+      {t: 'text', x: 15.7890625, y: 15, text: 'right', fillColor: '#000'}
     ]);
   });
 
@@ -1189,8 +1189,8 @@ describe('Lines', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 14.74609375, text: 'big', fillColor: '#000'},
-      {t: 'text', x: 0, y: 33.14453125, text: 'crane', fillColor: '#000'}
+      {t: 'text', x: 0, y: 15, text: 'big', fillColor: '#000'},
+      {t: 'text', x: 0, y: 33, text: 'crane', fillColor: '#000'}
     ]);
   });
 
@@ -1276,7 +1276,7 @@ describe('Lines', function () {
         <div style="font: 16px Arimo; width: 50px;">        hi hi</div>
       `);
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: 'hi hi', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: 'hi hi', fillColor: '#000'}
       ]);
     });
 
@@ -1285,8 +1285,8 @@ describe('Lines', function () {
         <div style="font: 16px Arimo; white-space: pre-wrap; width: 50px;">        hi hi</div>
       `);
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: '        hi ', fillColor: '#000'},
-        {t: 'text', x: 0, y: 33.14453125, text: 'hi', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: '        hi ', fillColor: '#000'},
+        {t: 'text', x: 0, y: 33, text: 'hi', fillColor: '#000'}
       ]);
     });
 
@@ -1303,9 +1303,9 @@ describe('Lines', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: 'Word', fillColor: '#000'},
-        {t: 'text', x: 0, y: 33.14453125, text: 'fits', fillColor: '#000'},
-        {t: 'text', x: 0, y: 51.54296875, text: 'padding', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: 'Word', fillColor: '#000'},
+        {t: 'text', x: 0, y: 33, text: 'fits', fillColor: '#000'},
+        {t: 'text', x: 0, y: 52, text: 'padding', fillColor: '#000'}
       ]);
     });
 
@@ -1345,10 +1345,10 @@ describe('Lines', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 35.546875, text: 'Funny it is', fillColor: '#000'},
-        {t: 'text', x: 0, y: 55.546875, text: 'The things that I spout', fillColor: '#000'},
-        {t: 'text', x: 0, y: 75.546875, text: 'When I have to make words', fillColor: '#000'},
-        {t: 'text', x: 0, y: 95.546875, text: 'To test the code out', fillColor: '#000'}
+        {t: 'text', x: 0, y: 36, text: 'Funny it is', fillColor: '#000'},
+        {t: 'text', x: 0, y: 56, text: 'The things that I spout', fillColor: '#000'},
+        {t: 'text', x: 0, y: 76, text: 'When I have to make words', fillColor: '#000'},
+        {t: 'text', x: 0, y: 96, text: 'To test the code out', fillColor: '#000'}
       ]);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1367,8 +1367,8 @@ describe('Lines', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 35.546875, text: 'I have to make words', fillColor: '#000'},
-        {t: 'text', x: 0, y: 95.546875, text: 'To test the code out', fillColor: '#000'}
+        {t: 'text', x: 0, y: 36, text: 'I have to make words', fillColor: '#000'},
+        {t: 'text', x: 0, y: 96, text: 'To test the code out', fillColor: '#000'}
       ]);
 
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1380,9 +1380,9 @@ describe('Lines', function () {
       this.reflow('<div style="white-space: pre-line;">a\n<br>b<br>\nc');
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: 'a', fillColor: '#000'},
-        {t: 'text', x: 0, y: 51.54296875, text: 'b', fillColor: '#000'},
-        {t: 'text', x: 0, y: 88.33984375, text: 'c', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: 'a', fillColor: '#000'},
+        {t: 'text', x: 0, y: 52, text: 'b', fillColor: '#000'},
+        {t: 'text', x: 0, y: 88, text: 'c', fillColor: '#000'}
       ]);
     });
 
@@ -1394,8 +1394,8 @@ describe('Lines', function () {
       );
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: '            im not ', fillColor: '#000'},
-        {t: 'text', x: 0, y: 33.14453125, text: 'gonna fit', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: '            im not ', fillColor: '#000'},
+        {t: 'text', x: 0, y: 33, text: 'gonna fit', fillColor: '#000'}
       ]);
     });
 
@@ -1407,7 +1407,7 @@ describe('Lines', function () {
       );
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: 'im gonna fit            ', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: 'im gonna fit            ', fillColor: '#000'}
       ]);
     });
 
@@ -1442,8 +1442,8 @@ describe('Lines', function () {
       // (Cairo) and the div will use the first registered font (not Cairo).
       this.reflow('<div style="font: 16px XXX; width: 0;">متشرف بمعرفتك</div>');
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 20.848, text: 'متشرف', fillColor: '#000'},
-        {t: 'text', x: 0, y: 50.832, text: 'بمعرفتك', fillColor: '#000'}
+        {t: 'text', x: 0, y: 21, text: 'متشرف', fillColor: '#000'},
+        {t: 'text', x: 0, y: 51, text: 'بمعرفتك', fillColor: '#000'}
       ]);
       const block = this.get('div');
       expect(block.getContentArea().height).to.equal(60);
@@ -1609,8 +1609,8 @@ describe('Word Spacing', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 13.030000000000001, text: 'Carrot Soup | ', fillColor: '#000'},
-      {t: 'text', x: 71.3, y: 13.030000000000001, text: 'شوربة الجزر', fillColor: '#000'}
+      {t: 'text', x: 0, y: 13, text: 'Carrot Soup | ', fillColor: '#000'},
+      {t: 'text', x: 71.3, y: 13, text: 'شوربة الجزر', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1626,8 +1626,8 @@ describe('Word Spacing', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 13.030000000000001, text: 'شوربة ساخنة', fillColor: '#000'},
-      {t: 'text', x: 0, y: 31.770000000000003, text: 'لذيذة', fillColor: '#000'}
+      {t: 'text', x: 0, y: 13, text: 'شوربة ساخنة', fillColor: '#000'},
+      {t: 'text', x: 0, y: 32, text: 'لذيذة', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1710,8 +1710,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.drewText('middle').y).to.be.approximately(14.094, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(16);
+    expect(b.drewText('middle').y).to.equal(14);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(20);
@@ -1727,9 +1727,9 @@ describe('Vertical Align', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 15.546875, text: 'baseline ', fillColor: '#000'},
-      {t: 'text', x: 64.046875, y: 15.546875, text: ' ', fillColor: '#000'},
-      {t: 'text', x: 68.4921875, y: 16.8671875, text: 'middle', fillColor: '#000'}
+      {t: 'text', x: 0, y: 16, text: 'baseline ', fillColor: '#000'},
+      {t: 'text', x: 64.046875, y: 16, text: ' ', fillColor: '#000'},
+      {t: 'text', x: 68.4921875, y: 17, text: 'middle', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1747,8 +1747,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.drewText('sub').y).to.be.approximately(18.747, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(16);
+    expect(b.drewText('sub').y).to.equal(19);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(23);
@@ -1764,9 +1764,9 @@ describe('Vertical Align', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 15.546875, text: 'baseline ', fillColor: '#000'},
-      {t: 'text', x: 64.046875, y: 15.546875, text: ' ', fillColor: '#000'},
-      {t: 'text', x: 68.4921875, y: 18.746875, text: 'sub', fillColor: '#000'}
+      {t: 'text', x: 0, y: 16, text: 'baseline ', fillColor: '#000'},
+      {t: 'text', x: 64.046875, y: 16, text: ' ', fillColor: '#000'},
+      {t: 'text', x: 68.4921875, y: 19, text: 'sub', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -1784,8 +1784,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(20.987, 0.001);
-    expect(b.drewText('super').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(21);
+    expect(b.drewText('super').y).to.equal(16);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(25);
@@ -1803,7 +1803,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(25);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(20.987, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(21);
     expect(this.get('#t2').getContentArea().y).to.equal(6);
     expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
@@ -1816,8 +1816,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.drewText('text-top').y).to.be.approximately(16.609, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(16);
+    expect(b.drewText('text-top').y).to.equal(17);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(21);
@@ -1835,7 +1835,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(21);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(16);
     expect(this.get('#t2').getContentArea().y).to.equal(1);
     expect(this.get('#t3').getContentArea().y).to.equal(1);
   });
@@ -1848,8 +1848,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(16.609, 0.001);
-    expect(b.drewText('text-bottom').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(17);
+    expect(b.drewText('text-bottom').y).to.equal(16);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(21);
@@ -1867,7 +1867,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(21);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(16.609, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(17);
     expect(this.get('#t2').getContentArea().y).to.equal(10);
     expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
@@ -1880,8 +1880,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(45.547, 0.001);
-    expect(b.drewText('30px').y).to.be.approximately(15.547, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(46);
+    expect(b.drewText('30px').y).to.equal(16);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(50);
@@ -1899,7 +1899,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(50);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(45.547, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(46);
     expect(this.get('#t2').getContentArea().y).to.equal(6);
     expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
@@ -1912,8 +1912,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.drewText('percentage').y).to.be.approximately(10.547, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(16);
+    expect(b.drewText('percentage').y).to.equal(11);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(20);
@@ -1931,7 +1931,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(20);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(15.546, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(16);
     expect(this.get('#t2').getContentArea().y).to.equal(1);
     expect(this.get('#t3').getContentArea().y).to.equal(0);
   });
@@ -1946,8 +1946,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(15.547, 0.001);
-    expect(b.drewText('top').y).to.be.approximately(25.547, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(16);
+    expect(b.drewText('top').y).to.equal(26);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(45);
@@ -1964,7 +1964,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(30);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(15.547, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(16);
     expect(this.get('#t2').getContentArea().y).to.equal(0);
   });
 
@@ -1978,8 +1978,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(38.747, 0.001);
-    expect(b.drewText('bottom').y).to.be.approximately(28.747, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(39);
+    expect(b.drewText('bottom').y).to.equal(29);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(43);
@@ -1996,7 +1996,7 @@ describe('Vertical Align', function () {
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('#t1');
     expect(block.getContentArea().height).to.equal(30);
-    expect(this.paint().drewText('baseline ').y).to.be.approximately(25.547, 0.001);
+    expect(this.paint().drewText('baseline ').y).to.equal(26);
     expect(this.get('#t2').getContentArea().y).to.equal(0);
   });
 
@@ -2010,9 +2010,9 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('baseline ').y).to.be.approximately(35.547, 0.001);
-    expect(b.drewText('t').y).to.be.approximately(45.547, 0.001);
-    expect(b.drewText('b').y).to.be.approximately(65.547, 0.001);
+    expect(b.drewText('baseline ').y).to.equal(36);
+    expect(b.drewText('t').y).to.equal(46);
+    expect(b.drewText('b').y).to.equal(66);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(80);
@@ -2054,10 +2054,9 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('Do you speak a language other than Arabic? ').y)
-      .to.be.approximately(21.296, 0.001);
-    expect(b.drewText('لغة').y).to.be.approximately(41.605, 0.001);
-    expect(b.drewText('Cool!').y).to.be.approximately(47.045, 0.001);
+    expect(b.drewText('Do you speak a language other than Arabic? ').y).to.equal(21);
+    expect(b.drewText('لغة').y).to.equal(42);
+    expect(b.drewText('Cool!').y).to.equal(47);
   });
 
   it('does not carry fallback height to the second line', function () {
@@ -2069,8 +2068,8 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('قليل').y).to.be.approximately(26.288, 0.001);
-    expect(b.drewText('yes, ').y).to.be.approximately(55.610, 0.001);
+    expect(b.drewText('قليل').y).to.equal(26);
+    expect(b.drewText('yes, ').y).to.equal(56);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
@@ -2095,10 +2094,10 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('2b ').y).to.be.approximately(25.547, 0.001);
-    expect(b.drewText('4b').y).to.be.approximately(35.547, 0.001);
-    expect(b.drewText('2a ').y).to.be.approximately(65.547, 0.001);
-    expect(b.drewText('4a').y).to.be.approximately(75.547, 0.001);
+    expect(b.drewText('2b ').y).to.equal(26);
+    expect(b.drewText('4b').y).to.equal(36);
+    expect(b.drewText('2a ').y).to.equal(66);
+    expect(b.drewText('4a').y).to.equal(76);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(80);
@@ -2118,9 +2117,9 @@ describe('Vertical Align', function () {
     `);
 
     const b = this.paint();
-    expect(b.drewText('t1 ').y).to.be.approximately(13.047, 0.001);
-    expect(b.drewText('t2 ').y).to.be.approximately(10.547, 0.001);
-    expect(b.drewText('b').y).to.be.approximately(20.547, 0.001);
+    expect(b.drewText('t1 ').y).to.equal(13);
+    expect(b.drewText('t2 ').y).to.equal(11);
+    expect(b.drewText('b').y).to.equal(21);
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(20);
@@ -2194,7 +2193,7 @@ describe('Inline Blocks', function () {
     const block = this.get('div');
     expect(block.getContentArea().height).to.equal(80);
     const b = this.paint();
-    expect(b.drewText('when it\'s cold out ').y).to.be.approximately(75.547, 0.001);
+    expect(b.drewText('when it\'s cold out ').y).to.equal(76);
     expect(t.getBorderArea().x).to.equal(127);
     expect(t.getBorderArea().y).to.equal(0);
   });
@@ -2211,12 +2210,12 @@ describe('Inline Blocks', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 15.546875, text: 'line before', fillColor: '#000'},
-      {t: 'text', x: 0, y: 35.546875, text: 'You better', fillColor: '#000'},
-      {t: 'text', x: 0, y: 55.546875, text: 'watch out,', fillColor: '#000'},
-      {t: 'text', x: 0, y: 75.546875, text: 'you better not', fillColor: '#000'},
-      {t: 'text', x: 0, y: 95.546875, text: 'cry', fillColor: '#000'},
-      {t: 'text', x: 0, y: 115.546875, text: 'line after', fillColor: '#000'}
+      {t: 'text', x: 0, y: 16, text: 'line before', fillColor: '#000'},
+      {t: 'text', x: 0, y: 36, text: 'You better', fillColor: '#000'},
+      {t: 'text', x: 0, y: 56, text: 'watch out,', fillColor: '#000'},
+      {t: 'text', x: 0, y: 76, text: 'you better not', fillColor: '#000'},
+      {t: 'text', x: 0, y: 96, text: 'cry', fillColor: '#000'},
+      {t: 'text', x: 0, y: 116, text: 'line after', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainer */
@@ -2250,7 +2249,7 @@ describe('Inline Blocks', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 15.546875, text: 'This is the way', fillColor: '#000'}
+      {t: 'text', x: 0, y: 16, text: 'This is the way', fillColor: '#000'}
     ]);
     /** @type import('../src/layout-flow.ts').BlockContainer */
     const t = this.get('#t');
@@ -2367,7 +2366,7 @@ describe('Inline Blocks', function () {
     `);
 
     expect(this.paint().getCalls()).to.deep.equal([
-      {t: 'text', x: 0, y: 15.546875, text: 'one', fillColor: '#000'}
+      {t: 'text', x: 0, y: 16, text: 'one', fillColor: '#000'}
     ]);
 
     /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
@@ -2386,7 +2385,7 @@ describe('Inline Blocks', function () {
     expect(this.paint().getCalls()).to.deep.equal([
       {t: 'text', x: 0, y: 20, text: 'give a dog a ', fillColor: '#000'},
       {t: 'pushClip', x: 92, y: 0, width: 35, height: 20},
-      {t: 'text', x: 91.625, y: 15.546875, text: 'bone', fillColor: '#000'},
+      {t: 'text', x: 91.625, y: 16, text: 'bone', fillColor: '#000'},
       {t: 'popClip'}
     ]);
 

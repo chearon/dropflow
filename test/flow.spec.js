@@ -740,8 +740,8 @@ describe('Flow', function () {
       expect(t2.getContentArea().height).to.equal(0);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 51, y: 1.546875, text: 'The', fillColor: '#000'},
-        {t: 'text', x: 51, y: 21.546875, text: 'text', fillColor: '#000'}
+        {t: 'text', x: 51, y: 2, text: 'The', fillColor: '#000'},
+        {t: 'text', x: 51, y: 22, text: 'text', fillColor: '#000'}
       ]);
     });
 
@@ -833,13 +833,13 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 15.546875, text: 'wow', fillColor: '#000'},
-        {t: 'text', x: 0, y: 35.546875, text: 'such', fillColor: '#000'},
-        {t: 'text', x: 0, y: 55.546875, text: 'text', fillColor: '#000'},
-        {t: 'text', x: 50, y: 15.546875, text: 'wow', fillColor: '#000'},
-        {t: 'text', x: 50, y: 35.546875, text: 'more', fillColor: '#000'},
-        {t: 'text', x: 50, y: 55.546875, text: 'text', fillColor: '#000'},
-        {t: 'text', x: 0, y: 75.546875, text: 'that wraps', fillColor: '#000'}
+        {t: 'text', x: 0, y: 16, text: 'wow', fillColor: '#000'},
+        {t: 'text', x: 0, y: 36, text: 'such', fillColor: '#000'},
+        {t: 'text', x: 0, y: 56, text: 'text', fillColor: '#000'},
+        {t: 'text', x: 50, y: 16, text: 'wow', fillColor: '#000'},
+        {t: 'text', x: 50, y: 36, text: 'more', fillColor: '#000'},
+        {t: 'text', x: 50, y: 56, text: 'text', fillColor: '#000'},
+        {t: 'text', x: 0, y: 76, text: 'that wraps', fillColor: '#000'}
       ]);
     });
 
@@ -851,7 +851,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      expect(this.paint().drewText('beneath, not against!').y).to.equal(315.546875);
+      expect(this.paint().drewText('beneath, not against!').y).to.equal(316);
     });
 
     it('uses correct shelf position with 2 starting floats', function () {
@@ -876,7 +876,7 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 15.546875, text: 'mefirst!', fillColor: '#000'}
+        {t: 'text', x: 0, y: 16, text: 'mefirst!', fillColor: '#000'}
       ]);
 
       expect(this.get('#t').getContentArea().y).to.equal(20);
@@ -890,7 +890,7 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 15.546875, text: 'mefirst!', fillColor: '#000'}
+        {t: 'text', x: 0, y: 16, text: 'mefirst!', fillColor: '#000'}
       ]);
 
       expect(this.get('#t').getContentArea().y).to.equal(20);
@@ -903,7 +903,7 @@ describe('Flow', function () {
         </div>
       `);
 
-      expect(this.paint().drewText('T').y).to.equal(15.546875);
+      expect(this.paint().drewText('T').y).to.equal(16);
       expect(this.get('#t').getContentArea().x).to.equal(0);
       expect(this.get('#t').getContentArea().y).to.equal(20);
     });
@@ -916,8 +916,8 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 15.546875, text: 'rightin', fillColor: '#000'},
-        {t: 'text', x: 43.578125, y: 15.546875, text: 'themiddle', fillColor: '#000'}
+        {t: 'text', x: 0, y: 16, text: 'rightin', fillColor: '#000'},
+        {t: 'text', x: 43.578125, y: 16, text: 'themiddle', fillColor: '#000'}
       ]);
       expect(this.get('#t').getContentArea().y).to.equal(20);
     });
@@ -930,9 +930,9 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 15.546875, text: 'right ', fillColor: '#000'},
-        {t: 'text', x: 35.5703125, y: 15.546875, text: 'in the ', fillColor: '#000'},
-        {t: 'text', x: 79.15625, y: 15.546875, text: 'middle', fillColor: '#000'}
+        {t: 'text', x: 0, y: 16, text: 'right ', fillColor: '#000'},
+        {t: 'text', x: 35.5703125, y: 16, text: 'in the ', fillColor: '#000'},
+        {t: 'text', x: 79.15625, y: 16, text: 'middle', fillColor: '#000'}
       ]);
 
       expect(this.get('#t').getContentArea().x).to.equal(0);
@@ -1009,7 +1009,7 @@ describe('Flow', function () {
       const block = this.get('#t');
       expect(block.getContentArea().height).to.equal(25);
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 125, y: 14.74609375, text: 'xx', fillColor: '#000'}
+        {t: 'text', x: 125, y: 15, text: 'xx', fillColor: '#000'}
       ]);
     });
 
@@ -1022,7 +1022,7 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.74609375, text: 'Where am I?', fillColor: '#000'}
+        {t: 'text', x: 0, y: 15, text: 'Where am I?', fillColor: '#000'}
       ]);
     });
 
@@ -1104,7 +1104,7 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 22.119140625, text: 'dope', fillColor: '#000'}
+        {t: 'text', x: 0, y: 22, text: 'dope', fillColor: '#000'}
       ]);
     });
 
@@ -1119,8 +1119,8 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 14.16015625, text: 'howdy', fillColor: '#000'},
-        {t: 'text', x: 0, y: 44.16015625, text: 'partner', fillColor: '#000'}
+        {t: 'text', x: 0, y: 14, text: 'howdy', fillColor: '#000'},
+        {t: 'text', x: 0, y: 44, text: 'partner', fillColor: '#000'}
       ]);
     });
 
@@ -1135,8 +1135,8 @@ describe('Flow', function () {
       `);
 
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 24.16015625, text: 'howdy', fillColor: '#000'},
-        {t: 'text', x: 0, y: 54.16015625, text: 'partner', fillColor: '#000'}
+        {t: 'text', x: 0, y: 24, text: 'howdy', fillColor: '#000'},
+        {t: 'text', x: 0, y: 54, text: 'partner', fillColor: '#000'}
       ]);
     });
 
@@ -1312,11 +1312,11 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const float = this.get('#t');
       expect(this.paint().getCalls()).to.deep.equal([
-        {t: 'text', x: 0, y: 15.546875, text: 'Floats have a bad', fillColor: '#000'},
-        {t: 'text', x: 0, y: 35.546875, text: 'reputation ', fillColor: '#000'},
-        {t: 'text', x: 75.609375, y: 35.546875, text: 'because they', fillColor: '#000'},
-        {t: 'text', x: 0, y: 60.546875, text: 'used to be used for higher-', fillColor: '#000'},
-        {t: 'text', x: 0, y: 80.546875, text: 'level layout!', fillColor: '#000'}
+        {t: 'text', x: 0, y: 16, text: 'Floats have a bad', fillColor: '#000'},
+        {t: 'text', x: 0, y: 36, text: 'reputation ', fillColor: '#000'},
+        {t: 'text', x: 75.609375, y: 36, text: 'because they', fillColor: '#000'},
+        {t: 'text', x: 0, y: 61, text: 'used to be used for higher-', fillColor: '#000'},
+        {t: 'text', x: 0, y: 81, text: 'level layout!', fillColor: '#000'}
       ]);
       expect(float.getBorderArea().y).to.equal(40);
     });
@@ -1727,11 +1727,11 @@ describe('Flow', function () {
       expect(block.fragments[1].right).to.equal(211.7734375);
       expect(block.items[3].x).to.equal(139.7265625);
 
-      expect(block.fragments[2].blockOffset).to.equal(13.74609375);
-      expect(block.items[5].y).to.equal(13.74609375);
+      expect(block.fragments[2].blockOffset).to.equal(14);
+      expect(block.items[5].y).to.equal(14);
 
-      expect(block.fragments[3].blockOffset).to.equal(15.74609375);
-      expect(block.items[7].y).to.equal(15.74609375);
+      expect(block.fragments[3].blockOffset).to.equal(16);
+      expect(block.items[7].y).to.equal(16);
     });
 
     it('positions inline text and backgrounds inside other positioned spans', function () {
@@ -1761,11 +1761,11 @@ describe('Flow', function () {
       expect(block.fragments[1].right).to.equal(212.7734375);
       expect(block.items[3].x).to.equal(140.7265625);
 
-      expect(block.fragments[2].blockOffset).to.equal(14.74609375);
-      expect(block.items[5].y).to.equal(14.74609375);
+      expect(block.fragments[2].blockOffset).to.equal(15);
+      expect(block.items[5].y).to.equal(15);
 
-      expect(block.fragments[3].blockOffset).to.equal(16.74609375);
-      expect(block.items[8].y).to.equal(16.74609375);
+      expect(block.fragments[3].blockOffset).to.equal(17);
+      expect(block.items[8].y).to.equal(17);
     });
 
     it('positions floats', function () {
@@ -1979,7 +1979,7 @@ describe('Flow', function () {
       /** @type import('../src/layout-flow.ts').BlockContainerOfInlines */
       const block = this.get();
       expect(block.items[0].x).to.equal(120);
-      expect(block.items[0].y).to.equal(66.546875);
+      expect(block.items[0].y).to.equal(67);
       expect(block.items[1].x).to.equal(0);
     });
 

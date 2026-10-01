@@ -41,7 +41,16 @@ export interface LayoutContext {
    * The block formatting context that formats the subject in a layout function.
    * This is only undefined for the root box or when an element is out of flow.
    */
-  bfc?: BlockFormattingContext
+  bfc?: BlockFormattingContext;
+  /**
+   * Some parent needs InlineFragments to be generated for the purpose of
+   * baseline alignment. Currently set by inline-block, reset by anything out of
+   * flow. This indicates that IFCs should generate all fragments that _could
+   * be_ aligned to; currently, just the last line. Note that only one of the
+   * fragments will be used, but it's difficult to determine which one during
+   * child layout, and this doesn't generate too many fragments in practice.
+   */
+  needBaseline: boolean;
 }
 
 class MarginCollapseCollection {
@@ -1087,6 +1096,12 @@ function layoutBlockBoxInner(
     const inlineSize = box.getContentArea().inlineSize;
     cctx.bfc = new BlockFormattingContext(inlineSize);
     establishedBfc = cctx.bfc;
+  }
+
+  if (box.isOutOfFlow()) {
+    cctx.needBaseline = false;
+  } else if (box.isInlineLevel()) {
+    cctx.needBaseline = true;
   }
 
   containingBfc?.boxStart(layout, box, cctx); // Assign block position if it's an IFC

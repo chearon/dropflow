@@ -1125,7 +1125,7 @@ function getLastBaseline(layout: Layout, block: BlockLevel) {
       while (i <= block.treeFinal) {
         const child = layout.tree[i];
         children.push(child);
-        i = child.isBox() ? i + child.treeFinal : i + 1;
+        i = child.isBox() ? child.treeFinal + 1 : i + 1;
       }
 
       for (const child of children.reverse()) {
@@ -2446,7 +2446,7 @@ function baselineRegroup(
 function positionPhysicalLineItems(
   ifc: InlineFormattingContext,
   line: Linebox,
-  lastLine: boolean
+  forceFragments: boolean
 ) {
   // Note: this function is where we mutate ifc.inlines for the next linebox
   const inlines = ifc.inlines;
@@ -2459,13 +2459,11 @@ function positionPhysicalLineItems(
   // No fragments are produced here (unless it's the last line, and the
   // containing block is an inline-block) but items without wrapping inlines
   // have to be positioned.
-  const force = lastLine && ifc.block.isInlineLevel();
-
-  if (!force && inlines.length === 0 && line.items.length === 1 && line.treeStart === line.treeFinal && line.textStart < line.textEnd) {
+  if (!forceFragments && inlines.length === 0 && line.items.length === 1 && line.treeStart === line.treeFinal && line.textStart < line.textEnd) {
     // Fast path: it is very common to have a plaintext line
     ifc.block.items[line.items[0].itemIndex].y = blockOffset;
   } else {
-    addInlineFragmentsAndPositionY(ifc, line, force, ifc.rootInline, blockOffset);
+    addInlineFragmentsAndPositionY(ifc, line, forceFragments, ifc.rootInline, blockOffset);
   }
 
   for (let i = 0; i < inlines.length; i++) {
@@ -2793,14 +2791,15 @@ function reorderPhysicalLineItems(
 }
 
 function finishLine(
+  ctx: LayoutContext,
   ifc: InlineFormattingContext,
-  line: Linebox,
   lastLine: boolean
 ) {
   const dir = ifc.block.style.direction;
   const w = ifc.width.trimmed();
   const {ascender, descender} = ifc.height.align();
   const textAlign = ifc.block.style.getTextAlign();
+  const line = ifc.line;
 
   line.width = w;
   line.blockOffset = ifc.vacancy.blockOffset;
@@ -2819,7 +2818,7 @@ function finishLine(
 
   if (line.items.length > 1) reorderPhysicalLineItems(ifc, line.items);
   transformLineboxWhitespace(ifc, line, lastLine);
-  positionPhysicalLineItems(ifc, line, lastLine);
+  positionPhysicalLineItems(ifc, line, lastLine && ctx.needBaseline);
 
   const blockSize = line.height();
 
@@ -2979,7 +2978,7 @@ export function createIfcLineboxes(
           ifc.lastBreakMark.split(mark);
         }
 
-        finishLine(ifc, ifc.line, false);
+        finishLine(ctx, ifc, false);
         ifc.line.reset();
       }
 
@@ -3019,7 +3018,7 @@ export function createIfcLineboxes(
             splitItem(layout, ifc, parent, mark);
             ifc.lastBreakMark.split(mark);
           }
-          finishLine(ifc, ifc.line, false);
+          finishLine(ctx, ifc, false);
           ifc.line.reset();
           ifc.lineIsDirty = true;
         }
@@ -3049,13 +3048,13 @@ export function createIfcLineboxes(
     ifc.line.concat(ifc.candidates);
     // There could have been floats after the paragraph's final line break
     bfc.getLocalVacancyForLine(bfc, ifc.blockOffset, ifc.line.height(), ifc.vacancy);
-    finishLine(ifc, ifc.line, true);
+    finishLine(ctx, ifc, true);
   } else if (ifc.candidates.width.hasContent()) {
     // We never hit a break opportunity because there is no non-whitespace
     // text and no inline-blocks, but there is some content on spans (border,
     // padding, or margin). Add everything.
     ifc.line.concat(ifc.candidates);
-    finishLine(ifc, ifc.line, true);
+    finishLine(ctx, ifc, true);
   } else {
     bfc.fctx?.consumeMisfits();
   }

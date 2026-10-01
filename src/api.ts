@@ -51,7 +51,7 @@ export function reflow(layout: Layout, width = 640, height = 480) {
   const initialContainingBlock = new BoxArea(layout.root(), 0, 0, width, height);
 
   prelayout(layout, initialContainingBlock);
-  layoutBlockLevelBox(layout, layout.root(), {});
+  layoutBlockLevelBox(layout, layout.root(), {needBaseline: false});
   postlayout(layout);
 }
 

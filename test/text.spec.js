@@ -2409,4 +2409,24 @@ describe('Inline Blocks', function () {
     const t = this.get('#t');
     expect(t.getBorderArea().x).to.equal(20);
   });
+
+  it('aligns correctly when lines are deeply nested', function () {
+    this.reflow(`
+      today I bought
+      <div style="display: inline-block;">
+        <div></div>
+        <div style="height: 10px; background-color: purple;"></div>
+        <div><div>new shoes</div></div>
+        <div style="height: 10px; background-color: purple;"></div>
+        <div></div>
+      <div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 25, text: 'today I bought ', fillColor: '#000'},
+      {t: 'rect', x: 106, y: 0, width: 76, height: 10, fillColor: '#800080'},
+      {t: 'rect', x: 106, y: 28, width: 76, height: 10, fillColor: '#800080'},
+      {t: 'text', x: 105.859375, y: 25, text: 'new shoes', fillColor: '#000'}
+    ]);
+  });
 });

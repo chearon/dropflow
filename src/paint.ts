@@ -5,6 +5,7 @@ import {ShapedItem, isSpaceOrTabOrNewline} from './layout-text.ts';
 import {Box, Layout} from './layout-box.ts';
 import {binarySearchOf} from './util.ts';
 
+import type {FormattingBox} from './layout-box.ts';
 import type {BlockLevel, BlockContainer} from './layout-flow.ts';
 import type {InlineFragment, Run} from './layout-text.ts';
 import type {Color} from './style.ts';
@@ -78,12 +79,12 @@ function drawText(
   const style = item.attrs.style;
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
-  // any normalizination, so I could probably stop trying to support it
+  // any normalization, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  let tx = item.x;
   const collapsed = getTextOffsetsForUncollapsedGlyphs(item);
   textStart = Math.max(textStart, collapsed.textStart);
   textEnd = Math.min(textEnd, collapsed.textEnd);
+  let tx = item.x;
 
   if (textStart < textEnd) {
     const toPx = 1 / item.face.hbface.upem * item.attrs.style.fontSize;
@@ -302,6 +303,27 @@ function paintInlineBackground(
   }
 }
 
+interface DecoratingBox {
+  decoratingTreeIndex: number;
+  paintingTreeIndex: number;
+}
+
+function paintInlineDecoration(
+  layout: Layout,
+  fragment: InlineFragment,
+  decoration: DecoratingBox,
+  b: PaintBackend
+) {
+  const box = layout.tree[decoration.decoratingTreeIndex];
+  const size = Math.floor(box.style.metrics.underlineSize);
+  const blockOffset = fragment.blockOffset - Math.floor(box.style.metrics.underlineOffset);
+
+  b.lineWidth = size;
+  b.strokeColor = box.style.color;
+  const rect = snap(fragment.left, blockOffset, fragment.right - fragment.left, 0);
+  b.edge(rect.x, rect.y - size/2, rect.width, 'bottom');
+}
+
 function paintReplacedBox(box: ReplacedBox, b: PaintBackend) {
   const image = box.getImage();
   if (image?.status === 'loaded') {
@@ -315,12 +337,14 @@ function paintInline(
   inlineIndex: number,
   layerRoot: LayerRoot,
   block: BlockContainerOfInlines,
+  propagatedDecoratingBox: number,
   b: PaintBackend
 ) {
   const items = block.items;
   const fragments = block.fragments;
   const inlineRoot = layout.tree[inlineIndex];
   if (!inlineRoot.isInline()) throw new Error('Assertion failed');
+  const decos: DecoratingBox[] = [];
   const inlineEnd = inlineRoot.treeFinal + 1;
   let lastMark = inlineRoot.textStart;
   let inlineMark = inlineRoot.textStart;
@@ -355,25 +379,29 @@ function paintInline(
     )
   ) fragmentEnd--;
 
+  if (propagatedDecoratingBox > -1) {
+    const decoratingTreeIndex = propagatedDecoratingBox;
+    const paintingTreeIndex = inlineIndex;
+    decos.push({decoratingTreeIndex, paintingTreeIndex});
+  }
+
   while (
     itemIndex < itemEnd ||
     inlineIndex < inlineEnd ||
     fragmentIndex < fragmentEnd
   ) {
-    // paint lastMark..mark
-    if (itemIndex < itemEnd) {
-      if (lastMark < mark) drawText(items[itemIndex], run!, lastMark, mark, b);
-      if (mark === items[itemIndex].end()) itemIndex++;
-    }
-
-    // Inlines, inline-block, images
+    // Inlines, inline-block, images: consume one
     if (inlineIndex < inlineEnd && mark === inlineMark) {
       const box = layout.tree[inlineIndex];
       if (box.isInline()) {
         if (!box.isLayerRoot() || box === inlineRoot) {
-          inlineIndex++;
+          if (box.isDecoratingBox()) {
+            const decoratingTreeIndex = inlineIndex;
+            const paintingTreeIndex = inlineIndex;
+            decos.push({decoratingTreeIndex, paintingTreeIndex});
+          }
         } else {
-          inlineIndex = box.treeFinal + 1;
+          inlineIndex = box.treeFinal;
           while (
             itemIndex < itemEnd &&
             items[itemIndex].end() <= box.textEnd
@@ -392,13 +420,12 @@ function paintInline(
             paintBlockLayerRoot(layout, layerRoot.inlineBlocks.get(box)!, b);
           }
         }
-        inlineIndex = box.treeFinal + 1;
+        inlineIndex = box.treeFinal;
       } else {
         if (box.isRun()) {
           run = box;
           inlineMark = box.textEnd;
         }
-        inlineIndex++;
       }
     }
 
@@ -406,9 +433,15 @@ function paintInline(
     while (
       fragmentIndex < fragmentEnd &&
       fragments[fragmentIndex].textOffset === mark &&
-      fragments[fragmentIndex].treeIndex < inlineIndex
+      fragments[fragmentIndex].treeIndex <= inlineIndex
     ) {
-      paintInlineBackground(layout, fragments[fragmentIndex++], block, b);
+      const fragment = fragments[fragmentIndex++];
+      paintInlineBackground(layout, fragment, block, b);
+      for (const decoration of decos) {
+        if (decoration.paintingTreeIndex === fragment.treeIndex) {
+          paintInlineDecoration(layout, fragment, decoration, b);
+        }
+      }
     }
 
     lastMark = mark;
@@ -418,11 +451,26 @@ function paintInline(
       inlineMark,
       inlineRoot.textEnd
     );
+
+    // paint lastMark..mark (everything else at lastMark has been painted)
+    if (itemIndex < itemEnd) {
+      if (lastMark < mark) drawText(items[itemIndex], run!, lastMark, mark, b);
+      if (mark === items[itemIndex].end()) itemIndex++;
+    }
+
+    // Advance the inlineIndex and pop any decorations it established
+    if (inlineIndex < inlineEnd && lastMark === inlineMark) {
+      while (
+        decos.length && decos[decos.length - 1].decoratingTreeIndex === inlineIndex
+      ) decos.pop();
+
+      inlineIndex++;
+    }
   }
 }
 
 function paintBlockForeground(layout: Layout, root: BlockLayerRoot, b: PaintBackend) {
-  const parents: BlockContainer[] = [];
+  const parents: (Inline | FormattingBox)[] = [];
 
   for (let i = root.box.treeStart; i <= root.box.treeFinal; i++) {
     const box = layout.tree[i];
@@ -445,7 +493,14 @@ function paintBlockForeground(layout: Layout, root: BlockLayerRoot, b: PaintBack
         if (box.isBlockContainer()) {
           parents.push(box);
           if (box.isBlockContainerOfInlines()) {
-            paintInline(layout, box.treeStart + 1, root, box, b);
+            let propagatedDecorator = root.propagatedDecoratingBox;
+            for (let i = parents.length - 1; i >= 0; i--) {
+              if (parents[i].isDecoratingBox()) {
+                propagatedDecorator = parents[i].treeStart;
+                break;
+              }
+            }
+            paintInline(layout, box.treeStart + 1, root, box, propagatedDecorator, b);
             i = box.treeFinal;
           }
         }
@@ -477,6 +532,11 @@ class LayerRoot {
    * after. The map allows lookup while walking the inline tree.
    */
   inlineBlocks: Map<BlockContainer, BlockLayerRoot>;
+  /**
+   * The nearest parent that produces a decoration that propagates to children
+   * of this LayerRoot.
+   */
+  propagatedDecoratingBox: number;
 
   constructor(box: Box | Inline, parents: Box[]) {
     this.box = box;
@@ -486,6 +546,7 @@ class LayerRoot {
     this.positionedRoots = [];
     this.positiveRoots = [];
     this.inlineBlocks = new Map();
+    this.propagatedDecoratingBox = -1;
   }
 
   get zIndex() {
@@ -573,7 +634,7 @@ class InlineLayerRoot extends LayerRoot {
 function createLayerRoot(layout: Layout, rootBox: BlockContainer) {
   const layerRoot = new BlockLayerRoot(rootBox, []);
   const parentRoots: LayerRoot[] = [layerRoot];
-  const parents: Box[] = [];
+  const parents: (BlockContainer | ReplacedBox | Inline)[] = [];
 
   for (let i = rootBox.treeStart; i <= rootBox.treeFinal; i++) {
     const item = layout.tree[i];
@@ -621,6 +682,22 @@ function createLayerRoot(layout: Layout, rootBox: BlockContainer) {
           if (box.isBlockContainer() && box.isInlineLevel()) {
             parentRoot.inlineBlocks.set(box, layerRoot);
           }
+        }
+      }
+
+      if (layerRoot) {
+        for (let i = parents.length - 1; i >= 0; i--) {
+          const parent = parents[i];
+          if (parent.isBlockContainer()) {
+            if (parent.isOutOfFlow() || parent.isInlineLevel()) break;
+            if (parent.isDecoratingBox()) {
+              layerRoot.propagatedDecoratingBox = parents[i].treeStart;
+              break;
+            }
+          } else {
+            break;
+          }
+          if (parent === layerRoot.box) break;
         }
       }
 
@@ -686,7 +763,7 @@ function paintInlineLayerRoot(layout: Layout, root: InlineLayerRoot, b: PaintBac
   for (const r of root.floats) paintLayerRoot(layout, r, b);
 
   if (root.box.hasForeground() || root.box.hasForegroundInLayerRoot()) {
-    paintInline(layout, root.index, root, root.block, b);
+    paintInline(layout, root.index, root, root.block, root.propagatedDecoratingBox, b);
   }
 
   for (const r of root.positionedRoots) paintLayerRoot(layout, r, b);

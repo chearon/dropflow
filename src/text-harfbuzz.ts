@@ -512,10 +512,18 @@ export class HbFont {
     const subscript = heapi32[extentsOffset];
     exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('xhgt'), extentsPtr);
     const xHeight = heapi32[extentsOffset];
+    exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('strs'), extentsPtr);
+    const strikeoutSize = heapi32[extentsOffset];
+    exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('stro'), extentsPtr);
+    const strikeoutOffset = heapi32[extentsOffset];
+    exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('unds'), extentsPtr);
+    const underlineSize = heapi32[extentsOffset];
+    exports.hb_ot_metrics_get_position_with_fallback(this.ptr, hb_tag('undo'), extentsPtr);
+    const underlineOffset = heapi32[extentsOffset];
 
     exports.free(extentsPtr);
 
-    return {ascender, descender, lineGap, superscript, subscript, xHeight};
+    return {ascender, descender, lineGap, superscript, subscript, xHeight, strikeoutSize, strikeoutOffset, underlineSize, underlineOffset};
   }
 
   destroy() {

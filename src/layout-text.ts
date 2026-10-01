@@ -383,19 +383,23 @@ export function getMetrics(style: Style, face: LoadedFontFace): InlineMetrics {
   let metrics = metricsCache.get(style)?.get(face.hbface);
   if (metrics) return metrics;
   // now do CSS2 §10.8.1
-  const {ascender, xHeight, descender, lineGap} = face.hbfont.getMetrics('ltr'); // TODO vertical text
+  const m = face.hbfont.getMetrics('ltr'); // TODO vertical text
   const toPx = 1 / face.hbface.upem * style.fontSize;
-  const pxHeight = (ascender - descender) * toPx;
-  const lineHeight = style.lineHeight === 'normal' ? pxHeight + lineGap * toPx : style.lineHeight;
+  const pxHeight = (m.ascender - m.descender) * toPx;
+  const lineHeight = style.lineHeight === 'normal' ? pxHeight + m.lineGap * toPx : style.lineHeight;
   const halfLeading = (lineHeight - pxHeight) / 2;
-  const ascenderPx = ascender * toPx;
-  const descenderPx = -descender * toPx;
+  const ascenderPx = m.ascender * toPx;
+  const descenderPx = -m.descender * toPx;
 
   metrics = {
     ascenderBox: halfLeading + ascenderPx,
     ascender: ascenderPx,
     superscript: 0.34 * style.fontSize, // magic numbers come from Searchfox.
-    xHeight: xHeight * toPx,
+    xHeight: m.xHeight * toPx,
+    strikeoutOffset: m.strikeoutOffset * toPx,
+    strikeoutSize: Math.max(1, m.strikeoutSize * toPx),
+    underlineOffset: m.underlineOffset * toPx,
+    underlineSize: Math.max(1, m.underlineSize * toPx),
     subscript: 0.20 * style.fontSize,   // all browsers use them instead of metrics
     descender: descenderPx,
     descenderBox: halfLeading + descenderPx
@@ -529,6 +533,10 @@ export interface InlineMetrics {
   ascender: number;
   superscript: number;
   xHeight: number;
+  strikeoutOffset: number;
+  strikeoutSize: number;
+  underlineOffset: number;
+  underlineSize: number;
   subscript: number;
   descender: number;
   descenderBox: number;
@@ -539,6 +547,10 @@ export const EmptyInlineMetrics: Readonly<InlineMetrics> = Object.freeze({
   ascender: 0,
   superscript: 0,
   xHeight: 0,
+  strikeoutOffset: 0,
+  strikeoutSize: 0,
+  underlineOffset: 0,
+  underlineSize: 0,
   subscript: 0,
   descender: 0,
   descenderBox: 0
@@ -2456,9 +2468,8 @@ function positionPhysicalLineItems(
   let blockOffset = line.blockOffset + line.ascender;
   let textOffset = line.textStart;
 
-  // No fragments are produced here (unless it's the last line, and the
-  // containing block is an inline-block) but items without wrapping inlines
-  // have to be positioned.
+  // No fragments are produced here (unless forceFragments) but items without
+  // wrapping inlines have to be positioned.
   if (!forceFragments && inlines.length === 0 && line.items.length === 1 && line.treeStart === line.treeFinal && line.textStart < line.textEnd) {
     // Fast path: it is very common to have a plaintext line
     ifc.block.items[line.items[0].itemIndex].y = blockOffset;
@@ -2818,7 +2829,7 @@ function finishLine(
 
   if (line.items.length > 1) reorderPhysicalLineItems(ifc, line.items);
   transformLineboxWhitespace(ifc, line, lastLine);
-  positionPhysicalLineItems(ifc, line, lastLine && ctx.needBaseline);
+  positionPhysicalLineItems(ifc, line, lastLine && ctx.needBaseline || ctx.isDecorating);
 
   const blockSize = line.height();
 

@@ -155,6 +155,9 @@ declaration
   / overflow_dec
   / zoom_dec
   / word_spacing_dec
+  / text_decoration_line_dec
+  / text_decoration_style_dec
+  / text_decoration_color_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -781,6 +784,21 @@ zoom_dec
 word_spacing_dec
   = 'word-spacing'i S* ':' S* wordSpacing:(LENGTH / PERCENTAGE / default) {
     return {wordSpacing};
+  }
+
+text_decoration_line_dec
+  = 'text-decoration-line'i S* ':' S* textDecorationLine:('none' / 'underline' / 'overline' / 'line-through' / 'blink' / default) {
+    return {textDecorationLine};
+  }
+
+text_decoration_style_dec
+  = 'text-decoration-style'i S* ':' S* textDecorationStyle:('solid' / default) {
+    return {textDecorationStyle};
+  }
+
+text_decoration_color_dec
+  = 'text-decoration-color'i S* ':' S* textDecorationColor:(color / default) {
+    return {textDecorationColor};
   }
 
 width_dec

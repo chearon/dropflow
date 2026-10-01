@@ -48,7 +48,9 @@ const watch = EditorView.updateListener.of(update => {
 });
 
 const state = EditorState.create({
-  doc: `<html style="background-color: #067; margin: 1em; color: #afe">
+  doc: `<html style="background-color: #067; margin: 1em; color: #afe;
+    text-decoration-line: underline;
+">
   <h1>
     <img
       src="https://chearon.github.io/dropflow/assets/logo-afe.png"

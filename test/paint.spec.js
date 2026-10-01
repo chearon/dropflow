@@ -803,6 +803,33 @@ describe('Painting', function () {
     ]);
   });
 
+  it('supports currentColor', function () {
+    this.reflow(`
+      <div style="border-top: 5px solid #afe; color: #fea; width: 150px;">
+        hi ho
+        <div style="background-color: currentColor;">hi ho</div>
+        <div style="background-color: currentcolor; color: #fae;">hi ho</div>
+        <div style="color: currentcolor;">it's off to work</div>
+        <div style="border-bottom: 5px solid currentcolor;">we go</div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 2.5, length: 150, side: 'top', strokeColor: '#afe', lineWidth: 5},
+      {t: 'rect', x: 0, y: 21, width: 150, height: 16, fillColor: '#fea'},
+      {t: 'rect', x: 0, y: 37, width: 150, height: 16, fillColor: '#fae'},
+      {t: 'edge', x: 0, y: 103.5, length: 150, side: 'bottom', strokeColor: '#fea', lineWidth: 5},
+      {t: 'text', x: 0, y: 18, text: 'hi ho', fillColor: '#fea'},
+      {t: 'text', x: 0, y: 34, text: 'hi ho', fillColor: '#fea'},
+      {t: 'text', x: 0, y: 50, text: 'hi ho', fillColor: '#fae'},
+      {t: 'text', x: 0, y: 66, text: 'it', fillColor: '#fea'},
+      {t: 'text', x: 32, y: 66, text: "'", fillColor: '#fea'},
+      {t: 'text', x: 48, y: 66, text: 's off', fillColor: '#fea'},
+      {t: 'text', x: 0, y: 82, text: 'to work', fillColor: '#fea'},
+      {t: 'text', x: 0, y: 98, text: 'we go', fillColor: '#fea'}
+    ]);
+  });
+
   // TODO: would go better in a general box.spec.js
   describe('Pixel snapping', function () {
     it('snaps the border box', function () {

@@ -1,6 +1,6 @@
 import {ShapedItem} from './layout-text.ts';
 
-import type {Color} from './style.ts';
+import type {ColorLiteral} from './style.ts';
 import type {PaintBackend} from './paint.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {Image} from './layout-image.ts';
@@ -18,8 +18,8 @@ function camelToKebab(camel: string) {
 
 export default class HtmlPaintBackend implements PaintBackend {
   s: string;
-  fillColor: Color;
-  strokeColor: Color;
+  fillColor: ColorLiteral;
+  strokeColor: ColorLiteral;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
   font: LoadedFontFace | undefined;

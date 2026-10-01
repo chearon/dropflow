@@ -6,7 +6,7 @@ import {
 } from './layout-text.ts';
 import {G_ID, G_CL, G_AX, G_AY, G_DX, G_DY, G_FL, G_SZ} from './text-harfbuzz.ts';
 
-import type {Color} from './style.ts';
+import type {ColorLiteral} from './style.ts';
 import type {PaintBackend} from './paint.ts';
 import type {ShapedItem} from './layout-text.ts';
 import type {LoadedFontFace} from './text-font.ts';
@@ -117,8 +117,8 @@ function fastGlyphBoundaries(item: ShapedItem, totalTextStart: number, totalText
 }
 
 export default class CanvasPaintBackend implements PaintBackend {
-  fillColor: Color;
-  strokeColor: Color;
+  fillColor: ColorLiteral;
+  strokeColor: ColorLiteral;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
   font: LoadedFontFace | undefined;

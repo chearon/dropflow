@@ -131,7 +131,9 @@ export type WritingMode = 'horizontal-tb' | 'vertical-lr' | 'vertical-rl';
 
 type Position = 'absolute' | 'relative' | 'static';
 
-export type Color = {r: number, g: number, b: number, a: number};
+export type ColorLiteral = {r: number, g: number, b: number, a: number};
+
+type Color = ColorLiteral | 'currentcolor';
 
 type OuterDisplay = 'inline' | 'block' | 'none';
 
@@ -340,7 +342,7 @@ export class Style {
   // Properties for layout and painting
   zoom: number;
   whiteSpace: WhiteSpace;
-  color: Color;
+  color: ColorLiteral;
   fontSize: number;
   fontWeight: number;
   fontVariant: FontVariant;
@@ -349,7 +351,7 @@ export class Style {
   fontFamily: string[];
   lineHeight: 'normal' | number;
   verticalAlign: VerticalAlign;
-  backgroundColor: Color;
+  backgroundColor: ColorLiteral;
   backgroundClip: BackgroundClip;
   display: Display;
   direction: Direction;
@@ -362,10 +364,10 @@ export class Style {
   borderRightStyle: BorderStyle;
   borderBottomStyle: BorderStyle;
   borderLeftStyle: BorderStyle;
-  borderTopColor: Color;
-  borderRightColor: Color;
-  borderBottomColor: Color;
-  borderLeftColor: Color;
+  borderTopColor: ColorLiteral;
+  borderRightColor: ColorLiteral;
+  borderBottomColor: ColorLiteral;
+  borderLeftColor: ColorLiteral;
   paddingTop: number | Percentage;
   paddingRight: number | Percentage;
   paddingBottom: number | Percentage;
@@ -418,6 +420,10 @@ export class Style {
     return typeof length === 'number' ? this.usedLength(length) : length;
   }
 
+  private usedColor(color: Color) {
+    return color === 'currentcolor' ? this.color : color;
+  }
+
   constructor(style: ComputedStyle, parent?: Style, cascadedStyle?: DeclaredStyle) {
     this.id = ++id;
     this.computed = style;
@@ -428,7 +434,7 @@ export class Style {
     this.nextInCache = null;
     this.zoom = parent ? parent.zoom * style.zoom : style.zoom;
     this.whiteSpace = style.whiteSpace;
-    this.color = style.color;
+    this.color = style.color === 'currentcolor' ? parent!.color : style.color;
     this.fontSize = this.usedLength(style.fontSize);
     this.fontWeight = style.fontWeight;
     this.fontVariant = style.fontVariant;
@@ -437,7 +443,7 @@ export class Style {
     this.fontFamily = style.fontFamily;
     this.lineHeight = this.usedLineHeight(style);
     this.verticalAlign = this.usedMaybeLength(style.verticalAlign);
-    this.backgroundColor = style.backgroundColor;
+    this.backgroundColor = this.usedColor(style.backgroundColor);
     this.backgroundClip = style.backgroundClip;
     this.display = style.display;
     this.direction = style.direction;
@@ -450,10 +456,10 @@ export class Style {
     this.borderRightStyle = style.borderRightStyle;
     this.borderBottomStyle = style.borderBottomStyle;
     this.borderLeftStyle = style.borderLeftStyle;
-    this.borderTopColor = style.borderTopColor;
-    this.borderRightColor = style.borderRightColor;
-    this.borderBottomColor = style.borderBottomColor;
-    this.borderLeftColor = style.borderLeftColor;
+    this.borderTopColor = this.usedColor(style.borderTopColor);
+    this.borderRightColor = this.usedColor(style.borderRightColor);
+    this.borderBottomColor = this.usedColor(style.borderBottomColor);
+    this.borderLeftColor = this.usedColor(style.borderLeftColor);
     this.paddingTop = this.usedMaybeLength(style.paddingTop);
     this.paddingRight = this.usedMaybeLength(style.paddingRight);
     this.paddingBottom = this.usedMaybeLength(style.paddingBottom);

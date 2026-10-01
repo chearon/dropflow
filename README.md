@@ -62,8 +62,8 @@ Following are rules that work or will work soon. Shorthand properties are not li
 | Property | Values | Status |
 | -- | -- | -- |
 | <code>background-&zwj;clip</code> | `border-box`, `content-box`, `padding-box` | ✅&zwj;&nbsp;Works |
-| <code>background-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works |
-| <code>border-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` | ✅&zwj;&nbsp;Works |
+| <code>background-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba`, `currentColor` | ✅&zwj;&nbsp;Works |
+| <code>border-&zwj;color</code> | `rgba()`, `rgb()`, `#rrggbb`, `#rgb`, `#rgba` `currentColor` | ✅&zwj;&nbsp;Works |
 | <code>border-&zwj;style</code> | `solid`, `none` | ✅&zwj;&nbsp;Works |
 | <code>border-&zwj;width</code> | `em`, `px`, `cm` etc | ✅&zwj;&nbsp;Works |
 | <code>top</code>, <code>right</code>, <code>bottom</code>, <code>left</code> | `em`, `px`, `%`, `cm` etc | ✅&zwj;&nbsp;Works |

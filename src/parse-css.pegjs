@@ -6,6 +6,8 @@
 // Modified from the one distributed with pegjs to parse a list of declarations
 // separated by ';'. It can be used to parse the style tag's contents on an 
 // element
+//
+// TODO: most of the keywords are case-sensitive
 
 {{
   import {initial, inherited} from './style.ts';
@@ -253,6 +255,7 @@ color
       a: a ? parseInt(a + a, 16) / 255 : 1
     }
   }
+  / 'currentColor'i { return text().toLowerCase(); }
   / ('maroon' / 'red' / 'orange' / 'yellow' / 'veronicayellow' / 'olive' / 'purple' / 'fuchsia' / 'white' / 'lime' / 'green' / 'navy' / 'blue' / 'aqua' / 'teal' / 'black' / 'silver' / 'gray' / 'transparent')
   {
     return colorMap.get(text())

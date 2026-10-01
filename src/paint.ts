@@ -7,12 +7,12 @@ import {binarySearchOf} from './util.ts';
 
 import type {BlockLevel, BlockContainer} from './layout-flow.ts';
 import type {InlineFragment, Run} from './layout-text.ts';
-import type {Color} from './style.ts';
+import type {ColorLiteral} from './style.ts';
 import type {LoadedFontFace} from './text-font.ts';
 
 export interface PaintBackend {
-  fillColor: Color;
-  strokeColor: Color;
+  fillColor: ColorLiteral;
+  strokeColor: ColorLiteral;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
   font: LoadedFontFace | undefined;

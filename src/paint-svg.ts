@@ -1,6 +1,6 @@
 import {ShapedItem} from './layout-text.ts';
 
-import type {Color} from './style.ts';
+import type {ColorLiteral} from './style.ts';
 import type {PaintBackend} from './paint.ts';
 import type {LoadedFontFace} from './text-font.ts';
 import type {Image} from './layout-image.ts';
@@ -49,8 +49,8 @@ export default class SvgPaintBackend implements PaintBackend {
   main: string;
   defs: string;
   clips: Rect[];
-  fillColor: Color;
-  strokeColor: Color;
+  fillColor: ColorLiteral;
+  strokeColor: ColorLiteral;
   lineWidth: number;
   direction: 'ltr' | 'rtl';
   font: LoadedFontFace | undefined;

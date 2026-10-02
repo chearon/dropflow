@@ -221,7 +221,9 @@ function paintInlineBackground(
   const {a: ra} = borderRightColor;
   const {a: ba} = borderBottomColor;
   const {a: la} = borderLeftColor;
-  const {left: start, right: end, blockOffset, naturalStart, naturalEnd} = fragment;
+  const {left: start, right: end, blockOffset} = fragment;
+  const naturalStart = fragment.textStart === inline.textStart;
+  const naturalEnd = fragment.textEnd === inline.textEnd;
   const {ascender, descender} = inline.style.metrics;
   const containingBlock = inline.getContainingBlock();
   const paddingTop = inline.style.getPaddingBlockStart(containingBlock);
@@ -405,7 +407,7 @@ function paintInline(
     // Fragmented backgrounds from an inline already seen
     while (
       fragmentIndex < fragmentEnd &&
-      fragments[fragmentIndex].textOffset === mark &&
+      fragments[fragmentIndex].textStart === mark &&
       fragments[fragmentIndex].treeIndex < inlineIndex
     ) {
       paintInlineBackground(layout, fragments[fragmentIndex++], block, b);
@@ -413,7 +415,7 @@ function paintInline(
 
     lastMark = mark;
     mark = Math.min(
-      fragmentIndex < fragmentEnd ? fragments[fragmentIndex].textOffset : Infinity,
+      fragmentIndex < fragmentEnd ? fragments[fragmentIndex].textStart : Infinity,
       itemIndex < itemEnd ? items[itemIndex].end() : Infinity,
       inlineMark,
       inlineRoot.textEnd

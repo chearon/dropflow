@@ -1521,12 +1521,11 @@ export class Linebox extends LineFragments {
 
 export interface InlineFragment {
   treeIndex: number;
-  textOffset: number;
+  textStart: number;
+  textEnd: number;
   left: number;
   right: number;
   blockOffset: number;
-  naturalStart: boolean;
-  naturalEnd: boolean;
 }
 
 interface IfcMark {
@@ -2380,19 +2379,18 @@ function addInlineFragmentsAndPositionY(
         if (!fragment) {
           fragment = {
             treeIndex: inline.treeStart,
-            textOffset: Math.max(line.textStart, item.textStart),
+            textStart: item.textStart,
+            textEnd: item.textEnd,
             left,
             right,
-            blockOffset,
-            naturalStart: false,
-            naturalEnd: false,
+            blockOffset
           };
 
           ifc.block.fragments.push(fragment);
         }
 
-        fragment.naturalStart ||= inline.textStart === item.textStart;
-        fragment.naturalEnd ||= inline.textEnd === item.textEnd;
+        fragment.textStart = Math.min(fragment.textStart, item.textStart);
+        fragment.textEnd = Math.max(fragment.textEnd, item.textEnd);
         fragment.left = Math.min(fragment.left, left);
         fragment.right = Math.max(fragment.right, right);
       }

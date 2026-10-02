@@ -797,6 +797,7 @@ describe('Painting', function () {
       {t: 'rect', x: 0, y: 16, width: 176, height: 16, fillColor: '#00f'},
       {t: 'text', x: 0, y: 29, text: 'Adele hides', fillColor: '#000'},
       {t: 'rect', x: 0, y: 32, width: 240, height: 16, fillColor: '#00f'},
+      {t: 'rect', x: 0, y: 48, width: 144, height: 16, fillColor: '#00f'},
       {t: 'text', x: 0, y: 61, text: 'Ada rests', fillColor: '#000'},
       {t: 'edge', x: 0, y: 48.5, length: 240, side: 'bottom', strokeColor: '#00f', lineWidth: 1},
       {t: 'text', x: 0, y: 45, text: 'Hemingway hunts', fillColor: '#000'}

@@ -382,7 +382,8 @@ function paintInline(
           ) itemIndex++;
           while (
             fragmentIndex < fragmentEnd &&
-            fragments[fragmentIndex].treeIndex <= box.treeFinal
+            fragments[fragmentIndex].treeIndex <= box.treeFinal &&
+            fragments[fragmentIndex].textEnd <= box.textEnd
           ) fragmentIndex++;
         }
       } else if (box.isFormattingBox()) {

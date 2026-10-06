@@ -2452,7 +2452,7 @@ function positionPhysicalLineItems(
   const direction = ifc.block.style.direction;
   const containingBlock = ifc.containingBlock;
   const layout = ifc.layout;
-  const forceRootInlineFragment = lastLine && ctx.needBaseline || ctx.isDecorating;
+  const forceRootInlineFragment = lastLine && ctx.needBaseline;
   let blockOffset = line.blockOffset + line.ascender;
   let textOffset = line.textStart;
 

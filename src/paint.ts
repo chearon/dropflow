@@ -78,12 +78,12 @@ function drawText(
   const style = item.attrs.style;
   // Split the colors into spans so that colored diacritics can work.
   // Sadly this seems to only work in Firefox and only when the font doesn't do
-  // any normalizination, so I could probably stop trying to support it
+  // any normalization, so I could probably stop trying to support it
   // https://github.com/w3c/csswg-drafts/issues/699
-  let tx = item.x;
   const collapsed = getTextOffsetsForUncollapsedGlyphs(item);
   textStart = Math.max(textStart, collapsed.textStart);
   textEnd = Math.min(textEnd, collapsed.textEnd);
+  let tx = item.x;
 
   if (textStart < textEnd) {
     const toPx = 1 / item.face.hbface.upem * item.attrs.style.fontSize;

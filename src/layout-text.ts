@@ -2444,24 +2444,32 @@ function baselineRegroup(
 function positionPhysicalLineItems(
   ifc: InlineFormattingContext,
   line: Linebox,
-  forceFragments: boolean
+  lastLine: boolean,
+  ctx: LayoutContext
 ) {
   // Note: this function is where we mutate ifc.inlines for the next linebox
   const inlines = ifc.inlines;
   const direction = ifc.block.style.direction;
   const containingBlock = ifc.containingBlock;
   const layout = ifc.layout;
+  const forceRootInlineFragment = lastLine && ctx.needBaseline || ctx.isDecorating;
   let blockOffset = line.blockOffset + line.ascender;
   let textOffset = line.textStart;
 
   // No fragments are produced here (unless it's the last line, and the
   // containing block is an inline-block) but items without wrapping inlines
   // have to be positioned.
-  if (!forceFragments && inlines.length === 0 && line.items.length === 1 && line.treeStart === line.treeFinal && line.textStart < line.textEnd) {
+  if (
+    !forceRootInlineFragment &&
+    inlines.length === 0 &&
+    line.items.length === 1 &&
+    line.treeStart === line.treeFinal &&
+    line.textStart < line.textEnd
+  ) {
     // Fast path: it is very common to have a plaintext line
     ifc.block.items[line.items[0].itemIndex].y = blockOffset;
   } else {
-    addInlineFragmentsAndPositionY(ifc, line, forceFragments, ifc.rootInline, blockOffset);
+    addInlineFragmentsAndPositionY(ifc, line, forceRootInlineFragment, ifc.rootInline, blockOffset);
   }
 
   for (let i = 0; i < inlines.length; i++) {
@@ -2816,7 +2824,7 @@ function finishLine(
 
   if (line.items.length > 1) reorderPhysicalLineItems(ifc, line.items);
   transformLineboxWhitespace(ifc, line, lastLine);
-  positionPhysicalLineItems(ifc, line, lastLine && ctx.needBaseline);
+  positionPhysicalLineItems(ifc, line, lastLine, ctx);
 
   const blockSize = line.height();
 

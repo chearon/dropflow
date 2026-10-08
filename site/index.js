@@ -18,13 +18,14 @@ flow.setOriginStyle({zoom: window.devicePixelRatio});
 registerNotoFonts();
 
 async function loadLayoutPaint() {
+  await flow.load(documentElement);
   const ctx = canvas.getContext('2d');
   const cssWidth = wrap.getBoundingClientRect().width;
-  const cssHeight = wrap.getBoundingClientRect().height;
-  const dpxWidth = Math.ceil(cssWidth * window.devicePixelRatio);
-  const dpxHeight = Math.ceil(cssHeight * window.devicePixelRatio);
+  const dpxWidth = Math.floor(cssWidth * window.devicePixelRatio);
+  flow.reflow(layout, dpxWidth, 10_000);
+  const cssHeight = layout.tree[0].getBorderArea().height / window.devicePixelRatio;
+  const dpxHeight = Math.floor(cssHeight * window.devicePixelRatio);
 
-  await flow.load(documentElement);
   canvas.style.width = `${dpxWidth / window.devicePixelRatio}px`;
   canvas.style.height = `${dpxHeight / window.devicePixelRatio}px`;
   canvas.width = dpxWidth;
@@ -32,10 +33,10 @@ async function loadLayoutPaint() {
 
   const {r, g, b, a} = documentElement.style.backgroundColor;
   canvasLabel.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
+  wrap.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  flow.reflow(layout, canvas.width, canvas.height);
   flow.paintToCanvas(layout, canvas.getContext('2d'));
   ctx.restore();
 }
@@ -79,6 +80,7 @@ const state = EditorState.create({
   <div style="background-color: #a91; float: right; padding: 0.5em; margin-left: 0.5em;">
     To the right!
   </div>
+
   <p style="text-align: justify;">
     To the left and right are examples of <strong>floats</strong>.
     <span style="color: #efa;">Floats are placed as they are encountered
@@ -88,7 +90,7 @@ const state = EditorState.create({
 
   <div style="border-top: 3px solid #2344; margin: 1em 0;"></div>
 
-  <div>
+  <div style="margin: 1em 0;">
     Another difficult feature is inline-blocks.
     <div style="
       display: inline-block;
@@ -158,8 +160,14 @@ function parseGenerate() {
   window.documentElement = documentElement;
 }
 
+let lastWidth = undefined;
+
 const observer = new ResizeObserver(function () {
-  loadLayoutPaint();
+  const width = wrap.getBoundingClientRect().width;
+  if (lastWidth !== width) {
+    loadLayoutPaint();
+    lastWidth = width;
+  }
 });
 
 let lastDevicePixelRatio = window.devicePixelRatio;

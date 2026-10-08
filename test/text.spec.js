@@ -8,6 +8,7 @@ import PaintSpy from './paint-spy.js';
 import {Logger} from '../src/util.ts';
 
 const log = new Logger();
+const adaUrl = new URL(import.meta.resolve('#assets/images/ada.png'));
 
 function setupLayoutTests() {
   this.reflow = function (html) {
@@ -2427,6 +2428,223 @@ describe('Inline Blocks', function () {
       {t: 'rect', x: 106, y: 0, width: 76, height: 10, fillColor: '#800080'},
       {t: 'rect', x: 106, y: 28, width: 76, height: 10, fillColor: '#800080'},
       {t: 'text', x: 105.859375, y: 25, text: 'new shoes', fillColor: '#000'}
+    ]);
+  });
+});
+
+describe('Text Decorations', function () {
+  before(setupLayoutTests);
+
+  before(function () {
+    registerFontAsset('Ahem/Ahem.ttf');
+  });
+
+  after(function () {
+    unregisterFontAsset('Ahem/Ahem.ttf');
+  });
+
+  it('paints underline, overline, and line-through from decorating boxes', function () {
+    this.reflow(`
+      Peach red bull tastes like
+      <div style="display: inline-block; text-decoration: overline;">
+        <span style="text-decoration: line-through;">
+          <span style="text-decoration: underline;">chapstick!</span>
+        </span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13, text: 'Peach red bull tastes like ', fillColor: '#000'},
+      {t: 'edge', x: 432, y: 0.5, length: 160, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'edge', x: 432, y: 15.5, length: 160, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 432, y: 13, text: 'chapstick!', fillColor: '#000'},
+      {t: 'edge', x: 432, y: 8.5, length: 160, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+    ]);
+  });
+
+  it('paints underlines underneath text fragments when broken by br', function () {
+    this.reflow(`
+      Peach red bull
+      <span style="text-decoration: underline;">
+        <br>tastes
+        <br>like
+        <br>chapstick!
+      </span>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13, text: 'Peach red bull', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 31.5, length: 96, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 29, text: 'tastes', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 47.5, length: 64, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 45, text: 'like', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 63.5, length: 160, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 61, text: 'chapstick!', fillColor: '#000'}
+    ]);
+  });
+
+  it('paints underlines underneath text fragments when broken by soft breaks', function () {
+    this.reflow(`
+      Peach red bull
+      <div style="width: 0;">
+        <span style="text-decoration: underline;">tastes like chapstick!</span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13, text: 'Peach red bull', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 31.5, length: 96, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 29, text: 'tastes', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 47.5, length: 64, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 45, text: 'like', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 63.5, length: 160, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 61, text: 'chapstick!', fillColor: '#000'}
+    ]);
+  });
+
+  it('paints underlines on top of inline backgrounds', function () {
+    this.reflow(`
+      <span style="background-color: #f00;">Along
+        <span style="background-color: #0f0;">the
+          <span style="background-color: #00f; text-decoration: underline;">Soluble</span>
+          <span style="background-color: #ff0;">Shore
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'rect', x: 0, y: 0, width: 368, height: 16, fillColor: '#f00'},
+      {t: 'text', x: 0, y: 13, text: 'Along ', fillColor: '#000'},
+      {t: 'rect', x: 96, y: 0, width: 272, height: 16, fillColor: '#0f0'},
+      {t: 'text', x: 96, y: 13, text: 'the ', fillColor: '#000'},
+      {t: 'rect', x: 160, y: 0, width: 112, height: 16, fillColor: '#00f'},
+      {t: 'edge', x: 160, y: 15.5, length: 112, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 160, y: 13, text: 'Soluble', fillColor: '#000'},
+      {t: 'text', x: 272, y: 13, text: ' ', fillColor: '#000'},
+      {t: 'rect', x: 288, y: 0, width: 80, height: 16, fillColor: '#ff0'},
+      {t: 'text', x: 288, y: 13, text: 'Shore', fillColor: '#000'}
+    ]);
+  });
+
+  it('does not propagate decorations to floats', function () {
+    this.reflow(`
+      <div style="text-decoration: underline;">
+        <div style="float: left;">Dropflow 0.7</div>
+        Release when?
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13, text: 'Dropflow 0.7', fillColor: '#000'},
+      {t: 'edge', x: 192, y: 15.5, length: 208, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 192, y: 13, text: 'Release when?', fillColor: '#000'}
+    ]);
+  });
+
+  it('propagates decorations through positioned block containers', function () {
+    this.reflow(`
+      <div style="text-decoration: underline;">
+        <div style="position: relative; top: 10px;">
+          <div style="position: relative;">
+            <div>Watch Big Jim's Boozy Bike Trip
+    `);
+
+    // TODO why does ahem not render "'"?!
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 25.5, length: 208, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 23, text: 'Watch Big Jim', fillColor: '#000'},
+      {t: 'edge', x: 208, y: 25.5, length: 16, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 208, y: 23, text: "'", fillColor: '#000'},
+      {t: 'edge', x: 224, y: 25.5, length: 272, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 224, y: 23, text: 's Boozy Bike Trip', fillColor: '#000'}
+    ]);
+  });
+
+  it.skip('propagates decorations from inlines to broken-out blocks (#', function () {
+    this.reflow('<u>abc<div>cde</div></u>');
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 15.5, length: 48, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 13, text: 'abc', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 31.5, length: 48, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 29, text: 'cde', fillColor: '#000'}
+    ]);
+  });
+
+  it('does not leak propagated decorations to other boxes', function () {
+    this.reflow(`
+      one
+      <div style="text-decoration: underline #faa;">
+        <div style="position: relative;">
+          two
+          <div style="position: relative; text-decoration: underline #afa;">three</div>
+          four
+        </div>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 13, text: 'one', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 31.5, length: 48, side: 'bottom', strokeColor: '#faa', lineWidth: 1},
+      {t: 'text', x: 0, y: 29, text: 'two', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 63.5, length: 64, side: 'bottom', strokeColor: '#faa', lineWidth: 1},
+      {t: 'text', x: 0, y: 61, text: 'four', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 47.5, length: 80, side: 'bottom', strokeColor: '#faa', lineWidth: 1},
+      {t: 'edge', x: 0, y: 47.5, length: 80, side: 'bottom', strokeColor: '#afa', lineWidth: 1},
+      {t: 'text', x: 0, y: 45, text: 'three', fillColor: '#000'},
+    ]);
+  });
+
+  it('skips position: relative and paints it with its own decorations', function () {
+    this.reflow(`
+      <div style="text-decoration: underline; color: #f00;">
+        <span style="position: relative; text-decoration: underline; top: 10px; color: #0f0;">
+          baths
+        </span>
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 25.5, length: 80, side: 'bottom', strokeColor: '#0f0', lineWidth: 1},
+      {t: 'text', x: 0, y: 23, text: 'baths', fillColor: '#0f0'}
+    ]);
+  });
+
+  it('skips inline-blocks', function () {
+    this.reflow(`
+      <div style="text-decoration: underline; color: #f00;">
+        fall is here
+        <div style="display: inline-block;">pick some apples</div>
+        !
+      </div>
+    `);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 15.5, length: 208, side: 'bottom', strokeColor: '#f00', lineWidth: 1},
+      {t: 'text', x: 0, y: 13, text: 'fall is here ', fillColor: '#f00'},
+      {t: 'text', x: 208, y: 13, text: 'pick some apples', fillColor: '#f00'},
+      {t: 'edge', x: 464, y: 15.5, length: 32, side: 'bottom', strokeColor: '#f00', lineWidth: 1},
+      {t: 'text', x: 464, y: 13, text: ' !', fillColor: '#f00'}
+    ]);
+  });
+
+  it('skips images', function () {
+    // this.reflow() doesn't call loadSync and doing so slows the other tests down
+    this.rootElement = parse(`
+      <div style="text-decoration: line-through;">
+        weilands
+        <img style="width: 100px;" src="${adaUrl}">
+        market
+    `);
+
+    flow.loadSync(this.rootElement);
+    this.layout = flow.layout(this.rootElement);
+    flow.reflow(this.layout);
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'text', x: 0, y: 102, text: 'weilands ', fillColor: '#000'},
+      {t: 'edge', x: 0, y: 97.5, length: 144, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'image', x: 144, y: 0, width: 100, height: 102, src: String(adaUrl)},
+      {t: 'text', x: 244, y: 102, text: ' market', fillColor: '#000'},
+      {t: 'edge', x: 244, y: 97.5, length: 112, side: 'bottom', strokeColor: '#000', lineWidth: 1}
     ]);
   });
 });

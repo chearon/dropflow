@@ -130,6 +130,27 @@ const state = EditorState.create({
 
   <div style="border-top: 3px solid #2344; margin: 1em 0;"></div>
 
+  <p>
+    Text decorations are <s style="text-decoration-color: #c33;">simple</s> not
+    so simple. <u>Text that is <sup>vertical-aligned</sup> doesn't get its own
+    decoration, and text that's <span style="position: relative; top: 3px;">positioned</span>
+    or <span style="
+      border: 1px solid currentColor;
+      margin: 2px;
+      padding: 2px;
+      display: inline-block;
+      font-size: 8px;
+      vertical-align: middle;
+    ">inline-<br>block</span> gets skipped and the decorations don't inherit.</u>
+  </p>
+
+  <div style="text-decoration: black underline; line-height: 2;">
+    <p>Decorations do get inherited from blocks! And decorations on unpositioned
+    <s>elements <span style="text-decoration: #efa overline;">add together.</span>
+  </div>
+
+  <div style="border-top: 3px solid #2344; margin: 1em 0;"></div>
+
   <div style="margin: 1em 0;">
     Finally, <span style="background-color: #133; color: #aef">when
     painting inline backgrounds, the inline element must not interrupt

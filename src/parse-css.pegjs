@@ -89,7 +89,7 @@
     ['transparent', {r: 255, g: 255, b: 255, a: 0}]
   ]);
 
-  let $font = {}, $fontNormals = 0;
+  let $font = {}, $fontNormals = 0, $decoLines = 0, $decoColors = 0, $decoStyles = 0;
 }}
 
 start
@@ -157,6 +157,10 @@ declaration
   / overflow_dec
   / zoom_dec
   / word_spacing_dec
+  / text_decoration_line_dec
+  / text_decoration_style_dec
+  / text_decoration_color_dec
+  / text_decoration_dec
   / name:property ':' S* value:expr {
       let r = {};
       r['_' + name] = value;
@@ -784,6 +788,42 @@ zoom_dec
 word_spacing_dec
   = 'word-spacing'i S* ':' S* wordSpacing:(LENGTH / PERCENTAGE / default) {
     return {wordSpacing};
+  }
+
+text_decoration_line = 'none' / 'underline' / 'overline' / 'line-through';
+
+text_decoration_line_dec
+  = 'text-decoration-line'i S* ':' S* textDecorationLine:(text_decoration_line / default) {
+    return {textDecorationLine};
+  }
+
+text_decoration_style = 'solid';
+
+text_decoration_style_dec
+  = 'text-decoration-style'i S* ':' S* textDecorationStyle:(text_decoration_style / default) {
+    return {textDecorationStyle};
+  }
+
+text_decoration_color_dec
+  = 'text-decoration-color'i S* ':' S* textDecorationColor:(color / default) {
+    return {textDecorationColor};
+  }
+
+text_decoration_sub_dec
+  = textDecorationLine:text_decoration_line { $decoLines++; return {textDecorationLine}; }
+  / textDecorationStyle:text_decoration_style { $decoStyles++; return {textDecorationStyle}; }
+  / textDecorationColor:color { $decoColors++; return {textDecorationColor}; }
+
+text_decoration_dec
+  = 'text-decoration'i S* ':' S* rule:(text_decoration_sub_dec (S+ text_decoration_sub_dec)*) {
+    let ret = undefined;
+    if ($decoLines <= 1 && $decoStyles <= 1 && $decoColors <= 1) {
+      ret = combine([rule[0], ...rule[1].map(r => r[1])]);
+    }
+    $decoLines = 0;
+    $decoStyles = 0;
+    $decoColors = 0;
+    return ret;
   }
 
 width_dec

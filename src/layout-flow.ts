@@ -51,6 +51,11 @@ export interface LayoutContext {
    * child layout, and this doesn't generate too many fragments in practice.
    */
   needBaseline: boolean;
+  /**
+   * An ancestor has established text decorations. Reset by out of flow elements
+   * and inline-blocks.
+   */
+  isDecorating: boolean;
 }
 
 class MarginCollapseCollection {
@@ -1102,6 +1107,12 @@ function layoutBlockBoxInner(
     cctx.needBaseline = false;
   } else if (box.isInlineLevel()) {
     cctx.needBaseline = true;
+  }
+
+  if (box.isDecoratingBox()) {
+    cctx.isDecorating = true;
+  } else if (box.isOutOfFlow() || box.isInlineLevel()) {
+    cctx.isDecorating = false;
   }
 
   containingBfc?.boxStart(layout, box, cctx); // Assign block position if it's an IFC

@@ -204,6 +204,9 @@ export interface DeclaredStyleProperties {
   overflowWrap?: 'anywhere' | 'break-word' | 'normal' | Inherited | Initial;
   overflow?: 'visible' | 'hidden' | Inherited | Initial;
   wordSpacing?: 'normal' | Length | Percentage;
+  textDecorationLine?: 'none' | 'underline' | 'overline' | 'line-through';
+  textDecorationStyle?: 'solid';
+  textDecorationColor?: Color;
 }
 
 const EMPTY_ARRAY: readonly number[] = Object.freeze([]);
@@ -312,6 +315,9 @@ interface ComputedStyle {
   overflowWrap: 'anywhere' | 'break-word' | 'normal';
   overflow: 'visible' | 'hidden';
   wordSpacing: 'normal' | number | Percentage;
+  textDecorationLine: 'none' | 'underline' | 'overline' | 'line-through';
+  textDecorationStyle: 'solid';
+  textDecorationColor: Color;
 }
 
 function resolvePercent(containingBlock: BoxArea, cssVal: number | {value: number, unit: '%'}) {
@@ -393,6 +399,9 @@ export class Style {
   overflowWrap: 'anywhere' | 'break-word' | 'normal';
   overflow: 'visible' | 'hidden';
   wordSpacing: 'normal' | number | Percentage;
+  textDecorationLine: 'none' | 'underline' | 'overline' | 'line-through';
+  textDecorationStyle: 'solid';
+  textDecorationColor: ColorLiteral;
 
   // This section reduces to used values as much as possible
   // Be careful accessing off of "this" since these are called in the ctor
@@ -485,6 +494,9 @@ export class Style {
     this.overflowWrap = style.overflowWrap;
     this.overflow = style.overflow;
     this.wordSpacing = this.usedMaybeLength(style.wordSpacing);
+    this.textDecorationLine = style.textDecorationLine;
+    this.textDecorationStyle = style.textDecorationStyle;
+    this.textDecorationColor = this.usedColor(style.textDecorationColor);
   }
 
   blockify() {
@@ -552,7 +564,8 @@ export class Style {
         && this.borderBottomStyle !== 'none'
       || this.borderLeftWidth > 0
         && this.borderLeftColor.a > 0
-        && this.borderLeftStyle !== 'none';
+        && this.borderLeftStyle !== 'none'
+      || this.textDecorationLine !== 'none';
   }
 
   getMarginBlockStart(containingBlock: BoxArea) {
@@ -823,7 +836,10 @@ const initialPlainStyle: ComputedStyle = Object.freeze({
   wordBreak: 'normal',
   overflowWrap: 'normal',
   overflow: 'visible',
-  wordSpacing: 'normal'
+  wordSpacing: 'normal',
+  textDecorationLine: 'none',
+  textDecorationStyle: 'solid',
+  textDecorationColor: 'currentcolor'
 });
 
 let originStyle = new Style(initialPlainStyle);
@@ -924,6 +940,16 @@ export const uaDeclaredStyles: UaDeclaredStyles = Object.freeze({
   }),
   b: createDeclaredStyle({
     fontWeight: 700
+  }),
+  u: createDeclaredStyle({
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'solid',
+    textDecorationColor: 'currentcolor'
+  }),
+  s: createDeclaredStyle({
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
+    textDecorationColor: 'currentcolor'
   }),
   em: createDeclaredStyle({
     fontStyle: 'italic'

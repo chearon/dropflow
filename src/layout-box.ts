@@ -367,6 +367,10 @@ export abstract class Box extends TreeNode {
     return this.isFormattingBox() && this.isFloat() || this.isPositioned();
   }
 
+  isDecoratingBox(): boolean {
+    return this.style.textDecorationLine !== 'none';
+  }
+
   /**
    * Does this paint anything in the background layer? Borders, box-shadow, etc.
    */

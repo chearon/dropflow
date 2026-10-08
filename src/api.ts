@@ -24,9 +24,7 @@ export {log} from './layout-box.ts';
 
 export {environment} from './environment.ts';
 
-export type {BlockContainer, DeclaredStyle};
-
-export type {HTMLElement};
+export type {Layout, BlockContainer, DeclaredStyle, HTMLElement};
 
 export {createDeclaredStyle as style, setOriginStyle} from './style.ts';
 

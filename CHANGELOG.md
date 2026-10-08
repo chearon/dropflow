@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 (Unreleased)
 ==================
 ### Changed
+### Added
+### Fixed
+
+0.7.0
+==================
+### Changed
 * The layout APIs have changed. See the migration section for more info.
 * Retained memory has been reduced greatly in pursuit of an extremely small memory footprint. There are a few properties left and a few more arrays to be merged, but dropflow is now very close to storing little more than needed to represent first principles. Objects that aren't needed to remember a layout are reconstructed on the fly, moving them from old generation to new generation memory which reduces GC churn. More on that here: https://chearon.net/blog/css-boxes-but-with-data-oriented-design/.
 * Removed `staticLayoutContribution` API

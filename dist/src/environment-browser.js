@@ -1,0 +1,42 @@
+import { environment, defaultEnvironment } from "./environment.js";
+if (environment.registerFont === defaultEnvironment.registerFont) {
+    environment.registerFont = function (face) {
+        const buffer = face.getBuffer();
+        const domFace = new FontFace(face.uniqueFamily, buffer);
+        document.fonts.add(domFace);
+        return () => document.fonts.remove(domFace);
+    };
+}
+if (environment.resolveUrlSync === defaultEnvironment.resolveUrlSync) {
+    environment.resolveUrlSync = function (url) {
+        throw new Error(`Cannot load synchronously: ${url}`);
+    };
+}
+if (environment.resolveUrl === defaultEnvironment.resolveUrl) {
+    environment.resolveUrl = async function (url) {
+        const res = await fetch(url);
+        if (!res.ok)
+            throw new Error(res.statusText);
+        return await res.arrayBuffer();
+    };
+}
+if (environment.createDecodedImage === defaultEnvironment.createDecodedImage) {
+    environment.createDecodedImage = async (image) => {
+        const img = new Image();
+        // @ts-expect-error this will throw an exception if SharedArrayBuffer is
+        // used. That's a feature. SharedArrayBuffer is not allowed in most of the
+        // web APIs, and the only use case I can think of is if you have image data
+        // embedded in WASM memory for some reason. If you're here because of a rare
+        // use case like that, just override createDecodedImage to create a copy.
+        const blob = new Blob([image.buffer]);
+        img.src = URL.createObjectURL(blob);
+        await img.decode();
+        return img;
+    };
+}
+if (environment.destroyDecodedImage === defaultEnvironment.destroyDecodedImage) {
+    environment.destroyDecodedImage = (handle) => {
+        URL.revokeObjectURL(handle.src);
+    };
+}
+// wasm locator must be manually configured

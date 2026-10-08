@@ -1,0 +1,205 @@
+import { G_ID, G_CL, G_SZ } from "./text-harfbuzz.js";
+/**
+ * Binary search that returns the position `x` should be in
+ */
+export function binarySearch(a, x) {
+    let l = 0, r = a.length - 1;
+    while (true) {
+        let i = Math.floor((l + r) / 2);
+        if (a[i] < x) {
+            l = i + 1;
+            if (l > r)
+                return l;
+        }
+        else if (a[i] > x) {
+            r = i - 1;
+            if (r < l)
+                return i;
+        }
+        else {
+            return i;
+        }
+    }
+}
+/**
+ * Binary search that returns the position `x` should be in, using the `end`
+ * property of objects in the `a` array
+ */
+export function binarySearchOf(a, x, end) {
+    let l = 0, r = a.length - 1;
+    if (r < 0)
+        return -1;
+    while (true) {
+        let i = Math.floor((l + r) / 2);
+        if (end(a[i]) < x) {
+            l = i + 1;
+            if (l > r)
+                return l;
+        }
+        else if (end(a[i]) > x) {
+            r = i - 1;
+            if (r < l)
+                return i;
+        }
+        else {
+            return i;
+        }
+    }
+}
+let _id = 0;
+export function id() {
+    return String(_id++);
+}
+const bytes = new Uint8Array(16);
+export function uuid() {
+    let uuid = '';
+    crypto.getRandomValues(bytes);
+    // Set version (4) in the most significant 4 bits of byte 6
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    // Set variant (10) in the most significant 2 bits of byte 8
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    for (let i = 0; i < bytes.length; i++) {
+        switch (i) {
+            case 4:
+            case 6:
+            case 8:
+            case 10: uuid += '-';
+        }
+        uuid += bytes[i].toString(16).padStart(2, '0');
+    }
+    return uuid;
+}
+export function loggableText(text) {
+    return text.replace(/\n/g, '⏎').replace(/\t/g, '␉');
+}
+export function basename(url) {
+    return url.href.slice(url.href.lastIndexOf('/') + 1);
+}
+export class Logger {
+    string;
+    formats; // only for browsers
+    indent;
+    lineIsEmpty;
+    constructor() {
+        this.string = '';
+        this.formats = [];
+        this.indent = [];
+        this.lineIsEmpty = false;
+    }
+    bold() {
+        if (typeof process === 'object') {
+            this.string += '\x1b[1m';
+        }
+        else {
+            this.string += '%c';
+            this.formats.push('font-weight: bold');
+        }
+    }
+    underline() {
+        if (typeof process === 'object') {
+            this.string += '\x1b[4m';
+        }
+        else {
+            this.string += '%c';
+            this.formats.push('text-decoration: underline');
+        }
+    }
+    dim() {
+        if (typeof process === 'object') {
+            this.string += '\x1b[2m';
+        }
+        else {
+            this.string += '%c';
+            this.formats.push('color: gray');
+        }
+    }
+    reset() {
+        if (typeof process === 'object') {
+            this.string += '\x1b[0m';
+        }
+        else {
+            this.string += '%c';
+            this.formats.push('font-weight: normal');
+        }
+    }
+    flush() {
+        console.log(this.string, ...this.formats);
+        this.string = '';
+        this.formats = [];
+    }
+    text(str) {
+        const lines = String(str).split('\n');
+        const append = (s) => {
+            if (s) {
+                if (this.lineIsEmpty)
+                    this.string += this.indent.join('');
+                this.string += s;
+                this.lineIsEmpty = false;
+            }
+        };
+        for (let i = 0; i < lines.length; i++) {
+            if (i === 0) {
+                append(lines[i]);
+            }
+            else {
+                this.string += '\n';
+                this.lineIsEmpty = true;
+                append(lines[i]);
+            }
+        }
+    }
+    glyphs(glyphs) {
+        for (let i = 0; i < glyphs.length; i += G_SZ) {
+            const cl = glyphs[i + G_CL];
+            const isp = i - G_SZ >= 0 && glyphs[i - G_SZ + G_CL] === cl;
+            const isn = i + G_SZ < glyphs.length && glyphs[i + G_SZ + G_CL] === cl;
+            if (isp || isn)
+                this.bold();
+            if (isn && !isp)
+                this.text('(');
+            this.text(glyphs[i + G_ID]);
+            if (!isn && isp)
+                this.text(')');
+            this.text(' ');
+            if (isp || isn)
+                this.reset();
+        }
+    }
+    pushIndent(indent = '  ') {
+        this.indent.push(indent);
+    }
+    popIndent() {
+        this.indent.pop();
+    }
+}
+export class Deferred {
+    status;
+    promise;
+    resolve;
+    reject;
+    constructor() {
+        this.status = 'unresolved';
+        this.promise = new Promise((resolve, reject) => {
+            this.resolve = (t) => {
+                if (this.status === 'unresolved') {
+                    this.status = 'resolved';
+                    resolve(t);
+                }
+            };
+            this.reject = (e) => {
+                if (this.status === 'unresolved') {
+                    this.status = 'rejected';
+                    reject(e);
+                }
+            };
+        });
+    }
+}
+export function toTypedArray(buf) {
+    if (ArrayBuffer.isView(buf)) {
+        return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    }
+    else {
+        return new Uint8Array(buf);
+    }
+}

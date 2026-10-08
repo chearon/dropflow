@@ -1,0 +1,712 @@
+import { Logger } from "./util.js";
+export class TreeNode {
+    style;
+    constructor(style) {
+        this.style = style;
+    }
+    isBlockContainer() {
+        return false;
+    }
+    isBlockContainerOfInlines() {
+        return false;
+    }
+    isBlockContainerOfBlocks() {
+        return false;
+    }
+    isFormattingBox() {
+        return false;
+    }
+    isReplacedBox() {
+        return false;
+    }
+    isRun() {
+        return false;
+    }
+    isInline() {
+        return false;
+    }
+    isBreak() {
+        return false;
+    }
+    isBox() {
+        return false;
+    }
+    /**
+     * Typically the time to assign the containing block
+     */
+    prelayoutPreorder(ctx) {
+        // should be overridden
+    }
+    /**
+     * Typically the time to shape text and gather font metrics
+     */
+    prelayoutPostorder(layout, ctx) {
+        // should be overridden
+    }
+    /**
+     * Typically the time to absolutize relative coordinates
+     */
+    postlayoutPreorder(layout) {
+        // should be overridden
+    }
+    /**
+     * Typically the time to snap pixels
+     */
+    postlayoutPostorder() {
+        // should be overridden
+    }
+}
+export class Box extends TreeNode {
+    /**
+     * General boolean bitfield shared by all box subclasses. The bits labeled
+     * with "has" say something about their content to allow for optimizations.
+     * They propagate through to parents of the same type, though some of them
+     * do so conditionally.
+     */
+    bitfield;
+    treeStart;
+    treeFinal;
+    area;
+    /**
+     * Bitfield allocations. Box subclasses with different inheritance are allowed
+     * to overlap attribute bits or propagate target bits. It's easier to keep
+     * these all in one place than try to define them on the subclasses.
+     */
+    static BITS = {
+        // 0..3: misc attributes for all box types:
+        isAnonymous: 1 << 0,
+        enableLogging: 1 << 1,
+        reserved1: 1 << 2, // this padding makes the logs easier to
+        reserved2: 1 << 3, // read (distinguish attrs from has bits)
+        // 4..7: propagation bits: Box <- Box
+        hasBackgroundInLayer: 1 << 4,
+        hasForegroundInLayer: 1 << 5,
+        hasBackgroundInDescendent: 1 << 6,
+        hasForegroundInDescendent: 1 << 7,
+        // 8..9: attributes for BlockContainer:
+        //
+        // Inline or block-level: we can't use the style for this since anonymously
+        // created block containers are block-level but their style is inline (the
+        // initial value). Potentially we could remove this and say that it's block
+        // level if it's anonymous.
+        //
+        // Other CSS rules that affect how a block container is treated during
+        // layout do not have this problem (position: absolute, display: inline-
+        // block) because anonymously created boxes cannot invoke those modes.
+        isInline: 1 << 8,
+        isBfcRoot: 1 << 9,
+        // 8..13: propagation bits: Inline <- Run
+        hasText: 1 << 8,
+        hasComplexText: 1 << 9,
+        hasSoftHyphen: 1 << 10,
+        hasNewlines: 1 << 11,
+        hasSoftWrap: 1 << 12,
+        hasWordSpacing: 1 << 13,
+        // 14..15: propagation bits: Inline <- Inline
+        hasPaintedInlines: 1 << 14,
+        hasSizedInline: 1 << 15,
+        // 16: propagation bits: Inline <- Break, Inline, ReplacedBox
+        hasBreakInlineOrReplaced: 1 << 16,
+        // 17..18: propagation bits: Inline <- FormattingBox
+        hasFloatOrReplaced: 1 << 17,
+        hasInlineBlocks: 1 << 18,
+        // 19..31: if you take them, remove them from PROPAGATES_TO_INLINE_BITS
+    };
+    /**
+     * Use this, not BITS, for the ctor! BITS are ~private
+     */
+    static ATTRS = {
+        isAnonymous: Box.BITS.isAnonymous,
+        enableLogging: Box.BITS.enableLogging,
+    };
+    static PROPAGATES_TO_INLINE_BITS = 0xffffff00;
+    constructor(style, attrs) {
+        super(style);
+        this.bitfield = attrs;
+        this.treeStart = 0;
+        this.treeFinal = 0;
+        this.area = new BoxArea(this);
+        const hasBorder = this.style.hasBorderArea();
+        const hasPadding = this.style.hasPaddingArea();
+        if (hasBorder && hasPadding) { // b -> p -> c
+            const b = new BoxArea(this);
+            const p = new BoxArea(this);
+            this.area.setParent(p);
+            p.setParent(b);
+        }
+        else if (hasBorder || hasPadding) { // b -> c or p -> c
+            this.area.setParent(new BoxArea(this));
+        }
+    }
+    id() {
+        return this.treeStart;
+    }
+    getBorderArea() {
+        const hasBorder = this.style.hasBorderArea();
+        const hasPadding = this.style.hasPaddingArea();
+        if (hasBorder && hasPadding) {
+            return this.area.parent.parent;
+        }
+        else if (hasBorder || hasPadding) {
+            return this.area.parent;
+        }
+        else {
+            return this.area;
+        }
+    }
+    getPaddingArea() {
+        if (this.style.hasPaddingArea()) {
+            return this.area.parent;
+        }
+        else {
+            return this.area;
+        }
+    }
+    getContentArea() {
+        return this.area;
+    }
+    getContainingBlock() {
+        const containingBlock = this.getBorderArea().parent;
+        if (!containingBlock)
+            throw new Error('Assertion failed');
+        return containingBlock;
+    }
+    prelayoutPreorder(ctx) {
+        // CSS2.2 10.1: set containing block
+        if (this.style.position === 'absolute') {
+            this.getBorderArea().setParent(ctx.lastPositionedArea);
+        }
+        else {
+            this.getBorderArea().setParent(ctx.lastBlockContainerArea);
+        }
+        this.style.fillMetrics();
+    }
+    /**
+     * Assign the offsets of the border and padding areas from the content area,
+     * as defined by the style. This is the first layout step, and block
+     * containers must have been laid out for percentages to work.
+     */
+    fillAreas(containingBlock) {
+        if (this.style.hasBorderArea()) {
+            const borderBlockStartWidth = this.style.getBorderBlockStartWidth(containingBlock);
+            const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
+            const paddingArea = this.getPaddingArea();
+            paddingArea.blockStart = borderBlockStartWidth;
+            paddingArea.lineLeft = borderLineLeftWidth;
+        }
+        if (this.style.hasPaddingArea()) {
+            const paddingBlockStart = this.style.getPaddingBlockStart(containingBlock);
+            const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
+            const contentArea = this.getContentArea();
+            contentArea.blockStart = paddingBlockStart;
+            contentArea.lineLeft = paddingLineLeft;
+        }
+    }
+    setBlockPosition(position) {
+        this.getBorderArea().blockStart = position;
+    }
+    setBlockSize(containingBlock, size) {
+        this.getContentArea().blockSize = size;
+        if (this.style.hasPaddingArea()) {
+            const paddingBlockStart = this.style.getPaddingBlockStart(containingBlock);
+            const paddingBlockEnd = this.style.getPaddingBlockEnd(containingBlock);
+            const paddingSize = size + paddingBlockStart + paddingBlockEnd;
+            const paddingArea = this.getPaddingArea();
+            paddingArea.blockSize = paddingSize;
+        }
+        if (this.style.hasBorderArea()) {
+            const borderBlockStartWidth = this.style.getBorderBlockStartWidth(containingBlock);
+            const borderBlockEndWidth = this.style.getBorderBlockEndWidth(containingBlock);
+            const paddingArea = this.getPaddingArea();
+            const borderArea = this.getBorderArea();
+            const borderSize = paddingArea.blockSize + borderBlockStartWidth + borderBlockEndWidth;
+            borderArea.blockSize = borderSize;
+        }
+    }
+    setInlinePosition(lineLeft) {
+        this.getBorderArea().lineLeft = lineLeft;
+    }
+    setInlineOuterSize(containingBlock, size) {
+        this.getBorderArea().inlineSize = size;
+        if (this.style.hasBorderArea()) {
+            const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
+            const borderLineRightWidth = this.style.getBorderLineRightWidth(containingBlock);
+            const paddingSize = size - borderLineLeftWidth - borderLineRightWidth;
+            const paddingArea = this.getPaddingArea();
+            paddingArea.inlineSize = paddingSize;
+        }
+        if (this.style.hasPaddingArea()) {
+            const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
+            const paddingLineRight = this.style.getPaddingLineRight(containingBlock);
+            const paddingArea = this.getPaddingArea();
+            const contentArea = this.getContentArea();
+            const contentSize = paddingArea.inlineSize - paddingLineLeft - paddingLineRight;
+            contentArea.inlineSize = contentSize;
+        }
+    }
+    getWritingModeAsParticipant(containingBlock) {
+        return containingBlock.box.style.writingMode;
+    }
+    getDirectionAsParticipant(containingBlock) {
+        return containingBlock.box.style.direction;
+    }
+    propagate(parent) {
+        if (!this.isLayerRoot()) {
+            if (this.hasBackground() || this.hasBackgroundInLayerRoot()) {
+                parent.bitfield |= Box.BITS.hasBackgroundInLayer;
+            }
+            if (this.hasForeground() || this.hasForegroundInLayerRoot()) {
+                parent.bitfield |= Box.BITS.hasForegroundInLayer;
+            }
+        }
+        if (this.hasBackground() || this.hasBackgroundInDescendent()) {
+            parent.bitfield |= Box.BITS.hasBackgroundInDescendent;
+        }
+        if (this.hasForeground() || this.hasForegroundInDescendent()) {
+            parent.bitfield |= Box.BITS.hasForegroundInDescendent;
+        }
+    }
+    isBox() {
+        return true;
+    }
+    isAnonymous() {
+        return Boolean(this.bitfield & Box.BITS.isAnonymous);
+    }
+    isPositioned() {
+        return this.style.position !== 'static';
+    }
+    isStackingContextRoot() {
+        return this.isPositioned() && this.style.zIndex !== 'auto';
+    }
+    /**
+     * A layer is a stacking context root or an element that CSS 2.1 appendix E
+     * says to treat like one.
+     */
+    isLayerRoot() {
+        return this.isFormattingBox() && this.isFloat() || this.isPositioned();
+    }
+    isDecoratingBox() {
+        return this.style.textDecorationLine !== 'none';
+    }
+    /**
+     * There is a background in some descendent that is part of the same paint
+     * layer (not necessarily in the subject). (See also isLayerRoot).
+     *
+     * A background is a background-color or anything CSS 2.1 appendix E groups
+     * with it.
+     */
+    hasBackgroundInLayerRoot() {
+        return Boolean(this.bitfield & Box.BITS.hasBackgroundInLayer);
+    }
+    /**
+     * There is a foreground in some descendent that is part of the same paint
+     * layer (not necessarily in the subject). (See also isLayerRoot).
+     *
+     * A foreground is a text run or anything CSS 2.1 appendix E groups with it
+     */
+    hasForegroundInLayerRoot() {
+        return Boolean(this.bitfield & Box.BITS.hasForegroundInLayer);
+    }
+    /**
+     * There is a background somewhere beneath this node
+     *
+     * A background is a background-color or anything CSS 2.1 appendix E groups
+     * with it
+     */
+    hasBackgroundInDescendent() {
+        return Boolean(this.bitfield & Box.BITS.hasBackgroundInDescendent);
+    }
+    /**
+     * There is a foreground somewhere beneath this node
+     *
+     * A foreground is a text run or anything CSS 2.1 appendix E groups with it
+     */
+    hasForegroundInDescendent() {
+        return Boolean(this.bitfield & Box.BITS.hasForegroundInDescendent);
+    }
+    postlayoutPreorder(layout) {
+        // TODO: Inlines don't use this yet. Get rid of paragraph's backgroundBoxes
+        // and use normal inline areas instead, with fragmentation
+        const borderArea = this.getBorderArea();
+        if (this.style.position === 'relative') {
+            const containingBlock = this.getContainingBlock();
+            borderArea.x += this.getRelativeHorizontalShift(containingBlock);
+            borderArea.y += this.getRelativeVerticalShift(containingBlock);
+        }
+        borderArea.absolutify();
+        if (this.style.hasBorderArea())
+            this.getPaddingArea().absolutify();
+        if (this.style.hasPaddingArea())
+            this.getContentArea().absolutify();
+    }
+    postlayoutPostorder() {
+        // TODO: same TODO as above
+        this.getBorderArea().snapPixels();
+        if (this.style.hasBorderArea())
+            this.getPaddingArea().snapPixels();
+        if (this.style.hasPaddingArea())
+            this.getContentArea().snapPixels();
+    }
+    getRelativeVerticalShift(containingBlock) {
+        const height = containingBlock.height;
+        let { top, bottom } = this.style;
+        if (top !== 'auto') {
+            if (typeof top !== 'number')
+                top = height * top.value / 100;
+            return top;
+        }
+        else if (bottom !== 'auto') {
+            if (typeof bottom !== 'number')
+                bottom = height * bottom.value / 100;
+            return -bottom;
+        }
+        else {
+            return 0;
+        }
+    }
+    getRelativeHorizontalShift(containingBlock) {
+        const direction = containingBlock.getEstablishedDirection();
+        const width = containingBlock.width;
+        let { right, left } = this.style;
+        if (left !== 'auto' && (right === 'auto' || direction === 'ltr')) {
+            if (typeof left !== 'number')
+                left = width * left.value / 100;
+            return left;
+        }
+        else if (right !== 'auto' && (left === 'auto' || direction === 'rtl')) {
+            if (typeof right !== 'number')
+                right = width * right.value / 100;
+            return -right;
+        }
+        else {
+            return 0;
+        }
+    }
+    logName(log, options) {
+        log.text('Box');
+    }
+    getLogSymbol() {
+        return '◼︎';
+    }
+    stringifyBitfield() {
+        const thirty2 = this.bitfield.toString(2);
+        let s = '';
+        for (let i = thirty2.length - 1; i >= 0; i--) {
+            s = thirty2[i] + s;
+            if (i > 0 && (s.length - 4) % 5 === 0)
+                s = '_' + s;
+        }
+        s = '0b' + s;
+        return s;
+    }
+}
+/**
+ * Base class for BlockContainer, ReplacedBox, and theoretically, GridContainer
+ * and FlexContainer. Subclasses are all able to establish their own independent
+ * formatting contexts (replaced boxes arguably, not officially, do so) whereas
+ * Inlines cannot.
+ */
+export class FormattingBox extends Box {
+    static ATTRS = { ...Box.ATTRS };
+    isFormattingBox() {
+        return true;
+    }
+    getDefiniteInnerInlineSize(containingBlock) {
+        const inlineSize = this.style.getInlineSize(containingBlock);
+        if (inlineSize !== 'auto')
+            return inlineSize;
+    }
+    getDefiniteOuterInlineSize(containingBlock) {
+        const inlineSize = this.getDefiniteInnerInlineSize(containingBlock);
+        if (inlineSize !== undefined) {
+            const borderLineLeftWidth = this.style.getBorderLineLeftWidth(containingBlock);
+            const paddingLineLeft = this.style.getPaddingLineLeft(containingBlock);
+            const paddingLineRight = this.style.getPaddingLineRight(containingBlock);
+            const borderLineRightWidth = this.style.getBorderLineRightWidth(containingBlock);
+            return borderLineLeftWidth
+                + paddingLineLeft
+                + inlineSize
+                + paddingLineRight
+                + borderLineRightWidth;
+        }
+    }
+    getDefiniteInnerBlockSize(containingBlock) {
+        const blockSize = this.style.getBlockSize(containingBlock);
+        if (blockSize !== 'auto')
+            return blockSize;
+    }
+    getMarginsAutoIsZero(containingBlock) {
+        let marginLineLeft = this.style.getMarginLineLeft(containingBlock);
+        let marginLineRight = this.style.getMarginLineRight(containingBlock);
+        let marginBlockStart = this.style.getMarginBlockStart(containingBlock);
+        let marginBlockEnd = this.style.getMarginBlockEnd(containingBlock);
+        if (marginBlockStart === 'auto')
+            marginBlockStart = 0;
+        if (marginLineRight === 'auto')
+            marginLineRight = 0;
+        if (marginBlockEnd === 'auto')
+            marginBlockEnd = 0;
+        if (marginLineLeft === 'auto')
+            marginLineLeft = 0;
+        return {
+            blockStart: marginBlockStart,
+            lineRight: marginLineRight,
+            blockEnd: marginBlockEnd,
+            lineLeft: marginLineLeft
+        };
+    }
+    canCollapseThrough(layout) {
+        return false;
+    }
+    isFloat() {
+        return this.style.float !== 'none';
+    }
+    isOutOfFlow() {
+        return this.style.float !== 'none'; // TODO: or position === 'absolute'
+    }
+    propagate(parent) {
+        super.propagate(parent);
+        if (this.isFloat()) {
+            parent.bitfield |= Box.BITS.hasFloatOrReplaced;
+        }
+    }
+    isInlineLevel() {
+        return this.style.display.outer === 'inline';
+    }
+}
+export class BoxArea {
+    parent;
+    box;
+    blockStart;
+    blockSize;
+    lineLeft;
+    inlineSize;
+    constructor(box, x, y, w, h) {
+        this.parent = null;
+        this.box = box;
+        this.blockStart = y || 0;
+        this.blockSize = h || 0;
+        this.lineLeft = x || 0;
+        this.inlineSize = w || 0;
+    }
+    clone() {
+        return new BoxArea(this.box, this.lineLeft, this.blockStart, this.inlineSize, this.blockSize);
+    }
+    getEstablishedWritingMode() {
+        return this.box.style.writingMode;
+    }
+    getEstablishedDirection() {
+        return this.box.style.direction;
+    }
+    get x() {
+        return this.lineLeft;
+    }
+    set x(x) {
+        this.lineLeft = x;
+    }
+    get y() {
+        return this.blockStart;
+    }
+    set y(y) {
+        this.blockStart = y;
+    }
+    get width() {
+        return this.inlineSize;
+    }
+    get height() {
+        return this.blockSize;
+    }
+    setParent(p) {
+        this.parent = p;
+    }
+    inlineSizeForPotentiallyOrthogonal(box) {
+        if (!this.parent)
+            return this.inlineSize; // root area
+        if (!this.box.isBlockContainer())
+            return this.inlineSize; // cannot be orthogonal
+        const cb1 = this.box.getContainingBlock();
+        const cb2 = box.getContainingBlock();
+        if ((this.box.getWritingModeAsParticipant(cb1) === 'horizontal-tb') !==
+            (box.getWritingModeAsParticipant(cb2) === 'horizontal-tb')) {
+            return this.blockSize;
+        }
+        else {
+            return this.inlineSize;
+        }
+    }
+    absolutify() {
+        let x, y, width, height;
+        if (!this.parent) {
+            throw new Error(`Cannot absolutify area for ${this.box.id()}, parent was never set`);
+        }
+        const writingMode = this.parent.getEstablishedWritingMode();
+        if (writingMode === 'vertical-lr') {
+            x = this.blockStart;
+            y = this.lineLeft;
+            width = this.blockSize;
+            height = this.inlineSize;
+        }
+        else if (writingMode === 'vertical-rl') {
+            x = this.parent.width - this.blockStart - this.blockSize;
+            y = this.lineLeft;
+            width = this.blockSize;
+            height = this.inlineSize;
+        }
+        else { // 'horizontal-tb'
+            x = this.lineLeft;
+            y = this.blockStart;
+            width = this.inlineSize;
+            height = this.blockSize;
+        }
+        this.lineLeft = this.parent.x + x;
+        this.blockStart = this.parent.y + y;
+        this.inlineSize = width;
+        this.blockSize = height;
+    }
+    snapPixels() {
+        let width, height;
+        if (!this.parent) {
+            throw new Error(`Cannot absolutify area for ${this.box.id()}, parent was never set`);
+        }
+        const writingMode = this.parent.getEstablishedWritingMode();
+        if (writingMode === 'vertical-lr') {
+            width = this.blockSize;
+            height = this.inlineSize;
+        }
+        else if (writingMode === 'vertical-rl') {
+            width = this.blockSize;
+            height = this.inlineSize;
+        }
+        else { // 'horizontal-tb'
+            width = this.inlineSize;
+            height = this.blockSize;
+        }
+        const x = this.lineLeft;
+        const y = this.blockStart;
+        this.lineLeft = Math.round(this.lineLeft);
+        this.blockStart = Math.round(this.blockStart);
+        this.inlineSize = Math.round(x + width) - this.lineLeft;
+        this.blockSize = Math.round(y + height) - this.blockStart;
+    }
+    repr(indent = 0) {
+        const { width: w, height: h, x, y } = this;
+        return '  '.repeat(indent) + `⚃ Area ${this.box.id()}: ${w}⨯${h} @${x},${y}`;
+    }
+}
+export function prelayout(layout, icb) {
+    const parents = [];
+    const ifcs = [];
+    const pstack = [icb];
+    const bstack = [icb];
+    const ctx = {
+        lastPositionedArea: icb,
+        lastBlockContainerArea: icb
+    };
+    for (let i = 0; i < layout.tree.length; i++) {
+        const item = layout.tree[i];
+        if (item.isBox()) {
+            const box = item;
+            if (box.isBlockContainerOfInlines())
+                ifcs.push(box);
+            ctx.lastPositionedArea = pstack.at(-1);
+            ctx.lastBlockContainerArea = bstack.at(-1);
+            box.prelayoutPreorder(ctx);
+            if (box.isBlockContainer()) {
+                bstack.push(box.getContentArea());
+                if (box.style.position !== 'static')
+                    pstack.push(box.getPaddingArea());
+            }
+            if (box.isBlockContainer() || box.isInline()) {
+                parents.push(box);
+            }
+            else {
+                item.propagate(parents.at(-1));
+                item.prelayoutPostorder(layout, ctx);
+            }
+        }
+        else if (item.isRun()) {
+            item.propagate(parents.at(-1), ifcs.at(-1).text);
+        }
+        else {
+            item.propagate(parents.at(-1));
+        }
+        while (parents.length && parents[parents.length - 1].treeFinal === i) {
+            const box = parents.pop();
+            if (box.isBlockContainerOfInlines())
+                ifcs.pop();
+            if (box.isBlockContainer()) {
+                bstack.pop();
+                if (box.style.position !== 'static')
+                    pstack.pop();
+            }
+            ctx.lastPositionedArea = pstack.at(-1);
+            ctx.lastBlockContainerArea = bstack.at(-1);
+            const parent = parents.at(-1);
+            if (parent)
+                box.propagate(parent);
+            box.prelayoutPostorder(layout, ctx);
+        }
+    }
+}
+export function postlayout(layout) {
+    const parents = [];
+    for (let i = 0; i < layout.tree.length; i++) {
+        const item = layout.tree[i];
+        item.postlayoutPreorder(layout);
+        if (item.isBlockContainer() || item.isInline()) {
+            parents.push(item);
+        }
+        else {
+            item.postlayoutPostorder();
+        }
+        while (parents.length && parents[parents.length - 1].treeFinal === i) {
+            const box = parents.pop();
+            box.postlayoutPostorder();
+        }
+    }
+}
+export function log(layout, logger, options) {
+    const parents = [];
+    const ifcs = [];
+    options ||= {};
+    logger ||= new Logger();
+    for (let i = 0; i < layout.tree.length; i++) {
+        const item = layout.tree[i];
+        logger.text(`${item.getLogSymbol()} `);
+        options.paragraphText = ifcs.length > 0 ? ifcs[ifcs.length - 1].text : undefined;
+        item.logName(logger, options);
+        if (options.containingBlocks && item.isBox()) {
+            logger.text(` (cb: ${item.getContainingBlock()?.box.id() ?? '(null)'})`);
+        }
+        if (options.css) {
+            const css = item.style[options.css];
+            logger.text(` (${options.css}: ${css && JSON.stringify(css)})`);
+        }
+        if (options.bits && item.isBox()) {
+            logger.text(` (bf: ${item.stringifyBitfield()})`);
+        }
+        logger.text('\n');
+        if (item.isBlockContainer() || item.isInline()) {
+            parents.push(item);
+            if (item.isBlockContainerOfInlines())
+                ifcs.push(item);
+            logger.pushIndent();
+        }
+        while (parents.length && parents[parents.length - 1].treeFinal === i) {
+            const box = parents.pop();
+            if (box.isBlockContainerOfInlines())
+                ifcs.pop();
+            logger.popIndent();
+        }
+    }
+    logger.flush();
+}
+export class Layout {
+    tree;
+    constructor(tree) {
+        this.tree = tree;
+    }
+    root() {
+        return this.tree[0];
+    }
+}

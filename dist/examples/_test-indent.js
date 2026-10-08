@@ -1,0 +1,10 @@
+import * as flow from 'dropflow';
+import parse from 'dropflow/parse.js';
+const p = (path) => new URL(`../assets/${path}`, import.meta.url);
+flow.fonts.add(flow.createFaceFromTablesSync(p('Cousine/Cousine-Regular.ttf')));
+const html = '<div style="font: 16px/1.4 Cousine; white-space: pre;"><div>// comment</div><div>  function foo() {</div><div>    return 1;</div><div>  }</div></div>';
+const root = parse(html);
+flow.loadSync(root);
+const layout = flow.layout(root);
+flow.reflow(layout, 800, 400);
+console.log(flow.paintToHtml(layout));

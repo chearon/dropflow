@@ -99,5 +99,10 @@ export default function parse(str: string): HTMLElement {
   parser.write(str);
   parser.end();
 
-  return rootElement || new HTMLElement('root', 'html');
+  if (!rootElement) {
+    rootElement = new HTMLElement('root', 'html');
+    computeElementStyle(rootElement);
+  }
+
+  return rootElement;
 }

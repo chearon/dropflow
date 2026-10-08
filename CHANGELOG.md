@@ -8,6 +8,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 (Unreleased)
 ==================
 ### Changed
+* The layout APIs have changed. See the migration section for more info.
 * Retained memory has been reduced greatly in pursuit of an extremely small memory footprint. There are a few properties left and a few more arrays to be merged, but dropflow is now very close to storing little more than needed to represent first principles. Objects that aren't needed to remember a layout are reconstructed on the fly, moving them from old generation to new generation memory which reduces GC churn. More on that here: https://chearon.net/blog/css-boxes-but-with-data-oriented-design/.
 * Removed `staticLayoutContribution` API
 * Text baseline coordinates are now rounded to match browsers and make underlines prettier
@@ -29,6 +30,46 @@ project adheres to [Semantic Versioning](http://semver.org/).
 * Tiny font files would not load correctly in Node 26
 * Fixed synchronous loading of images and font buffers in non-SharedArrayBuffer environments
 * Relatively positioned inline elements could infinite loop
+
+### Migration guide
+
+The new APIs are fully documented in the README, but here's an overview of the changes.
+
+#### The Big Flat Tree Refactor
+The ["Big Flat Tree" refactor](https://chearon.net/blog/css-boxes-but-with-data-oriented-design/) has resulted in `BlockContainer` no longer being returned from the layout API.
+
+* `flow.generate` is now `flow.layout`. The signature is `(el: HTMLElement) => Layout`.
+* `flow.layout` is now `flow.reflow`. The signature is `(layout: Layout, width: number, height: number) => void`.
+
+```diff
+ const el = flow.parse('hello');
+-const blockContainer = flow.generate(el);
+-flow.layout(blockContainer, 640, 480);
++const layout = flow.layout(el);
++flow.reflow(layout, 640, 480);
+```
+
+The word "layout" is a noun in English, so it refers to the new container of layout boxes and fragments. For now, the layout only has one property, `tree`, which is where the old `BlockContainer` is located. The layout class will eventually contain flat lists of fragments and glyph runs as well, reducing memory footprint even further. The act of calculating layout is now called "reflow", which was borrowed from Firefox.
+
+The `Layout` type can be imported from the API. You can use the `root` method to get the block container if you need to:
+
+```ts
+class Layout {
+  root(): BlockContainer;
+}
+```
+
+#### The Optimized BoxArea Refactor
+[Boxes have been optimized](https://chearon.net/blog/making-a-layout-engine-lighter/) to only allocate a single BoxArea if no border or padding has been specified. If you're accessing areas at all, the API has changed:
+
+```diff
+-const bwidth = box.borderArea.width;
+-const pwidth = box.paddingArea.width;
+-const cwidth = box.contentArea.width;
++const bwidth = box.getBorderArea().width;
++const pwidth = box.getPaddingArea().width;
++const cwidth = box.getContentArea().width;
+```
 
 0.6.1
 ==================

@@ -8,8 +8,27 @@ project adheres to [Semantic Versioning](http://semver.org/).
 (Unreleased)
 ==================
 ### Changed
+* Retained memory has been reduced greatly in pursuit of an extremely small memory footprint. There are a few properties left and a few more arrays to be merged, but dropflow is now very close to storing little more than needed to represent first principles. Objects that aren't needed to remember a layout are reconstructed on the fly, moving them from old generation to new generation memory which reduces GC churn. More on that here: https://chearon.net/blog/css-boxes-but-with-data-oriented-design/.
+* Removed `staticLayoutContribution` API
+* Text baseline coordinates are now rounded to match browsers and make underlines prettier
+
 ### Added
+* Support for `word-spacing`
+* Support for `text-align: justify`
+* Support for Node's `createObjectURL` APIs. Loading these URLs synchronously is not possible. The dropflow `createObjectURL` API can still be used for that.
+* Support for `currentColor`
+* Support for `text-decoration`
+
 ### Fixed
+* Several cases where glyph runs and inline backgrounds were not painted in logical order
+* Trim lines after bidi reordering, not before
+* Preserve zero-advance glyphs at the start or end of a paint boundary
+* Don't skip painting text following a positioned inline within a positioned inline
+* Text after a hard break could get painted on the previous line
+* Arabic medials weren't preserved when breaking lines
+* Tiny font files would not load correctly in Node 26
+* Fixed synchronous loading of images and font buffers in non-SharedArrayBuffer environments
+* Relatively positioned inline elements could infinite loop
 
 0.6.1
 ==================

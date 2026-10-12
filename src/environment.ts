@@ -31,8 +31,8 @@ export interface Environment {
    */
   registerFont(face: LoadedFontFace): (() => void) | void;
   /**
-   * Must return a promise of a buffer for the given URL. This used for fonts
-   * and will be used for images.
+   * Must return a promise of a buffer for the given URL. This is used for
+   * loading fonts and images.
    */
   resolveUrl(url: URL): Promise<BufferSource>;
   /**

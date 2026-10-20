@@ -20,7 +20,7 @@ const GIF87a = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x37, 0x61]);
 const GIF89a = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
 
 // BMP signature and header size
-const BMP_SIGNATURE = 0x4d42; // 'BM'
+const BMP_SIGNATURE = 0x424d; // 'BM'
 
 function compareArrays(a: Uint8Array, b: Uint8Array, length: number): boolean {
   for (let i = 0; i < length; i++) {

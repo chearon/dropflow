@@ -1,6 +1,5 @@
 import {environment} from './environment.ts';
 import {HTMLElement} from './dom.ts';
-import {objectStore} from './api.ts';
 import {toTypedArray} from './util.ts';
 
 import type {LoadWalkerContext} from './api.ts';
@@ -144,6 +143,7 @@ function parseImageDimensions(buffer: Uint8Array) {
 
 export class Image {
   src: string;
+  source: BufferSource | undefined;
   buffer: Uint8Array | undefined;
   width: number;
   height: number;
@@ -153,7 +153,8 @@ export class Image {
 
   constructor(src: string, source?: BufferSource) {
     this.src = src;
-    this.buffer = source ? toTypedArray(source) : undefined;
+    this.source = source;
+    this.buffer = undefined;
     this.width = 0;
     this.height = 0;
     this.status = 'unloaded';
@@ -166,14 +167,12 @@ export class Image {
     environment.destroyDecodedImage(this.decoded);
   }
 
-  #onBuffer(buffer: Uint8Array) {
+  #loadData(source: BufferSource) {
+    const buffer = toTypedArray(source);
     const {width, height} = parseImageDimensions(buffer);
     this.width = width;
     this.height = height;
-  }
-
-  onLoaded() {
-    this.status = 'loaded';
+    this.buffer = buffer;
   }
 
   onError(error: unknown) {
@@ -181,21 +180,19 @@ export class Image {
     this.reason = error;
   }
 
-  tryObjectUrl(url: URL) {
-    if (url.protocol === 'blob:' && url.pathname.startsWith('dropflowdata:')) {
-      return objectStore.get(url.href);
-    }
-  }
-
   async load() {
     if (this.status === 'unloaded') {
       try {
-        const url = new URL(this.src);
-        const source = this.tryObjectUrl(url) || await environment.resolveUrl(url);
-        this.buffer = toTypedArray(source);
-        this.#onBuffer(this.buffer);
-        this.onLoaded();
+        this.status = 'loading';
+        if (this.source) {
+          this.#loadData(this.source);
+        } else {
+          const url = new URL(this.src);
+          const source = await environment.resolveUrl(url);
+          this.#loadData(source);
+        }
         this.decoded = await environment.createDecodedImage(this);
+        this.status = 'loaded';
       } catch (e) {
         this.onError(e);
       }
@@ -205,11 +202,14 @@ export class Image {
   loadSync() {
     if (this.status === 'unloaded') {
       try {
-        const url = new URL(this.src);
-        const source = this.tryObjectUrl(url) || environment.resolveUrlSync(url);
-        this.buffer = toTypedArray(source);
-        this.#onBuffer(this.buffer);
-        this.onLoaded();
+        if (this.source) {
+          this.#loadData(this.source);
+        } else {
+          const url = new URL(this.src);
+          const source = environment.resolveUrlSync(url);
+          this.#loadData(source);
+        }
+        this.status = 'loaded';
       } catch (e) {
         this.onError(e);
       }
@@ -217,26 +217,34 @@ export class Image {
   }
 }
 
-const cache = new Map<string, Image>();
+class ImageSet {
+  #map = new Map<string, Image>();
 
-export function clearImageCache() {
-  for (const image of cache.values()) {
-    image._destroy();
-    cache.delete(image.src);
+  add(image: Image) {
+    this.delete(image.src);
+    this.#map.set(image.src, image);
+    return this;
+  }
+
+  delete(src: string) {
+    this.#map.get(src)?._destroy();
+    this.#map.delete(src);
+  }
+
+  get(src: string) {
+    return this.#map.get(src);
+  }
+
+  clear() {
+    for (const image of this.#map.values()) this.delete(image.src);
   }
 }
 
-export function getImage(src: string) {
-  return cache.get(src);
-}
-
-export function checkCache() {
-  if (cache.size > 1_000) clearImageCache();
-}
+export const images = new ImageSet();
 
 function ensureImage(src: string) {
-  let image = cache.get(src);
-  if (!image) cache.set(src, image = new Image(src));
+  let image = images.get(src);
+  if (!image) images.add(image = new Image(src));
   return image;
 }
 

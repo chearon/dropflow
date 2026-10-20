@@ -9,15 +9,12 @@ import CanvasPaintBackend from './paint-canvas.ts';
 
 import paint from './paint.ts';
 import {BoxArea, Layout, prelayout, postlayout} from './layout-box.ts';
-import {onLoadWalkerElementForImage} from './layout-image.ts';
-import {id, uuid} from './util.ts';
-
-import type {BufferSource} from "./util.ts";
+import {onLoadWalkerElementForImage, images, Image} from './layout-image.ts';
+import {id} from './util.ts';
 
 import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
 import type {Style} from './style.ts';
-import type {Image} from './layout-image.ts';
 import type {BlockContainer, InlineLevel} from './layout-flow.ts';
 
 export {log} from './layout-box.ts';
@@ -29,6 +26,8 @@ export type {Layout, BlockContainer, DeclaredStyle, HTMLElement};
 export {createDeclaredStyle as style, setOriginStyle} from './style.ts';
 
 export {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync};
+
+export {images, Image};
 
 export function layout(rootElement: HTMLElement): Layout {
   const tree: InlineLevel[] = [];
@@ -273,18 +272,6 @@ export function loadSync(root: HTMLElement): LoadableResource[] {
   });
 
   return resources;
-}
-
-export const objectStore = new Map<string, BufferSource>();
-
-export function createObjectURL(buffer: BufferSource): string {
-  let url = 'blob:dropflowdata:' + uuid();
-  objectStore.set(url, buffer);
-  return url;
-}
-
-export function revokeObjectURL(url: string): void {
-  objectStore.delete(url);
 }
 
 export {clearWordCache} from './layout-text.ts';

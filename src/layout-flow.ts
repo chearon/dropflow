@@ -11,7 +11,7 @@ import {
   sliceIfcRenderText,
   collapseWhitespace
 } from './layout-text.ts';
-import {getImage} from './layout-image.ts';
+import {images} from './layout-image.ts';
 import {Box, FormattingBox, TreeNode, Layout} from './layout-box.ts';
 
 import type {ShapedItem, InlineFragment} from './layout-text.ts';
@@ -1469,7 +1469,7 @@ export class ReplacedBox extends FormattingBox {
   }
 
   getImage() {
-    return this.src === '' ? undefined : getImage(this.src);
+    return this.src === '' ? undefined : images.get(this.src);
   }
 
   getIntrinsicIsize() {

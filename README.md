@@ -397,21 +397,47 @@ Renders the whole layout to the canvas, using its width and height as the viewpo
 ```ts
 type LoadableResource = FontFace | Image;
 
-class Image {
-  src: string;
-  reason: unknown;
-}
-
 function load(el: HTMLElement): Promise<LoadableResource[]>;
 ```
 
 Ensures that all of the fonts and images required by the document are loaded.
 
-For fonts, that means looking at the `style`'s `font-family` and other font properties as well as the text of the document in order to find suitable `FontFace`s from `flow.fonts`.
-
-For images, it means fetching the image data so it's ready for layout. In addition to calling `flow.environment.resolveUrl` for each image, this will call `flow.environment.createDecodedImage`.
-
 Because the whole fallback list for every unique set of font properties is appended to the returned loaded list, it may contain duplicate fonts. And since there is only one `Image` instance per unique URL, there may be duplicate images. Deduplication is left up to the caller since it impacts performance. The list is in document order.
+
+This function walks every node in the document.
+
+### Font loading details
+
+`font-family`, `font-weight`, and all of the other font properties are looked at on the style of HTML elements. Text nodes are used as well, to ensure Unicode coverage. The suitable `FontFace`s from `flow.fonts` are then loaded.
+
+### Image loading details
+
+Image `src`s in the document are matched to those in `flow.images` and loaded. While images have a similar registration and loading interface, they act differently from fonts:
+
+1. `flow.Image` instances are created during `flow.load` so that pre-registering `flow.Image` is optional (more on that below).
+2. In addition to calling `flow.environment.resolveUrl` for each image, `flow.load` will call `flow.environment.createDecodedImage`.
+3. Passing a buffer to `flow.Image` does not load it; you must still call `load` or `loadSync`.
+   This is because the canvas backend requires asynchronous decoding.
+
+Pre-registering and pre-loading `flow.Image` is useful when you don't have a document yet, but you know what images will be used. You can use the following API:
+
+```ts
+declare const images: ImageSet;
+
+class ImageSet {
+  get(src: string): Image | undefined;
+  add(image: Image): ImageSet;
+  delete(src: string): boolean;
+  clear(): void;
+}
+
+class Image {
+  constructor(src: string, source?: BufferSource);
+  load(): Promise<Image>;
+}
+```
+
+### Synchronous load
 
 ```ts
 function loadSync(el: HTMLElement): LoadableResource[];
@@ -419,20 +445,7 @@ function loadSync(el: HTMLElement): LoadableResource[];
 
 If your URLs are all file:/// URLs in Node, `loadSync` can be used to load dependencies.
 
-If the document contains images, painting to canvas will throw an error. The canvas backend requires decoding images asynchronously.
-
-### `createObjectURL` and `revokeObjectURL`
-
-```ts
-type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
-
-function createObjectURL(buffer: BufferSource): string;
-function revokeObjectURL(url: string): void;
-```
-
-These functions can be used to send image buffers to `<img src>`. You can also use Node's [object URL API](https://nodejs.org/api/url.html#urlcreateobjecturlblob), however, it is asynchronous by design, meaning you must use [`await flow.load()`](#load). Dropflow's object URL API can be combined with `flow.loadSync()`.
-
-Since there is no associated document (unlike the browser), memory is retained between `createObjectURL` and `revokeObjectURL`.
+If the document contains unloaded images, painting to canvas will throw an error. The canvas backend requires decoding images asynchronously.
 
 ## Create a layout
 

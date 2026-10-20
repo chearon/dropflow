@@ -870,7 +870,7 @@ class LineFragments {
     this.textStart = 0;
     this.textEnd = 0;
     this.treeStart = treeIndex;
-    this.treeFinal = treeIndex;
+    this.treeFinal = treeIndex - 1;
     this.itemStart = 0;
     this.itemEnd = 0;
     this.items = [];
@@ -879,6 +879,7 @@ class LineFragments {
   clear() {
     this.textStart = this.textEnd;
     this.treeStart = this.treeFinal;
+    this.treeFinal = this.treeFinal - 1;
     this.itemStart = this.itemEnd;
     this.items = [];
   }
@@ -889,9 +890,11 @@ class LineFragments {
       this.treeStart < this.treeFinal
     ) {
       return true;
-    } else {
+    } else if (this.treeStart <= this.treeFinal) {
       const box = layout.tree[this.treeStart];
       return box.isFormattingBox() && !box.isOutOfFlow();
+    } else {
+      return false;
     }
   }
 

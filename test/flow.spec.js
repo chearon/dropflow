@@ -2042,5 +2042,15 @@ describe('Flow', function () {
       expect(layout.tree[1].getContentArea().width).to.equal(369);
       URL.revokeObjectURL(url);
     });
+
+    it('can reflow image, space, end of IFC', function () {
+      // this tripped an assertion because the line defaulted to
+      // treeStart = treeFinal = imgIndex which was treated as hasContent = true
+      this.reflow(`<div style="width: 100px;"><img src="${adaUrl}"> `);
+      expect(this.get('img').getContentArea().x).to.equal(0);
+      expect(this.get('img').getContentArea().y).to.equal(0);
+      expect(this.get('img').getContentArea().width).to.equal(369);
+      expect(this.get('img').getContentArea().height).to.equal(376);
+    });
   });
 });

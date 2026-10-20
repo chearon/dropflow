@@ -206,7 +206,7 @@ The first step in a dropflow program is to register fonts to be selected by the 
 Buffers passed to the constructor cause the font to load synchronously, just like in the browser.
 
 ```ts
-const fonts: FontFaceSet;
+declare const fonts: FontFaceSet;
 
 class FontFaceSet {
   ready: Promise<FontFaceSet>;
@@ -295,7 +295,7 @@ This function partly exists to keep behavior that dropflow used to have, since i
 function createFaceFromTablesSync(source: URL | BufferSource): FontFace;
 ```
 
-If the `source` is a `BufferSource` or a file:// URL in Node/Bun, this can be used to load synchronously and get synchronous exceptions.
+If the `source` is a `BufferSource` or a file:// URL in Node, this can be used to load synchronously and get synchronous exceptions.
 
 ### Differences with the CSS Font Loading API
 
@@ -417,7 +417,7 @@ Because the whole fallback list for every unique set of font properties is appen
 function loadSync(el: HTMLElement): LoadableResource[];
 ```
 
-If your URLs are all file:/// URLs in Node/Bun, `loadSync` can be used to load dependencies.
+If your URLs are all file:/// URLs in Node, `loadSync` can be used to load dependencies.
 
 If the document contains images, painting to canvas will throw an error. The canvas backend requires decoding images asynchronously.
 
@@ -607,7 +607,7 @@ There are 6 hooks you can override, documented below. They have default implemen
 ```ts
 type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
 
-const environment: Environment;
+declare const environment: Environment;
 
 export interface Environment {
   /**

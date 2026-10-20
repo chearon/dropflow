@@ -5,11 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/) and this
 project adheres to [Semantic Versioning](http://semver.org/).
 
+**Since there is no stable API yet, the minor number indicates both API breakage
+and new features.** The patch number indicates minor additions or fixes.
+
 (Unreleased)
 ==================
 ### Changed
 ### Added
 ### Fixed
+
+0.8.0
+==================
+### Changed
+* Removed `flow.createObjectURL` and `flow.revokeObjectURL`. Use the new `flow.image` and `flow.Image` APIs instead.
+* You will now need to call `flow.images.clear` or `flow.images.delete` to clean up images.
+### Added
+* `flow.image` and `flow.Image` allow you to preload images.
+### Fixed
+* Fixed loading BMP images
+* Fixed crash when a paragraph consists only of an image narrower than the containing block
 
 0.7.0
 ==================

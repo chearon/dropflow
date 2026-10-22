@@ -12,7 +12,7 @@
     "codemirror": "^6.0.1",
     "mitata": "^1.0.34",
     "mocha": "^11.8.0",
-    "peggy": "^2.0.1",
+    "peggy": "^5.1.1",
     "punycode": "^2.1.1",
     "typescript": "^5.8.3",
     "vite": "^7.0.6"

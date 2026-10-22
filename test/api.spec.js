@@ -7,6 +7,7 @@ import {mock} from './util.js';
 import paint from '../src/paint.ts';
 import PaintSpy from './paint-spy.js';
 import fs from 'node:fs';
+import {parse as parseCss} from '../src/parse-css.js';
 
 const url = filename => new URL(import.meta.resolve(`#assets/${filename}`));
 
@@ -381,5 +382,74 @@ describe('Load API', function () {
     const [box] = doc.query('img').boxes;
     expect(box.getContentArea().width).to.equal(0);
     expect(box.getContentArea().height).to.equal(0);
+  });
+});
+
+// XXX: these are copy/pasted, keep them in sync!
+describe('Color parser', function () {
+  it('flow.color', function () {
+    // happy path:
+    expect(flow.color('#ff0 ')).to.deep.equal({r: 255, g: 255, b: 0, a: 1});
+    expect(flow.color(' #fff0 ')).to.deep.equal({r: 255, g: 255, b: 255, a: 0});
+    expect(flow.color(' #fff0 ')).to.deep.equal({r: 255, g: 255, b: 255, a: 0});
+    expect(flow.color(' rgba(  11.0, 22,33,1 )')).to.deep.equal({r: 11, g: 22, b: 33, a: 1});
+    expect(flow.color('rgba(11,22,33,1)')).to.deep.equal({r: 11, g: 22, b: 33, a: 1});
+    expect(flow.color('  rgb( 3,2 ,1 )')).to.deep.equal({r: 3, g: 2, b: 1, a: 1});
+    expect(flow.color('rgb(3,2,1)')).to.deep.equal({r: 3, g: 2, b: 1, a: 1});
+    expect(flow.color('rgb(3.0,2.0,.1)')).to.deep.equal({r: 3, g: 2, b: .1, a: 1});
+    expect(flow.color('rgb(10%, 100%, 10%)')).to.deep.equal({r: 25.5, g: 254.99999999999997, b: 25.5, a: 1});
+    expect(flow.color(' rgb( 10%,   100%,   10% ) ')).to.deep.equal({r: 25.5, g: 254.99999999999997, b: 25.5, a: 1});
+    expect(flow.color(' rgb( 10%,   100%,   .1 ) ')).to.deep.equal({r: 25.5, g: 254.99999999999997, b: 0.1, a: 1});
+    expect(flow.color('rgb(1000%, 0, 0)')).to.deep.equal({r: 255, g: 0, b: 0, a: 1});
+    expect(flow.color('red ')).to.deep.equal({r: 255, g: 0, b: 0, a: 1});
+    expect(flow.color(' BLUE ')).to.deep.equal({r: 0, g: 0, b: 255, a: 1});
+    expect(flow.color('rgb(1,1.1,1)')).to.deep.equal({r: 1, g: 1.1, b: 1, a: 1});
+
+    // non-standard but what dropflow does now:
+    expect(flow.color('rgb(256, 9999, 25)')).to.deep.equal({r: 255, g: 255, b: 25, a: 1});
+    expect(flow.color(' rgb(  10%, 10, 10 )')).to.deep.equal({r: 25.5, g: 10, b: 10, a: 1});
+
+    // bad syntax:
+    expect(flow.color(' #fff00 ')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+    expect(flow.color(' rgba(255,255,255) ')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+    expect(flow.color(' rgb(255,255,255, 1) ')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+    expect(flow.color('rgb (1,1,1)')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+    expect(flow.color('rgba (1,1,1,1)')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+    expect(flow.color('# 111')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+    expect(flow.color('rgb(1,1.,1)')).to.deep.equal({r: 0, g: 0, b: 0, a: 1});
+  });
+
+  it('flow.parse', function () {
+    // TODO: why don't spaces before ; parse?!
+    const pegcolor = s => parseCss(`color: ${s.trimEnd()};`).color;
+    // happy path:
+    expect(pegcolor('#ff0 ')).to.deep.equal({r: 255, g: 255, b: 0, a: 1});
+    expect(pegcolor(' #fff0 ')).to.deep.equal({r: 255, g: 255, b: 255, a: 0});
+    expect(pegcolor(' #fff0 ')).to.deep.equal({r: 255, g: 255, b: 255, a: 0});
+    expect(pegcolor(' rgba(  11.0, 22,33,1 )')).to.deep.equal({r: 11, g: 22, b: 33, a: 1});
+    expect(pegcolor('rgba(11,22,33,1)')).to.deep.equal({r: 11, g: 22, b: 33, a: 1});
+    expect(pegcolor('  rgb( 3,2 ,1 )')).to.deep.equal({r: 3, g: 2, b: 1, a: 1});
+    expect(pegcolor('rgb(3,2,1)')).to.deep.equal({r: 3, g: 2, b: 1, a: 1});
+    expect(pegcolor('rgb(3.0,2.0,.1)')).to.deep.equal({r: 3, g: 2, b: .1, a: 1});
+    expect(pegcolor('rgb(10%, 100%, 10%)')).to.deep.equal({r: 25.5, g: 254.99999999999997, b: 25.5, a: 1});
+    expect(pegcolor(' rgb( 10%,   100%,   10% ) ')).to.deep.equal({r: 25.5, g: 254.99999999999997, b: 25.5, a: 1});
+    expect(pegcolor(' rgb( 10%,   100%,   .1 ) ')).to.deep.equal({r: 25.5, g: 254.99999999999997, b: 0.1, a: 1});
+    expect(pegcolor('rgb(1000%, 0, 0)')).to.deep.equal({r: 255, g: 0, b: 0, a: 1});
+    expect(pegcolor('red ')).to.deep.equal({r: 255, g: 0, b: 0, a: 1});
+    expect(pegcolor(' BLUE ')).to.deep.equal({r: 0, g: 0, b: 255, a: 1});
+    expect(pegcolor('rgb(1,1.1,1)')).to.deep.equal({r: 1, g: 1.1, b: 1, a: 1});
+
+    // non-standard but what dropflow does now:
+    expect(pegcolor('rgb(256, 9999, 25)')).to.deep.equal({r: 255, g: 255, b: 25, a: 1});
+    expect(pegcolor(' rgb(  10%, 10, 10 )')).to.deep.equal({r: 25.5, g: 10, b: 10, a: 1});
+
+    // bad syntax:
+    expect(() => pegcolor(' #fff00 ')).to.throw();
+    expect(pegcolor(' rgba(255,255,255) ')).to.be.undefined;
+    expect(pegcolor(' rgb(255,255,255, 1) ')).to.be.undefined;
+    expect(() => pegcolor('rgb (1,1,1)')).to.throw();
+    expect(() => pegcolor('rgba (1,1,1,1)')).to.throw();
+    expect(() => pegcolor('# 111')).to.throw();
+    expect(() => pegcolor('rgb(1,1.,1)')).to.throw();
   });
 });

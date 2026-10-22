@@ -1,6 +1,6 @@
 import '#register-default-environment';
 import {HTMLElement, TextNode} from './dom.ts';
-import {DeclaredStyle, getOriginStyle, computeElementStyle} from './style.ts';
+import {DeclaredStyle, getOriginStyle, computeElementStyle, colorMap} from './style.ts';
 import {fonts, FontFace, createFaceFromTables, createFaceFromTablesSync, onLoadWalkerTextNodeForFonts, onLoadWalkerElementForFonts} from './text-font.ts';
 import {generateBlockContainer, layoutBlockLevelBox} from './layout-flow.ts';
 import HtmlPaintBackend from './paint-html.ts';
@@ -14,7 +14,7 @@ import {id} from './util.ts';
 
 import type {Canvas, CanvasRenderingContext2D} from './paint-canvas.ts';
 
-import type {Style} from './style.ts';
+import type {Style, ColorLiteral} from './style.ts';
 import type {BlockContainer, InlineLevel} from './layout-flow.ts';
 
 export {log} from './layout-box.ts';
@@ -272,6 +272,63 @@ export function loadSync(root: HTMLElement): LoadableResource[] {
   });
 
   return resources;
+}
+
+const rHexColor = /^\s*#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})\s*$/i;
+const rFloat = '(?:\\d+(?:\\.\\d+)?|\\.\\d+)';
+const rChannel = `\\s*(${rFloat}%?)\\s*`;
+const rRgbColor = new RegExp(`^.*rgb\\(${rChannel},${rChannel},${rChannel}\\).*$`, 'i');
+const rRgbaColor = new RegExp(`^.*rgba\\(${rChannel},${rChannel},${rChannel},${rChannel}\\).*$`, 'i');
+const rKeyword = /^\s*([a-z]+)\s*$/i;
+
+function clamp(min: number, x: number, max: number) {
+  return Math.max(min, Math.min(max, x));
+}
+
+// NOTE: keep in sync with parse-css.pegjs!
+// Reimplemented in JS because, while it is possible to split up pegjs files,
+// the output of parse-css-color.pegjs is almost two thousand lines.
+export function color(value: string): ColorLiteral {
+  const hex = rHexColor.exec(value);
+  const toNum = 255 / 100;
+
+  if (hex) {
+    const h = hex[1];
+    const s = h.length < 5 ? [...h].map(c => c + c).join("") : h;
+    const v = s.match(/../g)!.map(c => parseInt(c, 16));
+    return {r: v[0], g: v[1], b: v[2], a: v[3] === undefined ? 1 : v[3] / 255};
+  }
+
+  const rgb = rRgbColor.exec(value);
+
+  if (rgb) {
+    const [, rs, gs, bs] = rgb;
+    const r = clamp(0, (rs[rs.length - 1] === '%' ? toNum : 1) * parseFloat(rs), 255);
+    const g = clamp(0, (gs[gs.length - 1] === '%' ? toNum : 1) * parseFloat(gs), 255);
+    const b = clamp(0, (bs[bs.length - 1] === '%' ? toNum : 1) * parseFloat(bs), 255);
+    return {r, g, b, a: 1};
+  }
+
+  const rgba = rRgbaColor.exec(value);
+
+  if (rgba) {
+    const [, rs, gs, bs, as] = rgba;
+    const r = clamp(0, (rs[rs.length - 1] === '%' ? toNum : 1) * parseFloat(rs), 255);
+    const g = clamp(0, (gs[gs.length - 1] === '%' ? toNum : 1) * parseFloat(gs), 255);
+    const b = clamp(0, (bs[bs.length - 1] === '%' ? toNum : 1) * parseFloat(bs), 255);
+    const a = clamp(0, (as[as.length - 1] === '%' ? toNum : 1) * parseFloat(as), 1);
+    return {r, g, b, a};
+  }
+
+  const keyword = rKeyword.exec(value);
+
+  if (keyword) {
+    const match = colorMap.get(keyword[1].toLowerCase());
+    if (match) return match;
+  }
+
+  return {r: 0, g: 0, b: 0, a: 1};
+
 }
 
 export {clearWordCache} from './layout-text.ts';

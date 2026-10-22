@@ -10,7 +10,7 @@
 // TODO: most of the keywords are case-sensitive
 
 {{
-  import {initial, inherited} from './style.ts';
+  import {initial, inherited, colorMap} from './style.ts';
 
   function extractList(list, index) {
     return list.map(function(element) { return element[index]; });
@@ -66,28 +66,6 @@
 
     return obj;
   }
-
-  const colorMap = new Map([
-    ['maroon', {r: 128, g: 0, b: 0, a: 1}],
-    ['red', {r: 255, g: 0, b: 0, a: 1}],
-    ['orange', {r: 255, g: 165, b: 0, a: 1}],
-    ['yellow', {r: 255, g: 255, b: 0, a: 1}],
-    ['veronicayellow', {r: 255, g: 225, b: 50, a: 1}],
-    ['olive', {r: 128, g: 128, b: 0, a: 1}],
-    ['purple', {r: 128, g: 0, b: 128, a: 1}],
-    ['fuchsia', {r: 255, g: 0, b: 255, a: 1}],
-    ['white', {r: 255, g: 255, b: 255, a: 1}],
-    ['lime', {r: 0, g: 255, b: 0, a: 1}],
-    ['green', {r: 0, g: 128, b: 0, a: 1}],
-    ['navy', {r: 0, g: 0, b: 128, a: 1}],
-    ['blue', {r: 0, g: 0, b: 255, a: 1}],
-    ['aqua', {r: 0, g: 255, b: 255, a: 1}],
-    ['teal', {r: 0, g: 128, b: 128, a: 1}],
-    ['black', {r: 0, g: 0, b: 0, a: 1}],
-    ['silver', {r: 192, g: 192, b: 192, a: 1}],
-    ['gray', {r: 128, g: 128, b: 128, a: 1}],
-    ['transparent', {r: 255, g: 255, b: 255, a: 0}]
-  ]);
 
   let $font = {}, $fontNormals = 0, $decoLines = 0, $decoColors = 0, $decoStyles = 0;
 }}
@@ -218,6 +196,7 @@ rgba_a_term
     return Math.max(0, Math.min(1, parseFloat(text()) * multiplier));
   }
 
+// NOTE: keep in sync with flow.color in api.ts!
 color
   = comment* 'rgba('
     S* r:rgba_rgb_term S* ','

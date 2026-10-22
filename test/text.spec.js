@@ -2647,4 +2647,20 @@ describe('Text Decorations', function () {
       {t: 'edge', x: 244, y: 97.5, length: 112, side: 'bottom', strokeColor: '#000', lineWidth: 1}
     ]);
   });
+
+  it('creates the correct fragments with break-word causing lines to be built by character', function () {
+    this.reflow([
+      '<html style="word-break: break-word;">',
+        '<span style="text-decoration: underline;">statistic:</span>',
+        '<span style="text-decoration: underline;">42%</span>',
+      '</html>'
+    ].join(''));
+
+    expect(this.paint().getCalls()).to.deep.equal([
+      {t: 'edge', x: 0, y: 15.5, length: 160, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 0, y: 13, text: 'statistic:', fillColor: '#000'},
+      {t: 'edge', x: 160, y: 15.5, length: 48, side: 'bottom', strokeColor: '#000', lineWidth: 1},
+      {t: 'text', x: 160, y: 13, text: '42%', fillColor: '#000'}
+    ]);
+  });
 });

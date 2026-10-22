@@ -907,6 +907,7 @@ class LineFragments {
         last.itemIndex = item.itemIndex;
         last.inlineSpace += item.inlineSpace;
         last.endSpace = item.endSpace;
+        if (last.isUnknown()) last.treeIndex = item.treeIndex;
       } else {
         this.items.push(item);
       }

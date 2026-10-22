@@ -199,24 +199,23 @@ function
     }
 
 rgba_rgb_term
-  = component:[0-9]+ '%' {
-    return Math.max(0, Math.min(100, parseInt(component, 10))) * 1e-2 * 255
+  = [0-9]* '.' [0-9]+ pct:'%'? {
+    const multiplier = pct ? 255 / 100 : 1;
+    return Math.max(0, Math.min(255, parseFloat(text()) * multiplier));
   }
-  / component:('1'[0-9][0-9] / '2'[0-4][0-9] / '25'[0-5] / [0-9][0-9] / [0-9]) {
-    return parseInt(Array.isArray(component) ? component.join('') : component, 10);
+  / a:[0-9]+ pct:'%'? {
+    const multiplier = pct ? 255 / 100 : 1;
+    return Math.max(0, Math.min(255, parseFloat(text()) * multiplier));
   }
 
 rgba_a_term
-  = a:[0-9]+ '%' {
-    const component = a.join('');
-    return Math.max(0, Math.min(100, parseInt(component, 10))) * 1e-2
+  = [0-9]* '.' [0-9]+ pct:'%'? {
+    const multiplier = pct ? 255 / 100 : 1;
+    return Math.max(0, Math.min(1, parseFloat(text()) * multiplier));
   }
-  / a:[0-9]* b:'.' c:[0-9]+ {
-    const component = (a ? a.join('') : '') + b + c.join('');
-    return Math.max(0, Math.min(1, parseFloat(component)));
-  }
-  / a:[0-9]+ {
-    return Math.max(0, Math.min(1, parseInt(a.join(''), 10)))
+  / a:[0-9]+ pct:'%'? {
+    const multiplier = pct ? 255 / 100 : 1;
+    return Math.max(0, Math.min(1, parseFloat(text()) * multiplier));
   }
 
 color
@@ -260,9 +259,9 @@ color
     }
   }
   / 'currentColor'i { return text().toLowerCase(); }
-  / ('maroon' / 'red' / 'orange' / 'yellow' / 'veronicayellow' / 'olive' / 'purple' / 'fuchsia' / 'white' / 'lime' / 'green' / 'navy' / 'blue' / 'aqua' / 'teal' / 'black' / 'silver' / 'gray' / 'transparent')
+  / ('maroon'i / 'red'i / 'orange'i / 'yellow'i / 'veronicayellow'i / 'olive'i / 'purple'i / 'fuchsia'i / 'white'i / 'lime'i / 'green'i / 'navy'i / 'blue'i / 'aqua'i / 'teal'i / 'black'i / 'silver'i / 'gray'i / 'transparent'i)
   {
-    return colorMap.get(text())
+    return colorMap.get(text().toLowerCase())
   }
 
 default

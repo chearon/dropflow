@@ -798,6 +798,10 @@ export class ShapedItem {
     return this.offset + this.length;
   }
 
+  hasCharacter(ci: number) {
+    return ci >= this.offset && ci < this.end();
+  }
+
   hasCharacterInside(ci: number) {
     return ci > this.offset && ci < this.end();
   }
@@ -2895,11 +2899,7 @@ export function createIfcLineboxes(
       if (inlineSpace > 0) ifc.candidates.width.addInk(inlineSpace);
       ifc.candidates.inlinePre(inlineSpace);
       ifc.candidates.height.pushInline(mark.inlinePre);
-      if (
-        item &&
-        item.offset <= mark.inlinePre.textStart &&
-        item.end() > mark.inlinePre.textStart
-      ) {
+      if (item?.hasCharacter(mark.inlinePre.textStart)) {
         ifc.candidates.height.stampMetrics(getMetrics(mark.inlinePre.style, item.face));
       }
       ifc.parents.push(mark.inlinePre);

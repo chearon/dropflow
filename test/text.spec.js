@@ -1548,6 +1548,33 @@ describe('Lines', function () {
         </div>
       `);
     });
+
+    it('doesn\'t cause starting padding to be misplaced', function () {
+      this.reflow(`
+        <div style="font: 10px Ahem; overflow-wrap: anywhere; width: 55px;">
+          cigar<span style="padding-left: 10px;">time</span>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'cigar', fillColor: '#000'},
+        {t: 'text', x: 10, y: 18, text: 'time', fillColor: '#000'}
+      ]);
+    });
+
+    it('doesn\'t apply overflow-wrap after closing tag', function () {
+      this.reflow(`
+        <div style="font: 10px Ahem; width: 55px;">
+          <span style="overflow-wrap: anywhere;">dolly</span>
+          <span>parton</span>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'dolly', fillColor: '#000'},
+        {t: 'text', x: 0, y: 18, text: 'parton', fillColor: '#000'},
+      ]);
+    });
   });
 });
 

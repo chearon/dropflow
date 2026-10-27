@@ -2002,9 +2002,8 @@ function createMarkIterator(
   let itemMeasureState: MeasureState | undefined;
   let itemMark = 0;
   // Grapheme iterator
-  let graphemeBreakMark = 0;
-  // Other
-  const end = block.text.length;
+  let graphemeBreakMark = inlineRoot.hasText() ? 0 : block.text.length;
+  let graphemeIteratorIndex = block.treeStart + 2;
 
   const next = (): {done: true} | {done: false, value: IfcMark} => {
     const mark: IfcMark = {
@@ -2035,7 +2034,11 @@ function createMarkIterator(
     }
 
     // Consume the inline break spot if we're not on a break
-    if (inline.value?.state === 'breakspot' && inlineMark === mark.position && (breakMark === 0 || breakMark !== mark.position)) {
+    if (
+      inline.value?.state === 'breakspot' && inlineMark === mark.position &&
+      (breakMark === 0 || breakMark !== mark.position) &&
+      (graphemeBreakMark === 0 || graphemeBreakMark !== mark.position)
+    ) {
       inlineIteratorStateNext(inline);
     }
 
@@ -2071,9 +2074,6 @@ function createMarkIterator(
         if (inline.value.state === 'text') {
           lastRunIndex = inline.value.index;
           inlineMark += inline.value.item.length;
-          if (!inline.value.item.wrapsOverflowAnywhere(mode)) {
-            graphemeBreakMark = inlineMark;
-          }
           inlineIteratorStateNext(inline);
         } else if (inline.value.state === 'break') {
           mark.treeIndex = inline.value.index;
@@ -2117,16 +2117,25 @@ function createMarkIterator(
         }
       } else {
         linebreak = null;
-        breakMark = end;
+        breakMark = block.text.length;
       }
     }
 
-    if (graphemeBreakMark === mark.position) {
-      if (inlineRoot.hasText()) {
-        mark.isGraphemeBreak = true;
-        graphemeBreakMark = nextGraphemeBreak(block.text, graphemeBreakMark);
+    while (graphemeIteratorIndex <= block.treeFinal && graphemeBreakMark === mark.position) {
+      const child = layout.tree[graphemeIteratorIndex];
+      if (child.isRun()) {
+        if (child.wrapsOverflowAnywhere(mode)) {
+          mark.isGraphemeBreak = true;
+          graphemeBreakMark = nextGraphemeBreak(block.text, graphemeBreakMark);
+          if (graphemeBreakMark >= child.textEnd) graphemeIteratorIndex++;
+        } else {
+          graphemeBreakMark = child.textEnd;
+          graphemeIteratorIndex++;
+        }
+      } else if (child.isFormattingBox()) {
+        graphemeIteratorIndex = child.treeFinal + 1;
       } else {
-        graphemeBreakMark = end;
+        graphemeIteratorIndex++;
       }
     }
 

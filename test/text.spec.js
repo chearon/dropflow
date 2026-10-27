@@ -1449,6 +1449,18 @@ describe('Lines', function () {
       const block = this.get('div');
       expect(block.getContentArea().height).to.equal(60);
     });
+
+    it('doesn\'t count space width when breaking by grapheme', function () {
+      this.reflow(`
+        <div style="font: 10px Ahem; width: 0;">
+          <div style="white-space: pre-wrap; overflow-wrap: anywhere;">a b</div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'a ', fillColor: '#000'},
+        {t: 'text', x: 0, y: 18, text: 'b', fillColor: '#000'}
+      ]);
+    });
   });
 
   describe('Overflow-wrap', function () {

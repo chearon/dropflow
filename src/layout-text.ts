@@ -226,7 +226,7 @@ export function collapseWhitespace(tree: InlineLevel[], block: BlockContainerOfI
             inWhitespace = false;
           }
         }
-      } else { // pre
+      } else { // pre, pre-wrap
         inWhitespace = false;
         for (let i = originalStart; i < item.textEnd; i++) {
           str[index++] = block.text.charCodeAt(i);
@@ -1026,6 +1026,10 @@ class LineWidthTracker {
 
   hasContent() {
     return this.inkSeen || this.startWs - this.startWsC > 0;
+  }
+
+  hasInk() {
+    return this.inkSeen;
   }
 
   addHyphen(width: number) {
@@ -2995,8 +2999,8 @@ export function createIfcLineboxes(
       if (
         // The line has non-whitespace text or inline-blocks
         ifc.line.hasContent(layout) &&
-        // The word being added isn't just whitespace
-        ifc.candidates.width.hasContent() &&
+        // The word being added isn't just whitespace (collapsible or not)
+        ifc.candidates.width.hasInk() &&
         // The line would overflow if we added the word
         !ifc.vacancy.fits(ifc.width.forWord() + ifc.candidates.width.asWord())
       ) {

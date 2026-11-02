@@ -2588,80 +2588,78 @@ function collapseLeft(
   ifc: InlineFormattingContext,
   items: LineItem[],
 ) {
-  const state = {index: 0, itemIndex: -1, glyphIndex: 0};
+  let spaces = 0;
 
-  while (state.index < items.length) {
-    const item = items[state.index];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     const box = ifc.layout.tree[item.treeIndex];
-    let totalRemoved = 0;
 
-    if (box.isFormattingBox() && !box.isOutOfFlow()) {
-      return state;
-    } else if (
-      item.textStart < item.textEnd &&
-      state.itemIndex !== item.itemIndex
-    ) {
+    if (item.textStart === item.textEnd) {
+      if (box.isFormattingBox() && !box.isOutOfFlow()) break;
+    } else if (box.style.isWsCollapsible()) {
       const glyphs = ifc.block.items[item.itemIndex];
-      if (!glyphs.attrs.style.isWsCollapsible()) break;
-      const toPx = 1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize;
-      state.itemIndex = item.itemIndex;
-      state.glyphIndex = 0;
-      do {
-        if (isink(ifc.block.text[glyphs.glyphs[state.glyphIndex + G_CL]])) {
-          item.inlineSpace -= totalRemoved * toPx;
-          return state;
-        } else {
-          totalRemoved += glyphs.glyphs[state.glyphIndex + G_AX];
-          glyphs.glyphs[state.glyphIndex + G_AX] = 0;
-        }
-      } while ((state.glyphIndex += G_SZ) < glyphs.glyphs.length);
-      item.inlineSpace -= totalRemoved * toPx;
-    }
+      let totalRemoved = 0;
 
-    state.index++;
+      for (let glyphIndex = 0; glyphIndex < glyphs.glyphs.length; glyphIndex += G_SZ) {
+        const ci = glyphs.glyphs[glyphIndex + G_CL];
+        if (ci >= item.textStart && ci < item.textEnd) {
+          if (isWordSeparator(ifc.block.text[ci])) {
+            spaces += 1;
+            totalRemoved += glyphs.glyphs[glyphIndex + G_AX];
+            glyphs.glyphs[glyphIndex + G_AX] = 0;
+          } else {
+            i = items.length; // no more invocations of outer loop
+            break;
+          }
+        }
+      }
+      // NB: inlineSpace gets subtracted from floats that use * 1/px, so this gives nicer numbers
+      item.inlineSpace -= totalRemoved * (1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize);
+    } else {
+      break;
+    }
   }
 
-  return state;
+  return spaces;
 }
 
 function collapseRight(
   ifc: InlineFormattingContext,
   items: LineItem[],
 ) {
-  const state = {index: items.length - 1, itemIndex: -1, glyphIndex: 0};
+  let spaces = 0;
 
-  while (state.index >= 0) {
-    const item = items[state.index];
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
     const box = ifc.layout.tree[item.treeIndex];
-    let totalRemoved = 0;
 
-    if (box.isFormattingBox() && !box.isOutOfFlow()) {
-      return state;
-    } else if (
-      item.textStart < item.textEnd &&
-      state.itemIndex !== item.itemIndex
-    ) {
+    if (item.textStart === item.textEnd) {
+      if (box.isFormattingBox() && !box.isOutOfFlow()) break;
+    } else if (box.style.isWsCollapsible()) {
       const glyphs = ifc.block.items[item.itemIndex];
-      if (!glyphs.attrs.style.isWsCollapsible()) break;
-      const toPx = 1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize;
-      state.itemIndex = item.itemIndex;
-      state.glyphIndex = glyphs.glyphs.length - G_SZ;
-      do {
-        if (isink(ifc.block.text[glyphs.glyphs[state.glyphIndex + G_CL]])) {
-          item.inlineSpace -= totalRemoved * toPx;
-          return state;
-        } else {
-          totalRemoved += glyphs.glyphs[state.glyphIndex + G_AX];
-          glyphs.glyphs[state.glyphIndex + G_AX] = 0;
-        }
-      } while ((state.glyphIndex -= G_SZ) >= 0);
-      item.inlineSpace -= totalRemoved * toPx;
-    }
+      let totalRemoved = 0;
 
-    state.index--;
+      for (let glyphIndex = glyphs.glyphs.length - G_SZ; glyphIndex >= 0; glyphIndex -= G_SZ) {
+        const ci = glyphs.glyphs[glyphIndex + G_CL];
+        if (ci >= item.textStart && ci < item.textEnd) {
+          if (isWordSeparator(ifc.block.text[ci])) {
+            spaces += 1;
+            totalRemoved += glyphs.glyphs[glyphIndex + G_AX];
+            glyphs.glyphs[glyphIndex + G_AX] = 0;
+          } else {
+            i = -1; // no more invocations of outer loop
+            break;
+          }
+        }
+      }
+      // NB: inlineSpace gets subtracted from floats that use * 1/px, so this gives nicer numbers
+      item.inlineSpace -= totalRemoved * (1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize);
+    } else {
+      break;
+    }
   }
 
-  return state;
+  return spaces;
 }
 
 function transformLineboxWhitespace(
@@ -2669,48 +2667,42 @@ function transformLineboxWhitespace(
   line: Linebox,
   lastLine: boolean
 ) {
-  const left = collapseLeft(ifc, line.items);
-  const right = collapseRight(ifc, line.items);
+  let startSpaces = collapseLeft(ifc, line.items);
+  let n = -(startSpaces + collapseRight(ifc, line.items));
 
   if (ifc.block.style.textAlign === 'justify' && !lastLine) {
-    let lastItemIndex = -1;
-    let n = 0;
     // first pass: count spaces
-    for (let i = left.index; i <= right.index; i++) {
+    for (let i = 0; i < line.items.length; i++) {
       const item = line.items[i];
-      if (item.itemIndex === lastItemIndex) continue;
-      lastItemIndex = item.itemIndex;
-      if (item.textStart < item.textEnd) {
-        const glyphs = ifc.block.items[item.itemIndex];
-        const glyphsEnd = i === right.index ? right.glyphIndex : glyphs.glyphs.length;
-        let glyphIndex = i === left.index ? left.glyphIndex : 0;
-        while (glyphIndex < glyphsEnd) {
-          if (isWordSeparator(ifc.block.text[glyphs.glyphs[glyphIndex + G_CL]])) n++
-          glyphIndex += G_SZ;
-        }
+      const run = ifc.layout.tree[item.treeIndex];
+      if (!run.style.isWsCollapsible()) continue;
+      for (let ci = item.textStart; ci < item.textEnd; ci++) {
+        if (isWordSeparator(ifc.block.text[ci])) n++
       }
     }
     // 2nd pass: expand!
-    const extraPx = (ifc.vacancy.inlineSize - line.width) / n;
-    if (extraPx > 0) {
-      for (let i = left.index; i <= right.index; i++) {
+    if (n > 0) {
+      const extraPx = (ifc.vacancy.inlineSize - line.width) / n;
+      outer: for (let i = 0; i < line.items.length; i++) {
         const item = line.items[i];
-        if (item.textStart < item.textEnd) {
-          const glyphs = ifc.block.items[item.itemIndex];
-          const toPx = 1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize;
-          const extraUnits = extraPx * glyphs.face.hbface.upem / glyphs.attrs.style.fontSize;
-          const glyphsEnd = i === right.index ? right.glyphIndex : glyphs.glyphs.length;
-          let glyphIndex = i === left.index ? left.glyphIndex : 0;
-          while (glyphIndex < glyphsEnd) {
-            if (
-              isWordSeparator(ifc.block.text[glyphs.glyphs[glyphIndex + G_CL]]) &&
-              glyphs.glyphs[glyphIndex + G_CL] >= item.textStart &&
-              glyphs.glyphs[glyphIndex + G_CL] < item.textEnd
-            ) {
-              glyphs.glyphs[glyphIndex + G_AX] += extraUnits;
-              item.inlineSpace += extraUnits * toPx;
+        const run = ifc.layout.tree[item.treeIndex];
+        if (!run.style.isWsCollapsible()) continue;
+        const glyphs = ifc.block.items[item.itemIndex];
+        const toPx = 1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize;
+        const extraUnits = extraPx * glyphs.face.hbface.upem / glyphs.attrs.style.fontSize;
+        for (let glyphIndex = 0; glyphIndex < glyphs.glyphs.length; glyphIndex += G_SZ) {
+          const ci = glyphs.glyphs[glyphIndex + G_CL];
+          if (ci >= item.textStart && ci < item.textEnd) {
+            if (isWordSeparator(ifc.block.text[ci])) {
+              if (startSpaces === 0) {
+                glyphs.glyphs[glyphIndex + G_AX] += extraUnits;
+                item.inlineSpace += extraUnits * toPx;
+                n -= 1;
+                if (n === 0) break outer;
+              } else {
+                startSpaces -= 1;
+              }
             }
-            glyphIndex += G_SZ;
           }
         }
       }

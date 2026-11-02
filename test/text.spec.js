@@ -1269,6 +1269,37 @@ describe('Lines', function () {
       const block = this.get('#t');
       expect(block.items[0].x).to.equal(-40);
     });
+
+    it('justifies correctly when the color changes on a line', function () {
+      this.reflow(`
+        <div style="text-align: justify; font: 10px Ahem; width: 200px;">
+          it's super <span style="color: red;">rainy outside</span> right now
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 9, text: 'it', fillColor: '#000'},
+        {t: 'text', x: 20, y: 9, text: "'", fillColor: '#000'},
+        {t: 'text', x: 21.9091796875, y: 9, text: 's super ', fillColor: '#000'},
+        {t: 'text', x: 149.9891796875, y: 9, text: 'rainy', fillColor: '#f00'},
+        {t: 'text', x: 0, y: 19, text: 'outside', fillColor: '#f00'},
+        {t: 'text', x: 70, y: 19, text: ' right now', fillColor: '#000'}
+      ]);
+    });
+
+    it('does not count spaces in whitespace-preserved inlines', function () {
+      this.reflow(`
+        <div style="text-align: justify; font: 10px Ahem; width: 200px;">
+          Reach <span style="white-space: pre;">for the</span> Dead<br>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'Reach ', fillColor: '#000'},
+        {t: 'text', x: 70, y: 8, text: 'for the', fillColor: '#000'},
+        {t: 'text', x: 140, y: 8, text: ' Dead', fillColor: '#000'}
+      ]);
+    });
   });
 
   describe('Whitespace', function () {

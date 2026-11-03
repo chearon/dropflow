@@ -560,6 +560,19 @@ export class Style {
       || whiteSpace === 'pre-line';
   }
 
+  /**
+   * Like isWsCollapsible, except used during line wrapping. When the paragraph
+   * is justified, spaces with pre-wrap act like normal for all measurement and
+   * glyph advance purposes.
+   */
+  isWsCollapsible2(textAlign: TextAlign) {
+    const whiteSpace = this.whiteSpace;
+    return whiteSpace === 'normal'
+      || whiteSpace === 'nowrap'
+      || whiteSpace === 'pre-line'
+      || textAlign === 'justify' && whiteSpace === 'pre-wrap';
+  }
+
   hasPaddingArea() {
     return percentGtZero(this.paddingTop)
       || percentGtZero(this.paddingRight)

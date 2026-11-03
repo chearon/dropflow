@@ -2596,7 +2596,7 @@ function collapseLeft(
 
     if (item.textStart === item.textEnd) {
       if (box.isFormattingBox() && !box.isOutOfFlow()) break;
-    } else if (box.style.isWsCollapsible()) {
+    } else if (box.style.isWsCollapsible2(ifc.block.style.textAlign)) {
       const glyphs = ifc.block.items[item.itemIndex];
       let totalRemoved = 0;
 
@@ -2635,7 +2635,7 @@ function collapseRight(
 
     if (item.textStart === item.textEnd) {
       if (box.isFormattingBox() && !box.isOutOfFlow()) break;
-    } else if (box.style.isWsCollapsible()) {
+    } else if (box.style.isWsCollapsible2(ifc.block.style.textAlign)) {
       const glyphs = ifc.block.items[item.itemIndex];
       let totalRemoved = 0;
 
@@ -2675,7 +2675,7 @@ function transformLineboxWhitespace(
     for (let i = 0; i < line.items.length; i++) {
       const item = line.items[i];
       const run = ifc.layout.tree[item.treeIndex];
-      if (!run.style.isWsCollapsible()) continue;
+      if (!run.style.isWsCollapsible2('justify')) continue;
       for (let ci = item.textStart; ci < item.textEnd; ci++) {
         if (isWordSeparator(ifc.block.text[ci])) n++
       }
@@ -2686,7 +2686,7 @@ function transformLineboxWhitespace(
       outer: for (let i = 0; i < line.items.length; i++) {
         const item = line.items[i];
         const run = ifc.layout.tree[item.treeIndex];
-        if (!run.style.isWsCollapsible()) continue;
+        if (!run.style.isWsCollapsible2('justify')) continue;
         const glyphs = ifc.block.items[item.itemIndex];
         const toPx = 1 / glyphs.face.hbface.upem * glyphs.attrs.style.fontSize;
         const extraUnits = extraPx * glyphs.face.hbface.upem / glyphs.attrs.style.fontSize;
@@ -2910,7 +2910,7 @@ export function createIfcLineboxes(
       ifc.parents.push(mark.inlinePre);
     }
 
-    const wsCollapsible = parent.style.isWsCollapsible();
+    const wsCollapsible = parent.style.isWsCollapsible2(block.style.textAlign);
     const nowrap = isNowrap(parent.style.whiteSpace);
     const inkAdvance = mark.advance - mark.trailingWs;
     if (inkAdvance) ifc.candidates.width.addInk(inkAdvance);

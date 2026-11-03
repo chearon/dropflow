@@ -1300,6 +1300,51 @@ describe('Lines', function () {
         {t: 'text', x: 140, y: 8, text: ' Dead', fillColor: '#000'}
       ]);
     });
+
+    it('expands spaces when white-space is pre-wrap', function () {
+      this.reflow([
+        '<html style="white-space: pre-wrap; text-align: justify; font: 10px Ahem; width: 400px;">',
+          'Boards',
+          '   <span style="color: #afe;">~</span> ',
+          '<span style="color: #faf;">of</span>',
+          ' <span style="color: #afe;">~</span>   ',
+          'Canada',
+          '<br>',
+        '</html>'
+      ].join(''));
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'Boards   ', fillColor: '#000'},
+        {t: 'text', x: 150, y: 8, text: '~', fillColor: '#afe'},
+        {t: 'text', x: 160, y: 8, text: ' ', fillColor: '#000'},
+        {t: 'text', x: 190, y: 8, text: 'of', fillColor: '#faf'},
+        {t: 'text', x: 210, y: 8, text: ' ', fillColor: '#000'},
+        {t: 'text', x: 240, y: 8, text: '~', fillColor: '#afe'},
+        {t: 'text', x: 250, y: 8, text: '   Canada', fillColor: '#000'}
+      ]);
+    });
+
+    it('collapses spaces at the end of a line when justify + pre-wrap', function () {
+      this.reflow(`
+        <div style="text-align: justify; font: 10px Ahem; width: 100px;">
+          <span style="white-space: pre-wrap; color: #111;">They </span>
+          <span style="white-space: pre-wrap; color: #222;">can </span>
+          <span style="white-space: pre-wrap; color: #333">touch </span>
+          <span style="white-space: pre-wrap; color: #444;">the </span>
+          <span style="white-space: pre-wrap; color: #555;">sky </span>
+        </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'They ', fillColor: '#111'},
+        {t: 'text', x: 55, y: 8, text: ' ', fillColor: '#000'},
+        {t: 'text', x: 70, y: 8, text: 'can', fillColor: '#222'},
+        {t: 'text', x: 0, y: 18, text: 'touch ', fillColor: '#333'},
+        {t: 'text', x: 60, y: 18, text: ' ', fillColor: '#000'},
+        {t: 'text', x: 70, y: 18, text: 'the', fillColor: '#444'},
+        {t: 'text', x: 0, y: 28, text: 'sky', fillColor: '#555'}
+      ]);
+    });
   });
 
   describe('Whitespace', function () {

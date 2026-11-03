@@ -1,18 +1,22 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/) and this
-project adheres to [Semantic Versioning](http://semver.org/).
-
 **Since there is no stable API yet, the minor number indicates both API breakage
 and new features.** The patch number indicates minor additions or fixes.
 
-(Unreleased)
+0.8.1
 ==================
-### Changed
 ### Added
+* New `flow.color` API for turning CSS color strings (`#fff` etc) into color objects for the hyperscript API
 ### Fixed
+* Rewrote text justification code to be correct. Inlines that change whitespace handling weren't producing the correct results, and the rightmost word had space between it and the paragraph boundary depending on markup.
+* `white-space: pre-wrap` and `text-align: justify` now expand spaces the way all major browsers do (even though this is not in the standards)
+* `white-space: pre-wrap` and `text-align: right` now aligns the ink to the paragraph right edge
+* `overflow-wrap: anywhere` sometimes did not produce underlines when `text-decoration` was set, causing a crash
+* `overflow-wrap: anywhere` could sometimes break sequences of inline sides in the wrong place
+* `overflow-wrap: anywhere` and `white-space: pre-wrap` sometimes started a line with a space that should have gone on the previous line
+* Case-insensitive color parsing
+* Allow decimals in `rgb[a]` syntax
+* Allow out-of-range values in the `rgb[a]` syntax and clamp them, as browsers do
 
 0.8.0
 ==================

@@ -1070,6 +1070,14 @@ class LineWidthTracker {
     return this.startWs + this.ink + this.hyphen;
   }
 
+  asLine(whiteSpace: WhiteSpace) {
+    if (whiteSpace === 'pre-wrap') {
+      return this.startWs - this.startWsC + this.ink + this.hyphen;
+    } else {
+      return this.trimmed();
+    }
+  }
+
   trimmed() {
     return this.startWs - this.startWsC + this.ink + this.endWs - this.endWsC + this.hyphen;
   }
@@ -2827,7 +2835,7 @@ function finishLine(
   lastLine: boolean
 ) {
   const dir = ifc.block.style.direction;
-  const w = ifc.width.trimmed();
+  const w = ifc.width.asLine(ifc.block.style.whiteSpace);
   const {ascender, descender} = ifc.height.align();
   const textAlign = ifc.block.style.getTextAlign();
   const line = ifc.line;

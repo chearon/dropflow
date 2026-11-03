@@ -1345,6 +1345,20 @@ describe('Lines', function () {
         {t: 'text', x: 0, y: 28, text: 'sky', fillColor: '#555'}
       ]);
     });
+
+    it('excludes end-of-line whitespace when text-align is right + pre-wrap', function () {
+      this.reflow(`
+        <div style="
+          text-align: right; white-space: pre-wrap; font: 10px Ahem; width: 60px;
+        ">beyond the gates </div>
+      `);
+
+      expect(this.paint().getCalls()).to.deep.equal([
+        {t: 'text', x: 0, y: 8, text: 'beyond ', fillColor: '#000'},
+        {t: 'text', x: 30, y: 18, text: 'the ', fillColor: '#000'},
+        {t: 'text', x: 10, y: 28, text: 'gates ', fillColor: '#000'}
+      ]);
+    });
   });
 
   describe('Whitespace', function () {

@@ -101,10 +101,6 @@ export class Run extends TreeNode {
     return 'Ͳ';
   }
 
-  get wsCollapsible() {
-    return this.style.isWsCollapsible();
-  }
-
   wrapsOverflowAnywhere(mode: 'min-content' | 'max-content' | 'normal') {
     if (mode === 'min-content') {
       return this.style.overflowWrap === 'anywhere'

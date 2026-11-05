@@ -427,7 +427,7 @@ declare const images: ImageSet;
 class ImageSet {
   get(src: string): Image | undefined;
   add(image: Image): ImageSet;
-  delete(src: string): boolean;
+  delete(image: Image): boolean;
   clear(): void;
 }
 

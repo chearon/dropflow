@@ -150,6 +150,7 @@ export class Image {
   status: 'unloaded' | 'loading' | 'loaded' | 'error';
   reason: unknown;
   decoded: unknown;
+  _next: Image | null;
 
   constructor(src: string, source?: BufferSource) {
     this.src = src;
@@ -160,6 +161,7 @@ export class Image {
     this.status = 'unloaded';
     this.reason = undefined;
     this.decoded = null;
+    this._next = null;
   }
 
   /** @internal */
@@ -220,15 +222,39 @@ export class Image {
 class ImageSet {
   #map = new Map<string, Image>();
 
+  #find(head: Image, image: Image) {
+    let prev: Image | null = null;
+    let node: Image | null = head;
+    do {
+      if (node === image) return {found: true, prev};
+      prev = node;
+      node = node._next;
+    } while (node);
+    return {found: false, prev: null};
+  }
+
   add(image: Image) {
-    this.delete(image.src);
+    const head = this.#map.get(image.src);
+    if (head && this.#find(head, image).found) return this;
+    image._next = head ?? null;
     this.#map.set(image.src, image);
     return this;
   }
 
-  delete(src: string) {
-    this.#map.get(src)?._destroy();
-    this.#map.delete(src);
+  delete(image: Image) {
+    const head = this.#map.get(image.src);
+    if (!head) return false;
+    const search = this.#find(head, image);
+    if (!search.found) return false;
+    image._destroy();
+    if (search.prev) {
+      search.prev._next = image._next;
+    } else if (image._next) {
+      this.#map.set(image.src, image._next);
+    } else {
+      this.#map.delete(image.src);
+    }
+    return true;
   }
 
   get(src: string) {
@@ -236,7 +262,14 @@ class ImageSet {
   }
 
   clear() {
-    for (const image of this.#map.values()) this.delete(image.src);
+    for (const image of this.#map.values()) {
+      let node: Image | null = image;
+      do {
+        node._destroy();
+        node = node._next;
+      } while (node);
+    }
+    this.#map.clear();
   }
 }
 

@@ -369,14 +369,15 @@ describe('Load API', function () {
 
   it('deletes images', function () {
     const url = import.meta.resolve('#assets/images/frogmage.gif');
-    flow.images.add(new flow.Image(url));
+    const image = new flow.Image(url);
+    flow.images.add(image);
 
     const style = flow.style({display: {outer: 'block', inner: 'flow'}});
     const doc = flow.dom(flow.h('img', {style, attrs: {src: url}}));
     flow.loadSync(doc);
 
     flow.reflow(flow.layout(doc));
-    flow.images.delete(url);
+    flow.images.delete(image);
     flow.reflow(flow.layout(doc));
 
     const [box] = doc.query('img').boxes;

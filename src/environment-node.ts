@@ -61,6 +61,6 @@ if (environment.registerFont === defaultEnvironment.registerFont) {
 
 if (canvas && environment.createDecodedImage === defaultEnvironment.createDecodedImage) {
   environment.createDecodedImage = image => {
-    return canvas.loadImage(Buffer.from(image.buffer!));
+    return canvas.loadImage(Buffer.from(image.buffer!.buffer, image.buffer!.byteOffset, image.buffer!.length));
   };
 }

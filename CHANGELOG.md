@@ -1,7 +1,15 @@
 # Changelog
 
-**Since there is no stable API yet, the minor number indicates both API breakage
-and new features.** The patch number indicates minor additions or fixes.
+**Since there is no stable API yet, the only guarantee is that the minor number
+indicates significant features.** The patch number is used for bugfixes, but
+may also indicate API tweaks.
+
+0.8.2
+==================
+### Changed
+* `flow.images.delete` now takes a `flow.Image` instance. Duplicate images can be added, just like `flow.fonts`.
+### Fixed
+* Unnecessary image buffer copying in the node environment.
 
 0.8.1
 ==================
